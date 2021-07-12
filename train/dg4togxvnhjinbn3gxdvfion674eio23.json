@@ -1,0 +1,1028 @@
+{
+    "id": "dg4togxvnhjinbn3gxdvfion674eio23",
+    "title": "SiGMa: Simple Greedy Matching for Aligning Large Knowledge Bases",
+    "info": {
+        "author": [
+            "Simon Lacoste-Julien, INRIA - SIERRA project-team"
+        ],
+        "published": "Sept. 27, 2013",
+        "recorded": "August 2013",
+        "category": [
+            "Top->Computer Science->Data Mining",
+            "Top->Computer Science->Knowledge Extraction"
+        ]
+    },
+    "url": "http://videolectures.net/kdd2013_lacoste_julien_sigma/",
+    "segmentation": [
+        [
+            "OK, so I'm going to tell you about very simple algorithm which is able to align a large knowledge basis with million of entities.",
+            "So let's start with the motivation supposed."
+        ],
+        [
+            "I want to merge and information between two databases.",
+            "So you have IMDb or movie database, an Wikipedia, so there's this until G called YAGO for yet another general ontology which has been built from Wikipedia.",
+            "So it contains information from Wikipedia, so you want to merge those two source of information together, IE, you want to know that John Travolta in MDB is the same person as Jay.",
+            "Travel to in Wikipedia even though maybe they have different representation.",
+            "And why would you want to do that?",
+            "Well, those two source of information have overlapping information, but also have complementary information.",
+            "So you want to kind of augment you get an augmented database so this fits actually in the framework of."
+        ],
+        [
+            "The linking Open Data Project where you have 10s of online databases, which are where you want to try to link all of them together.",
+            "And of course you would like to optimize this process because there's a lot of things to link there and this is a challenging problem because also just have the sheer scale of of those databases.",
+            "So we have millions of entities in each of those days.",
+            "So."
+        ],
+        [
+            "I'm going to 1st formalize this this problem.",
+            "This knowledge base.",
+            "I'm in problem and then I will motivate or algorithm from an interesting quadratic assignment problem formulation and then will present the algorithm and some experiments.",
+            "So first, what do?"
+        ],
+        [
+            "Mean by a knowledge base.",
+            "So for us and knowledge base will just be a simple list of triples, so you will have triples of the form entity relationship entity like John Travolta acted in Grease, so this gives you information about the world.",
+            "Will call them facts and that's the only structure we assume.",
+            "So which is why we don't call them ontologies which normally would have more complex structure like a schema etc.",
+            "Here it's just a list of triples which you can just present represent as a text file to our algorithm.",
+            "An you could think of them as actually building a graph over entity, so each node will be an entity and then those relationships will be given a typed edge between those nodes, and so we actually will make use of this graph graph structure in our algorithm.",
+            "So now the knowledge base alignment problem will be given a pair of knowledge base, so bear of this list of triples like that we will want to find a one to one mapping between the equivalent entities.",
+            "OK, so we want to know John Travel time.",
+            "One database is the same as J travel time, the other one and we will say one to one because we'll assume that one entity is aligned to at most one other entity in the other database.",
+            "This is not always the case.",
+            "Sometimes one entity should be aligned to multiple ones.",
+            "But a in or in or motivating example YAGO MDB.",
+            "This was actually approximately correct and actually our algorithm will want to use this assumption to actually make it efficient and more accurate, OK?",
+            "Also in the in the terminology of ontology alignment, this is the problem of instance matching, so we're not matching schemas.",
+            "ANAN concepts, just the instances, which is which is becoming more popular in last few years.",
+            "Because of this open data initiative, so will make a few assumptions for the knowledge basis so that this makes sense.",
+            "So first of all, we assume there's no duplicate within each knowledge base, otherwise it doesn't make sense to this one to one alignment.",
+            "We will also suppose that we are given the matching between the relationship, so we won't be matching ourselves.",
+            "The relationships IE.",
+            "We will know that the relationship acted in IMDb is the same thing as the relationship acted in in a yago OK, and normally there's not too many of those, so it's easy to actually give it to the algorithm.",
+            "And finally, we will suppose that the each entity has some attributes, and so for example, the entity of a movie will have a title, maybe a creation date.",
+            "The name of an actor.",
+            "It could also have its birthdate etc.",
+            "So those.",
+            "Attributes can then be used to build a symmetry measure between pair of entities.",
+            "For example, a distance between the string representation of the entities.",
+            "Alright, so the input to our algorithm will be basically a pair of those knowledge bases as well as a matching between the relationships and then the output will be a ranked list of matched pair between those two.",
+            "Space and it will be ranked so that at the bottom of the list it starts to be things we're less sure so you can do a precision recall trade off if you want.",
+            "Alright, so there there are certain there already."
+        ],
+        [
+            "Ways to solve this problem?",
+            "So what are those?",
+            "So for example, in the until the alignment literature you have some algorithms which actually do not scale, typically to millions of entities, because those in this in this committee it was more like a few hundreds.",
+            "So you look at all pairs usually.",
+            "The database community.",
+            "This problem is also related to what is called as record linkage or in natural language processing.",
+            "It's also called entity resolution, and these problems actually have scalable solution.",
+            "In particular using indexing blocking techniques which avoid looking at all pairs of entities.",
+            "On the other hand, the typically do not exploit the one to one combinatorial structure present in our problem.",
+            "So by this I mean this competition between decisions as well as building on previous decisions.",
+            "And actually, our algorithm, which is actually a greedy algorithm, will try to exploit this one to one control structure efficiently."
+        ],
+        [
+            "So let's start with.",
+            "I'll start with just a motivating example to give you the intuition behind the algorithm.",
+            "OK, so this is actually real data from a data set, so the nodes are the entities and beside the nodes I have put the attributes for those entities.",
+            "For example this movie here as the title blood in Blood Out and it was created in 1993, and IMDb movie has the title bound by Hunter and it has the same production year.",
+            "And actually it turns out that those two movies have all the same.",
+            "Actors, directors, etc.",
+            "So it's the same movie but it has no the title or totally different.",
+            "So which is also why it makes this problem challenging.",
+            "But the main intuition behind the algorithm is, well, if I already have much, all those pair of people together in the two databases, and they're all related in the same way to those entity, well, perhaps those two entities should be matched together so that main idea, and so the neighbors in our in our in our relationship graph will be used in two different ways in the algorithm.",
+            "So the 1st way would be to actually score candidates, IE, in order to know whether I should match those two entities together, I will look at how many of my neighbors are correctly matched together, and that will be a contribution to my score.",
+            "And the other way will be actually also to suggest candidates which, so it's also called iterative blocking.",
+            "IE once I have matched pair of entity I will add as suggestions to consider all their neighbors together.",
+            "So I given that I matched those two people together.",
+            "Well, they're all acting in this in this movie.",
+            "So maybe those two movies should be matched together, so this will be added in our list of candidates.",
+            "OK."
+        ],
+        [
+            "So let's formalize this also with this quatic assignment idea.",
+            "And actually I come from the well, I have work on word alignment in natural language processing, and that's actually where I came up with this idea.",
+            "So there it's much smaller scale.",
+            "Those tonight was how to do it efficiently.",
+            "But basically we will formalize it by each pair of entity.",
+            "Inj will have indicated variable which is 01 indicating whether or not we're matching them together.",
+            "And then we'll try to maximize some kind of like fitness function, subject to some constraints.",
+            "So the constraint will be that basically we are not matching one entity to more than one entities in the other ones.",
+            "It's some kind of like matching constraints, so it's a combinatorial optimization problem.",
+            "So what's this objective?",
+            "Well, for each possible and pair of entities I will have some kind of score contribution, and there will be 2 contributions.",
+            "So first there will be the pairwise symmetry score.",
+            "So this is what you tip it usually have in those problems so.",
+            "You could think of any source of information you want to use to define a symmetry score between your pair of entities.",
+            "In our case, we use the string representation of them, and we use basically awaited jakarr distance or similarity measure on them.",
+            "So basically the number of words in common and it's normalized between zero and one.",
+            "But you can also use other source of information if you want like a string edit distance, as long as it's efficiently computable.",
+            "This will work in this algorithm, but now the.",
+            "Other interesting part is this graph compatibility scores.",
+            "So in the context of my current matched, I basically count the number of valid neighbors which are currently matched, IE.",
+            "If I want to know whether those two entities are matched together, I will look at the number of neighbors which are currently much together.",
+            "So that's basically this term here why KL is 1 if those neighbors are much together in my current match?",
+            "And this wait here is a normalizing weight which is just making sure that this sum here is between zero and one OK. And so this is basically what we, the objective, we're trying to optimize.",
+            "On the other hand, first of all there is 10 to the 12 variables an this is Austria NP complete to solve because it's aquatic assignment problem, so there's no way we can solve that exactly, and so the main idea behind Sigma is just greedy optimize this algorithm this objective.",
+            "So so then how does?"
+        ],
+        [
+            "Sing my work so Sigma stands for a simple greedy matching and so first it starts with a seed match.",
+            "So in our implementation we use unambiguous exact string matches.",
+            "So for each pair of entities which have exactly the same string representation and there is no other collision, i.e.",
+            "There's no other entity with the same string representation and will say this is a match and that's how we start, so it's very high precision, not the City High recall.",
+            "So we start with this seed and then we need to.",
+            "We don't want to look at all pairs.",
+            "There's 10 to 12 of them, so we will have this this S which is basically a priority queue of candidates to consider and will use this iterative blocking procedure.",
+            "So for all for each match we currently have.",
+            "So for each pair of entities that we said are matched, we look at their neighbors and we match them to add them as possible, connects to the neighbors for the other matched entity.",
+            "And so we have basically a quadratic number of additions for each pair, but it's quadratic in the in the degree of this of this node, so it's so it's not that big necessary, so we do that for each matches that we have currently given, and so that's how we give us a list of candidates to consider.",
+            "And so then at each iteration what we do is we basically just greedily pick the next pair, which maximally increases objectives.",
+            "That kind of like define score function for this pair an if the current pair you're considering as already one of the entity match to something else.",
+            "This doesn't satisfy the constraints, you just disregard it and pick the next one.",
+            "An that's it, you just do that at each step.",
+            "Then once you have much a new pair, you need to add their neighbors in the queue like all there.",
+            "All the neighbors of this entity will be added as kits for the neighbors of this entity when they are matched.",
+            "Note that because the variation of the score here only depends on neighbors, you can compute very efficiently the variation of the score once you have added in one match, because it's all local, so that's why it's going to be made quite efficiently.",
+            "And also this queue will be basically a binary heap, so we can search through it very efficiently.",
+            "So just repeat that ad nauseum and actually can stop when the variation of the objective is below some threshold's.",
+            "Kind of like some bit motivated from optimization idea.",
+            "You could also think as a precision recall tradeoff.",
+            "At some point you start to have junk, so you should stop.",
+            "But actually surprisingly, we were surprised that in our in our experiments threshold of 25 actually correlates pretty well when the F measure starts to drop.",
+            "So we actually have because those quantity are normalized and this is normalized, so it makes it compatible.",
+            "And it was true across different datasets, so it didn't need too much tuning.",
+            "But you can also, if you prefer higher precision or lower precision, you can just stop when you when you want.",
+            "So that's the algorithm and note some properties of it.",
+            "So first of all it has.",
+            "There is a kind of a fire propagation analogy, so you you start in your graph and your paragraphs with matching seed and then you suggest neighbor and then you start to mention neighbors and it just kind of propagate through the through the graph.",
+            "So if you want to have a rich relationship structure for this to make sense.",
+            "And note that you can also augment this candidate lists with other blocking techniques, and so in particular, in our case we use also an inverted index build on the string representation, i.e.",
+            "For a specific entity you look at all the entities in the other databases which have at least 2 words in common in their string representation, and you suggest them so there's not too many of those and it can be done efficiently.",
+            "But if you want to use more offensive blocking techniques, you can also use those, it will just improve the results hopefully.",
+            "Another so some link with related work.",
+            "So actually this algorithm is efficient.",
+            "Specialization of the basically the greedy agrement agglomerative clustering algorithm of batch area and get tour in 2007.",
+            "So this is basically exploiting the 121 constraint as well as a diss iterative blocking technique.",
+            "So their algorithm is fairly general here.",
+            "It's an efficient specialization to the knowledge base alignment problem.",
+            "And also recently there has been an algorithm called Linda which is fairly similar to this one and using the user MapReduce framework and they were able to run it on like billions of facts.",
+            "So that's also shows that this can be scaled.",
+            "They actually didn't have as high a Chrissy as we did because also they had different formulation.",
+            "But that's also gives, uh, gives evidence that this can be scaled to extremely to web scale data.",
+            "So let's look at some experiments.",
+            "So first for the law."
+        ],
+        [
+            "Much skill alignment of knowledge bases.",
+            "So we wanted to align yagoto MDB, so in this case there were four relationship which were matched in those two net knowledge base basically acted in compose directed and created.",
+            "I think an so then we can look in Jago and Wikipedia.",
+            "All the we can only keep the entities which are part of those relationship because the rest doesn't have anything to do with movies.",
+            "So we don't need to think about them and so with this we have about 1.5 million entities and IMDb we had three million entities.",
+            "And we also constructed some ground truth to invite algorithm, and this was done by scraping the Wikipedia pages for there was a template which said that there is IMDb page for this Wikipedia page and so this was.",
+            "This gives us some way to actually know what's the correspondence between Wikipedia and MDB, and with this we get about 50,000 ground truth there, so it's not covering everything, but it gives us something.",
+            "And so the algorithm the Sigma actually run in less than one hour.",
+            "We were a bit surprised how fast it was, and this is in Python single threaded Ann.",
+            "This is in contrast to another algorithm which was recently proposed, which was also run on similar datasets, and that's about a 50 speed up, but it still gets very high accuracy, so 98% precision, 93% recall that corresponds to 95% F measure, and this is to compare that to 57%.",
+            "Recall that you would get by just using exact string matching.",
+            "So going from 57 to 90, three was using this graph structure etc.",
+            "And of course this ground truth is biased because it was probably the easy links.",
+            "So if you randomly sample, if you look at a random sample of your predictions, I would say about above 90% are actually correct, so it's still fairly accurate.",
+            "And Interestingly, also in our experiments you don't need a good seed for this data set, even if you instead of starting with the exact string matching, if you just start with a random exact match and you just let the algorithm run, it also gives actually pretty high accuracy.",
+            "So we also run it on."
+        ],
+        [
+            "Standard until G Alignment Evolution initiative benchmarks and we also we in this case we've got state of the art results without tweaking parameters, IE.",
+            "We just use the exact same score function and threshold and everything from the previous experiment.",
+            "We don't change anything and it actually already give very good results, and so for example, on the Rex, a DLP data set that's for authors and citations.",
+            "We get basically 96% F measure in less than 10 minutes, and that was in contrast with the best previous published results, which was.",
+            "84% F measure in like 36 hours OK and you can look at the paper for other standard benchmarks."
+        ],
+        [
+            "Alright, so when should you use Sigma?",
+            "Actually I'll skip that in the interest of time, but you can ask me a question at the end if you're interested.",
+            "And so to come."
+        ],
+        [
+            "Good Sigma we we presented.",
+            "It's a lightweight, iterative, greedy algorithm which can efficiently align no spaces with millions of entities it can use tailored symmetry measures, so if you want to use string in the distance or other type of measures, you can also use them in the algorithm.",
+            "It doesn't depend on them, it provides natural tradeoff between precision and recall.",
+            "By giving this rank list.",
+            "In a greedy fashion, Anet exploit their readership graph to score the decisions as well as to propose candidates in this iterative, blocking technique.",
+            "And so this and despite its simplicity and greediness, it does actually surprising well for this data set, though, modulo why it works well if you ask me a question about it.",
+            "So from some future work we will consider well can we go beyond greediness?",
+            "Can we revisit decisions?",
+            "Can we correct our previous mistakes in an efficient manner so the efficient is the important aspect?",
+            "Can we handle non one to one alignment and this actually have no idea how to do that?",
+            "An interesting aspect is to hear the score functions were just fixed by us in a meaningful manner, but we could also learn the score functions basically using training data.",
+            "If we have a small training set by using the learning to rank framework from information retrieval.",
+            "So that would be an interesting way.",
+            "50 or so."
+        ],
+        [
+            "For listening and I'll take your questions."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so I'm going to tell you about very simple algorithm which is able to align a large knowledge basis with million of entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's start with the motivation supposed.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I want to merge and information between two databases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you have IMDb or movie database, an Wikipedia, so there's this until G called YAGO for yet another general ontology which has been built from Wikipedia.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it contains information from Wikipedia, so you want to merge those two source of information together, IE, you want to know that John Travolta in MDB is the same person as Jay.",
+                    "label": 0
+                },
+                {
+                    "sent": "Travel to in Wikipedia even though maybe they have different representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And why would you want to do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, those two source of information have overlapping information, but also have complementary information.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you want to kind of augment you get an augmented database so this fits actually in the framework of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The linking Open Data Project where you have 10s of online databases, which are where you want to try to link all of them together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course you would like to optimize this process because there's a lot of things to link there and this is a challenging problem because also just have the sheer scale of of those databases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have millions of entities in each of those days.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm going to 1st formalize this this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "This knowledge base.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm in problem and then I will motivate or algorithm from an interesting quadratic assignment problem formulation and then will present the algorithm and some experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first, what do?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Mean by a knowledge base.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for us and knowledge base will just be a simple list of triples, so you will have triples of the form entity relationship entity like John Travolta acted in Grease, so this gives you information about the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will call them facts and that's the only structure we assume.",
+                    "label": 0
+                },
+                {
+                    "sent": "So which is why we don't call them ontologies which normally would have more complex structure like a schema etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here it's just a list of triples which you can just present represent as a text file to our algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "An you could think of them as actually building a graph over entity, so each node will be an entity and then those relationships will be given a typed edge between those nodes, and so we actually will make use of this graph graph structure in our algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now the knowledge base alignment problem will be given a pair of knowledge base, so bear of this list of triples like that we will want to find a one to one mapping between the equivalent entities.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so we want to know John Travel time.",
+                    "label": 0
+                },
+                {
+                    "sent": "One database is the same as J travel time, the other one and we will say one to one because we'll assume that one entity is aligned to at most one other entity in the other database.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is not always the case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes one entity should be aligned to multiple ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "But a in or in or motivating example YAGO MDB.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was actually approximately correct and actually our algorithm will want to use this assumption to actually make it efficient and more accurate, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "Also in the in the terminology of ontology alignment, this is the problem of instance matching, so we're not matching schemas.",
+                    "label": 0
+                },
+                {
+                    "sent": "ANAN concepts, just the instances, which is which is becoming more popular in last few years.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because of this open data initiative, so will make a few assumptions for the knowledge basis so that this makes sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first of all, we assume there's no duplicate within each knowledge base, otherwise it doesn't make sense to this one to one alignment.",
+                    "label": 1
+                },
+                {
+                    "sent": "We will also suppose that we are given the matching between the relationship, so we won't be matching ourselves.",
+                    "label": 0
+                },
+                {
+                    "sent": "The relationships IE.",
+                    "label": 0
+                },
+                {
+                    "sent": "We will know that the relationship acted in IMDb is the same thing as the relationship acted in in a yago OK, and normally there's not too many of those, so it's easy to actually give it to the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, we will suppose that the each entity has some attributes, and so for example, the entity of a movie will have a title, maybe a creation date.",
+                    "label": 0
+                },
+                {
+                    "sent": "The name of an actor.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could also have its birthdate etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those.",
+                    "label": 1
+                },
+                {
+                    "sent": "Attributes can then be used to build a symmetry measure between pair of entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, a distance between the string representation of the entities.",
+                    "label": 1
+                },
+                {
+                    "sent": "Alright, so the input to our algorithm will be basically a pair of those knowledge bases as well as a matching between the relationships and then the output will be a ranked list of matched pair between those two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Space and it will be ranked so that at the bottom of the list it starts to be things we're less sure so you can do a precision recall trade off if you want.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so there there are certain there already.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Ways to solve this problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "So what are those?",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, in the until the alignment literature you have some algorithms which actually do not scale, typically to millions of entities, because those in this in this committee it was more like a few hundreds.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you look at all pairs usually.",
+                    "label": 0
+                },
+                {
+                    "sent": "The database community.",
+                    "label": 0
+                },
+                {
+                    "sent": "This problem is also related to what is called as record linkage or in natural language processing.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's also called entity resolution, and these problems actually have scalable solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular using indexing blocking techniques which avoid looking at all pairs of entities.",
+                    "label": 1
+                },
+                {
+                    "sent": "On the other hand, the typically do not exploit the one to one combinatorial structure present in our problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "So by this I mean this competition between decisions as well as building on previous decisions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And actually, our algorithm, which is actually a greedy algorithm, will try to exploit this one to one control structure efficiently.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's start with.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll start with just a motivating example to give you the intuition behind the algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so this is actually real data from a data set, so the nodes are the entities and beside the nodes I have put the attributes for those entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example this movie here as the title blood in Blood Out and it was created in 1993, and IMDb movie has the title bound by Hunter and it has the same production year.",
+                    "label": 0
+                },
+                {
+                    "sent": "And actually it turns out that those two movies have all the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actors, directors, etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's the same movie but it has no the title or totally different.",
+                    "label": 0
+                },
+                {
+                    "sent": "So which is also why it makes this problem challenging.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the main intuition behind the algorithm is, well, if I already have much, all those pair of people together in the two databases, and they're all related in the same way to those entity, well, perhaps those two entities should be matched together so that main idea, and so the neighbors in our in our in our relationship graph will be used in two different ways in the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the 1st way would be to actually score candidates, IE, in order to know whether I should match those two entities together, I will look at how many of my neighbors are correctly matched together, and that will be a contribution to my score.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the other way will be actually also to suggest candidates which, so it's also called iterative blocking.",
+                    "label": 1
+                },
+                {
+                    "sent": "IE once I have matched pair of entity I will add as suggestions to consider all their neighbors together.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I given that I matched those two people together.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, they're all acting in this in this movie.",
+                    "label": 0
+                },
+                {
+                    "sent": "So maybe those two movies should be matched together, so this will be added in our list of candidates.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's formalize this also with this quatic assignment idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "And actually I come from the well, I have work on word alignment in natural language processing, and that's actually where I came up with this idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there it's much smaller scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those tonight was how to do it efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "But basically we will formalize it by each pair of entity.",
+                    "label": 0
+                },
+                {
+                    "sent": "Inj will have indicated variable which is 01 indicating whether or not we're matching them together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we'll try to maximize some kind of like fitness function, subject to some constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the constraint will be that basically we are not matching one entity to more than one entities in the other ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's some kind of like matching constraints, so it's a combinatorial optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what's this objective?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, for each possible and pair of entities I will have some kind of score contribution, and there will be 2 contributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first there will be the pairwise symmetry score.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is what you tip it usually have in those problems so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could think of any source of information you want to use to define a symmetry score between your pair of entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "In our case, we use the string representation of them, and we use basically awaited jakarr distance or similarity measure on them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically the number of words in common and it's normalized between zero and one.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you can also use other source of information if you want like a string edit distance, as long as it's efficiently computable.",
+                    "label": 0
+                },
+                {
+                    "sent": "This will work in this algorithm, but now the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other interesting part is this graph compatibility scores.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the context of my current matched, I basically count the number of valid neighbors which are currently matched, IE.",
+                    "label": 1
+                },
+                {
+                    "sent": "If I want to know whether those two entities are matched together, I will look at the number of neighbors which are currently much together.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's basically this term here why KL is 1 if those neighbors are much together in my current match?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this wait here is a normalizing weight which is just making sure that this sum here is between zero and one OK. And so this is basically what we, the objective, we're trying to optimize.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, first of all there is 10 to the 12 variables an this is Austria NP complete to solve because it's aquatic assignment problem, so there's no way we can solve that exactly, and so the main idea behind Sigma is just greedy optimize this algorithm this objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so then how does?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Sing my work so Sigma stands for a simple greedy matching and so first it starts with a seed match.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in our implementation we use unambiguous exact string matches.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for each pair of entities which have exactly the same string representation and there is no other collision, i.e.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no other entity with the same string representation and will say this is a match and that's how we start, so it's very high precision, not the City High recall.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we start with this seed and then we need to.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't want to look at all pairs.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's 10 to 12 of them, so we will have this this S which is basically a priority queue of candidates to consider and will use this iterative blocking procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for all for each match we currently have.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for each pair of entities that we said are matched, we look at their neighbors and we match them to add them as possible, connects to the neighbors for the other matched entity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we have basically a quadratic number of additions for each pair, but it's quadratic in the in the degree of this of this node, so it's so it's not that big necessary, so we do that for each matches that we have currently given, and so that's how we give us a list of candidates to consider.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so then at each iteration what we do is we basically just greedily pick the next pair, which maximally increases objectives.",
+                    "label": 0
+                },
+                {
+                    "sent": "That kind of like define score function for this pair an if the current pair you're considering as already one of the entity match to something else.",
+                    "label": 0
+                },
+                {
+                    "sent": "This doesn't satisfy the constraints, you just disregard it and pick the next one.",
+                    "label": 0
+                },
+                {
+                    "sent": "An that's it, you just do that at each step.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then once you have much a new pair, you need to add their neighbors in the queue like all there.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the neighbors of this entity will be added as kits for the neighbors of this entity when they are matched.",
+                    "label": 0
+                },
+                {
+                    "sent": "Note that because the variation of the score here only depends on neighbors, you can compute very efficiently the variation of the score once you have added in one match, because it's all local, so that's why it's going to be made quite efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also this queue will be basically a binary heap, so we can search through it very efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just repeat that ad nauseum and actually can stop when the variation of the objective is below some threshold's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of like some bit motivated from optimization idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could also think as a precision recall tradeoff.",
+                    "label": 0
+                },
+                {
+                    "sent": "At some point you start to have junk, so you should stop.",
+                    "label": 0
+                },
+                {
+                    "sent": "But actually surprisingly, we were surprised that in our in our experiments threshold of 25 actually correlates pretty well when the F measure starts to drop.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we actually have because those quantity are normalized and this is normalized, so it makes it compatible.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it was true across different datasets, so it didn't need too much tuning.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you can also, if you prefer higher precision or lower precision, you can just stop when you when you want.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the algorithm and note some properties of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first of all it has.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a kind of a fire propagation analogy, so you you start in your graph and your paragraphs with matching seed and then you suggest neighbor and then you start to mention neighbors and it just kind of propagate through the through the graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you want to have a rich relationship structure for this to make sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "And note that you can also augment this candidate lists with other blocking techniques, and so in particular, in our case we use also an inverted index build on the string representation, i.e.",
+                    "label": 0
+                },
+                {
+                    "sent": "For a specific entity you look at all the entities in the other databases which have at least 2 words in common in their string representation, and you suggest them so there's not too many of those and it can be done efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you want to use more offensive blocking techniques, you can also use those, it will just improve the results hopefully.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another so some link with related work.",
+                    "label": 0
+                },
+                {
+                    "sent": "So actually this algorithm is efficient.",
+                    "label": 1
+                },
+                {
+                    "sent": "Specialization of the basically the greedy agrement agglomerative clustering algorithm of batch area and get tour in 2007.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is basically exploiting the 121 constraint as well as a diss iterative blocking technique.",
+                    "label": 0
+                },
+                {
+                    "sent": "So their algorithm is fairly general here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an efficient specialization to the knowledge base alignment problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also recently there has been an algorithm called Linda which is fairly similar to this one and using the user MapReduce framework and they were able to run it on like billions of facts.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's also shows that this can be scaled.",
+                    "label": 0
+                },
+                {
+                    "sent": "They actually didn't have as high a Chrissy as we did because also they had different formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that's also gives, uh, gives evidence that this can be scaled to extremely to web scale data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look at some experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first for the law.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Much skill alignment of knowledge bases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we wanted to align yagoto MDB, so in this case there were four relationship which were matched in those two net knowledge base basically acted in compose directed and created.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think an so then we can look in Jago and Wikipedia.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the we can only keep the entities which are part of those relationship because the rest doesn't have anything to do with movies.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we don't need to think about them and so with this we have about 1.5 million entities and IMDb we had three million entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we also constructed some ground truth to invite algorithm, and this was done by scraping the Wikipedia pages for there was a template which said that there is IMDb page for this Wikipedia page and so this was.",
+                    "label": 0
+                },
+                {
+                    "sent": "This gives us some way to actually know what's the correspondence between Wikipedia and MDB, and with this we get about 50,000 ground truth there, so it's not covering everything, but it gives us something.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so the algorithm the Sigma actually run in less than one hour.",
+                    "label": 1
+                },
+                {
+                    "sent": "We were a bit surprised how fast it was, and this is in Python single threaded Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is in contrast to another algorithm which was recently proposed, which was also run on similar datasets, and that's about a 50 speed up, but it still gets very high accuracy, so 98% precision, 93% recall that corresponds to 95% F measure, and this is to compare that to 57%.",
+                    "label": 0
+                },
+                {
+                    "sent": "Recall that you would get by just using exact string matching.",
+                    "label": 0
+                },
+                {
+                    "sent": "So going from 57 to 90, three was using this graph structure etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course this ground truth is biased because it was probably the easy links.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you randomly sample, if you look at a random sample of your predictions, I would say about above 90% are actually correct, so it's still fairly accurate.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Interestingly, also in our experiments you don't need a good seed for this data set, even if you instead of starting with the exact string matching, if you just start with a random exact match and you just let the algorithm run, it also gives actually pretty high accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we also run it on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Standard until G Alignment Evolution initiative benchmarks and we also we in this case we've got state of the art results without tweaking parameters, IE.",
+                    "label": 1
+                },
+                {
+                    "sent": "We just use the exact same score function and threshold and everything from the previous experiment.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't change anything and it actually already give very good results, and so for example, on the Rex, a DLP data set that's for authors and citations.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get basically 96% F measure in less than 10 minutes, and that was in contrast with the best previous published results, which was.",
+                    "label": 1
+                },
+                {
+                    "sent": "84% F measure in like 36 hours OK and you can look at the paper for other standard benchmarks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so when should you use Sigma?",
+                    "label": 1
+                },
+                {
+                    "sent": "Actually I'll skip that in the interest of time, but you can ask me a question at the end if you're interested.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so to come.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Good Sigma we we presented.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a lightweight, iterative, greedy algorithm which can efficiently align no spaces with millions of entities it can use tailored symmetry measures, so if you want to use string in the distance or other type of measures, you can also use them in the algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "It doesn't depend on them, it provides natural tradeoff between precision and recall.",
+                    "label": 1
+                },
+                {
+                    "sent": "By giving this rank list.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a greedy fashion, Anet exploit their readership graph to score the decisions as well as to propose candidates in this iterative, blocking technique.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this and despite its simplicity and greediness, it does actually surprising well for this data set, though, modulo why it works well if you ask me a question about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So from some future work we will consider well can we go beyond greediness?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can we revisit decisions?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can we correct our previous mistakes in an efficient manner so the efficient is the important aspect?",
+                    "label": 1
+                },
+                {
+                    "sent": "Can we handle non one to one alignment and this actually have no idea how to do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "An interesting aspect is to hear the score functions were just fixed by us in a meaningful manner, but we could also learn the score functions basically using training data.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have a small training set by using the learning to rank framework from information retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that would be an interesting way.",
+                    "label": 0
+                },
+                {
+                    "sent": "50 or so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "For listening and I'll take your questions.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

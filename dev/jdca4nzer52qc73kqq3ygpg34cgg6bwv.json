@@ -1,0 +1,1409 @@
+{
+    "id": "jdca4nzer52qc73kqq3ygpg34cgg6bwv",
+    "title": "Large Scale Online Bayesian Recommendations",
+    "info": {
+        "author": [
+            "David Stern, Microsoft Research, Cambridge, Microsoft Research",
+            "Ralf Herbrich, Amazon",
+            "Thore Graepel, Microsoft Research, Cambridge, Microsoft Research"
+        ],
+        "published": "May 20, 2009",
+        "recorded": "April 2009",
+        "category": [
+            "Top->Computer Science->Machine Learning->Bayesian Learning"
+        ]
+    },
+    "url": "http://videolectures.net/www09_stern_lsobr/",
+    "segmentation": [
+        [
+            "Is by David Stern from MSR Cambridge.",
+            "He's going to talk to us about recommendations and maybe explain why it's called Matchbox in the process.",
+            "OK, so yes, I'm going to talk about Matchbox, which is a large scale Bayesian recommendation system.",
+            "I don't think I can really explain why it's called Matchbox.",
+            "You'll have to.",
+            "Ask my boss.",
+            "He came up with that name."
+        ],
+        [
+            "Say an I'm gonna stop by giving a bit of motivation.",
+            "Why do we need yet another recommendation system model?",
+            "I'm going to talk about message passing on factor graphs, which is the framework we used to do efficient inference on this model.",
+            "I'm going to talk about the model itself.",
+            "Some alternative models you can attach to it to give to explain user feedback, and finally I'm going to talk about accuracy and speed of generating recommendations."
+        ],
+        [
+            "So I guess everyone here is familiar with this picture of the web.",
+            "There's a lot of stuff out there, but most of it we can't find.",
+            "We can't discover things unless it's actually recommended to us."
+        ],
+        [
+            "So my goal here is to generate personal recommendations of all different kinds of stuff to users, whether it be product services or web pages, and we want to be able to do it very flexibly based on different types of information.",
+            "So maybe we have explicit ratings of items by users so they like some items and they don't like other items.",
+            "Or maybe we have implicit information about user preferences from their clicks."
+        ],
+        [
+            "Now.",
+            "A traditional approach to generating personal recommendations is collaborative filtering that I assume most people here will be familiar with, but I'm gonna go through it anyway.",
+            "So imagine we have a set of items, one to six and a set of users 8 D and we know that for example, user A has rated item 21 star.",
+            "And several of the users have rated several of the items, but not all of the users have rated all of the items, and the goal is to predict for items which haven't yet been rated by user, whether or not they will like that item, because that means we can recommend items.",
+            "So in this case, for the one which I've marked as a question mark.",
+            "User D maybe would like item six.",
+            "We could guess because user D looks a little bit like user B and user B likes item 6.",
+            "Similarly, we could use the same sort of sort of intuition to think that used to D might like item 3.",
+            "But what do we do for items which haven't been rated by any users?",
+            "Or similarly, what we do with users which are new to the system, so this is called the cold start problem.",
+            "In collaborative filtering it's very familiar problem, and typically people would use a hybrid of techniques.",
+            "So hybrid of content based techniques with collaborative filtering techniques to deal with this problem.",
+            "So it is a model which integrates a metadata based model with a collaborative filtering model.",
+            "In order to solve this cold start problem."
+        ],
+        [
+            "So this project initially started.",
+            "Ashley, in response to a commercial needs in Microsoft.",
+            "And so we had a set of we had a set of requirements.",
+            "We needed a very flexible recommendation system for a particular service.",
+            "We wanted to be able to leverage metadata of users and items as I, as I've just mentioned, we needed a very flexible feedback model, so we needed to be able to take account of explicit ratings of users or click information.",
+            "And also we wanted to be able to train incrementally to potentially be able to generate recommendations in real time."
+        ],
+        [
+            "Say before I go into details of the model, I'm going to start with an explanation of the framework which we use to make all this stuff work, which is factor graphs."
+        ],
+        [
+            "So what is that?"
+        ],
+        [
+            "Gus a fact graph, is a bipartite graph which represents how a function factorizes."
+        ],
+        [
+            "Say it has two types of nodes as square nodes and it has circular nodes.",
+            "Square nodes are factors in a function and circular nodes are variables in the function and the edges of the graph show on which variables each factor depends, and we can use factor graphs to efficiently answer questions about complicated probabilistic models such such house water.",
+            "The marginals of the models are what is the value of the function if all but one of the variables is some doubt."
+        ],
+        [
+            "So it's very simple example, just base law so we have a model of some data, which I call the data.",
+            "Why here and that model depends on some parameters S, so the model is the probability of data given parameters P of Y given S and we also have some prior on the value of these parameters.",
+            "So the the the product of these two of these two probability distributions can be represented by this photograph with the prior on the top and the model PFY given S in the middle.",
+            "Now, the reason that photographs are useful is because they allow us to.",
+            "To take to use, to make use of the way that more complicated models might factorize.",
+            "So imagine that we we we believe that there's some generative process by which which might explain our data, which is more complicated, and in order to express that we want to introduce some other variables, some latent variables.",
+            "So, for example, we might introduce some T variables which depend on our parameters S according to some model PT given S and we have some other variable D which depends on our T variables and finally our data depends on the variable according to the distribution P of Y given D. But if we have some data we want to learn our parameters S we might not actually be interested in the values of these T&D variables.",
+            "So according to the rules of probability you have to do the calculation at the bottom.",
+            "You have to come out the variables you're not interested in, and this is potentially expensive.",
+            "And, however, because of the way the the function factorizes, we can simplify this computation and what we do is we break it down into subcomponents, the results of which are called messages.",
+            "So the the part of the equation on the left, which is highlighted corresponds to the arrows in the diagram on the right.",
+            "And you can break down the calculation as follows.",
+            "And at the end you calculate marginals you're interested in by multiplying the messages in.",
+            "Coming to that note.",
+            "No, I don't have.",
+            "I don't have time today too.",
+            "Give a thought tutorial of message passing on factor graphs like there's quite a bit more detail about the framework in the paper, but one more thing I want to mention, which will which is sort of necessary for completeness in this talk.",
+            "Is that we do approximately we do."
+        ],
+        [
+            "We make approximations to make this message passing efficient, So what we actually do is we represent all of these messages by Gaussian probability distributions.",
+            "And the way we do this is as follows.",
+            "So imagine you have some factor F and you have some variable T and typically that often for many of the factors the message the exact message from the factor to the variable would be non Gaussian.",
+            "So one example here is a step function that the red, the red function.",
+            "And if you multiply these two together, which would give you the marginal distribution of that variable, you get something which is non Gaussian.",
+            "You get a truncated Gaussian.",
+            "You can approximate that by a Gaussian, just with the way we do that is by minimizing some distance measure.",
+            "So it could be KL divergent for example.",
+            "And that gives you a way of approximating the message that would go from that factor to the variable, because we know that the product of the of the incoming and outgoing message would give the marginal.",
+            "So by dividing out the incoming message, we get an approximate outgoing message and that's expectation propagation.",
+            "In a nutshell, and it's also crossed it could also be a variational method as well, depending on the distance measure which you wish to use.",
+            "So again, it's much more detail about this kind of stuff in the."
+        ],
+        [
+            "Paper.",
+            "So now I'm going to talk about the actual model which we wish we wish we have here."
+        ],
+        [
+            "So remember, I said that we wanted to be able to take account of metadata of users and items.",
+            "Say example metadata we might have is demographics of a user.",
+            "We might know their gender and where they're from.",
+            "And we can associate each of these features with some variable.",
+            "So here I I call U-11 and U2 one and we define something which we call a user trait, which I call here S1.",
+            "And that's equal to the sum of these two of these two variables corresponding to these two features.",
+            "We can have as many features as we like and they can be potentially very sparse.",
+            "So one feature which we were commonly used would be an identity of the of that particular user, and that feature could take millions or even billions of possible values.",
+            "But for any user, only one of those values will actually be true.",
+            "So in a typical situation, will have many will have many billions of features.",
+            "You know IP address is another example, but only for a particular user.",
+            "Only very few will be actually true.",
+            "Now we replicate this linear model a number of times and this gives us a way of generating a set of traits for that user.",
+            "So S1 and S2.",
+            "So for example, I'm just going to have two traits per user, but you can have more.",
+            "And we can do the same kind of thing for items.",
+            "So possible features of an item is that it's an SLR and it's a camera, and those those features associated with trait contributions, the V variables and.",
+            "The we we sum those up she gets the T variables, which are the traits of the items.",
+            "So he gets a vector of traits for users and a vector of traits for items, and the model is simply that the value of this item for this particular user is given by the inner product of these two trait vectors.",
+            "If we put independent Gaussian priors on the values of these trade contribution variables that you in the V variables, then we can perform inference using approximate message passing to make predictions about whether a user would like a particular item and if we have data about whether a user likes this item, then we can update our parameters that you envy variables in light of this observation.",
+            "Also, by using message passing.",
+            "Now these the individual computations of these messages.",
+            "Or in the paper again, and also the precise schedule for for doing this computation like in.",
+            "I'm not going into detail here, but you actually have to iterate this this this message passing schedule a few times to get to get good results.",
+            "Say I'm just to make it a bit more formal.",
+            "I have a user description into in as a vector X which is a vector of features, but only very few of these features will actually be active for any particular user, and we project from that feature vector into this latent trait.",
+            "What we call the trade space by this matrix of trade contributions you and we do the same thing for items object into a trait space for items.",
+            "And then define.",
+            "There's sort of the potential of the value of this item for this user by the inner product between those two vectors.",
+            "So note that if we if we throw away the metadata, just have identities for users and items, then the X and the Y variables will just will be unit vectors and they will just select a single a single column out of the out of the U&V matrices, so that that'll it'll become the same as SVD in that case."
+        ],
+        [
+            "So this gives.",
+            "An example, just the same results.",
+            "Very simple experiment where we train.",
+            "System giving it just two trait dimensions on a small number of ratings that users have given some movies.",
+            "And this this shows the first trait dimension against the second trait dimension.",
+            "For some users and some items.",
+            "And the users are shown by the blue dots and the items are shown by red dots.",
+            "So the items of MBBS in this case.",
+            "And because we measure the value of an item for a user by the inner product that's proportional to the cosine of the angle between those between those vectors.",
+            "So you can imagine that the user in the bottom left is is quite likely to like film like Pearl Harbor, but is unlikely to like a film like The Big Lebowski.",
+            "And the model has tended to polarise the films in these two directions where you have comedy type of films in the top right and action films in the bottom left.",
+            "This if you give it more training data and more trait dimensions, it tends to spread things out more in trade space."
+        ],
+        [
+            "So now just a little bit more about the training procedure.",
+            "Remember it?",
+            "Another one of the another.",
+            "One of the things which we wanted was incremental training.",
+            "And if you just if you look at the complete matrix of ratings that users have given items, then you can see that it's a loopy graph.",
+            "If you if you convert this to it to the factor graph each for each rating, and you imagine passing messages around this graph, you're going to have to iterate and to until convergence to get the best results.",
+            "But what we do is we just we just ignore that fact.",
+            "We just take each rating as it comes, used the message passing as in this two slides ago, in order to calculate posterior distributions for EU and the V variables for that user in that item, right?",
+            "Those posteriors back to our storage mechanism and then then use them as the priors for the next data point that comes along.",
+            "That's called assume density filtering or ADF.",
+            "So we just take the ratings as they come and in each case we use yesterday's posteriors.",
+            "Today's prior in order to in order to use our model."
+        ],
+        [
+            "Another desired property of this system was that we could use different types of feedback models depending on depending on the setting.",
+            "So one advantage of the message passing setup is that you can easily plug different types of models in at the output."
+        ],
+        [
+            "So remember, I defined that the value of the user of the if this item to this user by this variable R, which is which I wish I was up to this point.",
+            "I've talked about as being a rating, but it actually could just be a latent variable and can be related to the rating in some way.",
+            "So the simplest thing is that R is just a noisy observation of the actual rating that the user has has given this item.",
+            "But we could also say, let's say we have we observed clicks instead of ratings.",
+            "Then we could say that OK, the sign of a noisy observation of this of this value is actually what we observe.",
+            "That's a probit model and that means we can model the probability of click on a particular item based on what the user is done before."
+        ],
+        [
+            "Alternatively, let's say we go back to the rating scale, but.",
+            "In practice, use different users interpret will will interpret a rating scale like this differently.",
+            "Some users will tend to give lots of high ratings.",
+            "Some users will tend to give lots of low ratings.",
+            "Some users will only ever rate things.",
+            "Three or four stars.",
+            "So what we do that this is the way we handle that type of thing is we define a set of user specific threshold, so each user has a set of thresholds T0 to T to T3.",
+            "And we again we, we we add some Gaussian noise to this to this latent rating, or to get a rating.",
+            "Q And then that's that's that's the sort of value of the item for the user on the real line, and we divide up that real line using these thresholds.",
+            "And depending on the rating we observe, we observe that the this this value is somewhere between these thresholds.",
+            "So if you get 3 out of five stars.",
+            "It's higher than threshold Zero and one, but the value is lower than threshold two and three.",
+            "And when you when you learn, when you when you, when you observe and you rating, you'll not just update the trade contributions EU and the V variables, but she also will update these traits for the user."
+        ],
+        [
+            "So now I'm going to talk a little bit about."
+        ],
+        [
+            "Accuracy Unfortunately we haven't found a great data set to test this on because we really need some.",
+            "We really need a setting where.",
+            "Where where we can where we have lots of metadata for users and items and where I'm speed is really is really important because that's the the real the real design specification of this.",
+            "But we.",
+            "But what we did use was these two datasets of movie ratings.",
+            "We have movie lens data.",
+            "The reason we use that is 'cause it includes metadata for movies and and users.",
+            "And we the Netflix data just because everyone seems to be using the Netflix data and it's a big data set, so at least it means we can check the system is fast enough."
+        ],
+        [
+            "So maybe Lens includes a set of features of users and movies.",
+            "Things like the job and the age of the user and the genre of the movie, and it also includes an ID for the for the user and an ID for the movie.",
+            "So in fact there's approximately 6000 user features and 4000 movie features.",
+            "If you include the ID."
+        ],
+        [
+            "And we can train on that data in about 5 five minutes and we get better results than other than other systems.",
+            "I've other other published results.",
+            "I've managed to find and we get a small amount of improvement by using the metadata features.",
+            "This this shows the mean absolute error on the Y axis and K, which is along the bottom is the number of trait dimensions we.",
+            "Give the model so the more trait dimensions, the more difference it seems to make to include these these features."
+        ],
+        [
+            "And on Netflix so Netflix is 100 million ratings and we use this as a test of the system.",
+            "It rain on Netflix in about 2 hours so and remember, we training incrementally, so if it can incorporate ratings at a rate of about 14,000 II, so that seems to be enough.",
+            "So suit our production situation.",
+            "And we get everything squared error on Netflix, which is significantly better than the system which Netflix uses, which is cinematch, which gets 0.95.",
+            "But we're not.",
+            "We're not at the top of the of the Netflix leaderboard by any by any stretch of the imagination, but that was never our goal."
+        ],
+        [
+            "Fight finally, I'm going to talk about speed of recommendations."
+        ],
+        [
+            "So one.",
+            "One problem of this this type of approach to collaborative filtering potentially is that when you actually want to generate recommendations, you have to consider all of the items in your catalog.",
+            "So let's say your goal is to find the N items with the highest predicted rating in your catalog.",
+            "That's the typical recommendation task challenge.",
+            "If you have a catalog admitted, millions of items that potentially takes a long time.",
+            "So I've looked recently at two approaches to make that faster.",
+            "Basically ways of indexing the catalog based on what the model has learned based on the way that the items are laid out in the trade space.",
+            "Using locality sensitive hashing techniques and KD trees.",
+            "And I'm not going to talk about these much today, except to say we haven't been able to find a locality sensitive hash, which works well for the inner product.",
+            "Distance between between vectors.",
+            "So the approach we've got."
+        ],
+        [
+            "Is so far as a KD tree approach.",
+            "It's approximate because we.",
+            "So we build a KD tree to index into this latent trait space.",
+            "We do a best first search of that tree in order to find the item vector which is closest to the user vector for which we want to generate recommendations.",
+            "But we limit the number with the amount of this tree that we search, and using the experimental code.",
+            "And the Matchbox model with Katie Treat index.",
+            "The trade space.",
+            "We can generate recommendations at a rate of 100 nanoseconds per items.",
+            "So for for a sort of target time of generating recommendations in 1/4 of a second, we can do a catalog of say 2 1/2 million.",
+            "So maybe we're not quite fast enough yet, but we believe that we can.",
+            "We can get there."
+        ],
+        [
+            "Say."
+        ],
+        [
+            "In conclusion, presented to a Bayesian model which can integrate collaborative filtering with content information, I think that's probably the the the strongest takeaway can be trained.",
+            "Fasting can be trained fast and incrementally.",
+            "One thing is that it compares users and items in the same space.",
+            "This trait space and that's often interesting to interpret.",
+            "So you can you can train it on on a set of ratings that users have given items.",
+            "For example the Netflix data.",
+            "But then you can look at the trade space and find similar items and similar movies and that type of thing.",
+            "The feedback model is is flexible and.",
+            "Finally, in conclusion, I advocate this.",
+            "This approximate Bayesian probabilistic approach using message passing, 'cause it gives it gives a lot of agility when you're when you're experimenting with different types of models, and it gives this compositionality you can combine in a different types of output models, different types of input models, that type of thing.",
+            "That's it.",
+            "Questions.",
+            "So for the Netflix data, there have been many other fitting methods that have been tried like Gibbs sampling.",
+            "And yeah, you know gradient descent and it looks to me based on the results you showed.",
+            "The Gibbs sampler seemed to do a better job.",
+            "That's correct, yeah.",
+            "So do you have a sense of how much you lose by doing the approximation?",
+            "See so if we do, if we if we look at the Netflix data, there's no metadata is just the ideas for the users and items and and the the actual approximation we're making in the core of the model is a variational approximation, so it's it's pretty much it would.",
+            "It would be equivalent to previous work and we basically replicate replicate identical results to them.",
+            "Using variational effuse gives you can get down, I think to sort of 0.88 or something like that on on on Netflix, which is, which is quite a bit better, but it's it's much much slower.",
+            "Service commits, you know, completely hopeless in in practice.",
+            "If you want to be able to train incrementally, we want to be able to incorporate metadata.",
+            "We want to be able to do all of the all of these things that we want to be able to do.",
+            "Then there's no point in in in in trying that.",
+            "Alright, so I was just wondering, you could do Gibbs sampling to learn the offline model.",
+            "That you could do because you have a lot of time to do that and then do the incremental approach as you get data online.",
+            "OK so I say and yeah, I guess that depends on your setting.",
+            "If you have some some historical data set which you want to use the bootstrap, then yes you could do something like that, and in fact I mean what we what we, what we've what we've considered doing in processes in practice is not necessarily Gibbs sampling, but to do some back forward.",
+            "Backwards passes of EP on historical data to see the precede the model and then use that incremental learning on new data, which seems to work well and improve the improve the results.",
+            "So did you try that on Netflix and so?",
+            "If you do the forward backward on Netflix, does it improve the result?",
+            "Does does it take you 2.88 which you get away with using using the variational approximation?",
+            "You can't.",
+            "Even if you did forward backward on Netflix, you can't get that much how much you can get a bit better.",
+            "I think we got down to zero point 0.9 but but not not.",
+            "Still that still, you know, relatively low down the.",
+            "The state of the art Netflix people.",
+            "OK, let's thank all the speakers in the session."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Is by David Stern from MSR Cambridge.",
+                    "label": 1
+                },
+                {
+                    "sent": "He's going to talk to us about recommendations and maybe explain why it's called Matchbox in the process.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so yes, I'm going to talk about Matchbox, which is a large scale Bayesian recommendation system.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think I can really explain why it's called Matchbox.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ask my boss.",
+                    "label": 0
+                },
+                {
+                    "sent": "He came up with that name.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Say an I'm gonna stop by giving a bit of motivation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why do we need yet another recommendation system model?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to talk about message passing on factor graphs, which is the framework we used to do efficient inference on this model.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'm going to talk about the model itself.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some alternative models you can attach to it to give to explain user feedback, and finally I'm going to talk about accuracy and speed of generating recommendations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I guess everyone here is familiar with this picture of the web.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a lot of stuff out there, but most of it we can't find.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can't discover things unless it's actually recommended to us.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So my goal here is to generate personal recommendations of all different kinds of stuff to users, whether it be product services or web pages, and we want to be able to do it very flexibly based on different types of information.",
+                    "label": 0
+                },
+                {
+                    "sent": "So maybe we have explicit ratings of items by users so they like some items and they don't like other items.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or maybe we have implicit information about user preferences from their clicks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now.",
+                    "label": 0
+                },
+                {
+                    "sent": "A traditional approach to generating personal recommendations is collaborative filtering that I assume most people here will be familiar with, but I'm gonna go through it anyway.",
+                    "label": 0
+                },
+                {
+                    "sent": "So imagine we have a set of items, one to six and a set of users 8 D and we know that for example, user A has rated item 21 star.",
+                    "label": 0
+                },
+                {
+                    "sent": "And several of the users have rated several of the items, but not all of the users have rated all of the items, and the goal is to predict for items which haven't yet been rated by user, whether or not they will like that item, because that means we can recommend items.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this case, for the one which I've marked as a question mark.",
+                    "label": 0
+                },
+                {
+                    "sent": "User D maybe would like item six.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could guess because user D looks a little bit like user B and user B likes item 6.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, we could use the same sort of sort of intuition to think that used to D might like item 3.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what do we do for items which haven't been rated by any users?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or similarly, what we do with users which are new to the system, so this is called the cold start problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "In collaborative filtering it's very familiar problem, and typically people would use a hybrid of techniques.",
+                    "label": 0
+                },
+                {
+                    "sent": "So hybrid of content based techniques with collaborative filtering techniques to deal with this problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it is a model which integrates a metadata based model with a collaborative filtering model.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to solve this cold start problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this project initially started.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ashley, in response to a commercial needs in Microsoft.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we had a set of we had a set of requirements.",
+                    "label": 0
+                },
+                {
+                    "sent": "We needed a very flexible recommendation system for a particular service.",
+                    "label": 0
+                },
+                {
+                    "sent": "We wanted to be able to leverage metadata of users and items as I, as I've just mentioned, we needed a very flexible feedback model, so we needed to be able to take account of explicit ratings of users or click information.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also we wanted to be able to train incrementally to potentially be able to generate recommendations in real time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Say before I go into details of the model, I'm going to start with an explanation of the framework which we use to make all this stuff work, which is factor graphs.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what is that?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Gus a fact graph, is a bipartite graph which represents how a function factorizes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Say it has two types of nodes as square nodes and it has circular nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Square nodes are factors in a function and circular nodes are variables in the function and the edges of the graph show on which variables each factor depends, and we can use factor graphs to efficiently answer questions about complicated probabilistic models such such house water.",
+                    "label": 0
+                },
+                {
+                    "sent": "The marginals of the models are what is the value of the function if all but one of the variables is some doubt.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So it's very simple example, just base law so we have a model of some data, which I call the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why here and that model depends on some parameters S, so the model is the probability of data given parameters P of Y given S and we also have some prior on the value of these parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the the the product of these two of these two probability distributions can be represented by this photograph with the prior on the top and the model PFY given S in the middle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, the reason that photographs are useful is because they allow us to.",
+                    "label": 0
+                },
+                {
+                    "sent": "To take to use, to make use of the way that more complicated models might factorize.",
+                    "label": 0
+                },
+                {
+                    "sent": "So imagine that we we we believe that there's some generative process by which which might explain our data, which is more complicated, and in order to express that we want to introduce some other variables, some latent variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, we might introduce some T variables which depend on our parameters S according to some model PT given S and we have some other variable D which depends on our T variables and finally our data depends on the variable according to the distribution P of Y given D. But if we have some data we want to learn our parameters S we might not actually be interested in the values of these T&D variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "So according to the rules of probability you have to do the calculation at the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to come out the variables you're not interested in, and this is potentially expensive.",
+                    "label": 0
+                },
+                {
+                    "sent": "And, however, because of the way the the function factorizes, we can simplify this computation and what we do is we break it down into subcomponents, the results of which are called messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the the part of the equation on the left, which is highlighted corresponds to the arrows in the diagram on the right.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can break down the calculation as follows.",
+                    "label": 0
+                },
+                {
+                    "sent": "And at the end you calculate marginals you're interested in by multiplying the messages in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Coming to that note.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, I don't have.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have time today too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Give a thought tutorial of message passing on factor graphs like there's quite a bit more detail about the framework in the paper, but one more thing I want to mention, which will which is sort of necessary for completeness in this talk.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is that we do approximately we do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We make approximations to make this message passing efficient, So what we actually do is we represent all of these messages by Gaussian probability distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the way we do this is as follows.",
+                    "label": 0
+                },
+                {
+                    "sent": "So imagine you have some factor F and you have some variable T and typically that often for many of the factors the message the exact message from the factor to the variable would be non Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one example here is a step function that the red, the red function.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you multiply these two together, which would give you the marginal distribution of that variable, you get something which is non Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get a truncated Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can approximate that by a Gaussian, just with the way we do that is by minimizing some distance measure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it could be KL divergent for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that gives you a way of approximating the message that would go from that factor to the variable, because we know that the product of the of the incoming and outgoing message would give the marginal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So by dividing out the incoming message, we get an approximate outgoing message and that's expectation propagation.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a nutshell, and it's also crossed it could also be a variational method as well, depending on the distance measure which you wish to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, it's much more detail about this kind of stuff in the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now I'm going to talk about the actual model which we wish we wish we have here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So remember, I said that we wanted to be able to take account of metadata of users and items.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say example metadata we might have is demographics of a user.",
+                    "label": 0
+                },
+                {
+                    "sent": "We might know their gender and where they're from.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can associate each of these features with some variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here I I call U-11 and U2 one and we define something which we call a user trait, which I call here S1.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's equal to the sum of these two of these two variables corresponding to these two features.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can have as many features as we like and they can be potentially very sparse.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one feature which we were commonly used would be an identity of the of that particular user, and that feature could take millions or even billions of possible values.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for any user, only one of those values will actually be true.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in a typical situation, will have many will have many billions of features.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know IP address is another example, but only for a particular user.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only very few will be actually true.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we replicate this linear model a number of times and this gives us a way of generating a set of traits for that user.",
+                    "label": 0
+                },
+                {
+                    "sent": "So S1 and S2.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, I'm just going to have two traits per user, but you can have more.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can do the same kind of thing for items.",
+                    "label": 0
+                },
+                {
+                    "sent": "So possible features of an item is that it's an SLR and it's a camera, and those those features associated with trait contributions, the V variables and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The we we sum those up she gets the T variables, which are the traits of the items.",
+                    "label": 0
+                },
+                {
+                    "sent": "So he gets a vector of traits for users and a vector of traits for items, and the model is simply that the value of this item for this particular user is given by the inner product of these two trait vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we put independent Gaussian priors on the values of these trade contribution variables that you in the V variables, then we can perform inference using approximate message passing to make predictions about whether a user would like a particular item and if we have data about whether a user likes this item, then we can update our parameters that you envy variables in light of this observation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, by using message passing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now these the individual computations of these messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or in the paper again, and also the precise schedule for for doing this computation like in.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going into detail here, but you actually have to iterate this this this message passing schedule a few times to get to get good results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say I'm just to make it a bit more formal.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have a user description into in as a vector X which is a vector of features, but only very few of these features will actually be active for any particular user, and we project from that feature vector into this latent trait.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we call the trade space by this matrix of trade contributions you and we do the same thing for items object into a trait space for items.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then define.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's sort of the potential of the value of this item for this user by the inner product between those two vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So note that if we if we throw away the metadata, just have identities for users and items, then the X and the Y variables will just will be unit vectors and they will just select a single a single column out of the out of the U&V matrices, so that that'll it'll become the same as SVD in that case.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this gives.",
+                    "label": 0
+                },
+                {
+                    "sent": "An example, just the same results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very simple experiment where we train.",
+                    "label": 0
+                },
+                {
+                    "sent": "System giving it just two trait dimensions on a small number of ratings that users have given some movies.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this this shows the first trait dimension against the second trait dimension.",
+                    "label": 0
+                },
+                {
+                    "sent": "For some users and some items.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the users are shown by the blue dots and the items are shown by red dots.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the items of MBBS in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "And because we measure the value of an item for a user by the inner product that's proportional to the cosine of the angle between those between those vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can imagine that the user in the bottom left is is quite likely to like film like Pearl Harbor, but is unlikely to like a film like The Big Lebowski.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the model has tended to polarise the films in these two directions where you have comedy type of films in the top right and action films in the bottom left.",
+                    "label": 0
+                },
+                {
+                    "sent": "This if you give it more training data and more trait dimensions, it tends to spread things out more in trade space.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now just a little bit more about the training procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Remember it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Another one of the another.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the things which we wanted was incremental training.",
+                    "label": 1
+                },
+                {
+                    "sent": "And if you just if you look at the complete matrix of ratings that users have given items, then you can see that it's a loopy graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you if you convert this to it to the factor graph each for each rating, and you imagine passing messages around this graph, you're going to have to iterate and to until convergence to get the best results.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what we do is we just we just ignore that fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just take each rating as it comes, used the message passing as in this two slides ago, in order to calculate posterior distributions for EU and the V variables for that user in that item, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Those posteriors back to our storage mechanism and then then use them as the priors for the next data point that comes along.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's called assume density filtering or ADF.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we just take the ratings as they come and in each case we use yesterday's posteriors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Today's prior in order to in order to use our model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Another desired property of this system was that we could use different types of feedback models depending on depending on the setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one advantage of the message passing setup is that you can easily plug different types of models in at the output.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So remember, I defined that the value of the user of the if this item to this user by this variable R, which is which I wish I was up to this point.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've talked about as being a rating, but it actually could just be a latent variable and can be related to the rating in some way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the simplest thing is that R is just a noisy observation of the actual rating that the user has has given this item.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we could also say, let's say we have we observed clicks instead of ratings.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we could say that OK, the sign of a noisy observation of this of this value is actually what we observe.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a probit model and that means we can model the probability of click on a particular item based on what the user is done before.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alternatively, let's say we go back to the rating scale, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "In practice, use different users interpret will will interpret a rating scale like this differently.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some users will tend to give lots of high ratings.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some users will tend to give lots of low ratings.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some users will only ever rate things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Three or four stars.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do that this is the way we handle that type of thing is we define a set of user specific threshold, so each user has a set of thresholds T0 to T to T3.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we again we, we we add some Gaussian noise to this to this latent rating, or to get a rating.",
+                    "label": 0
+                },
+                {
+                    "sent": "Q And then that's that's that's the sort of value of the item for the user on the real line, and we divide up that real line using these thresholds.",
+                    "label": 0
+                },
+                {
+                    "sent": "And depending on the rating we observe, we observe that the this this value is somewhere between these thresholds.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you get 3 out of five stars.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's higher than threshold Zero and one, but the value is lower than threshold two and three.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when you when you learn, when you when you, when you observe and you rating, you'll not just update the trade contributions EU and the V variables, but she also will update these traits for the user.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now I'm going to talk a little bit about.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Accuracy Unfortunately we haven't found a great data set to test this on because we really need some.",
+                    "label": 0
+                },
+                {
+                    "sent": "We really need a setting where.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where where we can where we have lots of metadata for users and items and where I'm speed is really is really important because that's the the real the real design specification of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what we did use was these two datasets of movie ratings.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have movie lens data.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason we use that is 'cause it includes metadata for movies and and users.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we the Netflix data just because everyone seems to be using the Netflix data and it's a big data set, so at least it means we can check the system is fast enough.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So maybe Lens includes a set of features of users and movies.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things like the job and the age of the user and the genre of the movie, and it also includes an ID for the for the user and an ID for the movie.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in fact there's approximately 6000 user features and 4000 movie features.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you include the ID.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And we can train on that data in about 5 five minutes and we get better results than other than other systems.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've other other published results.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've managed to find and we get a small amount of improvement by using the metadata features.",
+                    "label": 0
+                },
+                {
+                    "sent": "This this shows the mean absolute error on the Y axis and K, which is along the bottom is the number of trait dimensions we.",
+                    "label": 0
+                },
+                {
+                    "sent": "Give the model so the more trait dimensions, the more difference it seems to make to include these these features.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And on Netflix so Netflix is 100 million ratings and we use this as a test of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "It rain on Netflix in about 2 hours so and remember, we training incrementally, so if it can incorporate ratings at a rate of about 14,000 II, so that seems to be enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suit our production situation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we get everything squared error on Netflix, which is significantly better than the system which Netflix uses, which is cinematch, which gets 0.95.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're not.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not at the top of the of the Netflix leaderboard by any by any stretch of the imagination, but that was never our goal.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Fight finally, I'm going to talk about speed of recommendations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So one.",
+                    "label": 0
+                },
+                {
+                    "sent": "One problem of this this type of approach to collaborative filtering potentially is that when you actually want to generate recommendations, you have to consider all of the items in your catalog.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say your goal is to find the N items with the highest predicted rating in your catalog.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's the typical recommendation task challenge.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a catalog admitted, millions of items that potentially takes a long time.",
+                    "label": 1
+                },
+                {
+                    "sent": "So I've looked recently at two approaches to make that faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically ways of indexing the catalog based on what the model has learned based on the way that the items are laid out in the trade space.",
+                    "label": 1
+                },
+                {
+                    "sent": "Using locality sensitive hashing techniques and KD trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm not going to talk about these much today, except to say we haven't been able to find a locality sensitive hash, which works well for the inner product.",
+                    "label": 0
+                },
+                {
+                    "sent": "Distance between between vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the approach we've got.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is so far as a KD tree approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's approximate because we.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we build a KD tree to index into this latent trait space.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do a best first search of that tree in order to find the item vector which is closest to the user vector for which we want to generate recommendations.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we limit the number with the amount of this tree that we search, and using the experimental code.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the Matchbox model with Katie Treat index.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trade space.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can generate recommendations at a rate of 100 nanoseconds per items.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for for a sort of target time of generating recommendations in 1/4 of a second, we can do a catalog of say 2 1/2 million.",
+                    "label": 0
+                },
+                {
+                    "sent": "So maybe we're not quite fast enough yet, but we believe that we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can get there.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Say.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In conclusion, presented to a Bayesian model which can integrate collaborative filtering with content information, I think that's probably the the the strongest takeaway can be trained.",
+                    "label": 1
+                },
+                {
+                    "sent": "Fasting can be trained fast and incrementally.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing is that it compares users and items in the same space.",
+                    "label": 1
+                },
+                {
+                    "sent": "This trait space and that's often interesting to interpret.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can you can train it on on a set of ratings that users have given items.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example the Netflix data.",
+                    "label": 1
+                },
+                {
+                    "sent": "But then you can look at the trade space and find similar items and similar movies and that type of thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "The feedback model is is flexible and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finally, in conclusion, I advocate this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This approximate Bayesian probabilistic approach using message passing, 'cause it gives it gives a lot of agility when you're when you're experimenting with different types of models, and it gives this compositionality you can combine in a different types of output models, different types of input models, that type of thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for the Netflix data, there have been many other fitting methods that have been tried like Gibbs sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, you know gradient descent and it looks to me based on the results you showed.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Gibbs sampler seemed to do a better job.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's correct, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So do you have a sense of how much you lose by doing the approximation?",
+                    "label": 0
+                },
+                {
+                    "sent": "See so if we do, if we if we look at the Netflix data, there's no metadata is just the ideas for the users and items and and the the actual approximation we're making in the core of the model is a variational approximation, so it's it's pretty much it would.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would be equivalent to previous work and we basically replicate replicate identical results to them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using variational effuse gives you can get down, I think to sort of 0.88 or something like that on on on Netflix, which is, which is quite a bit better, but it's it's much much slower.",
+                    "label": 0
+                },
+                {
+                    "sent": "Service commits, you know, completely hopeless in in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to be able to train incrementally, we want to be able to incorporate metadata.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to be able to do all of the all of these things that we want to be able to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then there's no point in in in in trying that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so I was just wondering, you could do Gibbs sampling to learn the offline model.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you could do because you have a lot of time to do that and then do the incremental approach as you get data online.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so I say and yeah, I guess that depends on your setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have some some historical data set which you want to use the bootstrap, then yes you could do something like that, and in fact I mean what we what we, what we've what we've considered doing in processes in practice is not necessarily Gibbs sampling, but to do some back forward.",
+                    "label": 0
+                },
+                {
+                    "sent": "Backwards passes of EP on historical data to see the precede the model and then use that incremental learning on new data, which seems to work well and improve the improve the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So did you try that on Netflix and so?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do the forward backward on Netflix, does it improve the result?",
+                    "label": 0
+                },
+                {
+                    "sent": "Does does it take you 2.88 which you get away with using using the variational approximation?",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even if you did forward backward on Netflix, you can't get that much how much you can get a bit better.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think we got down to zero point 0.9 but but not not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Still that still, you know, relatively low down the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The state of the art Netflix people.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, let's thank all the speakers in the session.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

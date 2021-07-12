@@ -1,0 +1,2478 @@
+{
+    "id": "h5cpoodjlh53ztayc464os7avazxpuua",
+    "title": "Efficient I/O and Data Intensive Computing",
+    "info": {
+        "author": [
+            "Jose Nandez, Texas Advanced Computing Center (TACC), University of Texas at Austin",
+            "Galen Arnold, National Center for Supercomputing Applications (NCSA), University of Illinois at Urbana-Champaign"
+        ],
+        "published": "Sept. 19, 2016",
+        "recorded": "June 2016",
+        "category": [
+            "Top->Computer Science",
+            "Top->Computers->Programming"
+        ]
+    },
+    "url": "http://videolectures.net/ihpcss2016_arnold_nandez_computing/",
+    "segmentation": [
+        [
+            "Morning everybody.",
+            "So this is kind of a big topic this morning.",
+            "It can go a lot of different ways, but I'm going to stick with Ritu Arora's Organization of this presentation.",
+            "Re two is from Texas Advanced Computing Center.",
+            "I'm wearing their shirt today, it'll be on every slide.",
+            "They're pretty proud of Texas, it's big so his data.",
+            "I underhand work at the University of Illinois, whose colors are orange and blue, so I'll put a little bit of blue over this orange.",
+            "Be a little bit more for my home team.",
+            "I work at NCSA on the Blue Waters supercomputer.",
+            "It's NSF's largest supercomputer, and it's sort of a deal.",
+            "We track one equivalent machine.",
+            "This talk will be highly.",
+            "Biased from a North American point of view because of the presenters, I might ask for a European opinion or input here in a moment, so.",
+            "If you're from price and you know your favorite ways of transferring data in and out of a supercomputer, be thinking about that.",
+            "I'll ask for a couple of thoughts in a slide or two."
+        ],
+        [
+            "This is the overlying organization of my part of the talk.",
+            "We will come to a point where I say Hadoop or Spark and I'll get this glazed deer in the headlights look.",
+            "I'll hand it off to Jose 'cause we have an expert for that.",
+            "So doing IO on a big resource is probably a good way to look at it from a workflow perspective, and that's what Ritu has organized here.",
+            "So before you get running on a resource, you have to get your data there and if you get your data house in order."
+        ],
+        [
+            "And getting your house in order starts with a plan.",
+            "NSF likes to know that you have some kind of a data management plan to get an allocation on an NSF machine.",
+            "So you're supposed to do this sort of thing anyway.",
+            "It's a nice idea to have in mind and maybe in a document what your data IO is going to be.",
+            "Special like per run and then aggregate over your series of runs.",
+            "It's also really important to know.",
+            "The do's and don'ts on the resources of interest.",
+            "Reading the Document Documentation page for the sites that you're going to use is critical to success and not losing data in an unexpected way."
+        ],
+        [
+            "So a little.",
+            "Background story that I have that goes with this slide.",
+            "A few months back I was working on a big jet engine code for a private sector program.",
+            "We had it in CSA and.",
+            "The code that I was given to work on first was more or less a serial code.",
+            "They asked me to speed this thing up with some open MP threads or whatever I could come up with.",
+            "I looked at this serial code I found a little bit of open MP thread optimization.",
+            "I was able to get maybe a 1520% speedup.",
+            "Not much of a big Pat on the back and then I noticed the code was spending a lot of time doing a big initial read IO.",
+            "As an afterthought, you know the codes already been written.",
+            "Somebody already put time into it.",
+            "I looked at that I owe and I thought about that for awhile.",
+            "Turned out that this code was reading about 20 gigabytes of data as an initial read.",
+            "Not too bad.",
+            "The nodes we were running on had between 64 and 256 gigabytes, so seeing that was spending a third of its time in an initial read and it was Portrane.",
+            "I just decided to copy that file to Dev SHM in Linux dev.",
+            "SHM is a file system in memory.",
+            "So anything you deal with there works at about the speed of memory.",
+            "I did that, ran it again, got about a seven times speedup on the IO.",
+            "The IO basically disappeared as as as a fraction of that programs time.",
+            "My colleagues came to me and we talked about that and first thing my buddy told me is you cheated and I said of course I did.",
+            "And that's what you've got to do to be good with IO.",
+            "You've got to come up with clever tricks.",
+            "You gotta know your file systems do what you can get away with because I owe, can many times be the limiting factor in your wall Clock performance.",
+            "It can show up if you're doing a lot of time steps and checkpoints, for example."
+        ],
+        [
+            "So this is where I'm going to pick."
+        ],
+        [
+            "Khan the.",
+            "Well, I'll ask for price input if anyone has a 15 or 20 seconds stand up to tell me if race has an equivalent to globish online global.",
+            "Sure I'll copy.",
+            "Or do you guys use that?",
+            "Does anybody know?",
+            "State.",
+            "I recommend it for transfers to and from the UK supercomputer.",
+            "That's that's what we recommend.",
+            "OK, so that tool, yeah, great great.",
+            "I'm more international than I thought."
+        ],
+        [
+            "So first a couple other utilities that are out there, SCP.",
+            "Is not bad, but it's also not great, so I I'm OK using SCP if I'm using a collection of small files.",
+            "If my data size is let's say a few gigabytes or less, and if I'm geographically close to the resource that I'm going to transfer to.",
+            "In other words, the band and the bandwidth delay product won't eat me alive because my ping times are too long.",
+            "So if I'm on campus or I'm within a few 100 miles.",
+            "SCP's not bad.",
+            "But I do tend to shy away from it.",
+            "If you really like FCP, there are a couple other tools.",
+            "There's the win SCP on Windows.",
+            "My other favorite is called FileZilla.",
+            "FileZilla will gang SCPS together in a group and do multiple of of the SCPS through an SSH connection and try to amortize your bandwidth delay product.",
+            "If you're further away, the issue with SCP, though, is many times you're running this against a login node, and resources tend to have some sort of a limit on CPU time on the lock in mode.",
+            "So you're not going to get away with transferring a few terabytes this way.",
+            "It's not going to be practical and you'll time out."
+        ],
+        [
+            "Our sink is another alternative to SSPP.",
+            "It has this nice advantage of.",
+            "Not copying everything, just copying your changes.",
+            "People like to use our sync if they're keeping like a source repository up-to-date.",
+            "It does suffer from the same issue as SCP, though if you do a lot of our sync on the login node, that site is going to notice and.",
+            "You may hit CPU time limits for your shell, or the chastise or some other thing they happen.",
+            "It may just timeout 'cause the login nodes aren't really designed for these big transfers."
+        ],
+        [
+            "Then there's Globis Connect and Global's online which drive global issue or all copy underneath.",
+            "These are sort of the heavy lifting tools for moving data around.",
+            "They understand bandwidth delay product they use much longer TCP windows.",
+            "So instead of driving a truck's worth of data between Saint Louis and Chicago, I use a freight train to transfer data between Saint Louis and Chicago.",
+            "That's my analogy there.",
+            "And global online can is usually set up so that so that the endpoints are using dedicated transfer servers, not the login nodes.",
+            "So especially within exceed an blue waters when you're using Globis online to move things around between rhesus resources or your laptop or lab and a resource.",
+            "Those resource transfers are being done by dedicated machines at that site.",
+            "On Blue Waters we have 30 some.",
+            "Dedicated IO movers just for this utility.",
+            "So used properly, bluewaters can launch a denial of service attack on data nationwide.",
+            "Please don't do that, but that is a capability we have."
+        ],
+        [
+            "Here's a nice.",
+            "Scenario that re Two wrote up about a long running transfer attack.",
+            "One thing I'll mention about Globis online an reason we've all kind of standardized on it with exceed, is that it will retry so you can select the folder and a target and say move this folder from here to there and it can have 50 terabytes in it and it may take a few days, but Global's online will keep track of that.",
+            "It will retry and take care of itself in the background.",
+            "It will give you an email when it's done showing you transfer rates.",
+            "You can go back into their website and query it, see how it's going."
+        ],
+        [
+            "Try to be smart about.",
+            "What data you move around?",
+            "So if you've had a lot of crashes and core files not worth moving.",
+            "If there are intermediate results in your data that you don't care about, again, not worth moving."
+        ],
+        [
+            "So there's a new tool that."
+        ],
+        [
+            "I had not seen before.",
+            "That is on my To Do List of things to check out.",
+            "Ritu found this and gave us a little graphical example.",
+            "It's a GUI tool that will look in a directory and give you a visual of what's in that directory instead of having to stare at the listing output and submit to help you keep organized.",
+            "So this is something I'll look at when I get back to work."
+        ],
+        [
+            "So modern parallel file system, well, modern cluster.",
+            "This is a good representation.",
+            "Stampede is in this category.",
+            "Blue Waters is also in this category with the change that I would change a few 100 to a few 10 thousands of spinning disks.",
+            "But we're talking about."
+        ],
+        [
+            "Big resources and then to make that appear to you as a file system, we need magic, and that magic is."
+        ],
+        [
+            "Either lustre or GFS.",
+            "GFS is IBM general Parallel file system.",
+            "So with Lester you've got.",
+            "A few key components metadata server.",
+            "Is what represents to you a file system, so the metadata server makes it look to you as if it was 63 or XT4.",
+            "Object storage servers or sort of your traffic conductors of making sure that objects get out to object storage targets which are the actual Linux boxes that store the objects.",
+            "I keep saying objects instead of files.",
+            "That's because.",
+            "Things aren't necessarily stored as a file, as we'll see in a couple of slides here.",
+            "Luster stores objects."
+        ],
+        [
+            "There's some parameters on Stampede and how it's laid out.",
+            "These are numbers of object storage target servers, 348 pretty good size of Phil.",
+            "Do you happen to know bridges numbers for lustre?",
+            "That's sort of in the same neighborhood.",
+            "Device.",
+            "It's it's going to grow to 10 petabytes right now.",
+            "It's something less than that few petabytes on blue waters.",
+            "The big machine, the number of storage targets is working for set number of storage targets, so.",
+            "Yeah, I imagine bridges isn't in this kind of the same neighborhood."
+        ],
+        [
+            "So.",
+            "How does a file get stored?",
+            "Or how can I forget stored?",
+            "This little example is an 8 Meg file stored as four stripe stripe count 4 of 1 Meg each an.",
+            "We can imagine that they landed on these four object storage targets.",
+            "What was stored there?",
+            "Not the file for objects that when reassembled by luster or the file, so I want to make that connection to you.",
+            "That luster is storing objects.",
+            "They might be files if the stripe count is 1 where they might just be pieces of a file.",
+            "Lustre keeps all that together for you with the metadata server and the OSS servers.",
+            "Um?",
+            "I'm just all here 'cause this is a super important concept so.",
+            "Little pop quiz question.",
+            "I'm on a 10 terabyte file or a 10 petabyte file system that Phil just mentioned.",
+            "And I'm kind of a big deal.",
+            "My research group I might have 5 or 10 people working in my group and they're really churning through the work.",
+            "And on this 10 petabyte file system I've put.",
+            "Five petabytes of data?",
+            "And my allocation is for a year.",
+            "Do you think I'll be able to leave that five petabytes there for a year?",
+            "Everybody who thinks I can leave it there for a year.",
+            "Nobody thinks I can leave it there for a year, right?",
+            "OK.",
+            "In a related thought.",
+            "Can I put a one petabyte file there?",
+            "If I take the system default parameters for lustre.",
+            "I think I can put a one petabyte file.",
+            "You know, file system with 10 petabytes?",
+            "The answer is no.",
+            "I've got to be smart about putting A1 petabyte file down onto 10 petabyte file system.",
+            "I have to Stripe it and my stripe account needs to be big enough so that."
+        ],
+        [
+            "I don't fill up one of these.",
+            "So to us, when we type DF and we look at it from.",
+            "From outside, looking at Lustre DF says there's 10 petabytes free woo I can put a lot of data there.",
+            "But none of these have 1010 petabytes.",
+            "And if there's hundreds of these, they have significantly less than that.",
+            "Now there's a lustre command called LF SDF.",
+            "It'll do a DF and show you how much these have.",
+            "The free space on one of these is the largest object you can put an so many sites default to a stripe count of one or two, and so that is your maximum file size until you make the stripe count bigger."
+        ],
+        [
+            "Making the stripe count bigger looks like this.",
+            "Count 4 Four mag stripes.",
+            "This has to do somewhat with performance.",
+            "If you can match this to the size of your rights, you'll do a little better on IO, but this has to do with how you're going to throw that out as objects on to Estes in the in the stripe count.",
+            "And if you're dealing with really large files and let's say that error TB range, you need to stripe somewhat somewhat bigger than than just one or two.",
+            "Four or eight might be a minimum.",
+            "For one terabyte file on some systems.",
+            "This is something that the user can pursue.",
+            "Something negative disappeared.",
+            "Now you've got to be aware of this.",
+            "This will come back and bite you if you miss it so that the symptom here is I try to put a eight terabyte file an I get a nice enough space error from C or whatever and then I do a DF.",
+            "Looks like there's a petabyte free and I scratch my head for awhile.",
+            "I might call the Help desk and then some smart aleck like me answers the phone and says, well, it's really not so easy.",
+            "You've got to do this thing so.",
+            "That's something you do have to be aware of on Lustre G. PFS can take care of more of this for you.",
+            "It only costs.",
+            "My dad always used to say it only cost 100% more to go first class, so that's IBM."
+        ],
+        [
+            "So parallel IO is our next topic."
+        ],
+        [
+            "Well, if there's a couple lustre gaches to watch out for all just leave that."
+        ],
+        [
+            "For you to look at.",
+            "So parallel IO."
+        ],
+        [
+            "So.",
+            "So this is the default setup for a lot of people when they first get started with MPI.",
+            "You do a collective poor old rank 0 gets selected to do the IO and rank 0 does the IO.",
+            "That's not a horrible place to start and development, but you know you've got this obvious bottleneck at Rank Zero.",
+            "It's just one process on one compute node.",
+            "You're only going to get the IO of 1 compute node.",
+            "That's your bottleneck.",
+            "So blue waters compute node can do 1.4 gigabytes a second, but you have to use four threads.",
+            "One thread only does about 800 megabytes a second.",
+            "On Stampede one thread does about 400 megabytes a second.",
+            "So you are pretty bottlenecked error if you do it this way."
+        ],
+        [
+            "So your clever MPI programmer says, well, I'll just do file prank.",
+            "That's OK, it actually scales pretty well.",
+            "If you have to do it this way.",
+            "I would change this model so that.",
+            "This is actually ranks on a node an you do file per compute node, so if you've got 16 ranks on a compute node and you do 1 file for each of those, that's a nice compromise way of getting good IO."
+        ],
+        [
+            "And then parallel IO strategies do one file.",
+            "From various ranks simultaneously with parallel line up.",
+            "The advantage of this is for Lester in GP FS.",
+            "Now you've got one file you have one thing for the metadata server to keep track of this.",
+            "That's OK for the metadata server until you're running Dash MP 150,000.",
+            "Mother's Day to serve as 150,000 files that it has to do an open and create and as hard luster doesn't like that Lester likes that.",
+            "Let's open one file and all just get along.",
+            "So this is the mpio way of doing things and I'm getting close to my time."
+        ],
+        [
+            "I'm going to rip through a few of the."
+        ],
+        [
+            "Apio slides that we had prepared.",
+            "I do want to say something as I ripped through these."
+        ],
+        [
+            "If."
+        ],
+        [
+            "Doing mpio in your probe."
+        ],
+        [
+            "Damn hats off to you."
+        ],
+        [
+            "And you're doing it wrong.",
+            "My opinion, but.",
+            "I talk, my opinion counts."
+        ],
+        [
+            "The reason I think you're doing."
+        ],
+        [
+            "Is it wrong is because?"
+        ],
+        [
+            "There's a better way."
+        ],
+        [
+            "So."
+        ],
+        [
+            "Mpio is there if you're writing a high performance parallel library."
+        ],
+        [
+            "But I think at the end."
+        ],
+        [
+            "Today you need."
+        ],
+        [
+            "To be using."
+        ],
+        [
+            "A high performance."
+        ],
+        [
+            "Parallel library like HDF 5 or net CDF."
+        ],
+        [
+            "And the reason for using HDF 5 or net CDF is at that point your data is not locked to your program.",
+            "So if you've written MPI program an, you're outputing your data.",
+            "In your format.",
+            "You know who owns that data, only you if you output HDF5.",
+            "Other clever people in this room can take your day to figure out what it is.",
+            "Matter fact if you."
+        ],
+        [
+            "Used nice."
+        ],
+        [
+            "Names, as you were writing your data, we might even figure out what kind of science you're doing or what the data is about.",
+            "So you could put metadata in your HDF 5 file an it's descriptive and other people can understand it, yet it's still a binary file that's still space efficient.",
+            "This is a binary file.",
+            "If I did strings on this, I wouldn't see this output.",
+            "I just see a couple little things from an HDF 5 library, and that's it.",
+            "That's that's a binary file that is looked at with the HDF 5 utility H5 dump.",
+            "And there's my data layout for that file.",
+            "Also, if you're in this talk with or without vetria yesterday, HDF 5 and net CDF files of common scientific format.",
+            "A lot of net CDF files or weather or some well known format.",
+            "They are readable, readily readable by visualization tools like Paraview and visit.",
+            "So using these formats makes it easy to get your data into your visualization pipeline and it's worth it just for that alone.",
+            "So please don't use mpio without adult supervision, and if you can avoid using it and just use HDF 5 or net CDF or one of the other.",
+            "Popular, known and descriptive formats.",
+            "That's just much better."
+        ],
+        [
+            "Post processing."
+        ],
+        [
+            "Is somewhat site dependent.",
+            "And that's that's all I'll say about that.",
+            "Most of the big sites have some tertiary storage so that you don't leave your data on scratch so that other people in the room can run their job."
+        ],
+        [
+            "And then this is where I become dazed and confused.",
+            "A dupe.",
+            "I don't know much about it, but Jose does and he's on his way up.",
+            "Hadoop is an denial of service attack on the Lustre file system.",
+            "It is many small files.",
+            "It is that user running file per rank Dash NP 100,000.",
+            "Welcome to do Hadoop."
+        ],
+        [
+            "TAC has built a resource for Hadoop called Wrangler."
+        ],
+        [
+            "Out of SSD storage."
+        ],
+        [
+            "Take it, Jose?",
+            "Hello, I'm Jose, I work for shark it at the University of Western Ontario for compute Canada."
+        ],
+        [
+            "What is Hadoop?",
+            "A framework that enables distributed processing of large datasets.",
+            "That's what had with it this case up from a single server, 2000s of machines and it fault tolerant.",
+            "It's very similar.",
+            "Like last error, you have stripes as you heard, but only like it makes some replication of the data so that make it fault tolerant.",
+            "It follows the idea of moving compute to the moving computer data, not moving data to compute.",
+            "Anne also have the map reduce model that you care about a little bit, so the idea of Hadoop is if you have commodity servers.",
+            "Connected like in this way and you have a file.",
+            "So Hadoop is gonna take care of the distribution and it's going to make some replication independent of the numbers that you give.",
+            "If for some reason some connections or even the servers are down.",
+            "And the user wants to do some query, so it's still enabled to get some data.",
+            "Since you have some replication.",
+            "So that's the idea."
+        ],
+        [
+            "Now it's park, so I'm going to talk about only two big data tools.",
+            "Hadoop spark if you want to know more about different big data tools, just approach to me and I can tell you more.",
+            "So a purchase park.",
+            "It was written in in this color or just a spark.",
+            "Some people just say spark.",
+            "It's a fast and general engine for processing large scale datasets.",
+            "It extends the MapReduce model that uses Hadoop.",
+            "So it has some really nice streaming processing.",
+            "And it uses memory instead of disk.",
+            "Disk is for Hadoop and it writes everything on disk, but the spark those everything in memory.",
+            "But if the problem is complex, uses both.",
+            "Memory and also did this.",
+            "It also have.",
+            "It's meant for iterative algorithm.",
+            "Hadoop is not good for iterative algorithm or even interactive queries.",
+            "And for its street it has had really nice streaming library as well, and it offers Python this color, Java, SQL and our API's.",
+            "It uses some machine learning algorithm that they are optimized for parallel processing and also graph libraries.",
+            "It can run on top of Hadoop as Amazon EC2 and in a cloud and standard mode."
+        ],
+        [
+            "This is an example of of Hadoop programming.",
+            "I'm going to use Python since probably it's simpler to use instead of Java.",
+            "And this is just for work counting.",
+            "So the idea this is you have a mapper and then you're gonna have a reducer.",
+            "So the mapper in this case for this particular problem is that you have text files and you want to stream all the text files to the map.",
+            "Start the idea so in in Python you're going.",
+            "I'm going to use just regular expression and the standard input for each line.",
+            "I'm going to split all the line in Word.",
+            "I'm going to get only the words and for each word I give one number because it's just the counting.",
+            "Then everything well here in the middle everything is written to the disk.",
+            "And the reducer is going to get.",
+            "All from the disk in the intermediate steps.",
+            "And you have to do something with the data.",
+            "In this case, I don't want to count the words, so I'm gonna split again in the top since I printed everything quit atop here.",
+            "I pointed my count towards using a dictionary Python dictionary and at the end I print all the words how to run it.",
+            "You have to dupe.",
+            "Honey, you have to use a packet and the package is going to be Hadoop streaming.",
+            "You have to say to tell Hadoop that this is going to be the file, the initial it's going to be mapper.",
+            "My penalty why it's going to be this file and you say the Mapper is mapper, pay why and then a second file there reducer and you say the reducer.",
+            "And then you give the input an.",
+            "I'm using Gutenberg files so you can download the data from from Gutenberg and you see the output.",
+            "That's a way to run everything handled.",
+            "How do we engineer uses Java, but you can use Python so it's simpler.",
+            "The same program can be done with Spark."
+        ],
+        [
+            "Now, with the spark that uses simpler, so you called pyspark.",
+            "It's the API.",
+            "The spark contexts regular expression as the same.",
+            "And then you created the data.",
+            "The data.",
+            "In this sense, it's going to get everything from HFS for the Hadoop distributed file system.",
+            "You say the server in this case with my localhost and then the port and the same path.",
+            "So you load the data.",
+            "And the marker is just going to be the same thing you split.",
+            "And then you create the counting the word and then count as this one.",
+            "Under Reducer, so you have the map and you have the reduce and you're going to reduce by key.",
+            "So you're going to count by word that Sadie and at the end.",
+            "The reducer you save as a text file using again the Hadoop distributed file system in this case is localhost, the port and the path.",
+            "And then you're gonna run it.",
+            "Just the spark submit and the name of the Python script.",
+            "And that's all.",
+            "So as you can see, it's very different from the spark perspective to Hadoop perspective.",
+            "This park is simpler to write a script then had engineer also running.",
+            "It's completely different an I check the timing for this particular problem with I think it was 1 gigabyte or so and this park is still faster.",
+            "An could range between 10200 times faster than Hadoop because it doesn't have to write in disk.",
+            "If you have enough memory an."
+        ],
+        [
+            "Some references and if you have more questions or just come and talk to me and I think.",
+            "We agreed that.",
+            "Yes, I think that.",
+            "Any questions?",
+            "For GAIL, for myself.",
+            "Yes.",
+            "Microphone.",
+            "So for HDF, five are.",
+            "Yeah, would you still recommend using that even for checkpointing data?",
+            "Sure.",
+            "I'll let you get away with your own format for Checkpoint if you want, but.",
+            "If you've already got HDF five in the code.",
+            "May as well use it.",
+            "But there's not going to be a penalty.",
+            "You know, for going ahead and using that as your checkpoints if you, if you've retooled the code or codes already tooled up for HDF 5.",
+            "But yeah, checkpoint is fine for that to be code specific format that only you know.",
+            "Just a quick comment from the Canadian side that things like Globals, an RSP, and those are exactly the same in the Canadian systems as in American, so everything the Canadians word here applies to them too.",
+            "Quick quick question about lost her.",
+            "Do you guys have any particular tool that you use to monitor the file system when something bad is going to happen?",
+            "Like people right in tiny files or something like that?",
+            "The the system for monitoring restaurant Cray is is vast and complex.",
+            "The latest versions of Lester.",
+            "The most recent one we're running is pretty tolerant to a lot of abuse, so we can lose on osto and ride that out and fail it over and the file system stays up.",
+            "Through that, we can lose a couple clients out of the machine, so two or three clients can fail at once and will ride through that.",
+            "Sorry, and when that happens, the rest of the users don't have any problems with AC performance degradation if their files are associated with that OS T. Of course, the client usually just takes down just the job that's on it.",
+            "But yeah, those things recover in the latest versions of Luster as long as the number of OS's that are being hurt remains small.",
+            "The challenges you run into with with cluster or when you're using a common network.",
+            "For Lester and your MPI, which is how most of us do it because we're not made out of money.",
+            "Can it only cost 100% more to have two networks but?",
+            "That that's what you run into from time to time, as MPI Communications and luster or fighting over the same resources and so that that can be an issue.",
+            "It has gotten much better in later versions of luster, especially with our connection appliances, so we have the crane that we sort of have two networks, which lets us cheat a little bit.",
+            "We've got the crane network, which is fancy and fast, and then we've got an IP network dedicated to this connection file systems and there are.",
+            "Hundreds of nodes sprinkled through the Cray that are just gateways out to the lustre I've InfiniBand, so that gives us kind of two networks that really helps a lot on crack, and if you recall that previous exceed system it was one network.",
+            "For everything they had a lot more trouble, and if you have one InfiniBand doing your lustre and your MPI you will fight with that a little bit more.",
+            "Thank you, it's easy to fix.",
+            "Just buy another network.",
+            "Alright.",
+            "One more call it.",
+            "This may be very silly question, but using MPI or some things like that is the output file become single file or multiple file so mpio like like tools that are built from it does one file while that that's the intention.",
+            "Yes in that case if the the scale of the simulation is very large that.",
+            "Size of that file will be TB to attend TB.",
+            "Yeah, that sound can be very large.",
+            "Possible to handle that.",
+            "Yes?",
+            "So you you put a file like that in a directory that striped to be a stripe count large enough to hold such a file.",
+            "So if I knew that I was going to output an mpio or net CDF for HDF five large parallel file of let's say 100 terabytes we have users on Blue Waters who do right hundred terabyte files.",
+            "They write into a directory with a stripe account of a couple 100.",
+            "So that that 100 terabytes ends up being just a TB object on a couple 100?",
+            "Oh Estes, and then that's manageable.",
+            "Lester can deal with that pretty well.",
+            "You get good performance.",
+            "Alright, thank you for your time and attention."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Morning everybody.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is kind of a big topic this morning.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can go a lot of different ways, but I'm going to stick with Ritu Arora's Organization of this presentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Re two is from Texas Advanced Computing Center.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm wearing their shirt today, it'll be on every slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're pretty proud of Texas, it's big so his data.",
+                    "label": 0
+                },
+                {
+                    "sent": "I underhand work at the University of Illinois, whose colors are orange and blue, so I'll put a little bit of blue over this orange.",
+                    "label": 0
+                },
+                {
+                    "sent": "Be a little bit more for my home team.",
+                    "label": 0
+                },
+                {
+                    "sent": "I work at NCSA on the Blue Waters supercomputer.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's NSF's largest supercomputer, and it's sort of a deal.",
+                    "label": 0
+                },
+                {
+                    "sent": "We track one equivalent machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "This talk will be highly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Biased from a North American point of view because of the presenters, I might ask for a European opinion or input here in a moment, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're from price and you know your favorite ways of transferring data in and out of a supercomputer, be thinking about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll ask for a couple of thoughts in a slide or two.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is the overlying organization of my part of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "We will come to a point where I say Hadoop or Spark and I'll get this glazed deer in the headlights look.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll hand it off to Jose 'cause we have an expert for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So doing IO on a big resource is probably a good way to look at it from a workflow perspective, and that's what Ritu has organized here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So before you get running on a resource, you have to get your data there and if you get your data house in order.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And getting your house in order starts with a plan.",
+                    "label": 0
+                },
+                {
+                    "sent": "NSF likes to know that you have some kind of a data management plan to get an allocation on an NSF machine.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you're supposed to do this sort of thing anyway.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a nice idea to have in mind and maybe in a document what your data IO is going to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Special like per run and then aggregate over your series of runs.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's also really important to know.",
+                    "label": 0
+                },
+                {
+                    "sent": "The do's and don'ts on the resources of interest.",
+                    "label": 1
+                },
+                {
+                    "sent": "Reading the Document Documentation page for the sites that you're going to use is critical to success and not losing data in an unexpected way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So a little.",
+                    "label": 0
+                },
+                {
+                    "sent": "Background story that I have that goes with this slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few months back I was working on a big jet engine code for a private sector program.",
+                    "label": 0
+                },
+                {
+                    "sent": "We had it in CSA and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The code that I was given to work on first was more or less a serial code.",
+                    "label": 0
+                },
+                {
+                    "sent": "They asked me to speed this thing up with some open MP threads or whatever I could come up with.",
+                    "label": 0
+                },
+                {
+                    "sent": "I looked at this serial code I found a little bit of open MP thread optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "I was able to get maybe a 1520% speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not much of a big Pat on the back and then I noticed the code was spending a lot of time doing a big initial read IO.",
+                    "label": 0
+                },
+                {
+                    "sent": "As an afterthought, you know the codes already been written.",
+                    "label": 0
+                },
+                {
+                    "sent": "Somebody already put time into it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I looked at that I owe and I thought about that for awhile.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turned out that this code was reading about 20 gigabytes of data as an initial read.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not too bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "The nodes we were running on had between 64 and 256 gigabytes, so seeing that was spending a third of its time in an initial read and it was Portrane.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just decided to copy that file to Dev SHM in Linux dev.",
+                    "label": 0
+                },
+                {
+                    "sent": "SHM is a file system in memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So anything you deal with there works at about the speed of memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "I did that, ran it again, got about a seven times speedup on the IO.",
+                    "label": 0
+                },
+                {
+                    "sent": "The IO basically disappeared as as as a fraction of that programs time.",
+                    "label": 0
+                },
+                {
+                    "sent": "My colleagues came to me and we talked about that and first thing my buddy told me is you cheated and I said of course I did.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's what you've got to do to be good with IO.",
+                    "label": 0
+                },
+                {
+                    "sent": "You've got to come up with clever tricks.",
+                    "label": 0
+                },
+                {
+                    "sent": "You gotta know your file systems do what you can get away with because I owe, can many times be the limiting factor in your wall Clock performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can show up if you're doing a lot of time steps and checkpoints, for example.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is where I'm going to pick.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Khan the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I'll ask for price input if anyone has a 15 or 20 seconds stand up to tell me if race has an equivalent to globish online global.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sure I'll copy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or do you guys use that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Does anybody know?",
+                    "label": 0
+                },
+                {
+                    "sent": "State.",
+                    "label": 0
+                },
+                {
+                    "sent": "I recommend it for transfers to and from the UK supercomputer.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's what we recommend.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that tool, yeah, great great.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm more international than I thought.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So first a couple other utilities that are out there, SCP.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is not bad, but it's also not great, so I I'm OK using SCP if I'm using a collection of small files.",
+                    "label": 0
+                },
+                {
+                    "sent": "If my data size is let's say a few gigabytes or less, and if I'm geographically close to the resource that I'm going to transfer to.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, the band and the bandwidth delay product won't eat me alive because my ping times are too long.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I'm on campus or I'm within a few 100 miles.",
+                    "label": 0
+                },
+                {
+                    "sent": "SCP's not bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I do tend to shy away from it.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you really like FCP, there are a couple other tools.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's the win SCP on Windows.",
+                    "label": 0
+                },
+                {
+                    "sent": "My other favorite is called FileZilla.",
+                    "label": 0
+                },
+                {
+                    "sent": "FileZilla will gang SCPS together in a group and do multiple of of the SCPS through an SSH connection and try to amortize your bandwidth delay product.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're further away, the issue with SCP, though, is many times you're running this against a login node, and resources tend to have some sort of a limit on CPU time on the lock in mode.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you're not going to get away with transferring a few terabytes this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not going to be practical and you'll time out.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Our sink is another alternative to SSPP.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has this nice advantage of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not copying everything, just copying your changes.",
+                    "label": 0
+                },
+                {
+                    "sent": "People like to use our sync if they're keeping like a source repository up-to-date.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does suffer from the same issue as SCP, though if you do a lot of our sync on the login node, that site is going to notice and.",
+                    "label": 0
+                },
+                {
+                    "sent": "You may hit CPU time limits for your shell, or the chastise or some other thing they happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "It may just timeout 'cause the login nodes aren't really designed for these big transfers.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Then there's Globis Connect and Global's online which drive global issue or all copy underneath.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are sort of the heavy lifting tools for moving data around.",
+                    "label": 0
+                },
+                {
+                    "sent": "They understand bandwidth delay product they use much longer TCP windows.",
+                    "label": 0
+                },
+                {
+                    "sent": "So instead of driving a truck's worth of data between Saint Louis and Chicago, I use a freight train to transfer data between Saint Louis and Chicago.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's my analogy there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And global online can is usually set up so that so that the endpoints are using dedicated transfer servers, not the login nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So especially within exceed an blue waters when you're using Globis online to move things around between rhesus resources or your laptop or lab and a resource.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those resource transfers are being done by dedicated machines at that site.",
+                    "label": 0
+                },
+                {
+                    "sent": "On Blue Waters we have 30 some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dedicated IO movers just for this utility.",
+                    "label": 0
+                },
+                {
+                    "sent": "So used properly, bluewaters can launch a denial of service attack on data nationwide.",
+                    "label": 0
+                },
+                {
+                    "sent": "Please don't do that, but that is a capability we have.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here's a nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "Scenario that re Two wrote up about a long running transfer attack.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing I'll mention about Globis online an reason we've all kind of standardized on it with exceed, is that it will retry so you can select the folder and a target and say move this folder from here to there and it can have 50 terabytes in it and it may take a few days, but Global's online will keep track of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will retry and take care of itself in the background.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will give you an email when it's done showing you transfer rates.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can go back into their website and query it, see how it's going.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Try to be smart about.",
+                    "label": 0
+                },
+                {
+                    "sent": "What data you move around?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you've had a lot of crashes and core files not worth moving.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there are intermediate results in your data that you don't care about, again, not worth moving.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So there's a new tool that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I had not seen before.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is on my To Do List of things to check out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ritu found this and gave us a little graphical example.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a GUI tool that will look in a directory and give you a visual of what's in that directory instead of having to stare at the listing output and submit to help you keep organized.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is something I'll look at when I get back to work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So modern parallel file system, well, modern cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a good representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Stampede is in this category.",
+                    "label": 0
+                },
+                {
+                    "sent": "Blue Waters is also in this category with the change that I would change a few 100 to a few 10 thousands of spinning disks.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're talking about.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Big resources and then to make that appear to you as a file system, we need magic, and that magic is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Either lustre or GFS.",
+                    "label": 0
+                },
+                {
+                    "sent": "GFS is IBM general Parallel file system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with Lester you've got.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few key components metadata server.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is what represents to you a file system, so the metadata server makes it look to you as if it was 63 or XT4.",
+                    "label": 0
+                },
+                {
+                    "sent": "Object storage servers or sort of your traffic conductors of making sure that objects get out to object storage targets which are the actual Linux boxes that store the objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "I keep saying objects instead of files.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things aren't necessarily stored as a file, as we'll see in a couple of slides here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Luster stores objects.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "There's some parameters on Stampede and how it's laid out.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are numbers of object storage target servers, 348 pretty good size of Phil.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you happen to know bridges numbers for lustre?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's sort of in the same neighborhood.",
+                    "label": 0
+                },
+                {
+                    "sent": "Device.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's going to grow to 10 petabytes right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's something less than that few petabytes on blue waters.",
+                    "label": 0
+                },
+                {
+                    "sent": "The big machine, the number of storage targets is working for set number of storage targets, so.",
+                    "label": 1
+                },
+                {
+                    "sent": "Yeah, I imagine bridges isn't in this kind of the same neighborhood.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "How does a file get stored?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or how can I forget stored?",
+                    "label": 0
+                },
+                {
+                    "sent": "This little example is an 8 Meg file stored as four stripe stripe count 4 of 1 Meg each an.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can imagine that they landed on these four object storage targets.",
+                    "label": 0
+                },
+                {
+                    "sent": "What was stored there?",
+                    "label": 0
+                },
+                {
+                    "sent": "Not the file for objects that when reassembled by luster or the file, so I want to make that connection to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "That luster is storing objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "They might be files if the stripe count is 1 where they might just be pieces of a file.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lustre keeps all that together for you with the metadata server and the OSS servers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm just all here 'cause this is a super important concept so.",
+                    "label": 1
+                },
+                {
+                    "sent": "Little pop quiz question.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm on a 10 terabyte file or a 10 petabyte file system that Phil just mentioned.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm kind of a big deal.",
+                    "label": 0
+                },
+                {
+                    "sent": "My research group I might have 5 or 10 people working in my group and they're really churning through the work.",
+                    "label": 0
+                },
+                {
+                    "sent": "And on this 10 petabyte file system I've put.",
+                    "label": 0
+                },
+                {
+                    "sent": "Five petabytes of data?",
+                    "label": 0
+                },
+                {
+                    "sent": "And my allocation is for a year.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you think I'll be able to leave that five petabytes there for a year?",
+                    "label": 0
+                },
+                {
+                    "sent": "Everybody who thinks I can leave it there for a year.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nobody thinks I can leave it there for a year, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a related thought.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I put a one petabyte file there?",
+                    "label": 0
+                },
+                {
+                    "sent": "If I take the system default parameters for lustre.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think I can put a one petabyte file.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, file system with 10 petabytes?",
+                    "label": 1
+                },
+                {
+                    "sent": "The answer is no.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've got to be smart about putting A1 petabyte file down onto 10 petabyte file system.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have to Stripe it and my stripe account needs to be big enough so that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I don't fill up one of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to us, when we type DF and we look at it from.",
+                    "label": 0
+                },
+                {
+                    "sent": "From outside, looking at Lustre DF says there's 10 petabytes free woo I can put a lot of data there.",
+                    "label": 0
+                },
+                {
+                    "sent": "But none of these have 1010 petabytes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if there's hundreds of these, they have significantly less than that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there's a lustre command called LF SDF.",
+                    "label": 0
+                },
+                {
+                    "sent": "It'll do a DF and show you how much these have.",
+                    "label": 0
+                },
+                {
+                    "sent": "The free space on one of these is the largest object you can put an so many sites default to a stripe count of one or two, and so that is your maximum file size until you make the stripe count bigger.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Making the stripe count bigger looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Count 4 Four mag stripes.",
+                    "label": 0
+                },
+                {
+                    "sent": "This has to do somewhat with performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you can match this to the size of your rights, you'll do a little better on IO, but this has to do with how you're going to throw that out as objects on to Estes in the in the stripe count.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you're dealing with really large files and let's say that error TB range, you need to stripe somewhat somewhat bigger than than just one or two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Four or eight might be a minimum.",
+                    "label": 0
+                },
+                {
+                    "sent": "For one terabyte file on some systems.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is something that the user can pursue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something negative disappeared.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you've got to be aware of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This will come back and bite you if you miss it so that the symptom here is I try to put a eight terabyte file an I get a nice enough space error from C or whatever and then I do a DF.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks like there's a petabyte free and I scratch my head for awhile.",
+                    "label": 0
+                },
+                {
+                    "sent": "I might call the Help desk and then some smart aleck like me answers the phone and says, well, it's really not so easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "You've got to do this thing so.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's something you do have to be aware of on Lustre G. PFS can take care of more of this for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "It only costs.",
+                    "label": 0
+                },
+                {
+                    "sent": "My dad always used to say it only cost 100% more to go first class, so that's IBM.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So parallel IO is our next topic.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Well, if there's a couple lustre gaches to watch out for all just leave that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "For you to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "So parallel IO.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the default setup for a lot of people when they first get started with MPI.",
+                    "label": 0
+                },
+                {
+                    "sent": "You do a collective poor old rank 0 gets selected to do the IO and rank 0 does the IO.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not a horrible place to start and development, but you know you've got this obvious bottleneck at Rank Zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just one process on one compute node.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're only going to get the IO of 1 compute node.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's your bottleneck.",
+                    "label": 0
+                },
+                {
+                    "sent": "So blue waters compute node can do 1.4 gigabytes a second, but you have to use four threads.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thread only does about 800 megabytes a second.",
+                    "label": 0
+                },
+                {
+                    "sent": "On Stampede one thread does about 400 megabytes a second.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you are pretty bottlenecked error if you do it this way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So your clever MPI programmer says, well, I'll just do file prank.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's OK, it actually scales pretty well.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have to do it this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would change this model so that.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually ranks on a node an you do file per compute node, so if you've got 16 ranks on a compute node and you do 1 file for each of those, that's a nice compromise way of getting good IO.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then parallel IO strategies do one file.",
+                    "label": 0
+                },
+                {
+                    "sent": "From various ranks simultaneously with parallel line up.",
+                    "label": 0
+                },
+                {
+                    "sent": "The advantage of this is for Lester in GP FS.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you've got one file you have one thing for the metadata server to keep track of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's OK for the metadata server until you're running Dash MP 150,000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mother's Day to serve as 150,000 files that it has to do an open and create and as hard luster doesn't like that Lester likes that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's open one file and all just get along.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the mpio way of doing things and I'm getting close to my time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm going to rip through a few of the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Apio slides that we had prepared.",
+                    "label": 0
+                },
+                {
+                    "sent": "I do want to say something as I ripped through these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Doing mpio in your probe.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Damn hats off to you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And you're doing it wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "My opinion, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "I talk, my opinion counts.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The reason I think you're doing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is it wrong is because?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "There's a better way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Mpio is there if you're writing a high performance parallel library.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But I think at the end.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Today you need.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To be using.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "A high performance.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Parallel library like HDF 5 or net CDF.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the reason for using HDF 5 or net CDF is at that point your data is not locked to your program.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you've written MPI program an, you're outputing your data.",
+                    "label": 0
+                },
+                {
+                    "sent": "In your format.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know who owns that data, only you if you output HDF5.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other clever people in this room can take your day to figure out what it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Matter fact if you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_51": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Used nice.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Names, as you were writing your data, we might even figure out what kind of science you're doing or what the data is about.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you could put metadata in your HDF 5 file an it's descriptive and other people can understand it, yet it's still a binary file that's still space efficient.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a binary file.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I did strings on this, I wouldn't see this output.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just see a couple little things from an HDF 5 library, and that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's a binary file that is looked at with the HDF 5 utility H5 dump.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's my data layout for that file.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, if you're in this talk with or without vetria yesterday, HDF 5 and net CDF files of common scientific format.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of net CDF files or weather or some well known format.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are readable, readily readable by visualization tools like Paraview and visit.",
+                    "label": 0
+                },
+                {
+                    "sent": "So using these formats makes it easy to get your data into your visualization pipeline and it's worth it just for that alone.",
+                    "label": 0
+                },
+                {
+                    "sent": "So please don't use mpio without adult supervision, and if you can avoid using it and just use HDF 5 or net CDF or one of the other.",
+                    "label": 0
+                },
+                {
+                    "sent": "Popular, known and descriptive formats.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's just much better.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_54": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_55": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Post processing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is somewhat site dependent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's that's all I'll say about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of the big sites have some tertiary storage so that you don't leave your data on scratch so that other people in the room can run their job.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_57": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then this is where I become dazed and confused.",
+                    "label": 0
+                },
+                {
+                    "sent": "A dupe.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know much about it, but Jose does and he's on his way up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hadoop is an denial of service attack on the Lustre file system.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is many small files.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is that user running file per rank Dash NP 100,000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Welcome to do Hadoop.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_58": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "TAC has built a resource for Hadoop called Wrangler.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_59": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Out of SSD storage.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_60": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Take it, Jose?",
+                    "label": 0
+                },
+                {
+                    "sent": "Hello, I'm Jose, I work for shark it at the University of Western Ontario for compute Canada.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_61": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What is Hadoop?",
+                    "label": 0
+                },
+                {
+                    "sent": "A framework that enables distributed processing of large datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what had with it this case up from a single server, 2000s of machines and it fault tolerant.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like last error, you have stripes as you heard, but only like it makes some replication of the data so that make it fault tolerant.",
+                    "label": 0
+                },
+                {
+                    "sent": "It follows the idea of moving compute to the moving computer data, not moving data to compute.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne also have the map reduce model that you care about a little bit, so the idea of Hadoop is if you have commodity servers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Connected like in this way and you have a file.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Hadoop is gonna take care of the distribution and it's going to make some replication independent of the numbers that you give.",
+                    "label": 0
+                },
+                {
+                    "sent": "If for some reason some connections or even the servers are down.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the user wants to do some query, so it's still enabled to get some data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since you have some replication.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the idea.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_62": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now it's park, so I'm going to talk about only two big data tools.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hadoop spark if you want to know more about different big data tools, just approach to me and I can tell you more.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a purchase park.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was written in in this color or just a spark.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some people just say spark.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a fast and general engine for processing large scale datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "It extends the MapReduce model that uses Hadoop.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it has some really nice streaming processing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it uses memory instead of disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Disk is for Hadoop and it writes everything on disk, but the spark those everything in memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if the problem is complex, uses both.",
+                    "label": 0
+                },
+                {
+                    "sent": "Memory and also did this.",
+                    "label": 0
+                },
+                {
+                    "sent": "It also have.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's meant for iterative algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hadoop is not good for iterative algorithm or even interactive queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for its street it has had really nice streaming library as well, and it offers Python this color, Java, SQL and our API's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It uses some machine learning algorithm that they are optimized for parallel processing and also graph libraries.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can run on top of Hadoop as Amazon EC2 and in a cloud and standard mode.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_63": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is an example of of Hadoop programming.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to use Python since probably it's simpler to use instead of Java.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is just for work counting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the idea this is you have a mapper and then you're gonna have a reducer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the mapper in this case for this particular problem is that you have text files and you want to stream all the text files to the map.",
+                    "label": 0
+                },
+                {
+                    "sent": "Start the idea so in in Python you're going.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to use just regular expression and the standard input for each line.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to split all the line in Word.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to get only the words and for each word I give one number because it's just the counting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then everything well here in the middle everything is written to the disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reducer is going to get.",
+                    "label": 0
+                },
+                {
+                    "sent": "All from the disk in the intermediate steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you have to do something with the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, I don't want to count the words, so I'm gonna split again in the top since I printed everything quit atop here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I pointed my count towards using a dictionary Python dictionary and at the end I print all the words how to run it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to dupe.",
+                    "label": 0
+                },
+                {
+                    "sent": "Honey, you have to use a packet and the package is going to be Hadoop streaming.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to say to tell Hadoop that this is going to be the file, the initial it's going to be mapper.",
+                    "label": 0
+                },
+                {
+                    "sent": "My penalty why it's going to be this file and you say the Mapper is mapper, pay why and then a second file there reducer and you say the reducer.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you give the input an.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm using Gutenberg files so you can download the data from from Gutenberg and you see the output.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a way to run everything handled.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we engineer uses Java, but you can use Python so it's simpler.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same program can be done with Spark.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_64": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now, with the spark that uses simpler, so you called pyspark.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's the API.",
+                    "label": 0
+                },
+                {
+                    "sent": "The spark contexts regular expression as the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you created the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "The data.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this sense, it's going to get everything from HFS for the Hadoop distributed file system.",
+                    "label": 0
+                },
+                {
+                    "sent": "You say the server in this case with my localhost and then the port and the same path.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you load the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the marker is just going to be the same thing you split.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you create the counting the word and then count as this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Under Reducer, so you have the map and you have the reduce and you're going to reduce by key.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you're going to count by word that Sadie and at the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reducer you save as a text file using again the Hadoop distributed file system in this case is localhost, the port and the path.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you're gonna run it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just the spark submit and the name of the Python script.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as you can see, it's very different from the spark perspective to Hadoop perspective.",
+                    "label": 0
+                },
+                {
+                    "sent": "This park is simpler to write a script then had engineer also running.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's completely different an I check the timing for this particular problem with I think it was 1 gigabyte or so and this park is still faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "An could range between 10200 times faster than Hadoop because it doesn't have to write in disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have enough memory an.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_65": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Some references and if you have more questions or just come and talk to me and I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "We agreed that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, I think that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any questions?",
+                    "label": 0
+                },
+                {
+                    "sent": "For GAIL, for myself.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Microphone.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for HDF, five are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, would you still recommend using that even for checkpointing data?",
+                    "label": 0
+                },
+                {
+                    "sent": "Sure.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll let you get away with your own format for Checkpoint if you want, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you've already got HDF five in the code.",
+                    "label": 0
+                },
+                {
+                    "sent": "May as well use it.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's not going to be a penalty.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, for going ahead and using that as your checkpoints if you, if you've retooled the code or codes already tooled up for HDF 5.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yeah, checkpoint is fine for that to be code specific format that only you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just a quick comment from the Canadian side that things like Globals, an RSP, and those are exactly the same in the Canadian systems as in American, so everything the Canadians word here applies to them too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quick quick question about lost her.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you guys have any particular tool that you use to monitor the file system when something bad is going to happen?",
+                    "label": 0
+                },
+                {
+                    "sent": "Like people right in tiny files or something like that?",
+                    "label": 0
+                },
+                {
+                    "sent": "The the system for monitoring restaurant Cray is is vast and complex.",
+                    "label": 0
+                },
+                {
+                    "sent": "The latest versions of Lester.",
+                    "label": 0
+                },
+                {
+                    "sent": "The most recent one we're running is pretty tolerant to a lot of abuse, so we can lose on osto and ride that out and fail it over and the file system stays up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Through that, we can lose a couple clients out of the machine, so two or three clients can fail at once and will ride through that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, and when that happens, the rest of the users don't have any problems with AC performance degradation if their files are associated with that OS T. Of course, the client usually just takes down just the job that's on it.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yeah, those things recover in the latest versions of Luster as long as the number of OS's that are being hurt remains small.",
+                    "label": 0
+                },
+                {
+                    "sent": "The challenges you run into with with cluster or when you're using a common network.",
+                    "label": 0
+                },
+                {
+                    "sent": "For Lester and your MPI, which is how most of us do it because we're not made out of money.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can it only cost 100% more to have two networks but?",
+                    "label": 0
+                },
+                {
+                    "sent": "That that's what you run into from time to time, as MPI Communications and luster or fighting over the same resources and so that that can be an issue.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has gotten much better in later versions of luster, especially with our connection appliances, so we have the crane that we sort of have two networks, which lets us cheat a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got the crane network, which is fancy and fast, and then we've got an IP network dedicated to this connection file systems and there are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hundreds of nodes sprinkled through the Cray that are just gateways out to the lustre I've InfiniBand, so that gives us kind of two networks that really helps a lot on crack, and if you recall that previous exceed system it was one network.",
+                    "label": 0
+                },
+                {
+                    "sent": "For everything they had a lot more trouble, and if you have one InfiniBand doing your lustre and your MPI you will fight with that a little bit more.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you, it's easy to fix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just buy another network.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "One more call it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This may be very silly question, but using MPI or some things like that is the output file become single file or multiple file so mpio like like tools that are built from it does one file while that that's the intention.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes in that case if the the scale of the simulation is very large that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Size of that file will be TB to attend TB.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that sound can be very large.",
+                    "label": 0
+                },
+                {
+                    "sent": "Possible to handle that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you you put a file like that in a directory that striped to be a stripe count large enough to hold such a file.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I knew that I was going to output an mpio or net CDF for HDF five large parallel file of let's say 100 terabytes we have users on Blue Waters who do right hundred terabyte files.",
+                    "label": 0
+                },
+                {
+                    "sent": "They write into a directory with a stripe account of a couple 100.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that that 100 terabytes ends up being just a TB object on a couple 100?",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh Estes, and then that's manageable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lester can deal with that pretty well.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get good performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, thank you for your time and attention.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

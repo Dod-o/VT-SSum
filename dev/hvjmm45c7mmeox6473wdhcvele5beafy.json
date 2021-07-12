@@ -1,0 +1,1708 @@
+{
+    "id": "hvjmm45c7mmeox6473wdhcvele5beafy",
+    "title": "Ensemble Monte-Carlo Planning: An Empirical Study",
+    "info": {
+        "author": [
+            "Alan Fern, School of Electrical Engineering and Computer Science, Oregon State University"
+        ],
+        "published": "July 21, 2011",
+        "recorded": "June 2011",
+        "category": [
+            "Top->Computer Science->Artificial Intelligence->Planning and Scheduling"
+        ]
+    },
+    "url": "http://videolectures.net/icaps2011_fern_ensemble/",
+    "segmentation": [
+        [
+            "Alright, so yeah, this is.",
+            "Exactly what it says.",
+            "It's an empirical study, so you can relax your brain a little bit.",
+            "I'll try not to a bore you with lots of tables."
+        ],
+        [
+            "So let's get started.",
+            "So I'm gonna give you a little motivation.",
+            "And then we're going to.",
+            "Go over a brief tutorial of UCT to so you can all know what we're talking about here.",
+            "Then I'll go into very simple idea of UCT ensembles and give you some."
+        ],
+        [
+            "Goals, so first the motivation.",
+            "I'd like to just sort of give you the story of how I got here.",
+            "I don't usually do large scale empirical evaluations, but in this case we were studying Klondike Solitaire, trying to build a planner for it a couple of years ago, and the reason was we one of our students really was interested in how many solitaire games can be solved, and we had no idea nobody had any idea.",
+            "We tried really, really hard and came up with a fancy determine Eisd planner with hindsight Optum.",
+            "Azatian wrapped around it and we got 27% win rates and he was very excited and that seemed like a really great result.",
+            "Then as a baseline, we thought the reviewers might complain if we didn't have a baseline, so we ran a vanilla UCT.",
+            "Nothing fancy.",
+            "UCT is a planning algorithm that I'll tell you about in a moment.",
+            "It got 34.4% and we really weren't able to do anything to the hop approach to beat that.",
+            "And we thought about this a little more, so UCT is a tree building algorithm.",
+            "At every step, it builds a tree and then it makes a decision and then the next step it builds a tree.",
+            "And we combined UCT with hop and we got some improvement and that suggested a general family of algorithms and one of the parameters was how many trees do you build and we we notice that if you build.",
+            "A bunch of small trees, smaller trees, and you sort of average and have them vote.",
+            "You can do even better and moving up to 37% from 34 was actually fairly hard for us to do in any other way.",
+            "And lately, he's he's he's above 40%.",
+            "He's graduated and moved on from solitaire.",
+            "But but yeah, this is the 40% came from the ensembles.",
+            "So that led me to wonder.",
+            "This is a very simple parallelization approach and it seemed like a very naive approach to parallelizing UCT.",
+            "I assumed ECT so popular that people have studied how to parallelize it.",
+            "So I looked in the literature and most all of this is in go.",
+            "Most of the people that are.",
+            "That are working on UCT are working and go although there."
+        ],
+        [
+            "Changing now.",
+            "So I looked at some of the recent papers at that time and there were a couple.",
+            "And a very surprising thing.",
+            "They were trying some fancy techniques and it was surprising that this this technique of just running independent use eteson voting was very hard for them to be, and they weren't actually able to beat it.",
+            "And I kind of felt sorry for them because it's this baseline that they really want to beat, but they couldn't and they couldn't explain why.",
+            "So here's a picture from that paper.",
+            "So the the top purple line is the simple voting mechanism, the.",
+            "Communication free, really parallelization technique and all of the other lines.",
+            "The red line and below forget about the light blue line, the red line and below are all of their fancier parallel techniques that use communication between processors, so they were very frustrated.",
+            "You could read it on the you could just feel their frustration on the page.",
+            "Now I was skeptical about this and just today I was trying to pick Martin's brain about whether there's been an improvement on this and he seems to think there is.",
+            "But as far as I know there's no published.",
+            "Paper on this that it shows the parallel technique that beats this independent voting technique in general, so it was kind of interesting.",
+            "So what did it so?",
+            "I can't say that this is the best parallel technique and I'm not not going to claim that.",
+            "I think you can probably do better, but this is such an easy technique to implement."
+        ],
+        [
+            "It's very nice to know about.",
+            "So let's look at the possible advantages that people have observed in these two isolated studies.",
+            "So there's the parallel time advantage.",
+            "So you run a bunch of small trees on independent processors, and you vote, and you're comparing that versus 1 computer running a small tree, and we've seen significant advantages to doing that.",
+            "And this is basically the principle of random restarts will go into.",
+            "This will make more sense after you know."
+        ],
+        [
+            "UCT works.",
+            "The other prior observations, which are a little more interesting.",
+            "There are about single core.",
+            "Implementations in the first observation really just follows from the prior observation, so if you have a parallel time advantage, you automatically get a sequential space advantage because you only need to store in memory the size of the largest tree, and these trees can be a lot smaller and you get the same performance as if you're using a big tree.",
+            "So if memory is your main bottleneck, this is a really nice thing to know.",
+            "If you just have a single core.",
+            "The the more compelling thing and the thing that I was really hoping to see in this study was this single core time advantage which was noticed in both studies.",
+            "So it basically said that if you do this run a bunch of small trees and vote versus running a big tree in Bo and use the same time, so they have the same total number of nodes, that's roughly the amount of time.",
+            "They were doing better here.",
+            "You could do better here, so it's sort of a super linear time speedup, and that will make sense after you see see what was happening so that that would be a very interesting thing to know.",
+            "If you have single core implementations."
+        ],
+        [
+            "So my objective was to try to go a little bit beyond these prior observations which were limited to go in solitaire, and they were very limited in the ensemble configurations considered, so I wasn't sure if I was looking at just a couple of isolated cases or not.",
+            "So the the goal was to provide evidence for or against those observations, and we're going to consider 6 domains other than go in solitaire and.",
+            "Test on a regular grid of ensemble configuration, so I found a master student and he babysat computers running all of this stuff for months and months and and this is.",
+            "This is what I'm going to talk about.",
+            "The result of this study."
+        ],
+        [
+            "So first we need to say a little bit about UCT.",
+            "I'm not going to give a major tutorial, but I just want to give you a flavor of what?"
+        ],
+        [
+            "UCT is so it's an instance of Monte Carlo Tree search, and it can be applied to single agent and game type problems, stochastic or deterministic problems.",
+            "And it's probably most famous for the advances in go.",
+            "You know, before you see T and after UCT sort of night and day in terms of go research.",
+            "And there's a growing number of success stories.",
+            "In fact, yesterday the probabilistic planning competition in both tracks the partially observable and fully observable first place competitor used some variant of UCT.",
+            "So the practical successes are not so well understood, so that's a little bit troubling, but it's very early."
+        ],
+        [
+            "Early on in this area, so how does it work?",
+            "Well you want a picture.",
+            "It is just an online algorithm that at every state is going to somehow build a tree.",
+            "As I'm showing there in the trees not going to be a uniform depth, that's going to sort of be biased towards good areas of the tree will talk a little bit about how it might do that, and after it builds that tree, it's going to select the best action at the root, the one that looks like it has the best value and take the action and then move to the next state.",
+            "Build another tree.",
+            "So how does it build the tree?",
+            "Well, it's going to do is repeatedly start at the root and execute a rollout policy to a certain depth.",
+            "Usually a terminal node in every execution of the rollout policy is going to add a single node to the tree, and it will do that as much time as it has.",
+            "It will get its tree and then then it will update the statistics of the root node and make its decision.",
+            "So the key idea of UCT is and really Monte Carlo tree search in general.",
+            "Is to bias the rollout policy based on your previous results.",
+            "So you have your current tree and it's giving you some information of what's promising and they bias the rollout policy towards more promising areas of the tree, so they're really trying to resolve the explore exploit."
+        ],
+        [
+            "Dilemma in tree building.",
+            "So just an example of what this looks like so.",
+            "So let's say we're at a state we want to build our UCT tree.",
+            "The initial state we start off with as our tree.",
+            "So our tree is a single leaf in the beginning and we're going to run an execution of the roll out policy.",
+            "There's really nothing to decide here.",
+            "Just picks an action, randomly, expands it, and then it rolls out using a default policy to the route to a terminal node.",
+            "And let's just say you get a terminal reward of one.",
+            "You can have rewards anywhere, but this is just showing them at the terminals.",
+            "Then what it's going to do is update the statistics and it's only going to add that first node that wasn't in the tree."
+        ],
+        [
+            "And now this is your first tree, and now you're going to run another iteration.",
+            "It's going to pick that this time expand.",
+            "You gotta."
+        ],
+        [
+            "Word of 0 update your statistics now.",
+            "The root has statistics of 1/2 'cause it's one one last one."
+        ],
+        [
+            "Now it's a little more interesting because you have a nontrivial tree here, and there's a choice of which way to go.",
+            "And UCT uses a particular way of doing this, but you have to.",
+            "You have to trade off exploration and exploitation here.",
+            "Here you're going to probably choose to go that way because it looks."
+        ],
+        [
+            "Better at this point and then you add a new node to the tree expand."
+        ],
+        [
+            "And."
+        ],
+        [
+            "Update."
+        ],
+        [
+            "And you will keep on doing this and the question is, what's an appropriate tree policy?",
+            "I'm not going to go into detail."
+        ],
+        [
+            "Else, but basically UCT treats this choice of which way to go as a bandit problem, so it's a multi armed bandit problem, and it's trying to figure out how to maximize the overall reward and you have to do some exploration, but you have to also exploit and so it uses something called the update upper confidence bound rule to do this right?",
+            "So I'm not going to go into that, but basically it has an X."
+        ],
+        [
+            "Patient ermine and exploitation term.",
+            "So let's use ET."
+        ],
+        [
+            "Hey, let's look at ensemble UCT and there's really not much to say about it.",
+            "It's very simple, so ensemble UCT will build multiple trees.",
+            "You specify a number of trees and how many trajectories per tree you get multiple trees and they'll they'll all look a little different.",
+            "And then it's going to accumulate the statistics in those trees.",
+            "So every root statistics, every root node stores how many times each action was tried and what the reward was that you got.",
+            "Those are accumulated.",
+            "You just accumulate the root statistics.",
+            "You throw away all the other stuff, so there's really hardly any communication.",
+            "And then you take the action of the best route, the best route action.",
+            "So that's it.",
+            "That's that's ensemble UCT and.",
+            "We tried other voting methods, this really I won't waste your time if you're going to try to improve on voting methods.",
+            "We didn't find anything that really was much better than this."
+        ],
+        [
+            "So why?",
+            "Why might it work?",
+            "Well, if you're familiar with random restarts from the search community and and also bagging from the machine learning community, it works roughly for the same reason.",
+            "UCT is a stochastic process.",
+            "This tree is a random variable, and there's variance in the trees.",
+            "And so sometimes you know it's going to make a wrong choice just because it got unlucky early on in that rebuilding process, and you're going to be making at least individual trees.",
+            "You might be making 100 decisions throughout the game, and there's going to be a few bad choices because you get unlucky because of the variance in that rebuilding process."
+        ],
+        [
+            "And so.",
+            "It makes a lot of sense to combine these things because we know that averaging reduces variance, and so you're going to make fewer bad choices during the during the execution, and so this is nothing more than random restarts, which is well known to reduce variance.",
+            "And in bagging it's well known to reduce a classification error.",
+            "So you go from individual high individual variance to a much lower variance, so that's really the key thing and the.",
+            "Parallel time advantage is sort of explained by that.",
+            "Because you don't pay a time penalty for building all these trees in average."
+        ],
+        [
+            "So why might it work for a sequential time setting?",
+            "And this is much less clear and I this is what I really was interested in finding out in the empirical study.",
+            "Well, there's a trade off now 'cause a bigger tree is going to have less bias with respect to choosing a good action, so bias in a statistical sense, is it our it's estimates off or not small trees.",
+            "You can imagine if they're really small, they're not going to give you much useful information right there.",
+            "Going to be highly biased.",
+            "And they might.",
+            "They may or may not have high variance.",
+            "It's hard to tell, but sort of tradeoff.",
+            "This is going to have maybe higher variance and lower bias.",
+            "Here you have high bias and it's really a tradeoff, and it's not clear whether the ensemble ING technique can overcome the bias in all cases.",
+            "So what you would expect going in is for very small trees.",
+            "Maybe this won't work at all, and but at some point it's the trees get large enough.",
+            "Maybe the ensemble in technique will kick in so that if you have the same amount of time in both cases, you'll still be able to do better over there, but it's completely unclear.",
+            "It's not as clear as the parallel time case."
+        ],
+        [
+            "Alright, so domains and results."
+        ],
+        [
+            "So we looked at 6 domains.",
+            "Really it's 5 + 1 because there are two variants of 1 domain, But the first one and these are all available as a Java.",
+            "In Java we have a standard API and that hooks up to the algorithm.",
+            "So contact me if you're interested in these.",
+            "Backgammon here you're probably familiar with it, but it's basically it involves dice, so it's highly stochastic, and there are two players.",
+            "One aspect of this domain is there's a lot of actions in a lot of states, so some states.",
+            "I think there's upwards of 1000 different possibilities that you could you could do and and basically every turn you roll dice, and there's quite a big fan out for those dice rolls as well.",
+            "At least 6036 possibilities so."
+        ],
+        [
+            "So that's one domain by naxx.",
+            "I never heard of this, but the student, it's a little game where you're kind of like Tetris, but you're moving this thing around.",
+            "I'm not going to describe it.",
+            "The interesting thing here is the interesting thing here is that every every.",
+            "I think every five steps, a completely random configuration comes down on the board so it's always moving down and the colors that come down are random, and so there's a very high stochastic.",
+            "It is very high entropy distribution on those transitions, so that makes this kind of an interesting domain, but otherwise it's kind of deterministic.",
+            "Other than that, this little square is moving around and it's clobbering all the other little squares, and then it ends when it gets stuck."
+        ],
+        [
+            "Connect four you've probably seen this.",
+            "I don't know if you play connect four in Europe, but two players deterministic.",
+            "It's usually not played on such a large board, the.",
+            "The main idea is the connection game constrained by gravity.",
+            "You have to get four of the same color in a row and you win, so there's an optimal strategy known for connect four.",
+            "The first player can win in Connect four if they play in the middle first."
+        ],
+        [
+            "Havana, another large board.",
+            "I don't know who this guy is, but he looks a little scary to me.",
+            "Two players deterministic.",
+            "It's to me.",
+            "I just think of it as goal, but it's quite a bit weirder than go you have to.",
+            "I forget the exact rules, but you have to make certain shapes and they're like 3 shapes and if you make those shapes you win.",
+            "And this is actually fairly hard game for computers, just like like go.",
+            "So, but I think there's some pretty good progress in."
+        ],
+        [
+            "This in in recent years and yatzy there are six dice.",
+            "You roll them lots of stochastic city Ann.",
+            "You have choices of whether to roll the dice again an you have categories that you can mark off.",
+            "We're not going to get into the rules, but there's an interesting set of actions you can roll Dice's actions.",
+            "Or you can mark off categories as action, so it's a very different kind of domain."
+        ],
+        [
+            "Player stochastic we had two versions of Yatzy because his first implementation had a bug in the scoring, but he had spent like a month running it, so I said that's a new domain and it actually is an interesting variation on the on the scoring so.",
+            "So we read all the ensembles, a single thread on a single core so we didn't do any parallel implementations.",
+            "But I guess we could have.",
+            "It's just a for loop that you have to parallelize, but there's no basically no overhead in combining these votings, so the ECT constant was set per domain based on a single tree, and we had a bunch of RAM varied the ensemble configuration so the two parameters are ensemble size, number of trees, and number of trajectories per tree.",
+            "Number of trajectories is how many nodes are in the tree.",
+            "OK, so those are the two parameters and we average the results over 1000 or 4000 runs and we give the 99% confidence intervals.",
+            "So the larger ensemble sizes, we just don't have the time to do."
+        ],
+        [
+            "4000 runs, so I'm going to show you tables here.",
+            "The rows are going to correspond to trajectory's per tree, and so in the columns are number of trees.",
+            "So the first column is basically a single UCT tree, and you increase the number of trajectories per tree."
+        ],
+        [
+            "So what you'll see for example here is with two to seven trajectories per tree, which is pretty small.",
+            "You increase the ensemble size and you get a pretty steady increase in performance.",
+            "That's what we would expect.",
+            "Even for smaller for small trees."
+        ],
+        [
+            "And."
+        ],
+        [
+            "This trend continues and this basically just verifies in this domain at least that there's.",
+            "I mean there's an incredibly consistent improvement as ensemble size grows, and it's actually fairly fairly steady for quite a while you're even getting improvements at 2 to 16, we couldn't use anymore.",
+            "That's where we ran out of memory, so this is kind of interesting because you can get better performance even if your memory constrained.",
+            "So a parallel time single core advantage is pretty clear."
+        ],
+        [
+            "From all of these results.",
+            "Now now now this these two points indicate the disadvantage that you get super linear improvements.",
+            "This is a 32 times improvement.",
+            "Let's just ignore confidence intervals for now, but two to the 11 and 16 nodes.",
+            "You get the same performance as where we ran out of memory basically so."
+        ],
+        [
+            "So just one example.",
+            "In connect four there are there are."
+        ],
+        [
+            "Similar examples we saw.",
+            "We had one domain where we didn't see much improvement and that was by knacks.",
+            "And the reason here we looked into it there really was not much variance, especially for small trees you have to grow a big enough tree to see a good path to get higher reward and there was just very little variance there and I think the fluctuations here just a tip."
+        ],
+        [
+            "Tickle as you get bigger trees, you get smaller improvements, but it's still a fairly low variant setting.",
+            "There's only four actions there, and.",
+            "Usually it's up or something like that, so very small improvements because of the low variance."
+        ],
+        [
+            "And small trees had large bias, so this is, this is what I wanted to see.",
+            "So so the reason I plot it this way as a factor of two in each dimension is as you go along diagonals.",
+            "That means that you're using the same amount of time you're growing.",
+            "You're using the same number of nodes, which roughly is the same amount of time to run the ensemble on a single core machine.",
+            "So so one big tree versus 2 trees that are half as big."
+        ],
+        [
+            "So what we see here is sort of what I was alluding to in the beginning.",
+            "You see that here when we break up this one tree into two trees, we actually decrease our performance and then you can see this as a trend for the smaller trees.",
+            "If you break them up, you tend to decrease the performance, and so that's one observation.",
+            "And that was very consistent."
+        ],
+        [
+            "Trust all the domains.",
+            "For medium trees and then what you'll see as you move along the diagonal, you'll tend to stop decreasing in performance and you'll get about the same."
+        ],
+        [
+            "Now this is just due to the variance reduction.",
+            "Small trees have high bias and you can't overcome that with variance reduction.",
+            "That's not the main problem."
+        ],
+        [
+            "So that's how we explained that there was some isolated evidence that.",
+            "That there are trends for two of the domains where you do see sequential single core time speedups.",
+            "If we ran more, I think the statistical test would would put these in the confidence intervals.",
+            "But overall we did not see a significant single core speedup across these, which was disappointing to me.",
+            "That's what really what I was trying to find out."
+        ],
+        [
+            "So in summary, parallel time in single core space advantage, yes, very consistently, except when there's very small variants.",
+            "Sequential time advantage.",
+            "Nothing significant yet, but I think for some domains there certainly will be, and I believe two of these domains.",
+            "The trends were there.",
+            "Is a sequential time disadvantage when there's when the trees are too small and there's high bias."
+        ],
+        [
+            "So.",
+            "So let's say for future work, I think we need to better understand this bias variance tradeoff.",
+            "I'd like to experiment with larger ensembles.",
+            "Where does it stop improving and are they are the same trends for super duper versions of UCT that are optimized for specific domains?",
+            "People do a lot of domain engineering into UCT algorithms.",
+            "And then there's the problem of optimizing these configurations for a cluster given space in memory constraints.",
+            "Thank you."
+        ],
+        [
+            "Alright, we only have time for about 1 questions, so I was wondering if you have a sense of what is the effective horizon for effective planning horizon for those problems?",
+            "Because I guess one of the tradeoffs between.",
+            "I guess having one tree and assemble of trees that the the the one tree will just have branches that go deeper an I guess and assemble of trees.",
+            "I mean sure it reduces variance, but it also doesn't go as deep, so if.",
+            "In some problems I would think that if you don't go deep enough then it is just not going to work well right?",
+            "So so then how does that like?",
+            "Do you have a sense of what is the effective planning?",
+            "So I think of that in terms of a bias.",
+            "So when you're when you're not able to go deep enough, that sort of.",
+            "You have an increased bias, so so as you go deeper, your bias goes down in the estimates and buy naxx.",
+            "For example.",
+            "That's that's exactly what you're talking about.",
+            "You needed to look deeper to see the good paths, and we saw when he couldn't look deeper, you got no variance reduction wasn't the problem.",
+            "So yeah, I mean that's going to be there.",
+            "It's very domain specific.",
+            "If you need to look deep, you need deep trees to do anything at all."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so yeah, this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly what it says.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an empirical study, so you can relax your brain a little bit.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll try not to a bore you with lots of tables.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's get started.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm gonna give you a little motivation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Go over a brief tutorial of UCT to so you can all know what we're talking about here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I'll go into very simple idea of UCT ensembles and give you some.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Goals, so first the motivation.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to just sort of give you the story of how I got here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't usually do large scale empirical evaluations, but in this case we were studying Klondike Solitaire, trying to build a planner for it a couple of years ago, and the reason was we one of our students really was interested in how many solitaire games can be solved, and we had no idea nobody had any idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "We tried really, really hard and came up with a fancy determine Eisd planner with hindsight Optum.",
+                    "label": 0
+                },
+                {
+                    "sent": "Azatian wrapped around it and we got 27% win rates and he was very excited and that seemed like a really great result.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then as a baseline, we thought the reviewers might complain if we didn't have a baseline, so we ran a vanilla UCT.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nothing fancy.",
+                    "label": 0
+                },
+                {
+                    "sent": "UCT is a planning algorithm that I'll tell you about in a moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "It got 34.4% and we really weren't able to do anything to the hop approach to beat that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we thought about this a little more, so UCT is a tree building algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "At every step, it builds a tree and then it makes a decision and then the next step it builds a tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we combined UCT with hop and we got some improvement and that suggested a general family of algorithms and one of the parameters was how many trees do you build and we we notice that if you build.",
+                    "label": 0
+                },
+                {
+                    "sent": "A bunch of small trees, smaller trees, and you sort of average and have them vote.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can do even better and moving up to 37% from 34 was actually fairly hard for us to do in any other way.",
+                    "label": 0
+                },
+                {
+                    "sent": "And lately, he's he's he's above 40%.",
+                    "label": 0
+                },
+                {
+                    "sent": "He's graduated and moved on from solitaire.",
+                    "label": 0
+                },
+                {
+                    "sent": "But but yeah, this is the 40% came from the ensembles.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that led me to wonder.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a very simple parallelization approach and it seemed like a very naive approach to parallelizing UCT.",
+                    "label": 0
+                },
+                {
+                    "sent": "I assumed ECT so popular that people have studied how to parallelize it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I looked in the literature and most all of this is in go.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of the people that are.",
+                    "label": 0
+                },
+                {
+                    "sent": "That are working on UCT are working and go although there.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Changing now.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I looked at some of the recent papers at that time and there were a couple.",
+                    "label": 0
+                },
+                {
+                    "sent": "And a very surprising thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were trying some fancy techniques and it was surprising that this this technique of just running independent use eteson voting was very hard for them to be, and they weren't actually able to beat it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I kind of felt sorry for them because it's this baseline that they really want to beat, but they couldn't and they couldn't explain why.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a picture from that paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the the top purple line is the simple voting mechanism, the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Communication free, really parallelization technique and all of the other lines.",
+                    "label": 0
+                },
+                {
+                    "sent": "The red line and below forget about the light blue line, the red line and below are all of their fancier parallel techniques that use communication between processors, so they were very frustrated.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could read it on the you could just feel their frustration on the page.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I was skeptical about this and just today I was trying to pick Martin's brain about whether there's been an improvement on this and he seems to think there is.",
+                    "label": 0
+                },
+                {
+                    "sent": "But as far as I know there's no published.",
+                    "label": 0
+                },
+                {
+                    "sent": "Paper on this that it shows the parallel technique that beats this independent voting technique in general, so it was kind of interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what did it so?",
+                    "label": 0
+                },
+                {
+                    "sent": "I can't say that this is the best parallel technique and I'm not not going to claim that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think you can probably do better, but this is such an easy technique to implement.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It's very nice to know about.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look at the possible advantages that people have observed in these two isolated studies.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's the parallel time advantage.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you run a bunch of small trees on independent processors, and you vote, and you're comparing that versus 1 computer running a small tree, and we've seen significant advantages to doing that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is basically the principle of random restarts will go into.",
+                    "label": 0
+                },
+                {
+                    "sent": "This will make more sense after you know.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "UCT works.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other prior observations, which are a little more interesting.",
+                    "label": 1
+                },
+                {
+                    "sent": "There are about single core.",
+                    "label": 0
+                },
+                {
+                    "sent": "Implementations in the first observation really just follows from the prior observation, so if you have a parallel time advantage, you automatically get a sequential space advantage because you only need to store in memory the size of the largest tree, and these trees can be a lot smaller and you get the same performance as if you're using a big tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if memory is your main bottleneck, this is a really nice thing to know.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you just have a single core.",
+                    "label": 1
+                },
+                {
+                    "sent": "The the more compelling thing and the thing that I was really hoping to see in this study was this single core time advantage which was noticed in both studies.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it basically said that if you do this run a bunch of small trees and vote versus running a big tree in Bo and use the same time, so they have the same total number of nodes, that's roughly the amount of time.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were doing better here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could do better here, so it's sort of a super linear time speedup, and that will make sense after you see see what was happening so that that would be a very interesting thing to know.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have single core implementations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So my objective was to try to go a little bit beyond these prior observations which were limited to go in solitaire, and they were very limited in the ensemble configurations considered, so I wasn't sure if I was looking at just a couple of isolated cases or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the the goal was to provide evidence for or against those observations, and we're going to consider 6 domains other than go in solitaire and.",
+                    "label": 1
+                },
+                {
+                    "sent": "Test on a regular grid of ensemble configuration, so I found a master student and he babysat computers running all of this stuff for months and months and and this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is what I'm going to talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "The result of this study.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So first we need to say a little bit about UCT.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to give a major tutorial, but I just want to give you a flavor of what?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "UCT is so it's an instance of Monte Carlo Tree search, and it can be applied to single agent and game type problems, stochastic or deterministic problems.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it's probably most famous for the advances in go.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, before you see T and after UCT sort of night and day in terms of go research.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's a growing number of success stories.",
+                    "label": 1
+                },
+                {
+                    "sent": "In fact, yesterday the probabilistic planning competition in both tracks the partially observable and fully observable first place competitor used some variant of UCT.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the practical successes are not so well understood, so that's a little bit troubling, but it's very early.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Early on in this area, so how does it work?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well you want a picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is just an online algorithm that at every state is going to somehow build a tree.",
+                    "label": 1
+                },
+                {
+                    "sent": "As I'm showing there in the trees not going to be a uniform depth, that's going to sort of be biased towards good areas of the tree will talk a little bit about how it might do that, and after it builds that tree, it's going to select the best action at the root, the one that looks like it has the best value and take the action and then move to the next state.",
+                    "label": 0
+                },
+                {
+                    "sent": "Build another tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how does it build the tree?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it's going to do is repeatedly start at the root and execute a rollout policy to a certain depth.",
+                    "label": 1
+                },
+                {
+                    "sent": "Usually a terminal node in every execution of the rollout policy is going to add a single node to the tree, and it will do that as much time as it has.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will get its tree and then then it will update the statistics of the root node and make its decision.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the key idea of UCT is and really Monte Carlo tree search in general.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is to bias the rollout policy based on your previous results.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you have your current tree and it's giving you some information of what's promising and they bias the rollout policy towards more promising areas of the tree, so they're really trying to resolve the explore exploit.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Dilemma in tree building.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just an example of what this looks like so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say we're at a state we want to build our UCT tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "The initial state we start off with as our tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So our tree is a single leaf in the beginning and we're going to run an execution of the roll out policy.",
+                    "label": 1
+                },
+                {
+                    "sent": "There's really nothing to decide here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just picks an action, randomly, expands it, and then it rolls out using a default policy to the route to a terminal node.",
+                    "label": 1
+                },
+                {
+                    "sent": "And let's just say you get a terminal reward of one.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can have rewards anywhere, but this is just showing them at the terminals.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then what it's going to do is update the statistics and it's only going to add that first node that wasn't in the tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And now this is your first tree, and now you're going to run another iteration.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to pick that this time expand.",
+                    "label": 0
+                },
+                {
+                    "sent": "You gotta.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Word of 0 update your statistics now.",
+                    "label": 0
+                },
+                {
+                    "sent": "The root has statistics of 1/2 'cause it's one one last one.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now it's a little more interesting because you have a nontrivial tree here, and there's a choice of which way to go.",
+                    "label": 0
+                },
+                {
+                    "sent": "And UCT uses a particular way of doing this, but you have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to trade off exploration and exploitation here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here you're going to probably choose to go that way because it looks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Better at this point and then you add a new node to the tree expand.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Update.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And you will keep on doing this and the question is, what's an appropriate tree policy?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to go into detail.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Else, but basically UCT treats this choice of which way to go as a bandit problem, so it's a multi armed bandit problem, and it's trying to figure out how to maximize the overall reward and you have to do some exploration, but you have to also exploit and so it uses something called the update upper confidence bound rule to do this right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm not going to go into that, but basically it has an X.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Patient ermine and exploitation term.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's use ET.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Hey, let's look at ensemble UCT and there's really not much to say about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very simple, so ensemble UCT will build multiple trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "You specify a number of trees and how many trajectories per tree you get multiple trees and they'll they'll all look a little different.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it's going to accumulate the statistics in those trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So every root statistics, every root node stores how many times each action was tried and what the reward was that you got.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are accumulated.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just accumulate the root statistics.",
+                    "label": 0
+                },
+                {
+                    "sent": "You throw away all the other stuff, so there's really hardly any communication.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you take the action of the best route, the best route action.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's ensemble UCT and.",
+                    "label": 0
+                },
+                {
+                    "sent": "We tried other voting methods, this really I won't waste your time if you're going to try to improve on voting methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "We didn't find anything that really was much better than this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So why?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why might it work?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if you're familiar with random restarts from the search community and and also bagging from the machine learning community, it works roughly for the same reason.",
+                    "label": 0
+                },
+                {
+                    "sent": "UCT is a stochastic process.",
+                    "label": 1
+                },
+                {
+                    "sent": "This tree is a random variable, and there's variance in the trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so sometimes you know it's going to make a wrong choice just because it got unlucky early on in that rebuilding process, and you're going to be making at least individual trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might be making 100 decisions throughout the game, and there's going to be a few bad choices because you get unlucky because of the variance in that rebuilding process.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And so.",
+                    "label": 0
+                },
+                {
+                    "sent": "It makes a lot of sense to combine these things because we know that averaging reduces variance, and so you're going to make fewer bad choices during the during the execution, and so this is nothing more than random restarts, which is well known to reduce variance.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in bagging it's well known to reduce a classification error.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you go from individual high individual variance to a much lower variance, so that's really the key thing and the.",
+                    "label": 1
+                },
+                {
+                    "sent": "Parallel time advantage is sort of explained by that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because you don't pay a time penalty for building all these trees in average.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So why might it work for a sequential time setting?",
+                    "label": 1
+                },
+                {
+                    "sent": "And this is much less clear and I this is what I really was interested in finding out in the empirical study.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, there's a trade off now 'cause a bigger tree is going to have less bias with respect to choosing a good action, so bias in a statistical sense, is it our it's estimates off or not small trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can imagine if they're really small, they're not going to give you much useful information right there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going to be highly biased.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they might.",
+                    "label": 0
+                },
+                {
+                    "sent": "They may or may not have high variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's hard to tell, but sort of tradeoff.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is going to have maybe higher variance and lower bias.",
+                    "label": 1
+                },
+                {
+                    "sent": "Here you have high bias and it's really a tradeoff, and it's not clear whether the ensemble ING technique can overcome the bias in all cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you would expect going in is for very small trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe this won't work at all, and but at some point it's the trees get large enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe the ensemble in technique will kick in so that if you have the same amount of time in both cases, you'll still be able to do better over there, but it's completely unclear.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not as clear as the parallel time case.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so domains and results.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we looked at 6 domains.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really it's 5 + 1 because there are two variants of 1 domain, But the first one and these are all available as a Java.",
+                    "label": 0
+                },
+                {
+                    "sent": "In Java we have a standard API and that hooks up to the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So contact me if you're interested in these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Backgammon here you're probably familiar with it, but it's basically it involves dice, so it's highly stochastic, and there are two players.",
+                    "label": 0
+                },
+                {
+                    "sent": "One aspect of this domain is there's a lot of actions in a lot of states, so some states.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think there's upwards of 1000 different possibilities that you could you could do and and basically every turn you roll dice, and there's quite a big fan out for those dice rolls as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least 6036 possibilities so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that's one domain by naxx.",
+                    "label": 0
+                },
+                {
+                    "sent": "I never heard of this, but the student, it's a little game where you're kind of like Tetris, but you're moving this thing around.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to describe it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The interesting thing here is the interesting thing here is that every every.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think every five steps, a completely random configuration comes down on the board so it's always moving down and the colors that come down are random, and so there's a very high stochastic.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is very high entropy distribution on those transitions, so that makes this kind of an interesting domain, but otherwise it's kind of deterministic.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other than that, this little square is moving around and it's clobbering all the other little squares, and then it ends when it gets stuck.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Connect four you've probably seen this.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know if you play connect four in Europe, but two players deterministic.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's usually not played on such a large board, the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The main idea is the connection game constrained by gravity.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to get four of the same color in a row and you win, so there's an optimal strategy known for connect four.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first player can win in Connect four if they play in the middle first.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Havana, another large board.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know who this guy is, but he looks a little scary to me.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two players deterministic.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's to me.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just think of it as goal, but it's quite a bit weirder than go you have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "I forget the exact rules, but you have to make certain shapes and they're like 3 shapes and if you make those shapes you win.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is actually fairly hard game for computers, just like like go.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, but I think there's some pretty good progress in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This in in recent years and yatzy there are six dice.",
+                    "label": 0
+                },
+                {
+                    "sent": "You roll them lots of stochastic city Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have choices of whether to roll the dice again an you have categories that you can mark off.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not going to get into the rules, but there's an interesting set of actions you can roll Dice's actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you can mark off categories as action, so it's a very different kind of domain.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Player stochastic we had two versions of Yatzy because his first implementation had a bug in the scoring, but he had spent like a month running it, so I said that's a new domain and it actually is an interesting variation on the on the scoring so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we read all the ensembles, a single thread on a single core so we didn't do any parallel implementations.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I guess we could have.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just a for loop that you have to parallelize, but there's no basically no overhead in combining these votings, so the ECT constant was set per domain based on a single tree, and we had a bunch of RAM varied the ensemble configuration so the two parameters are ensemble size, number of trees, and number of trajectories per tree.",
+                    "label": 1
+                },
+                {
+                    "sent": "Number of trajectories is how many nodes are in the tree.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so those are the two parameters and we average the results over 1000 or 4000 runs and we give the 99% confidence intervals.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the larger ensemble sizes, we just don't have the time to do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "4000 runs, so I'm going to show you tables here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The rows are going to correspond to trajectory's per tree, and so in the columns are number of trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first column is basically a single UCT tree, and you increase the number of trajectories per tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what you'll see for example here is with two to seven trajectories per tree, which is pretty small.",
+                    "label": 0
+                },
+                {
+                    "sent": "You increase the ensemble size and you get a pretty steady increase in performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what we would expect.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even for smaller for small trees.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This trend continues and this basically just verifies in this domain at least that there's.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean there's an incredibly consistent improvement as ensemble size grows, and it's actually fairly fairly steady for quite a while you're even getting improvements at 2 to 16, we couldn't use anymore.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's where we ran out of memory, so this is kind of interesting because you can get better performance even if your memory constrained.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a parallel time single core advantage is pretty clear.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "From all of these results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now now now this these two points indicate the disadvantage that you get super linear improvements.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a 32 times improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's just ignore confidence intervals for now, but two to the 11 and 16 nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get the same performance as where we ran out of memory basically so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So just one example.",
+                    "label": 0
+                },
+                {
+                    "sent": "In connect four there are there are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Similar examples we saw.",
+                    "label": 0
+                },
+                {
+                    "sent": "We had one domain where we didn't see much improvement and that was by knacks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason here we looked into it there really was not much variance, especially for small trees you have to grow a big enough tree to see a good path to get higher reward and there was just very little variance there and I think the fluctuations here just a tip.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Tickle as you get bigger trees, you get smaller improvements, but it's still a fairly low variant setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's only four actions there, and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Usually it's up or something like that, so very small improvements because of the low variance.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And small trees had large bias, so this is, this is what I wanted to see.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so the reason I plot it this way as a factor of two in each dimension is as you go along diagonals.",
+                    "label": 1
+                },
+                {
+                    "sent": "That means that you're using the same amount of time you're growing.",
+                    "label": 1
+                },
+                {
+                    "sent": "You're using the same number of nodes, which roughly is the same amount of time to run the ensemble on a single core machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so one big tree versus 2 trees that are half as big.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what we see here is sort of what I was alluding to in the beginning.",
+                    "label": 0
+                },
+                {
+                    "sent": "You see that here when we break up this one tree into two trees, we actually decrease our performance and then you can see this as a trend for the smaller trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you break them up, you tend to decrease the performance, and so that's one observation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that was very consistent.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Trust all the domains.",
+                    "label": 0
+                },
+                {
+                    "sent": "For medium trees and then what you'll see as you move along the diagonal, you'll tend to stop decreasing in performance and you'll get about the same.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now this is just due to the variance reduction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Small trees have high bias and you can't overcome that with variance reduction.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's not the main problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that's how we explained that there was some isolated evidence that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That there are trends for two of the domains where you do see sequential single core time speedups.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we ran more, I think the statistical test would would put these in the confidence intervals.",
+                    "label": 0
+                },
+                {
+                    "sent": "But overall we did not see a significant single core speedup across these, which was disappointing to me.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what really what I was trying to find out.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in summary, parallel time in single core space advantage, yes, very consistently, except when there's very small variants.",
+                    "label": 1
+                },
+                {
+                    "sent": "Sequential time advantage.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nothing significant yet, but I think for some domains there certainly will be, and I believe two of these domains.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trends were there.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is a sequential time disadvantage when there's when the trees are too small and there's high bias.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say for future work, I think we need to better understand this bias variance tradeoff.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'd like to experiment with larger ensembles.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where does it stop improving and are they are the same trends for super duper versions of UCT that are optimized for specific domains?",
+                    "label": 1
+                },
+                {
+                    "sent": "People do a lot of domain engineering into UCT algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there's the problem of optimizing these configurations for a cluster given space in memory constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, we only have time for about 1 questions, so I was wondering if you have a sense of what is the effective horizon for effective planning horizon for those problems?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because I guess one of the tradeoffs between.",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess having one tree and assemble of trees that the the the one tree will just have branches that go deeper an I guess and assemble of trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean sure it reduces variance, but it also doesn't go as deep, so if.",
+                    "label": 0
+                },
+                {
+                    "sent": "In some problems I would think that if you don't go deep enough then it is just not going to work well right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So so then how does that like?",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you have a sense of what is the effective planning?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think of that in terms of a bias.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when you're when you're not able to go deep enough, that sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have an increased bias, so so as you go deeper, your bias goes down in the estimates and buy naxx.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's exactly what you're talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "You needed to look deeper to see the good paths, and we saw when he couldn't look deeper, you got no variance reduction wasn't the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, I mean that's going to be there.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very domain specific.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you need to look deep, you need deep trees to do anything at all.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

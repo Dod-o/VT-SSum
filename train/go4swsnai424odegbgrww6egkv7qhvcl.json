@@ -1,0 +1,1053 @@
+{
+    "id": "go4swsnai424odegbgrww6egkv7qhvcl",
+    "title": "Analyzing raw log files to find execution anomalies",
+    "info": {
+        "author": [
+            "Primo\u017e \u0160kraba, Artificial Intelligence Laboratory, Jo\u017eef Stefan Institute"
+        ],
+        "published": "Dec. 8, 2017",
+        "recorded": "October 2017",
+        "category": [
+            "Top->Computer Science->Artificial Intelligence",
+            "Top->Computer Science->Data Mining"
+        ]
+    },
+    "url": "http://videolectures.net/sikdd2017_skraba_execution_anomalies/",
+    "segmentation": [
+        [
+            "I am not one of the four authors of this paper.",
+            "The authors.",
+            "Unfortunately, none of them could be here today, and they successfully bribe me into giving this presentation.",
+            "So I'm going to talk about.",
+            "Different ways of analyzing log files and kind of more specifically how one can do anomaly detection so?"
+        ],
+        [
+            "The overview of the talk is to basically describe what is anomaly detection, because perhaps it's not completely obvious how it applies to log file analysis.",
+            "The general algorithm for doing anomaly detection.",
+            "A basic evaluation of the algorithm and how it works.",
+            "And finally I'll conclude a little bit about the next steps in this work."
+        ],
+        [
+            "OK, So what is anomaly detection?",
+            "Well, you know.",
+            "Intuitively, everyone knows what an anomaly is, right?",
+            "It's something that is unusual.",
+            "Something that doesn't happen so often, something that's unexpected, so kind of.",
+            "Going a little more technically, we can say that this is a data point, like a sample that has somehow deviated from what we expect, right?",
+            "So this is going to be kind of our.",
+            "Basic definition, and even in this case.",
+            "There are problems with kind of again.",
+            "Building up a system based on this definition, as we'll see.",
+            "So the goal rather than this kind of very general thing.",
+            "We're going to kind of concentrate on three specific goals, and realistically we're only going to talk about the first 2, so the first one is to kind of detect sudden changes.",
+            "So if we have a system and something goes wrong, well, this is a short term.",
+            "Change right because all of a sudden something's changed.",
+            "Something's gone wrong.",
+            "My car has gotten a flat tire or something like that.",
+            "You know there's a sudden change so we call these short-term changes.",
+            "Then there's slow degradations, right?",
+            "My phone battery gets worse and worse and worse and worse and worse.",
+            "So this from any one charge cycle.",
+            "I won't see any change but you know, overtime there certainly is.",
+            "Both qualitative and quantitative change, and so we'd like to be able to detect that and these types of things we call long term anomalies, right?",
+            "So long term changes finally, the last one is root cause analysis.",
+            "We won't talk much about this, but if something goes wrong, we'd like to ultimately figure out what caused this right?",
+            "So that's kind of an ultimate goal, but you know, this is people have been working on this for many, many years, and so these are very hard problems.",
+            "OK, so anomaly detection is generally applies to many different fields.",
+            "Probably goes back to the 1930s if not before, but we're going to concentrate on the application of monitoring IT systems."
+        ],
+        [
+            "OK, So what are the kind of more specific challenges for this?",
+            "Well, the first thing is we don't have very much control over the input type of data, right?",
+            "So could be numeric.",
+            "It could be text.",
+            "It could be sequences of text, so it can be all sorts of different things.",
+            "It's an IT system, so presumably information is constantly coming in, right?",
+            "IT systems run all the time, so you know it's kind of running on a stream.",
+            "One of the key challenges is that's perhaps not obvious in the definition is that anomaly is not just something that's strange, but something that we can actually act upon, right?",
+            "So this is called action ability, and in order to kind of.",
+            "Act on something.",
+            "We need to be able to understand that we need to know what this anomaly means.",
+            "So we'll come back to this again in a bit.",
+            "Another issue is you know we don't want just things that are unexpected, but in some sense they need to have a certain amount of quantity, right so?",
+            "It's not just that you know we have one anomalous reading.",
+            "You know that my thermometer has said that the outside temperature is 150 degrees Centigrade, but you know, we want.",
+            "Some number of measurements that tell us that something is really there, right?",
+            "Something that's not just noise, so this kind of proper quantity of.",
+            "Of data that has to be strange enough and enough of it for us to quantify it as an anomaly, right?",
+            "So this another word for this in the in the literature is also called the Goldilocks problem, because, you know, it shouldn't have too many, because then it's the normal state of things and there shouldn't be too few, because then it's just probably noise.",
+            "And then the last big key challenges concept drift, so you know one of the key assumptions in statistics is that we have stationary that things don't change too much overtime, but in reality they do right?",
+            "I mean specially in IT systems, the way a computer runs today, you know the types of things are turning today are going to be completely different from the things that will be running tomorrow, so you know.",
+            "Reality does change overtime."
+        ],
+        [
+            "OK, so what's the general kind of plan of attack for this type of problem?",
+            "Well, we're going to have input data that's going to come in.",
+            "We're going to parse it somehow.",
+            "We're going to put it into some, preprocess it into some regular form.",
+            "We're going to compute some score that's going to grade how anomalous this is, and then if we decide that it's anomalous enough, we're just going to report it right?",
+            "And then we update our model and this continues, right?",
+            "So?",
+            "Part of the reason is this has to be a real streaming algorithm, right?",
+            "Because data is going to come in all the time.",
+            "Change over from day to day and plus you know we'd like to have these things as in real time as possible.",
+            "It doesn't really help me if I go back three months and say, Oh well, you know there was something strange that happened on that day.",
+            "It's not as useful as if I can do it on the fly, OK?",
+            "So."
+        ],
+        [
+            "Getting a little more into the specifics right, so for a log file analysis.",
+            "So why log files?",
+            "Well, we're analyzing IT systems, so this is something that's always kind of present, right?",
+            "We we always have the ability to look at log files.",
+            "That's the positive side.",
+            "The negative side is that we have unstructured text, right?",
+            "So these things, the log files are not don't come in nice tables, they contain different amounts of information.",
+            "But one thing we can always count on is they have timestamps, right?",
+            "So if nothing else, we have kind of a time process, right?",
+            "But when things are written to a log file, if nothing else, we have that.",
+            "A lot of times we have more information, but you know, we always at least have this.",
+            "OK, so you know we can extract various bits of information depending on the setting.",
+            "You know sometimes we might get kind of identifiers of processes, different errors that are reported in log files, warnings things like this.",
+            "This really is becomes much more specific to the case that we're dealing with.",
+            "So one of the key issues is to identify these execution profiles, which are essentially descriptions of these time intervals, right?",
+            "So if I have a process right that I've identified, I kind of should know something about the statistics of how often things get written to the log file, and if that changes, it probably tells me something has changed.",
+            "You know, there might be an anomaly present."
+        ],
+        [
+            "OK, so kind of going from that general streaming algorithm to kind of something more specific you know.",
+            "First again, the data flies in and there's a.",
+            "There's going to be a figure after this, but we first preprocess it, which is basically this.",
+            "Now what do we do for anomalous score?",
+            "Well, we're going to change this issue of how anomalous something is to a distance, right, so?",
+            "We're going to look at our data at some point in some high dimensional space, and we're going to ask.",
+            "OK, if it's anomalous, it has to be far away from everything that's happened before.",
+            "Right, so so that's a reasonable proxy for how anomalous something is.",
+            "And then we follow the same kind of the same kind of idea, right?",
+            "That if it's if the distance is really far compared to everything else that we've seen, we're going to report it as an anomaly, right?",
+            "And again, then we update our model, right?",
+            "So kind of.",
+            "Do."
+        ],
+        [
+            "This a little more pictorially, right?",
+            "We have our log files we do preprocessing and one of the key points here is to make this as general as possible.",
+            "We use kind of a bag of words or bag of features, which is essentially just extracts different things from the log file from each.",
+            "Entering the log file and kind of represents it as a high dimensional vector and puts these things together over some short window.",
+            "Now then, we do compute how far this vector that we've constructed is from everything we've seen before.",
+            "This is called a nearest neighbor, right?",
+            "So if I just look at what my closest thing is that I've seen before, that's going to be kind of a one nearest neighbor.",
+            "If I look at the distance of two things to nearest neighbor and so forth, right?",
+            "So if I take all my points, the distance all my points, I'm just going to get the distance to the centroid.",
+            "But you know, taking this, we get a distance and we basically look at the statistics of all the distances we've seen before.",
+            "And if they are very far compared to what we've seen before, we say, OK, well, you know this is going to give us our score, and if it's 99% further than anything else I've seen before, it's probably an anomaly.",
+            "OK, so."
+        ],
+        [
+            "In this kind of pipeline, there are obviously a lot of parameters and these need to be tuned kind of very carefully.",
+            "So the first one is this nearest neighbor business and this kind of control smoothness.",
+            "So if I take the one nearest neighbor, I'm very sensitive to kind of sudden changes right?",
+            "Because all of a sudden I've jumped really far.",
+            "If I if I increase K, I'm less sensitive to sudden changes, but I'm more robust to kind of noise, right?",
+            "Because I've smoothed out my data.",
+            "Likewise, the time window right?",
+            "We need to tune this so that we capture things over time periods that we care about, but they still need to be long enough that we get reasonable statistics, you know.",
+            "How many historical?",
+            "Examples we compare against again, this kind of controls how long our memory is, how, how much we believe in stationarity essentially.",
+            "And then you know the quantile threshold.",
+            "So you know what?",
+            "Actually what percentage of things constitutes?",
+            "Constitutes an anomaly, so these obviously need to be hand tuned, and it's a very difficult problem to kind of tune these all simultaneously so that we get a good performance in the working system."
+        ],
+        [
+            "So kind of going back to this very let's say to this kind of other soft problem.",
+            "Let's say that's not necessarily technical problem, is that we need to be able to explain it.",
+            "We need.",
+            "It's not just enough that my system says OK, I have an anomaly.",
+            "I should be able to say, oh, it's, you know.",
+            "This is what actually went wrong here.",
+            "You should understand this right?",
+            "So for it processes, well, you know if it's a very clear anomaly that one process is misbehaving, that's relatively easy to identify, right?",
+            "But if the whole system is somehow slowing down, that becomes much, much harder, right?",
+            "So generally what we do, or rather what the authors do, is they show the difference to the nearest neighbor, right?",
+            "So they illustrate this distance as an explanation for why the anomaly is.",
+            "And by looking at you know what the nearest neighbors are.",
+            "You could interpret it.",
+            "I mean that type of thing can be interpreted by an expert, but this is, let's say the initial effort, and I think there's still a lot of work here that can be done."
+        ],
+        [
+            "OK, so you know evaluating this pipeline, one of the key problems is, you know there aren't many labeled datasets with anomalies that are labeled right because somehow someone needs to go in and decide if something is an anomaly or not, right?",
+            "So you know, I mean most unlabeled data has a lot of undetected anomalies, and if people are looking at it, there's also kind of a qualitative.",
+            "Flavor to things right.",
+            "Whether something is really an anomaly or just statistical noise.",
+            "How do you evaluate it?",
+            "Well, the standard thing is precision and recall, and the thing the pipeline was tested on.",
+            "1st Synthetic data and then web server logs.",
+            "OK."
+        ],
+        [
+            "So for the synthetic data, what happened was there was a simulation of parallel execution of different processes and there was a deterministic pattern, so there was a deterministic pattern to the execution and then eight extra anomalies were added right?",
+            "So is similar one year of simulated data one minute in one hour intervals and you know here are the parameter settings that are present and you can see for one minute right the recall is.",
+            "Great, the precision is awful.",
+            "This again highlights kind of a general problem with tuning these parameters because.",
+            "Over such a short period, a lot of things just naturally probabilistically end up looking like anomalies.",
+            "And you know, if you go and look at the anomalies that this system reports, you know just by looking at them, even as kind of a person looking at these instances, you wouldn't be able to tell a real anomaly versus something that's just kind of statistical, at least in the short term, right?",
+            "So for the one hour, it's a little bit better.",
+            "Then you miss things right so?",
+            "Optimally tuning these parameters is actually a really, really big problem, because you know, looking at kind of anomalous instances often statistically look indistinguishable from just kind of things that naturally occur even without real anomalies."
+        ],
+        [
+            "So for the web server logs, it's actually a little bit better.",
+            "These were static, mostly static websites.",
+            "One month of data and basically there was manual inspection of the generated anomalies and basically what one of the kind of key things that was found.",
+            "Was that the system basically detected new content right?",
+            "Because since most of the more static websites when new contents came around, came along in one dimension, which is the content for that website.",
+            "That one dimension showed a very big deviation, and so that was kind of.",
+            "Labeled an anomaly and in some sense that's a correct interpretation, right?",
+            "Because these websites aren't updated very often.",
+            "This certainly qualifies as an anomaly, OK?"
+        ],
+        [
+            "So kind of going.",
+            "Forward.",
+            "There's often we need to detect anomalies from many different data sources.",
+            "We can't really assume independence.",
+            "We need to start to think about how we would actually do root cause analysis, how to incorporate active learning, because again, ultimately the judge of what a real anomaly is or what we want to detect is based on people's perceptions.",
+            "So they need to be able to give us feedback on.",
+            "What and what isn't an anomaly?",
+            "And then you know the last bit I will say is you know there should be some.",
+            "Incorporation, or at least testing of deep learning methods, mostly because of the success they've shared in kind of other similar types of tasks.",
+            "But there's a key problem here in that as of now, deep learning methods just cannot are not interpretable.",
+            "I mean it's very, very hard.",
+            "You know, maybe we get a very good precision and recall, but the output is very difficult even for experts too.",
+            "To interpret and so then just knowing that anomaly occurs is vastly less useful than if we can actually know what that anomaly is, right?",
+            "And actually, you know if my car stops working, it's far better than I know that you know the tire went flat versus, well, it doesn't work anymore, right?",
+            "So because then I can actually do something to fix it, right?",
+            "So that's generally true for all anomaly detection problems, so you know.",
+            "The pipeline is such.",
+            "Works, but as always, there's room for improvement and.",
+            "I'll think I'm I'll conclude with that so.",
+            "Any questions?"
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I am not one of the four authors of this paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "The authors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, none of them could be here today, and they successfully bribe me into giving this presentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Different ways of analyzing log files and kind of more specifically how one can do anomaly detection so?",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The overview of the talk is to basically describe what is anomaly detection, because perhaps it's not completely obvious how it applies to log file analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "The general algorithm for doing anomaly detection.",
+                    "label": 0
+                },
+                {
+                    "sent": "A basic evaluation of the algorithm and how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally I'll conclude a little bit about the next steps in this work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what is anomaly detection?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "Intuitively, everyone knows what an anomaly is, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's something that is unusual.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something that doesn't happen so often, something that's unexpected, so kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going a little more technically, we can say that this is a data point, like a sample that has somehow deviated from what we expect, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is going to be kind of our.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basic definition, and even in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are problems with kind of again.",
+                    "label": 0
+                },
+                {
+                    "sent": "Building up a system based on this definition, as we'll see.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the goal rather than this kind of very general thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to kind of concentrate on three specific goals, and realistically we're only going to talk about the first 2, so the first one is to kind of detect sudden changes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we have a system and something goes wrong, well, this is a short term.",
+                    "label": 1
+                },
+                {
+                    "sent": "Change right because all of a sudden something's changed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something's gone wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "My car has gotten a flat tire or something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know there's a sudden change so we call these short-term changes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then there's slow degradations, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "My phone battery gets worse and worse and worse and worse and worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this from any one charge cycle.",
+                    "label": 0
+                },
+                {
+                    "sent": "I won't see any change but you know, overtime there certainly is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Both qualitative and quantitative change, and so we'd like to be able to detect that and these types of things we call long term anomalies, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So long term changes finally, the last one is root cause analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "We won't talk much about this, but if something goes wrong, we'd like to ultimately figure out what caused this right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's kind of an ultimate goal, but you know, this is people have been working on this for many, many years, and so these are very hard problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so anomaly detection is generally applies to many different fields.",
+                    "label": 1
+                },
+                {
+                    "sent": "Probably goes back to the 1930s if not before, but we're going to concentrate on the application of monitoring IT systems.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what are the kind of more specific challenges for this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the first thing is we don't have very much control over the input type of data, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So could be numeric.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could be text.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could be sequences of text, so it can be all sorts of different things.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an IT system, so presumably information is constantly coming in, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "IT systems run all the time, so you know it's kind of running on a stream.",
+                    "label": 1
+                },
+                {
+                    "sent": "One of the key challenges is that's perhaps not obvious in the definition is that anomaly is not just something that's strange, but something that we can actually act upon, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is called action ability, and in order to kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Act on something.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to be able to understand that we need to know what this anomaly means.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we'll come back to this again in a bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another issue is you know we don't want just things that are unexpected, but in some sense they need to have a certain amount of quantity, right so?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not just that you know we have one anomalous reading.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know that my thermometer has said that the outside temperature is 150 degrees Centigrade, but you know, we want.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some number of measurements that tell us that something is really there, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Something that's not just noise, so this kind of proper quantity of.",
+                    "label": 1
+                },
+                {
+                    "sent": "Of data that has to be strange enough and enough of it for us to quantify it as an anomaly, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this another word for this in the in the literature is also called the Goldilocks problem, because, you know, it shouldn't have too many, because then it's the normal state of things and there shouldn't be too few, because then it's just probably noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the last big key challenges concept drift, so you know one of the key assumptions in statistics is that we have stationary that things don't change too much overtime, but in reality they do right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean specially in IT systems, the way a computer runs today, you know the types of things are turning today are going to be completely different from the things that will be running tomorrow, so you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "Reality does change overtime.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so what's the general kind of plan of attack for this type of problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we're going to have input data that's going to come in.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to parse it somehow.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to put it into some, preprocess it into some regular form.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to compute some score that's going to grade how anomalous this is, and then if we decide that it's anomalous enough, we're just going to report it right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we update our model and this continues, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So?",
+                    "label": 1
+                },
+                {
+                    "sent": "Part of the reason is this has to be a real streaming algorithm, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because data is going to come in all the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Change over from day to day and plus you know we'd like to have these things as in real time as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't really help me if I go back three months and say, Oh well, you know there was something strange that happened on that day.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not as useful as if I can do it on the fly, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Getting a little more into the specifics right, so for a log file analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "So why log files?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we're analyzing IT systems, so this is something that's always kind of present, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We we always have the ability to look at log files.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the positive side.",
+                    "label": 0
+                },
+                {
+                    "sent": "The negative side is that we have unstructured text, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "So these things, the log files are not don't come in nice tables, they contain different amounts of information.",
+                    "label": 0
+                },
+                {
+                    "sent": "But one thing we can always count on is they have timestamps, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if nothing else, we have kind of a time process, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But when things are written to a log file, if nothing else, we have that.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of times we have more information, but you know, we always at least have this.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so you know we can extract various bits of information depending on the setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know sometimes we might get kind of identifiers of processes, different errors that are reported in log files, warnings things like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This really is becomes much more specific to the case that we're dealing with.",
+                    "label": 1
+                },
+                {
+                    "sent": "So one of the key issues is to identify these execution profiles, which are essentially descriptions of these time intervals, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I have a process right that I've identified, I kind of should know something about the statistics of how often things get written to the log file, and if that changes, it probably tells me something has changed.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, there might be an anomaly present.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so kind of going from that general streaming algorithm to kind of something more specific you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "First again, the data flies in and there's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's going to be a figure after this, but we first preprocess it, which is basically this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what do we do for anomalous score?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we're going to change this issue of how anomalous something is to a distance, right, so?",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to look at our data at some point in some high dimensional space, and we're going to ask.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, if it's anomalous, it has to be far away from everything that's happened before.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so so that's a reasonable proxy for how anomalous something is.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we follow the same kind of the same kind of idea, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That if it's if the distance is really far compared to everything else that we've seen, we're going to report it as an anomaly, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, then we update our model, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This a little more pictorially, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have our log files we do preprocessing and one of the key points here is to make this as general as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use kind of a bag of words or bag of features, which is essentially just extracts different things from the log file from each.",
+                    "label": 0
+                },
+                {
+                    "sent": "Entering the log file and kind of represents it as a high dimensional vector and puts these things together over some short window.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now then, we do compute how far this vector that we've constructed is from everything we've seen before.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is called a nearest neighbor, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I just look at what my closest thing is that I've seen before, that's going to be kind of a one nearest neighbor.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I look at the distance of two things to nearest neighbor and so forth, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I take all my points, the distance all my points, I'm just going to get the distance to the centroid.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you know, taking this, we get a distance and we basically look at the statistics of all the distances we've seen before.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if they are very far compared to what we've seen before, we say, OK, well, you know this is going to give us our score, and if it's 99% further than anything else I've seen before, it's probably an anomaly.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In this kind of pipeline, there are obviously a lot of parameters and these need to be tuned kind of very carefully.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first one is this nearest neighbor business and this kind of control smoothness.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I take the one nearest neighbor, I'm very sensitive to kind of sudden changes right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because all of a sudden I've jumped really far.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I if I increase K, I'm less sensitive to sudden changes, but I'm more robust to kind of noise, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because I've smoothed out my data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Likewise, the time window right?",
+                    "label": 1
+                },
+                {
+                    "sent": "We need to tune this so that we capture things over time periods that we care about, but they still need to be long enough that we get reasonable statistics, you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "How many historical?",
+                    "label": 0
+                },
+                {
+                    "sent": "Examples we compare against again, this kind of controls how long our memory is, how, how much we believe in stationarity essentially.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then you know the quantile threshold.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you know what?",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually what percentage of things constitutes?",
+                    "label": 0
+                },
+                {
+                    "sent": "Constitutes an anomaly, so these obviously need to be hand tuned, and it's a very difficult problem to kind of tune these all simultaneously so that we get a good performance in the working system.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So kind of going back to this very let's say to this kind of other soft problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say that's not necessarily technical problem, is that we need to be able to explain it.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not just enough that my system says OK, I have an anomaly.",
+                    "label": 0
+                },
+                {
+                    "sent": "I should be able to say, oh, it's, you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is what actually went wrong here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should understand this right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So for it processes, well, you know if it's a very clear anomaly that one process is misbehaving, that's relatively easy to identify, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But if the whole system is somehow slowing down, that becomes much, much harder, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So generally what we do, or rather what the authors do, is they show the difference to the nearest neighbor, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "So they illustrate this distance as an explanation for why the anomaly is.",
+                    "label": 0
+                },
+                {
+                    "sent": "And by looking at you know what the nearest neighbors are.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could interpret it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean that type of thing can be interpreted by an expert, but this is, let's say the initial effort, and I think there's still a lot of work here that can be done.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so you know evaluating this pipeline, one of the key problems is, you know there aren't many labeled datasets with anomalies that are labeled right because somehow someone needs to go in and decide if something is an anomaly or not, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you know, I mean most unlabeled data has a lot of undetected anomalies, and if people are looking at it, there's also kind of a qualitative.",
+                    "label": 0
+                },
+                {
+                    "sent": "Flavor to things right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whether something is really an anomaly or just statistical noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you evaluate it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the standard thing is precision and recall, and the thing the pipeline was tested on.",
+                    "label": 1
+                },
+                {
+                    "sent": "1st Synthetic data and then web server logs.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So for the synthetic data, what happened was there was a simulation of parallel execution of different processes and there was a deterministic pattern, so there was a deterministic pattern to the execution and then eight extra anomalies were added right?",
+                    "label": 1
+                },
+                {
+                    "sent": "So is similar one year of simulated data one minute in one hour intervals and you know here are the parameter settings that are present and you can see for one minute right the recall is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Great, the precision is awful.",
+                    "label": 0
+                },
+                {
+                    "sent": "This again highlights kind of a general problem with tuning these parameters because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Over such a short period, a lot of things just naturally probabilistically end up looking like anomalies.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you know, if you go and look at the anomalies that this system reports, you know just by looking at them, even as kind of a person looking at these instances, you wouldn't be able to tell a real anomaly versus something that's just kind of statistical, at least in the short term, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So for the one hour, it's a little bit better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you miss things right so?",
+                    "label": 0
+                },
+                {
+                    "sent": "Optimally tuning these parameters is actually a really, really big problem, because you know, looking at kind of anomalous instances often statistically look indistinguishable from just kind of things that naturally occur even without real anomalies.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So for the web server logs, it's actually a little bit better.",
+                    "label": 0
+                },
+                {
+                    "sent": "These were static, mostly static websites.",
+                    "label": 0
+                },
+                {
+                    "sent": "One month of data and basically there was manual inspection of the generated anomalies and basically what one of the kind of key things that was found.",
+                    "label": 1
+                },
+                {
+                    "sent": "Was that the system basically detected new content right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because since most of the more static websites when new contents came around, came along in one dimension, which is the content for that website.",
+                    "label": 0
+                },
+                {
+                    "sent": "That one dimension showed a very big deviation, and so that was kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Labeled an anomaly and in some sense that's a correct interpretation, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because these websites aren't updated very often.",
+                    "label": 0
+                },
+                {
+                    "sent": "This certainly qualifies as an anomaly, OK?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So kind of going.",
+                    "label": 0
+                },
+                {
+                    "sent": "Forward.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's often we need to detect anomalies from many different data sources.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can't really assume independence.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to start to think about how we would actually do root cause analysis, how to incorporate active learning, because again, ultimately the judge of what a real anomaly is or what we want to detect is based on people's perceptions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they need to be able to give us feedback on.",
+                    "label": 0
+                },
+                {
+                    "sent": "What and what isn't an anomaly?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you know the last bit I will say is you know there should be some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Incorporation, or at least testing of deep learning methods, mostly because of the success they've shared in kind of other similar types of tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's a key problem here in that as of now, deep learning methods just cannot are not interpretable.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean it's very, very hard.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, maybe we get a very good precision and recall, but the output is very difficult even for experts too.",
+                    "label": 0
+                },
+                {
+                    "sent": "To interpret and so then just knowing that anomaly occurs is vastly less useful than if we can actually know what that anomaly is, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And actually, you know if my car stops working, it's far better than I know that you know the tire went flat versus, well, it doesn't work anymore, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So because then I can actually do something to fix it, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's generally true for all anomaly detection problems, so you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "The pipeline is such.",
+                    "label": 0
+                },
+                {
+                    "sent": "Works, but as always, there's room for improvement and.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll think I'm I'll conclude with that so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any questions?",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

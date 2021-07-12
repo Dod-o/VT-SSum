@@ -1,0 +1,1485 @@
+{
+    "id": "xahoxejck66axrz5ojcw4hhq5vuz6mxn",
+    "title": "Discovering Options from Example Trajectories",
+    "info": {
+        "author": [
+            "Peng Zang, College of Computing, Georgia Institute of Technology"
+        ],
+        "published": "Aug. 26, 2009",
+        "recorded": "June 2009",
+        "category": [
+            "Top->Computer Science->Machine Learning"
+        ]
+    },
+    "url": "http://videolectures.net/icml09_zang_dofe/",
+    "segmentation": [
+        [
+            "Right, so this is joint work that I did with Zellmann and my advisor Charles Visible.",
+            "OK."
+        ],
+        [
+            "That's interesting, there we go.",
+            "OK, so the one slide summary of this.",
+            "The whole talk is based on the premise of if we had a few expert trajectories.",
+            "OK, so the idea is if we can examine those trajectories then we can find problem decomposition and which will allow us to."
+        ],
+        [
+            "Solve the problem faster.",
+            "And before I go into the details of how I do this problem, discovery subproblem discovery from example trajectories, I'm going to give some context introduces domain and I'll talk about why we care about the composition in the first place.",
+            "Here is a standard taxi domain.",
+            "You guys are probably all familiar with that, but your taxi and you go to a passenger wherever the passenger location is and then you travel to the destination location and you drop off the passenger and then has completed the whole task.",
+            "Passenger destination locations can only be in these colored squares."
+        ],
+        [
+            "So what do we care about problem decomposition?",
+            "Well, so the taxi domain I just illustrated as a 5 by 5 and it has like a little over 500 states.",
+            "So you could use Tableau methods to solve it, but it doesn't scale in general.",
+            "And if we had a decomposition then in the sub tasks it would be you're able to break up the problem and solve it faster."
+        ],
+        [
+            "But really, there's there's a lot of different reasons why we care are a lot of different advantages of decomposition.",
+            "So, for example, it's useful for recognition if you look at a bunch of low level primitive actions, it's hard to understand what the plan is, are what's happening in the execution, versus if you're looking at the higher level."
+        ],
+        [
+            "Once the extended actions are being performed, it has useful for transfer, so the skills that.",
+            "The subproblems that you've decomposed and solved can later be used even if the task has changed.",
+            "And even if your, if your actions that has changed, so instead of North, South East, West, maybe you're doing forward, backwards and left and right kind of the bottom leaves of the decomposition that work with primitive actions will have to be resolved, but the higher level actions can be used at."
+        ],
+        [
+            "But why we really care about it?",
+            "At least in this paper, is the speed up that it offers.",
+            "So the standard kind of divide and conquer.",
+            "You have a large problem.",
+            "You split it up into a bunch of smaller problems which are faster to solve, but in the reinforcement learning case there are additional advantages like abstraction.",
+            "So state abstraction is like when you can remove certain state features that are not relevant to the particular task that you're performing.",
+            "And while Allstate features may be relevant for the global task, there may be portions so subtasks that.",
+            "Don't require all the state features, and if you can factor those out, then when you solve those you can remove a bunch of state features.",
+            "Make the problem much much simpler and solve it much more quickly.",
+            "And of course, there's reuse, so there's a sub problem that you need to kind of use again and again.",
+            "You don't want to solve that over and over again, and by factoring it out you can avoid doing that."
+        ],
+        [
+            "So the focus is of this work is if the composition is great and it buys us the speedup we would like to automate it.",
+            "We do so with some trajectories and there's really two parts to this idea.",
+            "Finding the decomposition from these trajectories and then once found these process subproblems, we want to be able to solve them and use them and the using part probably won't have time to talk about so.",
+            "I guess just come to my poster or look at the paper.",
+            "I'll give you a little teaser, I guess.",
+            "Essentially subproblems that you discover even after you've solved them, so you have a policy for them.",
+            "You don't necessarily know how they can't use them from a higher level, so you don't know.",
+            "Like when you execute the sub sub solution of this problem, what the accumulated reward will be necessarily or how long it will take.",
+            "So you can't.",
+            "You can't use it in a nice model based way, so using decomposition is all about how we compute that, but I'm going to focus on finding the composition in this top, so finding the composition is based on these two ideas that I'm going to talk about.",
+            "The first is how by looking at the trajectories, and in particular the action sequences, just the action parts of these trajectories we can there exist the signature will call them signatures, which help us localize weather subproblems are, and the other idea is this heuristic that.",
+            "Abstraction boundaries, so where the abstraction changes make good sub task boundaries."
+        ],
+        [
+            "So first some definitions.",
+            "SM DP Semi Markov decision process states actions.",
+            "Your transition reward and discount factor.",
+            "So we assume a feature based representation.",
+            "OK, so at least your state should be easily convertible into features, and we assume that you have the transition and reward model.",
+            "So this is a completely model based framework.",
+            "We work primarily with video games like Frogger, Pacman, these classic video games.",
+            "So the model is typically readily available, so we assume that we also assume that although we don't like dictate the specific.",
+            "Representation you use for the transition reward model.",
+            "You should be able to obtain easily the feature dependencies of a particular action and what I mean by that is so in the taxi domain you have a pickup action which requires that you know the taxi location as well as the passenger location to compute whether or not that pickup action actually works right, and it affects only the passenger location and the Union of the dependencies, and what effects will call the.",
+            "The state features that the action requires, so if you have a DBN as your transition reward model, then you can obtain this if it's a.",
+            "If you have a tabular representation of your transition model, then you have to do a little work to obtain it, but the information is still contained in the model.",
+            "Wow.",
+            "So we introduced this concept of a subproblem which is essentially based on a base problem.",
+            "That's the first MA set of features required for this sub problem.",
+            "That's F and A is the action set required for the subproblem.",
+            "An Omega is the goal, so a subproblem would induce a subbed EP which is sub SMTP, which is just like the original SMD PM, except it's only two.",
+            "How to figure out how to get to the goal Mega and it only has state.",
+            "Space, that's the cross product of the features in F and action space, consisting of the actions in a.",
+            "When we solve a subproblem, we model it as an option so your standard initiation set pie, which is your policy, and a trigger termination state.",
+            "And when we said we assume trajectories, they look like this, so it's just state action next day the duration and then the reward accumulated over the duration of that action.",
+            "Some example of you know one trajectory going down and this is each kind of tuple."
+        ],
+        [
+            "So we're interested in automating the decomposition and it might be useful to consider what makes a good sub problem, and we consider three attributes.",
+            "OK, so the first is size right?",
+            "If your sub problem is the size of the full problem, then that's not very useful.",
+            "Similarly, if it's empty, that's not useful either, so it needs to be of some reasonable size frequency, so the more frequent a subproblem is used in, the more potential savings there are when you kind of factor it out.",
+            "Can solve it, but probably abstraction is what will offer the most speedups.",
+            "So if you have some sub problem that you can carve out that doesn't require all the state features like the full problem, then you get a much accelerated."
+        ],
+        [
+            "Speed up savings.",
+            "So.",
+            "This slide has the two main ideas for how we do how we find these decompositions from trajectory's.",
+            "First one is basically if we have these trajectories right, we see kind of the state action next state this being executed and we focus just on the actions.",
+            "If there is a sub problem that's being executed over and over again, then it should appear in the action sequence as long common action sequences that will appear over and over again.",
+            "There will be like they won't match exactly because every time you execute these solution to a subproblem and they look different because of non determinism or because your policy for solving that subproblem may not be deterministic.",
+            "But in general as you have many trajectories these will appear as common action sequences and will call these.",
+            "We think of these as acting as signatures which will help us localize when a subproblem.",
+            "Is is happening?",
+            "So these will help us just find general areas and the second observation is that if we have different subproblems right then and there going to offer us some speedup that we want, then they're going to use some different state features.",
+            "If they don't, then they could have just been merged into the same sub problem.",
+            "So as long as we know that subproblems use different state features, we can use the idea of abstraction boundaries when abstraction changes to help find where the actual sub problem or sub task boundaries are.",
+            "Because the first one gets us in the general area, the second one will."
+        ],
+        [
+            "Help us find exactly where they are, which will lead us into this general algorithm, which I'll talk about briefly.",
+            "But when I'm going to spend the majority of the time doing is illustrating an example of how this algorithm works, running through an example, but generally we use a suffix tree defined some common action sequences.",
+            "These will get us the general area what we call these seeds, which we extend to find the full subproblem.",
+            "OK, and we'll solve them and the.",
+            "Solve them will model it as an option which will be inserted into the rest of the problem, so the rest of problem will be simpler because you have this option in the action set that makes the problem easier to solve.",
+            "So we use a fix.",
+            "So there's this whole literature on Motif discovery which is finally in common subsequences within larger sequences.",
+            "There's a variety of methods we have discrete actions, so we use one of the most basic ones is the suffix tree."
+        ],
+        [
+            "So here's an example.",
+            "Um?",
+            "We have some trajectories given to us by some Oracle, so these are actual full trajectories of the problem going from some random initiation state to completion.",
+            "We're assuming we're given it by some Oracle, the human solving it or observing it from somewhere else or something."
+        ],
+        [
+            "We use the suffix tree to help us find these seeds so it could be as simple as just two actions that appear very frequently together North, North and that will kind of give us an idea of where a subproblem might be."
+        ],
+        [
+            "But to really find the whole span that the full span of the subproblem, we extend that seed both forwards and backwards.",
+            "So first we extended forwards to figure out where the subproblem ends to find the goal of the subproblem.",
+            "And we do this by going forwards until we hit one of these red spots, which is where an abstraction boundary is where things change.",
+            "So the pickup action at the very top, for example, requires both the taxi location as well as the passenger location.",
+            "Whereas all the previous actions only require taxi location, so we'll consider this a break of the original abstraction, and so you stop immediately.",
+            "Prior to this red pickup action and the state immediately prior to that we will select as a goal Canada and the most frequent GO candidate will become will become the goal."
+        ],
+        [
+            "Like so so that allows us to create a sub problem as follows.",
+            "The base problem original problem is just the original taxi SMTP the features required or just XY.",
+            "That's just the taxi location we obtained the actions that simply by observing where the sub problem is being solved in the trajectory.",
+            "So if we witness only North and West being used to solve this option, solve the subproblem.",
+            "Then we'll make the simple assumption that will only ever need North and West to solve it.",
+            "OK, so if you have very bad trajectories, or that are not representative, that could pose some problems that we'll talk about later.",
+            "And then Omega is your goal, which we say here."
+        ],
+        [
+            "And we actually extended backwards as well.",
+            "So if you look at the top trajectory, it's just North.",
+            "North is highlighted, but we extended backwards as well all the way to the beginning.",
+            "We actually extended all the way back until either the beginning or the abstraction boundary is broken.",
+            "So now that we know like inside the trajectories where all these subproblems are, we can factor them out and solve.",
+            "The man will replace where they are in the trajectory with a little Alpha denoting the solved subproblems.",
+            "So the option which represents the solution and so this remaining problem which has this new set of trajectories is much simpler, right?",
+            "There's fewer steps involved.",
+            "You have these extended actions and essentially.",
+            "We will do."
+        ],
+        [
+            "This recursively until the final trajectory is just really simple an we decide that there is no benefit to be gained from any potential further decomposition, and at that point we create a subproblem quote, unquote subproblem.",
+            "That's just the entire problem, and we solve that."
+        ],
+        [
+            "OK, so we'll go into some results.",
+            "Briefly, we ran it on the taxi domain, and this wargus domain."
+        ],
+        [
+            "Which is a.",
+            "It's a simplified version."
+        ],
+        [
+            "So taxi domain I'm not going to go into too much 'cause we talked about it.",
+            "The Argus domain is this typical kind of real time strategy game and we don't even try to solve the whole thing.",
+            "It's just the grunt rush strategy that we're focused on where you try to build an army as fast as you can so that you can attack the enemy quickly before they developed a lot of defenses."
+        ],
+        [
+            "So we ran a series of experiments and I'm going to talk first about robustness.",
+            "The one on the left is going to show how well up learn which is the algorithm that we created responds to the number of these expert trajectories we have, right?",
+            "So you'll see in the beginning that when we only have one or two extra trajectories, performs really poorly and the reason for that stems from what I alluded to earlier, that generalize, it says the.",
+            "It computes the action set based on what it witnesses as a sub problem, requiring.",
+            "So if only has one or two trajectories and they happen to only, say, require West, the action West to go to the top left corner and never North.",
+            "Just because you only have to direct reason you were unlucky, then it's going to make the bad assumption that the subproblem of getting to the top left corner is only going to require the action less when it will also require the action North so that option won't be very good like it won't be able.",
+            "You won't be able to execute it in a lot of.",
+            "Cases.",
+            "And what that means is for a lot of you know, after you've solved all of this, a lot of the random initiation states that you run into, it's just going to throw up its hands and be like, well, I have no idea how to do this.",
+            "The options that I thought, all the options that I would need.",
+            "Well, none of them are applicable.",
+            "They all you know, leave me in the same stranded location with negative reward so.",
+            "At, this initially performs really battling, but quickly as soon as you get to like 4 trajectories in the deterministic case, an about 8:00 in the non deterministic case that will have seen enough that it can perform optimally.",
+            "Um?",
+            "The second graph here talks about the quality of expert trajectories.",
+            "So initially we assume that you know these are trajectories given by some Oracle, so they're perfect.",
+            "There are optimal, but what happens if they're not?",
+            "And what we do is we simulate that using softmax action selection so we know what the correct action is, and we know how good the other actions are an based on the temperature we're going to select one of these sub optimal actions with greater probability.",
+            "So as as your trajectory is, quality gets worse than you'll see the curves go down.",
+            "And in particular, like around temperature 10, it starts going pretty bad and actually around temperature 10.",
+            "The probability of selecting the optimal action is only twice as likely as selecting one of the other suboptimal ones, so it's actually already pretty random, so it goes down and then towards the end you may be surprised to know that it goes back up and the reason for that is the trajectory that you're given are so noisy that the system can't find any subproblem decompositions at all.",
+            "So then it just reverts to whatever your baseline behavior is.",
+            "And the baseline we used was just some simple value iteration to be a little fair.",
+            "We initiate the value table of the value iteration with estimates from the trajectories, but it doesn't really help valuation all that much so.",
+            "Right?"
+        ],
+        [
+            "We also have a little bit on speed up, so on the left is the one passenger case.",
+            "On the right is 2 passengers.",
+            "K2 passenger passengers case baseline is valuation.",
+            "We compare it with the op learn which uses valuation in its leaves.",
+            "And we perform a little bit a little over magnitude faster, and this is all kind of.",
+            "This includes all the overhead of finding the option and solving and then putting it into the remaining problems.",
+            "All of that isn't there, we actually count, and so the X axis is not straight up all time.",
+            "It's number of operations 'cause it's a little bit of a cleaner measure, but in wall Clock time it has.",
+            "The has the same trend, but the.",
+            "Both of the lines have their slope a little bit shifted to be a little more steep.",
+            "And the two passenger case, the speeders are more evident because there's actually more decomposition.",
+            "Do we had?",
+            "Like when you're picking up passenger one, you can ignore everything to do with passenger 2?"
+        ],
+        [
+            "So I have one minute left but I will talk recently about discovered options.",
+            "So in the taxi domain it discovers things like go to some location, but it also discovers cool things like pick up and then go to a particular location.",
+            "So as a human I typically think of taxi's decomposed into pick up the passenger and then drop off the passenger, but if found pick up the passenger and then go to the destination location but don't do the drop off.",
+            "That's because if you're already doing the pick up you already need the.",
+            "The taxi location as well as the passenger location, so as long as you have those two state variables, then navigate to the drop-off location.",
+            "Doesn't really add any more complexity, so it just goes head and throws them in together.",
+            "So I thought it was kind of neat."
+        ],
+        [
+            "We also have some discovered options and Argus will do things like this.",
+            "Low level ones like mine go to chop wood as well as some higher level things like Go build a lumber mill or go build a farm."
+        ],
+        [
+            "That OK, so the whole idea of this paper is we have.",
+            "If we have some extra traces they can really help us find some problem decompositions which will allow us to do speed up the requirements is that you need a state representation, so if it's.",
+            "I mean, it won't help if your state features just one state feature, which is the unique ID of the state like it needs to be factored in some helpful way and the need to have a known transition and reward model such that you can get these action dependencies.",
+            "And of course you need expert traces an what advises the decomposition itself, which is nice.",
+            "And then of course to speed up.",
+            "That's it, so thank you.",
+            "Yes so.",
+            "Is that we'd like to use them to start with very low level primitive actions, yes, and then from there build higher level controls.",
+            "Higher level, actually, yes.",
+            "Yes, I had very very little.",
+            "Even if I have some expert giving these trajectories, most likely they'll be noise and maybe I don't think all exactly the same common subsequence all the time, right?",
+            "And so in this case, what is this going to give you?",
+            "It each sequence differs by maybe a few rotations and right, right?",
+            "So there's two things we can go back to this topic slide I guess.",
+            "OK, well no."
+        ],
+        [
+            "Yeah, OK, so there's two things.",
+            "One is that if you have enough trajectories, even though they may take even though executing particular subproblem may take a couple of different paths, eventually they will all be more frequent than the rest.",
+            "And 2nd we don't require them to be exact matches, so we do some edit distance.",
+            "They don't have to be exactly perfect, because otherwise you would need like I don't know thousands of trajectories before these kind of frequent ones really start to appear above the noise.",
+            "Yeah, so that's what we do.",
+            "Go ahead.",
+            "So.",
+            "The taxi domain was it.",
+            "Learning an option would be like go from point A to point B, or by that I mean was an option like go to or is the option go from red to yellow?",
+            "Oh, the option will be go to and the initiation initiation set will be all the places from which I can actually get to that location.",
+            "Given my restrained action set.",
+            "A restricted action set.",
+            "Hi, go ahead.",
+            "Text, Tony.",
+            "You're not really doing it automatically, so like you decide the boundaries."
+        ],
+        [
+            "Yeah, with this heuristic of where the abstraction.",
+            "To find the boundaries, yes.",
+            "Marks, sorry.",
+            "Mark's coming.",
+            "Consider a location in the middle of the field.",
+            "Then you might get trajectories that come from South and another character that comes from North.",
+            "There will be 0.",
+            "Actions, so how would you?",
+            "How would you extract the option?",
+            "What do you mean?",
+            "An option that would drop off a passenger in the middle of the OH in the middle of the map.",
+            "So whenever you do that drop off action, it's going to break that.",
+            "Abstraction and so.",
+            "No common action.",
+            "Oh yeah, so you know there will be no.",
+            "So if you see many, many trajectories then going to it from the South will appear a couple of times and then going from the West will appear a couple of times.",
+            "So as you more nondeterministic the world is, and if your policy is very like if it's not, if it's not a deterministic policy, then the need more and more trajectories to be able to see where these frequent things appear.",
+            "And that's yeah, that's the downside.",
+            "But typically we have deterministic policy.",
+            "So what's mainly the problem is the nondeterminism and.",
+            "Just given enough like you know, even in a non deterministic case you know get you know a dozen or two trajectories and it will be able to figure it out.",
+            "So.",
+            "Your notion of boundary, where you decide to cut these things, yeah.",
+            "Some more formal intuitions, and yeah so.",
+            "So we associate each action with a set of state features that are required and all we mean by required is like the state features that will give you a safe state abstraction.",
+            "Stated, we mean that if you remove those other state features and given just the remaining features, you can solve the problem optimally.",
+            "And it will be mark off and you know.",
+            "That's what we mean, and we typically like.",
+            "We assumed that this required side is more or less given, or at least you can easily get it.",
+            "So if you have a DBN model, then you can kind of.",
+            "You can easily obtain that.",
+            "I think it would require.",
+            "Include spider.",
+            "Yeah, that aren't influenced by the actions, are that not?",
+            "Are not needed by the actions.",
+            "5 How do you decide what about so the boundary is whenever what you need a new feature, a new state feature that wasn't required before, so North only required the state, the taxi location and West only required the taxi location, and then you ran into pickup which suddenly required the passenger location, and then at that point you will say that it breaks and you stop right there.",
+            "So, given that so we started with just North projectors, right?",
+            "Normally requires that the Y coordinate in the West needs required X. Oh yeah, well so North requires both X&Y 'cause there may be obstacles.",
+            "Yeah, actually yeah.",
+            "God.",
+            "Just a bunch of people playing an online game on a natural city weather taxi domain is realistic.",
+            "Yeah so.",
+            "Without using this abstraction, boundary heuristic is that what you're saying?",
+            "So yeah, I think if you had enough trajectories you wouldn't need this.",
+            "If you had just, you know, millions of trajectories of people playing online, then you will get enough just from the just one of these common action sequences alone that you'll be able to find the the subproblem.",
+            "The reason we do this is because we want it to be robust to very few numbers of trajectories.",
+            "No.",
+            "OK."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Right, so this is joint work that I did with Zellmann and my advisor Charles Visible.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That's interesting, there we go.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the one slide summary of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "The whole talk is based on the premise of if we had a few expert trajectories.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so the idea is if we can examine those trajectories then we can find problem decomposition and which will allow us to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Solve the problem faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And before I go into the details of how I do this problem, discovery subproblem discovery from example trajectories, I'm going to give some context introduces domain and I'll talk about why we care about the composition in the first place.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is a standard taxi domain.",
+                    "label": 1
+                },
+                {
+                    "sent": "You guys are probably all familiar with that, but your taxi and you go to a passenger wherever the passenger location is and then you travel to the destination location and you drop off the passenger and then has completed the whole task.",
+                    "label": 1
+                },
+                {
+                    "sent": "Passenger destination locations can only be in these colored squares.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what do we care about problem decomposition?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so the taxi domain I just illustrated as a 5 by 5 and it has like a little over 500 states.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you could use Tableau methods to solve it, but it doesn't scale in general.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we had a decomposition then in the sub tasks it would be you're able to break up the problem and solve it faster.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But really, there's there's a lot of different reasons why we care are a lot of different advantages of decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, it's useful for recognition if you look at a bunch of low level primitive actions, it's hard to understand what the plan is, are what's happening in the execution, versus if you're looking at the higher level.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Once the extended actions are being performed, it has useful for transfer, so the skills that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The subproblems that you've decomposed and solved can later be used even if the task has changed.",
+                    "label": 0
+                },
+                {
+                    "sent": "And even if your, if your actions that has changed, so instead of North, South East, West, maybe you're doing forward, backwards and left and right kind of the bottom leaves of the decomposition that work with primitive actions will have to be resolved, but the higher level actions can be used at.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But why we really care about it?",
+                    "label": 0
+                },
+                {
+                    "sent": "At least in this paper, is the speed up that it offers.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the standard kind of divide and conquer.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a large problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "You split it up into a bunch of smaller problems which are faster to solve, but in the reinforcement learning case there are additional advantages like abstraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So state abstraction is like when you can remove certain state features that are not relevant to the particular task that you're performing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And while Allstate features may be relevant for the global task, there may be portions so subtasks that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't require all the state features, and if you can factor those out, then when you solve those you can remove a bunch of state features.",
+                    "label": 1
+                },
+                {
+                    "sent": "Make the problem much much simpler and solve it much more quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, there's reuse, so there's a sub problem that you need to kind of use again and again.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't want to solve that over and over again, and by factoring it out you can avoid doing that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the focus is of this work is if the composition is great and it buys us the speedup we would like to automate it.",
+                    "label": 1
+                },
+                {
+                    "sent": "We do so with some trajectories and there's really two parts to this idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finding the decomposition from these trajectories and then once found these process subproblems, we want to be able to solve them and use them and the using part probably won't have time to talk about so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess just come to my poster or look at the paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll give you a little teaser, I guess.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially subproblems that you discover even after you've solved them, so you have a policy for them.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't necessarily know how they can't use them from a higher level, so you don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like when you execute the sub sub solution of this problem, what the accumulated reward will be necessarily or how long it will take.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can't.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't use it in a nice model based way, so using decomposition is all about how we compute that, but I'm going to focus on finding the composition in this top, so finding the composition is based on these two ideas that I'm going to talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first is how by looking at the trajectories, and in particular the action sequences, just the action parts of these trajectories we can there exist the signature will call them signatures, which help us localize weather subproblems are, and the other idea is this heuristic that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Abstraction boundaries, so where the abstraction changes make good sub task boundaries.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So first some definitions.",
+                    "label": 0
+                },
+                {
+                    "sent": "SM DP Semi Markov decision process states actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your transition reward and discount factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we assume a feature based representation.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so at least your state should be easily convertible into features, and we assume that you have the transition and reward model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a completely model based framework.",
+                    "label": 0
+                },
+                {
+                    "sent": "We work primarily with video games like Frogger, Pacman, these classic video games.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the model is typically readily available, so we assume that we also assume that although we don't like dictate the specific.",
+                    "label": 0
+                },
+                {
+                    "sent": "Representation you use for the transition reward model.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should be able to obtain easily the feature dependencies of a particular action and what I mean by that is so in the taxi domain you have a pickup action which requires that you know the taxi location as well as the passenger location to compute whether or not that pickup action actually works right, and it affects only the passenger location and the Union of the dependencies, and what effects will call the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The state features that the action requires, so if you have a DBN as your transition reward model, then you can obtain this if it's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a tabular representation of your transition model, then you have to do a little work to obtain it, but the information is still contained in the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Wow.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we introduced this concept of a subproblem which is essentially based on a base problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the first MA set of features required for this sub problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's F and A is the action set required for the subproblem.",
+                    "label": 0
+                },
+                {
+                    "sent": "An Omega is the goal, so a subproblem would induce a subbed EP which is sub SMTP, which is just like the original SMD PM, except it's only two.",
+                    "label": 0
+                },
+                {
+                    "sent": "How to figure out how to get to the goal Mega and it only has state.",
+                    "label": 1
+                },
+                {
+                    "sent": "Space, that's the cross product of the features in F and action space, consisting of the actions in a.",
+                    "label": 0
+                },
+                {
+                    "sent": "When we solve a subproblem, we model it as an option so your standard initiation set pie, which is your policy, and a trigger termination state.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when we said we assume trajectories, they look like this, so it's just state action next day the duration and then the reward accumulated over the duration of that action.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some example of you know one trajectory going down and this is each kind of tuple.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we're interested in automating the decomposition and it might be useful to consider what makes a good sub problem, and we consider three attributes.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the first is size right?",
+                    "label": 0
+                },
+                {
+                    "sent": "If your sub problem is the size of the full problem, then that's not very useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, if it's empty, that's not useful either, so it needs to be of some reasonable size frequency, so the more frequent a subproblem is used in, the more potential savings there are when you kind of factor it out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can solve it, but probably abstraction is what will offer the most speedups.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have some sub problem that you can carve out that doesn't require all the state features like the full problem, then you get a much accelerated.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Speed up savings.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "This slide has the two main ideas for how we do how we find these decompositions from trajectory's.",
+                    "label": 0
+                },
+                {
+                    "sent": "First one is basically if we have these trajectories right, we see kind of the state action next state this being executed and we focus just on the actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there is a sub problem that's being executed over and over again, then it should appear in the action sequence as long common action sequences that will appear over and over again.",
+                    "label": 1
+                },
+                {
+                    "sent": "There will be like they won't match exactly because every time you execute these solution to a subproblem and they look different because of non determinism or because your policy for solving that subproblem may not be deterministic.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in general as you have many trajectories these will appear as common action sequences and will call these.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think of these as acting as signatures which will help us localize when a subproblem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is is happening?",
+                    "label": 0
+                },
+                {
+                    "sent": "So these will help us just find general areas and the second observation is that if we have different subproblems right then and there going to offer us some speedup that we want, then they're going to use some different state features.",
+                    "label": 0
+                },
+                {
+                    "sent": "If they don't, then they could have just been merged into the same sub problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "So as long as we know that subproblems use different state features, we can use the idea of abstraction boundaries when abstraction changes to help find where the actual sub problem or sub task boundaries are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because the first one gets us in the general area, the second one will.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Help us find exactly where they are, which will lead us into this general algorithm, which I'll talk about briefly.",
+                    "label": 0
+                },
+                {
+                    "sent": "But when I'm going to spend the majority of the time doing is illustrating an example of how this algorithm works, running through an example, but generally we use a suffix tree defined some common action sequences.",
+                    "label": 1
+                },
+                {
+                    "sent": "These will get us the general area what we call these seeds, which we extend to find the full subproblem.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and we'll solve them and the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Solve them will model it as an option which will be inserted into the rest of the problem, so the rest of problem will be simpler because you have this option in the action set that makes the problem easier to solve.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we use a fix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's this whole literature on Motif discovery which is finally in common subsequences within larger sequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a variety of methods we have discrete actions, so we use one of the most basic ones is the suffix tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have some trajectories given to us by some Oracle, so these are actual full trajectories of the problem going from some random initiation state to completion.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're assuming we're given it by some Oracle, the human solving it or observing it from somewhere else or something.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We use the suffix tree to help us find these seeds so it could be as simple as just two actions that appear very frequently together North, North and that will kind of give us an idea of where a subproblem might be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But to really find the whole span that the full span of the subproblem, we extend that seed both forwards and backwards.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first we extended forwards to figure out where the subproblem ends to find the goal of the subproblem.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we do this by going forwards until we hit one of these red spots, which is where an abstraction boundary is where things change.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the pickup action at the very top, for example, requires both the taxi location as well as the passenger location.",
+                    "label": 1
+                },
+                {
+                    "sent": "Whereas all the previous actions only require taxi location, so we'll consider this a break of the original abstraction, and so you stop immediately.",
+                    "label": 0
+                },
+                {
+                    "sent": "Prior to this red pickup action and the state immediately prior to that we will select as a goal Canada and the most frequent GO candidate will become will become the goal.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Like so so that allows us to create a sub problem as follows.",
+                    "label": 0
+                },
+                {
+                    "sent": "The base problem original problem is just the original taxi SMTP the features required or just XY.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's just the taxi location we obtained the actions that simply by observing where the sub problem is being solved in the trajectory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we witness only North and West being used to solve this option, solve the subproblem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we'll make the simple assumption that will only ever need North and West to solve it.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so if you have very bad trajectories, or that are not representative, that could pose some problems that we'll talk about later.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then Omega is your goal, which we say here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And we actually extended backwards as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you look at the top trajectory, it's just North.",
+                    "label": 0
+                },
+                {
+                    "sent": "North is highlighted, but we extended backwards as well all the way to the beginning.",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually extended all the way back until either the beginning or the abstraction boundary is broken.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now that we know like inside the trajectories where all these subproblems are, we can factor them out and solve.",
+                    "label": 0
+                },
+                {
+                    "sent": "The man will replace where they are in the trajectory with a little Alpha denoting the solved subproblems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the option which represents the solution and so this remaining problem which has this new set of trajectories is much simpler, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "There's fewer steps involved.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have these extended actions and essentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "We will do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This recursively until the final trajectory is just really simple an we decide that there is no benefit to be gained from any potential further decomposition, and at that point we create a subproblem quote, unquote subproblem.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's just the entire problem, and we solve that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so we'll go into some results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Briefly, we ran it on the taxi domain, and this wargus domain.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Which is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a simplified version.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So taxi domain I'm not going to go into too much 'cause we talked about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Argus domain is this typical kind of real time strategy game and we don't even try to solve the whole thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just the grunt rush strategy that we're focused on where you try to build an army as fast as you can so that you can attack the enemy quickly before they developed a lot of defenses.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we ran a series of experiments and I'm going to talk first about robustness.",
+                    "label": 0
+                },
+                {
+                    "sent": "The one on the left is going to show how well up learn which is the algorithm that we created responds to the number of these expert trajectories we have, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you'll see in the beginning that when we only have one or two extra trajectories, performs really poorly and the reason for that stems from what I alluded to earlier, that generalize, it says the.",
+                    "label": 0
+                },
+                {
+                    "sent": "It computes the action set based on what it witnesses as a sub problem, requiring.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if only has one or two trajectories and they happen to only, say, require West, the action West to go to the top left corner and never North.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just because you only have to direct reason you were unlucky, then it's going to make the bad assumption that the subproblem of getting to the top left corner is only going to require the action less when it will also require the action North so that option won't be very good like it won't be able.",
+                    "label": 0
+                },
+                {
+                    "sent": "You won't be able to execute it in a lot of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what that means is for a lot of you know, after you've solved all of this, a lot of the random initiation states that you run into, it's just going to throw up its hands and be like, well, I have no idea how to do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "The options that I thought, all the options that I would need.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, none of them are applicable.",
+                    "label": 0
+                },
+                {
+                    "sent": "They all you know, leave me in the same stranded location with negative reward so.",
+                    "label": 0
+                },
+                {
+                    "sent": "At, this initially performs really battling, but quickly as soon as you get to like 4 trajectories in the deterministic case, an about 8:00 in the non deterministic case that will have seen enough that it can perform optimally.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "The second graph here talks about the quality of expert trajectories.",
+                    "label": 1
+                },
+                {
+                    "sent": "So initially we assume that you know these are trajectories given by some Oracle, so they're perfect.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are optimal, but what happens if they're not?",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we do is we simulate that using softmax action selection so we know what the correct action is, and we know how good the other actions are an based on the temperature we're going to select one of these sub optimal actions with greater probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as as your trajectory is, quality gets worse than you'll see the curves go down.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in particular, like around temperature 10, it starts going pretty bad and actually around temperature 10.",
+                    "label": 0
+                },
+                {
+                    "sent": "The probability of selecting the optimal action is only twice as likely as selecting one of the other suboptimal ones, so it's actually already pretty random, so it goes down and then towards the end you may be surprised to know that it goes back up and the reason for that is the trajectory that you're given are so noisy that the system can't find any subproblem decompositions at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then it just reverts to whatever your baseline behavior is.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the baseline we used was just some simple value iteration to be a little fair.",
+                    "label": 0
+                },
+                {
+                    "sent": "We initiate the value table of the value iteration with estimates from the trajectories, but it doesn't really help valuation all that much so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We also have a little bit on speed up, so on the left is the one passenger case.",
+                    "label": 1
+                },
+                {
+                    "sent": "On the right is 2 passengers.",
+                    "label": 0
+                },
+                {
+                    "sent": "K2 passenger passengers case baseline is valuation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We compare it with the op learn which uses valuation in its leaves.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we perform a little bit a little over magnitude faster, and this is all kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "This includes all the overhead of finding the option and solving and then putting it into the remaining problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of that isn't there, we actually count, and so the X axis is not straight up all time.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's number of operations 'cause it's a little bit of a cleaner measure, but in wall Clock time it has.",
+                    "label": 0
+                },
+                {
+                    "sent": "The has the same trend, but the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Both of the lines have their slope a little bit shifted to be a little more steep.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the two passenger case, the speeders are more evident because there's actually more decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do we had?",
+                    "label": 0
+                },
+                {
+                    "sent": "Like when you're picking up passenger one, you can ignore everything to do with passenger 2?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I have one minute left but I will talk recently about discovered options.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in the taxi domain it discovers things like go to some location, but it also discovers cool things like pick up and then go to a particular location.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as a human I typically think of taxi's decomposed into pick up the passenger and then drop off the passenger, but if found pick up the passenger and then go to the destination location but don't do the drop off.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's because if you're already doing the pick up you already need the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The taxi location as well as the passenger location, so as long as you have those two state variables, then navigate to the drop-off location.",
+                    "label": 0
+                },
+                {
+                    "sent": "Doesn't really add any more complexity, so it just goes head and throws them in together.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I thought it was kind of neat.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We also have some discovered options and Argus will do things like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Low level ones like mine go to chop wood as well as some higher level things like Go build a lumber mill or go build a farm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That OK, so the whole idea of this paper is we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have some extra traces they can really help us find some problem decompositions which will allow us to do speed up the requirements is that you need a state representation, so if it's.",
+                    "label": 1
+                },
+                {
+                    "sent": "I mean, it won't help if your state features just one state feature, which is the unique ID of the state like it needs to be factored in some helpful way and the need to have a known transition and reward model such that you can get these action dependencies.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course you need expert traces an what advises the decomposition itself, which is nice.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then of course to speed up.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's it, so thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that we'd like to use them to start with very low level primitive actions, yes, and then from there build higher level controls.",
+                    "label": 0
+                },
+                {
+                    "sent": "Higher level, actually, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, I had very very little.",
+                    "label": 1
+                },
+                {
+                    "sent": "Even if I have some expert giving these trajectories, most likely they'll be noise and maybe I don't think all exactly the same common subsequence all the time, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so in this case, what is this going to give you?",
+                    "label": 0
+                },
+                {
+                    "sent": "It each sequence differs by maybe a few rotations and right, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's two things we can go back to this topic slide I guess.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, well no.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, OK, so there's two things.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is that if you have enough trajectories, even though they may take even though executing particular subproblem may take a couple of different paths, eventually they will all be more frequent than the rest.",
+                    "label": 0
+                },
+                {
+                    "sent": "And 2nd we don't require them to be exact matches, so we do some edit distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't have to be exactly perfect, because otherwise you would need like I don't know thousands of trajectories before these kind of frequent ones really start to appear above the noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so that's what we do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Go ahead.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "The taxi domain was it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Learning an option would be like go from point A to point B, or by that I mean was an option like go to or is the option go from red to yellow?",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, the option will be go to and the initiation initiation set will be all the places from which I can actually get to that location.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given my restrained action set.",
+                    "label": 0
+                },
+                {
+                    "sent": "A restricted action set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hi, go ahead.",
+                    "label": 0
+                },
+                {
+                    "sent": "Text, Tony.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're not really doing it automatically, so like you decide the boundaries.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, with this heuristic of where the abstraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "To find the boundaries, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Marks, sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mark's coming.",
+                    "label": 0
+                },
+                {
+                    "sent": "Consider a location in the middle of the field.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you might get trajectories that come from South and another character that comes from North.",
+                    "label": 0
+                },
+                {
+                    "sent": "There will be 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actions, so how would you?",
+                    "label": 0
+                },
+                {
+                    "sent": "How would you extract the option?",
+                    "label": 0
+                },
+                {
+                    "sent": "What do you mean?",
+                    "label": 0
+                },
+                {
+                    "sent": "An option that would drop off a passenger in the middle of the OH in the middle of the map.",
+                    "label": 0
+                },
+                {
+                    "sent": "So whenever you do that drop off action, it's going to break that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Abstraction and so.",
+                    "label": 0
+                },
+                {
+                    "sent": "No common action.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh yeah, so you know there will be no.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you see many, many trajectories then going to it from the South will appear a couple of times and then going from the West will appear a couple of times.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as you more nondeterministic the world is, and if your policy is very like if it's not, if it's not a deterministic policy, then the need more and more trajectories to be able to see where these frequent things appear.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's yeah, that's the downside.",
+                    "label": 0
+                },
+                {
+                    "sent": "But typically we have deterministic policy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what's mainly the problem is the nondeterminism and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just given enough like you know, even in a non deterministic case you know get you know a dozen or two trajectories and it will be able to figure it out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your notion of boundary, where you decide to cut these things, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some more formal intuitions, and yeah so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we associate each action with a set of state features that are required and all we mean by required is like the state features that will give you a safe state abstraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Stated, we mean that if you remove those other state features and given just the remaining features, you can solve the problem optimally.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it will be mark off and you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what we mean, and we typically like.",
+                    "label": 0
+                },
+                {
+                    "sent": "We assumed that this required side is more or less given, or at least you can easily get it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have a DBN model, then you can kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can easily obtain that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it would require.",
+                    "label": 0
+                },
+                {
+                    "sent": "Include spider.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that aren't influenced by the actions, are that not?",
+                    "label": 0
+                },
+                {
+                    "sent": "Are not needed by the actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "5 How do you decide what about so the boundary is whenever what you need a new feature, a new state feature that wasn't required before, so North only required the state, the taxi location and West only required the taxi location, and then you ran into pickup which suddenly required the passenger location, and then at that point you will say that it breaks and you stop right there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, given that so we started with just North projectors, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Normally requires that the Y coordinate in the West needs required X. Oh yeah, well so North requires both X&Y 'cause there may be obstacles.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, actually yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "God.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just a bunch of people playing an online game on a natural city weather taxi domain is realistic.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Without using this abstraction, boundary heuristic is that what you're saying?",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, I think if you had enough trajectories you wouldn't need this.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you had just, you know, millions of trajectories of people playing online, then you will get enough just from the just one of these common action sequences alone that you'll be able to find the the subproblem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason we do this is because we want it to be robust to very few numbers of trajectories.",
+                    "label": 0
+                },
+                {
+                    "sent": "No.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

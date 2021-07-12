@@ -1,0 +1,1263 @@
+{
+    "id": "dmbl52h6whfpnhjn33innm6fex7ka3s4",
+    "title": "Gradient Boosted Decision Trees on Hadoop",
+    "info": {
+        "author": [
+            "Jerry Ye, Yahoo! Research Silicon Valley"
+        ],
+        "published": "Jan. 13, 2011",
+        "recorded": "December 2010",
+        "category": [
+            "Top->Computer Science->Machine Learning->Boosting"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2010_ye_gbd/",
+    "segmentation": [
+        [
+            "Hi everyone, I'm Jerry.",
+            "This is joint work between me, Chao Zhang, Angie away at Yahoo.",
+            "So talks about grading boosted decision trees on Hadoop.",
+            "I've had the luxury to work with do for a couple of years now and sometimes it's pain, but this is kind of more of a talk about the process of how we."
+        ],
+        [
+            "Got to a relatively useful implementation of GDT on on Hadoop.",
+            "So the agenda is, I'm gonna first describe what GBD T is.",
+            "Go a little bit over, like the different implementations that were that we tried and the two different ones like a native MapReduce one as well as one in MPI on top of Hadoop.",
+            "And I'll go into more reasons why we tried different versions."
+        ],
+        [
+            "And finally the results.",
+            "So gradient boosted decision trees is a machine learning algorithm that constructs a ensemble of weak learners where this week learners are decission, trace and through a process called boosting where the target of each tree is based on the gradient of the error in the ensemble before training that tree."
+        ],
+        [
+            "So it was first introduced by Jerome Friedman in 1999.",
+            "At Stanford, and it's a process that favors many trees but more shallow ones, right?",
+            "So typical numbers.",
+            "They were floating around were like couple 100 trees, 6 node trees.",
+            "And one of the reasons why you would have many trees is that you actually restart with your data set at the top of each tree, right?",
+            "So your entire data set starts again.",
+            "I mean, you look at entire data set at the root of each tree so you don't lose any data set as you continue splitting your nodes like a regular decision tree.",
+            "And there's numerous applications of this within Yahoo in terms of regression ranking and.",
+            "Yeah, classification right?",
+            "So in terms of ranking we've had quite a bit of success with this with different learners such as G rank, which does pairwise is a pairwise loss function smooth DCG, which is like a listwise loss function, and recently it was used as the blender in the Bel Kor solution to Netflix Price.",
+            "So that was like how he combined different classifiers."
+        ],
+        [
+            "An recommendation.",
+            "So some of the advantages of DOT is that feature normalization is generally not required, unlike some other learning algorithms such as SVM's.",
+            "Feature selection is also an inherent part of the algorithm.",
+            "If the feature is present in the tree, that means it was useful, and if it wasn't, there might have been like a near identical feature or something.",
+            "And that's also another thing is not prone to collinear or identical features.",
+            "The models are relatively easy to interpret.",
+            "You can just follow the path through a given tree.",
+            "That might be arguable as you start having thousands of trees.",
+            "And it's."
+        ],
+        [
+            "It's relatively easy to add different loss functions.",
+            "So some of the disadvantages is that it's boosting right?",
+            "So that's inherently not paralyzable.",
+            "If you wanted an exact solution and is extremely compute intensive, so for every single feature and every feature value, we actually have to compute the gain to find the optimal split point.",
+            "And it might perform poorly on high dimensional sparse datasets, so the amount of data that you can, I mean your model, the strength of your model is just based on how many nodes you have within your tree.",
+            "So if you have.",
+            "Like 6 node trees and you have thousand of 'em you only have 3000 split points, right?",
+            "So if you have 6 million sparse features, you're not going to be able to model it."
+        ],
+        [
+            "So some known implementations are like commercially available TriNet from suffered implementation and R planet from Google, which is the recent paper as well, and the actual implementation we built on top of was implemented by Tong Zhang while he was at yrl.",
+            "And there's actually a couple of other implementations here at this."
+        ],
+        [
+            "Workshop"
+        ],
+        [
+            "So the the algorithm overview in Friedman's paper is as described.",
+            "The first line is basically to initialize the your response initial response to minimize your loss function.",
+            "So if you're using something like a least squares loss function, you might set that to the mean of your of your targets an for every single tree you would want to for every tree you would look at every sample and compute the gradient of your loss.",
+            "Function right so between the target and the current score so far, and for this set of new targets you would train a decision tree into L terminal terminal node Decision Tree, where each of the responses from each of the terminal nodes minimizes your loss function and.",
+            "Your score is essentially the every tree plus learning rate, which is new and the response that the sample lands on."
+        ],
+        [
+            "So yeah, so training is pretty straightforward.",
+            "You just find out where sample propagates and sum up the scores."
+        ],
+        [
+            "So the learning process to break it down is essentially to split a node, right?",
+            "So you compute what's the for every given feature, the candidates split points.",
+            "What's the best split for this feature?",
+            "Then amongst all the features, what is the best overall split point given some metric?",
+            "As information gain, let's say and once you have your split point, you would partition your data into the left side and right side an.",
+            "Then you would update your residuals of how close you are to the target and you repeat that process until you construct an entire tree.",
+            "Once you have the entire tree, then you do gradient boosting an you update your target for the next tray."
+        ],
+        [
+            "So a little example is for here.",
+            "Let's say like you wanted to find the best split point, you would sort all the features in F1 and F2 and the candidate split points are like between one and two.",
+            "Two and three, and you would pick the one with the highest gain.",
+            "And in this case this is just F1 is less than."
+        ],
+        [
+            "8.5.",
+            "So using this you would split your partition, your data set, some goes to the left.",
+            "I'm going to write.",
+            "Anne."
+        ],
+        [
+            "And you repeat that process to build a tree an.",
+            "Once again the boosting part.",
+            "You can have several different gradients in this case, right?",
+            "So as I mentioned earlier, we primarily use least squares regression and for some ranking specific ones there's like be ranking such."
+        ],
+        [
+            "So an example decision tree.",
+            "In this case you have, as you can see like this feature might actually be split multiple times, even within the same tray."
+        ],
+        [
+            "So I want to discuss likes the two different types of implementations that we tried, so the obvious motivations are like in a larger datasets and we wanted to get a speedup, but one of the additional constraints that we had as well is that our datasets that we were working on was still relatively small, so it was editorial data for ranking that site and.",
+            "The overall goal is for maximum speed and Secondly for scalability in terms."
+        ],
+        [
+            "Data set size.",
+            "But the first one we did try, this is pretty early on in like 2009.",
+            "We just started in 2007 when we first started playing with Hadoop and Dottie and.",
+            "The way we figured was that how can we get frame this problem into something that's exactly like the Canonical MapReduce type of a problem, an it seems natural that you would want to partition your data set amongst the samples, right?",
+            "So a set of machines get this set of samples, another set.",
+            "This set an you can easily see how that would."
+        ],
+        [
+            "Scale with number samples.",
+            "So the implementation we do is in the map or what we had was that for each.",
+            "For each mapper, we would look through all the features and the values for each of them, and we emit a feature value as the key and the residual and the weight of the sample as the value, and the reducer would aggregate this.",
+            "So for every single unique feature value you would have an aggregate of your schedules and weights, right?",
+            "So in our in our loss function with least squares loss, I mean for.",
+            "Least squares improvement in these squares is our metric for gain.",
+            "In this case, we were able to just given this sorted list of the feature in the valued residual and the weights to compute what the optimal gain was in a single pass.",
+            "So what we did with this is we were able to determine the gain in one pass.",
+            "Then given this year."
+        ],
+        [
+            "The partition of data.",
+            "And that was another map reduce job.",
+            "So given this key and the data again, you iterate over today to look for that.",
+            "That feature value for the sample and in this case you output to DFS as well a file for the left side file for the right side, and you would repeat this process for the next tree or the next node, right?",
+            "So this you can see is already multiple MapReduce jobs and there is actually another Matthew MapReduce job for computing the."
+        ],
+        [
+            "Radiant, right?",
+            "So it's three MapReduce jobs in total.",
+            "At first it looked like this works pretty well, right?",
+            "So it scales as you add more machines and.",
+            "But if you look closely, it is actually pretty slow.",
+            "So for a data set with roughly 1.2 million samples and about 500 features, it took about 5 minutes to train a single node.",
+            "This was with think it was like 100 machines, so for a 63 node tree would take a little bit over 2 hours and 3 hours.",
+            "And what we realized was.",
+            "It was a problem with HTFS, right?",
+            "So on the graph over here in the lower right.",
+            "This showed an example.",
+            "We just copy the relatively small file, a couple of megabytes amongst 100 machines.",
+            "We just copy this file while most women finish within like 5 seconds, there was usually one or two stragglers that took about one to two minutes, and so if you have like 3 minutes per job per node of overhead and you're training like multiple nodes per tree, and let's say you have a couple of thousand of these nodes, this is a very prohibitive process.",
+            "So next we looked at how can we?"
+        ],
+        [
+            "Reduce communication costs right?",
+            "So if writing the HTFS was a problem, let's try to minimize that, right?",
+            "So another map reduce implementation we tried was partitioning this time by partitioning the data amongst the features so that one machine gets a set of features an another get another set.",
+            "Then you can see that you can just do a single pass through the features that you have and find out what the local split point best split is right?",
+            "And then you can just communicate with each other to find the global best split.",
+            "And given this, then you would only have to send order of the number of machines you use."
+        ],
+        [
+            "So we came up with this little thing where it wasn't exactly like a MapReduce job was more like a map with infinite loop, and in this case we found out that writing to NFS, which is a shared father, was actually faster than HTFS for that purpose because we didn't have to do deal with one or two minutes straggling effect, right?",
+            "Overall, HTFS has like a higher throughput, but NFS was more reliable in getting the file consistently.",
+            "So what we did is that for each mapper you find the best split you write to NFS with the best local split was and they each wait until all the splits already compute the best split.",
+            "Then you partition your your data and you repeat the process.",
+            "That's essentially what we did."
+        ],
+        [
+            "But even for that case, writing NFS is slow relative to something else, and that's when we looked into MPI.",
+            "And for MPI you can just use use it to broadcast the different messages sent."
+        ],
+        [
+            "Only faster.",
+            "So.",
+            "So for MPI it allows each of the nodes to communicate with each other.",
+            "In a very relatively fast manner, and it's the dominant model in high performance computing.",
+            "It's scalable, portable, is a couple of open source implementations, but we would like to get this to run on top of Hadoop, right?",
+            "'cause at least within Yahoo we have a bunch of clusters and starting another cluster just for MPI would have been well, aside from the bureaucracy.",
+            "Additional cost, right?",
+            "So we were able to modify open MPI to run on top of Hadoop.",
+            "And.",
+            "So one caveat is that you do have to worry about fault tolerance in this case 'cause.",
+            "Unlike regular MapReduce job where if one job fails, you can restart that one job.",
+            "In this case, of MPI job fails, then the whole thing goes down and one thing that we had to do is like implement a state saving.",
+            "Part, and if any of the machines dies, then it actually communicates with each other and is aware of this and restarts the MPI job and reads in the state and resumes."
+        ],
+        [
+            "Work started.",
+            "So revisiting like the earlier part about how the trees constructed, it's just like look at look over the features, find the best split, and use MPI broadcast to send out the best split.",
+            "And for partition."
+        ],
+        [
+            "And what we did is the tricky part.",
+            "Here was just that because the features were split amongst different machines.",
+            "They given a split point, not all of your machines could actually split your data set to determine which samples goes to the left in which to the right, so only the machine that found the best split could partition it, right?",
+            "This isn't a very I mean compute intensive process, so that was OK, but once you computed this.",
+            "This partitioning you had to broadcast it to the other machines, but you could do this with like a bitmap, where you can just send it over and with MPI communication between nodes is actually based on a tree based tree base.",
+            "Message passing interface so.",
+            "That wasn't actually that costly."
+        ],
+        [
+            "So the boosting part was also a little tricky 'cause.",
+            "When when you do compute.",
+            "The gradient you have to apply the current on the current model so far in your data set, and because the samples I mean the features are spread out amongst your different machines, no one machine could actually compute the scores thus far, so you have to keep this.",
+            "Keep updating the score as you go and you train your models.",
+            "So this is kind of tricky when you deal with stochastic boosting where you.",
+            "Take a different sub sampling of your sample space for each tree.",
+            "So what we ended up doing was just we had to update every single feature whenever we partition the data set so that part was kind of costly and I've talked to someone earlier and there might be some ways of improving that."
+        ],
+        [
+            "Load balancing was another important part and.",
+            "Yeah, so yeah.",
+            "We just love Dallas.",
+            "That slide was not supposed to."
+        ],
+        [
+            "Either.",
+            "And so some of the."
+        ],
+        [
+            "Sperimentale results that we had was.",
+            "For the map reduce implementation, the second one that we implemented where we already reduced the amount of communication the MPI implementation was significantly faster.",
+            "So for 20 machines it was roughly 5 to 6 times faster in constructing the same tree."
+        ],
+        [
+            "In terms of scalability.",
+            "It's not exactly.",
+            "Ideal right?",
+            "But it's as you can see that even with 100 machines on the right, we were still seeing some improvements in speed.",
+            "However, given that this is like a shared environment, we normally don't run jobs with like couple of 100 machines.",
+            "So this is a little bit with different datasets.",
+            "As you can see with like 100 samples, it saturates pretty 100K samples, it saturates pretty quickly and communication costs becomes the primary overhead.",
+            "But with like 1.2 million we still saw improvements.",
+            "And with more recent datasets we tried, it scales even better than 1.2, but eventually communication costs will catch up."
+        ],
+        [
+            "So in terms of node hours, the MPI implementation was drastically better, so for.",
+            "The horizontal method it would have taken like almost a year to compute that ensemble of 2500 trees for the vertical method.",
+            "It would've been a little bit under day, but with the MPI implementation with fewer nodes in this case, like only 10 machines, we would only take three and three quarter.",
+            "I mean 3.4 hours, right?",
+            "Sets the 1800% improvement in node hours used."
+        ],
+        [
+            "So a couple of applications of this, like for a 2 million document data set with 600 features.",
+            "The we there's a breakdown of the single threaded implementation which would take seven days to train a model of 2500 trees, multi threaded on a single machine with three point 5 days.",
+            "With twenty nodes we got like 12 hours and we also tried more compute intensive loss function where we train multiple trees for different labels an we were actually we actually saw way better improvements in that case where we went from 16 days of training a model to 36 hours."
+        ],
+        [
+            "So the conclusions conclusion is, we basically implemented a distributed version of DDT.",
+            "It's running significantly faster than the sequential version.",
+            "There is, I mean there there's some problems with using Hadoop, right?",
+            "So MapReduce isn't exactly the answer to everything, especially when it comes to ML and using MPI.",
+            "Is I mean at least for our problem was significantly faster and.",
+            "Yeah, so.",
+            "And in terms of using the number of machines in node hours, it was significantly better.",
+            "So yeah, that's it.",
+            "Take any questions."
+        ],
+        [
+            "With your fault tolerance.",
+            "Crash, did you restart?",
+            "Everything will be able to resurrect him, so we when you assign a MapReduce job, you keep it until they all die, right?",
+            "But if one of them failed then you would.",
+            "In our case we would just signal the master to signal the rest of the remaining machines to restart so they just picked up from there we didn't have to queue for another set of machines.",
+            "I think he's asking did you have to restart from learning from the beginning from the first tree, or from from partway?",
+            "If you're done boosting for 100 iterations that 100, so we do a state saving every so often, and we just resume from the last state saved.",
+            "So yeah, so it seems like MapReduce is gotten a little bit up in the last few talks.",
+            "Breasts, yes, wondering if your opinion is in the.",
+            "If your opinion is that it's a problem with the model or problem with the dupe so.",
+            "I think it's definitely a problem with the model.",
+            "To some extent.",
+            "I mean, ever ever changin Google, he also had similar observations for like SVM's or a lot of the iterative EM algorithms, right?",
+            "So if you have to deal with overhead of just queuing up the machines between iterations, that could be significantly big problem, right?",
+            "And I mean this might be less of an issue if you have huge datasets, but it's definitely some type of problem with the model as well.",
+            "I think the speaker again."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Hi everyone, I'm Jerry.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is joint work between me, Chao Zhang, Angie away at Yahoo.",
+                    "label": 0
+                },
+                {
+                    "sent": "So talks about grading boosted decision trees on Hadoop.",
+                    "label": 1
+                },
+                {
+                    "sent": "I've had the luxury to work with do for a couple of years now and sometimes it's pain, but this is kind of more of a talk about the process of how we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Got to a relatively useful implementation of GDT on on Hadoop.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the agenda is, I'm gonna first describe what GBD T is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Go a little bit over, like the different implementations that were that we tried and the two different ones like a native MapReduce one as well as one in MPI on top of Hadoop.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll go into more reasons why we tried different versions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And finally the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So gradient boosted decision trees is a machine learning algorithm that constructs a ensemble of weak learners where this week learners are decission, trace and through a process called boosting where the target of each tree is based on the gradient of the error in the ensemble before training that tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So it was first introduced by Jerome Friedman in 1999.",
+                    "label": 1
+                },
+                {
+                    "sent": "At Stanford, and it's a process that favors many trees but more shallow ones, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So typical numbers.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were floating around were like couple 100 trees, 6 node trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "And one of the reasons why you would have many trees is that you actually restart with your data set at the top of each tree, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So your entire data set starts again.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you look at entire data set at the root of each tree so you don't lose any data set as you continue splitting your nodes like a regular decision tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's numerous applications of this within Yahoo in terms of regression ranking and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, classification right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So in terms of ranking we've had quite a bit of success with this with different learners such as G rank, which does pairwise is a pairwise loss function smooth DCG, which is like a listwise loss function, and recently it was used as the blender in the Bel Kor solution to Netflix Price.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that was like how he combined different classifiers.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "An recommendation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So some of the advantages of DOT is that feature normalization is generally not required, unlike some other learning algorithms such as SVM's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Feature selection is also an inherent part of the algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "If the feature is present in the tree, that means it was useful, and if it wasn't, there might have been like a near identical feature or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's also another thing is not prone to collinear or identical features.",
+                    "label": 1
+                },
+                {
+                    "sent": "The models are relatively easy to interpret.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can just follow the path through a given tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "That might be arguable as you start having thousands of trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It's relatively easy to add different loss functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So some of the disadvantages is that it's boosting right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's inherently not paralyzable.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you wanted an exact solution and is extremely compute intensive, so for every single feature and every feature value, we actually have to compute the gain to find the optimal split point.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it might perform poorly on high dimensional sparse datasets, so the amount of data that you can, I mean your model, the strength of your model is just based on how many nodes you have within your tree.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like 6 node trees and you have thousand of 'em you only have 3000 split points, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have 6 million sparse features, you're not going to be able to model it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So some known implementations are like commercially available TriNet from suffered implementation and R planet from Google, which is the recent paper as well, and the actual implementation we built on top of was implemented by Tong Zhang while he was at yrl.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's actually a couple of other implementations here at this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Workshop",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the the algorithm overview in Friedman's paper is as described.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first line is basically to initialize the your response initial response to minimize your loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you're using something like a least squares loss function, you might set that to the mean of your of your targets an for every single tree you would want to for every tree you would look at every sample and compute the gradient of your loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "Function right so between the target and the current score so far, and for this set of new targets you would train a decision tree into L terminal terminal node Decision Tree, where each of the responses from each of the terminal nodes minimizes your loss function and.",
+                    "label": 1
+                },
+                {
+                    "sent": "Your score is essentially the every tree plus learning rate, which is new and the response that the sample lands on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So yeah, so training is pretty straightforward.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just find out where sample propagates and sum up the scores.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the learning process to break it down is essentially to split a node, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "So you compute what's the for every given feature, the candidates split points.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the best split for this feature?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then amongst all the features, what is the best overall split point given some metric?",
+                    "label": 0
+                },
+                {
+                    "sent": "As information gain, let's say and once you have your split point, you would partition your data into the left side and right side an.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you would update your residuals of how close you are to the target and you repeat that process until you construct an entire tree.",
+                    "label": 1
+                },
+                {
+                    "sent": "Once you have the entire tree, then you do gradient boosting an you update your target for the next tray.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So a little example is for here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say like you wanted to find the best split point, you would sort all the features in F1 and F2 and the candidate split points are like between one and two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two and three, and you would pick the one with the highest gain.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in this case this is just F1 is less than.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "8.5.",
+                    "label": 0
+                },
+                {
+                    "sent": "So using this you would split your partition, your data set, some goes to the left.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to write.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And you repeat that process to build a tree an.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once again the boosting part.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can have several different gradients in this case, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So as I mentioned earlier, we primarily use least squares regression and for some ranking specific ones there's like be ranking such.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So an example decision tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case you have, as you can see like this feature might actually be split multiple times, even within the same tray.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I want to discuss likes the two different types of implementations that we tried, so the obvious motivations are like in a larger datasets and we wanted to get a speedup, but one of the additional constraints that we had as well is that our datasets that we were working on was still relatively small, so it was editorial data for ranking that site and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The overall goal is for maximum speed and Secondly for scalability in terms.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Data set size.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the first one we did try, this is pretty early on in like 2009.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just started in 2007 when we first started playing with Hadoop and Dottie and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way we figured was that how can we get frame this problem into something that's exactly like the Canonical MapReduce type of a problem, an it seems natural that you would want to partition your data set amongst the samples, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So a set of machines get this set of samples, another set.",
+                    "label": 0
+                },
+                {
+                    "sent": "This set an you can easily see how that would.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Scale with number samples.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the implementation we do is in the map or what we had was that for each.",
+                    "label": 0
+                },
+                {
+                    "sent": "For each mapper, we would look through all the features and the values for each of them, and we emit a feature value as the key and the residual and the weight of the sample as the value, and the reducer would aggregate this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for every single unique feature value you would have an aggregate of your schedules and weights, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So in our in our loss function with least squares loss, I mean for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Least squares improvement in these squares is our metric for gain.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, we were able to just given this sorted list of the feature in the valued residual and the weights to compute what the optimal gain was in a single pass.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what we did with this is we were able to determine the gain in one pass.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then given this year.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The partition of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that was another map reduce job.",
+                    "label": 0
+                },
+                {
+                    "sent": "So given this key and the data again, you iterate over today to look for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That feature value for the sample and in this case you output to DFS as well a file for the left side file for the right side, and you would repeat this process for the next tree or the next node, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "So this you can see is already multiple MapReduce jobs and there is actually another Matthew MapReduce job for computing the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Radiant, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's three MapReduce jobs in total.",
+                    "label": 1
+                },
+                {
+                    "sent": "At first it looked like this works pretty well, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it scales as you add more machines and.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you look closely, it is actually pretty slow.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for a data set with roughly 1.2 million samples and about 500 features, it took about 5 minutes to train a single node.",
+                    "label": 1
+                },
+                {
+                    "sent": "This was with think it was like 100 machines, so for a 63 node tree would take a little bit over 2 hours and 3 hours.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we realized was.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was a problem with HTFS, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So on the graph over here in the lower right.",
+                    "label": 0
+                },
+                {
+                    "sent": "This showed an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just copy the relatively small file, a couple of megabytes amongst 100 machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just copy this file while most women finish within like 5 seconds, there was usually one or two stragglers that took about one to two minutes, and so if you have like 3 minutes per job per node of overhead and you're training like multiple nodes per tree, and let's say you have a couple of thousand of these nodes, this is a very prohibitive process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So next we looked at how can we?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Reduce communication costs right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if writing the HTFS was a problem, let's try to minimize that, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So another map reduce implementation we tried was partitioning this time by partitioning the data amongst the features so that one machine gets a set of features an another get another set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you can see that you can just do a single pass through the features that you have and find out what the local split point best split is right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you can just communicate with each other to find the global best split.",
+                    "label": 0
+                },
+                {
+                    "sent": "And given this, then you would only have to send order of the number of machines you use.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we came up with this little thing where it wasn't exactly like a MapReduce job was more like a map with infinite loop, and in this case we found out that writing to NFS, which is a shared father, was actually faster than HTFS for that purpose because we didn't have to do deal with one or two minutes straggling effect, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Overall, HTFS has like a higher throughput, but NFS was more reliable in getting the file consistently.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we did is that for each mapper you find the best split you write to NFS with the best local split was and they each wait until all the splits already compute the best split.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you partition your your data and you repeat the process.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's essentially what we did.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But even for that case, writing NFS is slow relative to something else, and that's when we looked into MPI.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for MPI you can just use use it to broadcast the different messages sent.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Only faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for MPI it allows each of the nodes to communicate with each other.",
+                    "label": 1
+                },
+                {
+                    "sent": "In a very relatively fast manner, and it's the dominant model in high performance computing.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's scalable, portable, is a couple of open source implementations, but we would like to get this to run on top of Hadoop, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause at least within Yahoo we have a bunch of clusters and starting another cluster just for MPI would have been well, aside from the bureaucracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Additional cost, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we were able to modify open MPI to run on top of Hadoop.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one caveat is that you do have to worry about fault tolerance in this case 'cause.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unlike regular MapReduce job where if one job fails, you can restart that one job.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, of MPI job fails, then the whole thing goes down and one thing that we had to do is like implement a state saving.",
+                    "label": 0
+                },
+                {
+                    "sent": "Part, and if any of the machines dies, then it actually communicates with each other and is aware of this and restarts the MPI job and reads in the state and resumes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Work started.",
+                    "label": 0
+                },
+                {
+                    "sent": "So revisiting like the earlier part about how the trees constructed, it's just like look at look over the features, find the best split, and use MPI broadcast to send out the best split.",
+                    "label": 1
+                },
+                {
+                    "sent": "And for partition.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And what we did is the tricky part.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here was just that because the features were split amongst different machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "They given a split point, not all of your machines could actually split your data set to determine which samples goes to the left in which to the right, so only the machine that found the best split could partition it, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This isn't a very I mean compute intensive process, so that was OK, but once you computed this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This partitioning you had to broadcast it to the other machines, but you could do this with like a bitmap, where you can just send it over and with MPI communication between nodes is actually based on a tree based tree base.",
+                    "label": 0
+                },
+                {
+                    "sent": "Message passing interface so.",
+                    "label": 0
+                },
+                {
+                    "sent": "That wasn't actually that costly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the boosting part was also a little tricky 'cause.",
+                    "label": 0
+                },
+                {
+                    "sent": "When when you do compute.",
+                    "label": 0
+                },
+                {
+                    "sent": "The gradient you have to apply the current on the current model so far in your data set, and because the samples I mean the features are spread out amongst your different machines, no one machine could actually compute the scores thus far, so you have to keep this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Keep updating the score as you go and you train your models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is kind of tricky when you deal with stochastic boosting where you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take a different sub sampling of your sample space for each tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we ended up doing was just we had to update every single feature whenever we partition the data set so that part was kind of costly and I've talked to someone earlier and there might be some ways of improving that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Load balancing was another important part and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just love Dallas.",
+                    "label": 0
+                },
+                {
+                    "sent": "That slide was not supposed to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Either.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so some of the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Sperimentale results that we had was.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the map reduce implementation, the second one that we implemented where we already reduced the amount of communication the MPI implementation was significantly faster.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for 20 machines it was roughly 5 to 6 times faster in constructing the same tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In terms of scalability.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not exactly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ideal right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's as you can see that even with 100 machines on the right, we were still seeing some improvements in speed.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, given that this is like a shared environment, we normally don't run jobs with like couple of 100 machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a little bit with different datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "As you can see with like 100 samples, it saturates pretty 100K samples, it saturates pretty quickly and communication costs becomes the primary overhead.",
+                    "label": 0
+                },
+                {
+                    "sent": "But with like 1.2 million we still saw improvements.",
+                    "label": 0
+                },
+                {
+                    "sent": "And with more recent datasets we tried, it scales even better than 1.2, but eventually communication costs will catch up.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So in terms of node hours, the MPI implementation was drastically better, so for.",
+                    "label": 0
+                },
+                {
+                    "sent": "The horizontal method it would have taken like almost a year to compute that ensemble of 2500 trees for the vertical method.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would've been a little bit under day, but with the MPI implementation with fewer nodes in this case, like only 10 machines, we would only take three and three quarter.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean 3.4 hours, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Sets the 1800% improvement in node hours used.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So a couple of applications of this, like for a 2 million document data set with 600 features.",
+                    "label": 1
+                },
+                {
+                    "sent": "The we there's a breakdown of the single threaded implementation which would take seven days to train a model of 2500 trees, multi threaded on a single machine with three point 5 days.",
+                    "label": 0
+                },
+                {
+                    "sent": "With twenty nodes we got like 12 hours and we also tried more compute intensive loss function where we train multiple trees for different labels an we were actually we actually saw way better improvements in that case where we went from 16 days of training a model to 36 hours.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the conclusions conclusion is, we basically implemented a distributed version of DDT.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's running significantly faster than the sequential version.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is, I mean there there's some problems with using Hadoop, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So MapReduce isn't exactly the answer to everything, especially when it comes to ML and using MPI.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is I mean at least for our problem was significantly faster and.",
+                    "label": 1
+                },
+                {
+                    "sent": "Yeah, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in terms of using the number of machines in node hours, it was significantly better.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take any questions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "With your fault tolerance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Crash, did you restart?",
+                    "label": 0
+                },
+                {
+                    "sent": "Everything will be able to resurrect him, so we when you assign a MapReduce job, you keep it until they all die, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But if one of them failed then you would.",
+                    "label": 0
+                },
+                {
+                    "sent": "In our case we would just signal the master to signal the rest of the remaining machines to restart so they just picked up from there we didn't have to queue for another set of machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think he's asking did you have to restart from learning from the beginning from the first tree, or from from partway?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're done boosting for 100 iterations that 100, so we do a state saving every so often, and we just resume from the last state saved.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, so it seems like MapReduce is gotten a little bit up in the last few talks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Breasts, yes, wondering if your opinion is in the.",
+                    "label": 0
+                },
+                {
+                    "sent": "If your opinion is that it's a problem with the model or problem with the dupe so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it's definitely a problem with the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "To some extent.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, ever ever changin Google, he also had similar observations for like SVM's or a lot of the iterative EM algorithms, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have to deal with overhead of just queuing up the machines between iterations, that could be significantly big problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And I mean this might be less of an issue if you have huge datasets, but it's definitely some type of problem with the model as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think the speaker again.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

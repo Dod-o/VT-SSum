@@ -1,0 +1,974 @@
+{
+    "id": "k6rt7oqv7o7mj4j56eubcfxjwglmso6g",
+    "title": "Extending SPARQL for data analytic tasks",
+    "info": {
+        "author": [
+            "Julian Dolby, IBM Thomas J. Watson Research Center"
+        ],
+        "published": "Nov. 10, 2016",
+        "recorded": "October 2016",
+        "category": [
+            "Top->Computer Science->Semantic Web"
+        ]
+    },
+    "url": "http://videolectures.net/iswc2016_dolby_extending_sparql/",
+    "segmentation": [
+        [
+            "OK, thank you very much.",
+            "Thank thank you having me and as I hopefully some of you at least can read the text.",
+            "I am indeed happy to be here in this lovely country now."
+        ],
+        [
+            "What are we talking?",
+            "The talk is about extending sparkle for data analytic tasks and So what do we mean by that?",
+            "Well, the first thing is, let's just say data is everywhere and we've we've heard this theme quite a bit and we had the keynote this morning talking about all the different kinds of linked open data, but so there's lots of data.",
+            "There's numerous structured data sources were talking about structured data here, so there's like medical.",
+            "Frick, Drugbank, Anuna pro general, this DB pedia and much of that is in something that you might think of as sort of traditional.",
+            "It's in RDF and it's all queried.",
+            "Using using sparkle, but data is increasingly is increasingly diverse, and especially in our experience at IBM.",
+            "In the medical domain, there's all kinds of different stuff of RDF, XML, Jason, CSV and the data is iaccessible in multiple ways to.",
+            "Sometimes you can get like a dump like a big of file of RDF triples.",
+            "And other times you can or XML file.",
+            "Sometimes you have query endpoints.",
+            "For example, Uniprot has a sparkle endpoint, several places do, and other times you have sort of idiosyncratic APIs that you send it a request.",
+            "You formulate some kind of request as a get, and you get or post, and you get some data back.",
+            "And what we need to do for our data analytic task as we need to integrate all of this data and but in doing that we want to preserve the sort of nice declarative notion of sparkle.",
+            "So you're actually asking, you're actually asking queries, you're not hacking Python code, so."
+        ],
+        [
+            "Just giving us what is are the focus in what I'm going to talk about is an exact thing we've been working at.",
+            "IBM, Drug, drug interaction, and you probably know right?",
+            "If you have questions if you're taking one drug, they test that what if you take two different drugs?",
+            "I mean, is that likely to cause any kind of complications for you?",
+            "Will the drugs interact and you can you know the problem is obvious, right?",
+            "You have N drugs so you have N squared possible pairs and cubed possible three combination drug combinations and so on, and so it's a huge problem.",
+            "And what we have started to do is if on top of our own RDF store Council we're integrating data from Drug Bank.",
+            "From Uniprot, and then we're using two tools, one of CDK and wonders Go Sampson, which are tools that compute interact, compute info information about drugs and potential interactions.",
+            "So."
+        ],
+        [
+            "Since there's way too much stuff, I encourage you to look at the paper, but there's way too much stuff to get through everything, so we're going to focus on just a few things here.",
+            "We're going to focus on the first step here, which is.",
+            "Getting drug names from drug bank.",
+            "We're going to ask it for the drugs that were interested in and then Step 2.",
+            "Is this notion of a drug transport?",
+            "Or tell you what that is a little bit more?",
+            "But basically it's one aspect of a drug.",
+            "It's a protein used inside the body to deliver the drug, and it's one common source of interactions.",
+            "And then the last piece is going to be gene functions, which is a not, which is sort of how the interactions happen.",
+            "If you get multiple of these protein transporter proteins that expose into gene functions that interact bad."
+        ],
+        [
+            "So let's just take a look at the data.",
+            "So give you some example idea of how.",
+            "How are?",
+            "You use case developed, so we're going to start with Drug Bank and you approach.",
+            "These are both compendia of detailed medical information, so Drug Bank is basically about drugs.",
+            "It lists thousands of drugs and it includes a bunch of information about them, the name and it includes things like regulatory information to whether they've been evaluated, whether they considered safe and approved, and so on.",
+            "And then your approach is more general that includes a lot of that includes a very wide range of things, but the thing we're going to focus on is some information about jeans.",
+            "And gene functions.",
+            "They're both regularly updated.",
+            "And here's the 1st place.",
+            "We see the diversity.",
+            "So Drugbank is most conveniently available as an XML file, just a flat file.",
+            "You can ask XML queries.",
+            "Everett, uniprot.",
+            "On the other hand, is most conveniently accessed by its by its own service API, which is its own hand rolled thing where you subway, you create HTTP requests, giving it specifying what thing you're interested.",
+            "They're both free for non commercial use, and here are the makeup of the URLs that describe them now."
+        ],
+        [
+            "The first step as I said, is to obtain drug ID's so.",
+            "When we're looking for drug drug interactions, the first question is which drugs do we care about?",
+            "And we're going to filter them by.",
+            "In this particular example, going to filter them by status.",
+            "So if this is a snippet from Drug Bank, they have these new monik.",
+            "Either of these ideas are not new monik, they're just random numbers, and one of the things we're going to look at is this notion of groups and group, and what this is is you can imagine what approved means, right?",
+            "It means the regulators have evaluated it and decided it's reasonably safe to use.",
+            "Now approved is one of the words.",
+            "There are others.",
+            "There's including the other things that you could imagine.",
+            "Ask about this withdrawn and everything ranging from it's been approved and safe to stay away from this.",
+            "It's like the killer's all there.",
+            "And what we're trying to do to interact with to look at these drugs is we want to read the XML directly, but we are not going to do a sort of ETL where we take the XML and converted into some other format over which we can ask queries becausw.",
+            "This data is updated reasonably regularly, and so rather than this process where we keep sucking down big dumps of data and trying to upgrade update our stuff, we are going to just read the latest data by pointing over the web at Drug Bank.",
+            "Now, in general, in sparkle that's difficult 'cause what I had told you before was that this drug bank is convinced is in fact an XML file and there is no good way directly of querying an XML file from sparkle, so."
+        ],
+        [
+            "That motivated our first extension to sparkle that we're making.",
+            "Which is what we call a service function.",
+            "So what is that so this is.",
+            "This is sort of a sparkle query.",
+            "There's a prefix up here which is talking about drugbank.",
+            "There's a select drug where there's a condition there's a bind.",
+            "This is all standard sparkle, but here we introduced this terminology for a function of a function called get drug names.",
+            "We call it a service so this is actually a URL and what that's specifying is that they were going to access drugbank via an HTTP get.",
+            "And then here is an X path query.",
+            "We're going to say we want for drugbank slash, drug groups and so if you we look back for just a moment.",
+            "If you see here we have drug, bank and drugs.",
+            "We're going to go through each drug.",
+            "And we are going to filter using expiration.",
+            "We're going to filter for ones that are approved and the only thing we're going to extract from each drug right now is the name.",
+            "And So what?",
+            "This gives us, and then we use we can access them using bind.",
+            "And so we're going to get is a table with a one row for each drug that's approved in Drug Bank with one column name that we're going to bind to the variable drug.",
+            "So that's step one.",
+            "We now have the drugs and this is allowing us.",
+            "We are now using these drugs from within sparkle queries.",
+            "But we are not."
+        ],
+        [
+            "Anne.",
+            "We are not turning anything into into RDF at the moment.",
+            "The next step is to get the transporters.",
+            "Drugbank also contains transporters.",
+            "This is another XML.",
+            "There's another piece of the XML for transporters.",
+            "And so we use a very similar query like this."
+        ],
+        [
+            "But one thing to notice here is this.",
+            "This query is the same basic structure as the one before we're going to access the drugbank, but now we have essentially one input and two output.",
+            "So what this is going to do, it's going to get name.",
+            "We're going to get transporters and a bunch of junk than identifiers were getting the two pieces we need, which is the drug itself and the transported D&T here.",
+            "But with the way the input works and for using D in both places, this is basically the same thing that would happen if you repeat variables and sparkle normally, right?",
+            "There's a join here, so we're going to get one table back which joins this table.",
+            "And this table.",
+            "And will give us one column with the drug name and one column with the transporter.",
+            "And again, this is all done without needing to extract anything into into RDF."
+        ],
+        [
+            "So then the next set.",
+            "Once we have those pairs, the next step is we're going to extract the gene functions, and for this we are not going to use drug Bank.",
+            "We are going to use uniprot and this is a snippet of uniprot here.",
+            "So as an entry, each entry has an exception, which is essentially a drug name and it has these DB references of type go, which are listing Gene Ontology, ontology gene function references in this file, and that's what we're trying to get 'cause these are what we use too.",
+            "Understand potential drug interactions now.",
+            "Three years ago annotations.",
+            "Now the thing to keep in mind here is that the uniprot uniprot is most conveniently accessed as an API, not as a flat file, so the API is a transporter, and we need to compute the URL so the code looks similar."
+        ],
+        [
+            "To what we had before, except if you remember if you've notice, you know if you're familiar with the service API function sparkle right, you can.",
+            "You can compute the URL, the service and we can do exactly the same thing here.",
+            "This is concat of unit.",
+            "But the dog followed by the Transporter DOT XML and if you that computes the URL an if you if you going to get on that you get back an XML file which among other things will give you these DB references that we were talking about.",
+            "So we can compute the expression and then we can refer to this and there's a little bit of a.",
+            "This is just like in SQL in SQL, XML, for instance, you can do things like refer to the parent with Dot Dot where you support pretty much the same X path language as what the sequel.",
+            "So then we can.",
+            "Then you can just do this and again you bind.",
+            "You send the.",
+            "This is the previous stuff, so we have the drugs in the transporters.",
+            "We then send the transport as we get the gene function.",
+            "We do a join so that we now have.",
+            "All gene functions associated with their appropriate are transporters now."
+        ],
+        [
+            "One thing to note is that this is.",
+            "Really, embedding these requests right into sparkle so you can use all the sparkle.",
+            "So for instance, one of the things that you may have notice that we're computing the URL we're actually computing one URL per row of our table, each draw.",
+            "Each transport was turned into a URL, and what that's going to do when you have plenty of drugs.",
+            "Thousand structures generate a very, very large number of requests and probably get you again.",
+            "I'll probably get your service request rejected by the end point on the grounds that you're you're being abusive.",
+            "So Fortunately for us, there's another endpoint.",
+            "That takes a set of IDs and gives you back a set of XML and what we do is we take all our transporters.",
+            "We then concatenate that.",
+            "We then compute our URL, but with a group concat to complete all of the ideas together separated by plus signs, which is the format they need.",
+            "And then we simply split it into groups of 30.",
+            "In this case you can use a different numbers depending on on what you care about.",
+            "So basically this reduces the number of requests.",
+            "By the fact of 30 and again, this is just an illustration of the fact that we've got all the power of sparkle in this model we're using.",
+            "We're really writing sparkle queries against this XML data.",
+            "Now I don't have much time, so let me just go quickly through."
+        ],
+        [
+            "The evaluation we demonstrated this, or the integration of real data.",
+            "There are thousands of drugs and the drug transporter pairs.",
+            "We get something on the order of 1000.",
+            "And so far I encourage you to look at the paper, but the subsequent past parts that I'm not talking about in this talk are.",
+            "Computationally, very expensive, and we're still exploring ways of potentially parallelizing some of that computation."
+        ],
+        [
+            "And in related work, I think the key there are several couple of classes related, but I think the key difference is a lot of work is focused on trying to extract data into RDF.",
+            "Things like create constructing RDF data from other formats.",
+            "And we do.",
+            "That is not.",
+            "We are trying to do.",
+            "We do not want to convert things to RDF.",
+            "We want to query the other data.",
+            "And in terms of many of the systems, if you look at something like X sparkle, for instance, you often end up with something that looks almost like a script.",
+            "With for loops and let bindings and things like that and that is something we are definitely trying to avoid.",
+            "We really want to preserve the declarative nature of sparkle as much as possible."
+        ],
+        [
+            "And OK, so I'm just about done.",
+            "Which is good 'cause I'm out of time.",
+            "So integrating for us, integrating diverse data like this is absolutely the key.",
+            "They come to an XML and it comes in APIs that comes in data dumps.",
+            "It comes from end point and we really need a flexible system that allows us to query all of these things and stitch them together in this sort of ad hoc way based on.",
+            "However things are most conveniently accessible.",
+            "And as you can see I showed you, I tried to concur and convince you on these three few slides that the examples that we have.",
+            "The constructs are quite simple.",
+            "If you think if you if you are, if you're familiar with SQL XML, a lot of these structures with a lot of our extensions will look very, very familiar to you.",
+            "And we added very few.",
+            "The only other thing you might have noticed is that Sparkle doesn't have a rownumber construct which we added in order to do our batching by 30 and what we did and were not particularly whether to these constructs.",
+            "I do think getting that data like this in integrating this key and I think we would all benefit if we found some.",
+            "Set of constructs that we could all agree on and we all liked whether they look like this exactly or not.",
+            "Thank you."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, thank you very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank thank you having me and as I hopefully some of you at least can read the text.",
+                    "label": 0
+                },
+                {
+                    "sent": "I am indeed happy to be here in this lovely country now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What are we talking?",
+                    "label": 0
+                },
+                {
+                    "sent": "The talk is about extending sparkle for data analytic tasks and So what do we mean by that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the first thing is, let's just say data is everywhere and we've we've heard this theme quite a bit and we had the keynote this morning talking about all the different kinds of linked open data, but so there's lots of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's numerous structured data sources were talking about structured data here, so there's like medical.",
+                    "label": 1
+                },
+                {
+                    "sent": "Frick, Drugbank, Anuna pro general, this DB pedia and much of that is in something that you might think of as sort of traditional.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's in RDF and it's all queried.",
+                    "label": 1
+                },
+                {
+                    "sent": "Using using sparkle, but data is increasingly is increasingly diverse, and especially in our experience at IBM.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the medical domain, there's all kinds of different stuff of RDF, XML, Jason, CSV and the data is iaccessible in multiple ways to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes you can get like a dump like a big of file of RDF triples.",
+                    "label": 1
+                },
+                {
+                    "sent": "And other times you can or XML file.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes you have query endpoints.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, Uniprot has a sparkle endpoint, several places do, and other times you have sort of idiosyncratic APIs that you send it a request.",
+                    "label": 0
+                },
+                {
+                    "sent": "You formulate some kind of request as a get, and you get or post, and you get some data back.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we need to do for our data analytic task as we need to integrate all of this data and but in doing that we want to preserve the sort of nice declarative notion of sparkle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you're actually asking, you're actually asking queries, you're not hacking Python code, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Just giving us what is are the focus in what I'm going to talk about is an exact thing we've been working at.",
+                    "label": 0
+                },
+                {
+                    "sent": "IBM, Drug, drug interaction, and you probably know right?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have questions if you're taking one drug, they test that what if you take two different drugs?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, is that likely to cause any kind of complications for you?",
+                    "label": 0
+                },
+                {
+                    "sent": "Will the drugs interact and you can you know the problem is obvious, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You have N drugs so you have N squared possible pairs and cubed possible three combination drug combinations and so on, and so it's a huge problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we have started to do is if on top of our own RDF store Council we're integrating data from Drug Bank.",
+                    "label": 0
+                },
+                {
+                    "sent": "From Uniprot, and then we're using two tools, one of CDK and wonders Go Sampson, which are tools that compute interact, compute info information about drugs and potential interactions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Since there's way too much stuff, I encourage you to look at the paper, but there's way too much stuff to get through everything, so we're going to focus on just a few things here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to focus on the first step here, which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Getting drug names from drug bank.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to ask it for the drugs that were interested in and then Step 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is this notion of a drug transport?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or tell you what that is a little bit more?",
+                    "label": 0
+                },
+                {
+                    "sent": "But basically it's one aspect of a drug.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a protein used inside the body to deliver the drug, and it's one common source of interactions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the last piece is going to be gene functions, which is a not, which is sort of how the interactions happen.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you get multiple of these protein transporter proteins that expose into gene functions that interact bad.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's just take a look at the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So give you some example idea of how.",
+                    "label": 0
+                },
+                {
+                    "sent": "How are?",
+                    "label": 0
+                },
+                {
+                    "sent": "You use case developed, so we're going to start with Drug Bank and you approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are both compendia of detailed medical information, so Drug Bank is basically about drugs.",
+                    "label": 1
+                },
+                {
+                    "sent": "It lists thousands of drugs and it includes a bunch of information about them, the name and it includes things like regulatory information to whether they've been evaluated, whether they considered safe and approved, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then your approach is more general that includes a lot of that includes a very wide range of things, but the thing we're going to focus on is some information about jeans.",
+                    "label": 0
+                },
+                {
+                    "sent": "And gene functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're both regularly updated.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here's the 1st place.",
+                    "label": 0
+                },
+                {
+                    "sent": "We see the diversity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Drugbank is most conveniently available as an XML file, just a flat file.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can ask XML queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everett, uniprot.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, is most conveniently accessed by its by its own service API, which is its own hand rolled thing where you subway, you create HTTP requests, giving it specifying what thing you're interested.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're both free for non commercial use, and here are the makeup of the URLs that describe them now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The first step as I said, is to obtain drug ID's so.",
+                    "label": 1
+                },
+                {
+                    "sent": "When we're looking for drug drug interactions, the first question is which drugs do we care about?",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're going to filter them by.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this particular example, going to filter them by status.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if this is a snippet from Drug Bank, they have these new monik.",
+                    "label": 0
+                },
+                {
+                    "sent": "Either of these ideas are not new monik, they're just random numbers, and one of the things we're going to look at is this notion of groups and group, and what this is is you can imagine what approved means, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It means the regulators have evaluated it and decided it's reasonably safe to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now approved is one of the words.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are others.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's including the other things that you could imagine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ask about this withdrawn and everything ranging from it's been approved and safe to stay away from this.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like the killer's all there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we're trying to do to interact with to look at these drugs is we want to read the XML directly, but we are not going to do a sort of ETL where we take the XML and converted into some other format over which we can ask queries becausw.",
+                    "label": 0
+                },
+                {
+                    "sent": "This data is updated reasonably regularly, and so rather than this process where we keep sucking down big dumps of data and trying to upgrade update our stuff, we are going to just read the latest data by pointing over the web at Drug Bank.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, in general, in sparkle that's difficult 'cause what I had told you before was that this drug bank is convinced is in fact an XML file and there is no good way directly of querying an XML file from sparkle, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That motivated our first extension to sparkle that we're making.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is what we call a service function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what is that so this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is sort of a sparkle query.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a prefix up here which is talking about drugbank.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a select drug where there's a condition there's a bind.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is all standard sparkle, but here we introduced this terminology for a function of a function called get drug names.",
+                    "label": 0
+                },
+                {
+                    "sent": "We call it a service so this is actually a URL and what that's specifying is that they were going to access drugbank via an HTTP get.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then here is an X path query.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to say we want for drugbank slash, drug groups and so if you we look back for just a moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you see here we have drug, bank and drugs.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to go through each drug.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we are going to filter using expiration.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to filter for ones that are approved and the only thing we're going to extract from each drug right now is the name.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what?",
+                    "label": 1
+                },
+                {
+                    "sent": "This gives us, and then we use we can access them using bind.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we're going to get is a table with a one row for each drug that's approved in Drug Bank with one column name that we're going to bind to the variable drug.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's step one.",
+                    "label": 0
+                },
+                {
+                    "sent": "We now have the drugs and this is allowing us.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are now using these drugs from within sparkle queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we are not.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are not turning anything into into RDF at the moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next step is to get the transporters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Drugbank also contains transporters.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is another XML.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's another piece of the XML for transporters.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we use a very similar query like this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But one thing to notice here is this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This query is the same basic structure as the one before we're going to access the drugbank, but now we have essentially one input and two output.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what this is going to do, it's going to get name.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to get transporters and a bunch of junk than identifiers were getting the two pieces we need, which is the drug itself and the transported D&T here.",
+                    "label": 0
+                },
+                {
+                    "sent": "But with the way the input works and for using D in both places, this is basically the same thing that would happen if you repeat variables and sparkle normally, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a join here, so we're going to get one table back which joins this table.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this table.",
+                    "label": 0
+                },
+                {
+                    "sent": "And will give us one column with the drug name and one column with the transporter.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, this is all done without needing to extract anything into into RDF.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So then the next set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once we have those pairs, the next step is we're going to extract the gene functions, and for this we are not going to use drug Bank.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are going to use uniprot and this is a snippet of uniprot here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as an entry, each entry has an exception, which is essentially a drug name and it has these DB references of type go, which are listing Gene Ontology, ontology gene function references in this file, and that's what we're trying to get 'cause these are what we use too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Understand potential drug interactions now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Three years ago annotations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the thing to keep in mind here is that the uniprot uniprot is most conveniently accessed as an API, not as a flat file, so the API is a transporter, and we need to compute the URL so the code looks similar.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To what we had before, except if you remember if you've notice, you know if you're familiar with the service API function sparkle right, you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can compute the URL, the service and we can do exactly the same thing here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is concat of unit.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the dog followed by the Transporter DOT XML and if you that computes the URL an if you if you going to get on that you get back an XML file which among other things will give you these DB references that we were talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we can compute the expression and then we can refer to this and there's a little bit of a.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just like in SQL in SQL, XML, for instance, you can do things like refer to the parent with Dot Dot where you support pretty much the same X path language as what the sequel.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you can just do this and again you bind.",
+                    "label": 0
+                },
+                {
+                    "sent": "You send the.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the previous stuff, so we have the drugs in the transporters.",
+                    "label": 0
+                },
+                {
+                    "sent": "We then send the transport as we get the gene function.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do a join so that we now have.",
+                    "label": 0
+                },
+                {
+                    "sent": "All gene functions associated with their appropriate are transporters now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "One thing to note is that this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really, embedding these requests right into sparkle so you can use all the sparkle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, one of the things that you may have notice that we're computing the URL we're actually computing one URL per row of our table, each draw.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each transport was turned into a URL, and what that's going to do when you have plenty of drugs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thousand structures generate a very, very large number of requests and probably get you again.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll probably get your service request rejected by the end point on the grounds that you're you're being abusive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Fortunately for us, there's another endpoint.",
+                    "label": 0
+                },
+                {
+                    "sent": "That takes a set of IDs and gives you back a set of XML and what we do is we take all our transporters.",
+                    "label": 0
+                },
+                {
+                    "sent": "We then concatenate that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We then compute our URL, but with a group concat to complete all of the ideas together separated by plus signs, which is the format they need.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we simply split it into groups of 30.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case you can use a different numbers depending on on what you care about.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically this reduces the number of requests.",
+                    "label": 0
+                },
+                {
+                    "sent": "By the fact of 30 and again, this is just an illustration of the fact that we've got all the power of sparkle in this model we're using.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're really writing sparkle queries against this XML data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I don't have much time, so let me just go quickly through.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The evaluation we demonstrated this, or the integration of real data.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are thousands of drugs and the drug transporter pairs.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get something on the order of 1000.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so far I encourage you to look at the paper, but the subsequent past parts that I'm not talking about in this talk are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Computationally, very expensive, and we're still exploring ways of potentially parallelizing some of that computation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And in related work, I think the key there are several couple of classes related, but I think the key difference is a lot of work is focused on trying to extract data into RDF.",
+                    "label": 1
+                },
+                {
+                    "sent": "Things like create constructing RDF data from other formats.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we do.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is not.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are trying to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do not want to convert things to RDF.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to query the other data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in terms of many of the systems, if you look at something like X sparkle, for instance, you often end up with something that looks almost like a script.",
+                    "label": 0
+                },
+                {
+                    "sent": "With for loops and let bindings and things like that and that is something we are definitely trying to avoid.",
+                    "label": 0
+                },
+                {
+                    "sent": "We really want to preserve the declarative nature of sparkle as much as possible.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And OK, so I'm just about done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is good 'cause I'm out of time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So integrating for us, integrating diverse data like this is absolutely the key.",
+                    "label": 1
+                },
+                {
+                    "sent": "They come to an XML and it comes in APIs that comes in data dumps.",
+                    "label": 0
+                },
+                {
+                    "sent": "It comes from end point and we really need a flexible system that allows us to query all of these things and stitch them together in this sort of ad hoc way based on.",
+                    "label": 0
+                },
+                {
+                    "sent": "However things are most conveniently accessible.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as you can see I showed you, I tried to concur and convince you on these three few slides that the examples that we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "The constructs are quite simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think if you if you are, if you're familiar with SQL XML, a lot of these structures with a lot of our extensions will look very, very familiar to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we added very few.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only other thing you might have noticed is that Sparkle doesn't have a rownumber construct which we added in order to do our batching by 30 and what we did and were not particularly whether to these constructs.",
+                    "label": 0
+                },
+                {
+                    "sent": "I do think getting that data like this in integrating this key and I think we would all benefit if we found some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Set of constructs that we could all agree on and we all liked whether they look like this exactly or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

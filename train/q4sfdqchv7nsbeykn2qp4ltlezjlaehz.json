@@ -1,0 +1,3764 @@
+{
+    "id": "q4sfdqchv7nsbeykn2qp4ltlezjlaehz",
+    "title": "Structured Output Prediction with Structural SVMs",
+    "info": {
+        "author": [
+            "Thorsten Joachims, Department of Computer Science, Cornell University"
+        ],
+        "published": "Aug. 25, 2008",
+        "recorded": "July 2008",
+        "category": [
+            "Top->Computer Science->Machine Learning->Kernel Methods->Support Vector Machines"
+        ]
+    },
+    "url": "http://videolectures.net/mlg08_joachims_sop/",
+    "segmentation": [
+        [
+            "So and what it came down to was.",
+            "Talk that kind of combined some more general view of.",
+            "These kinds of large margin methods for structured prediction combined with the applications that I'm going to be introducing here."
+        ],
+        [
+            "So.",
+            "This talk is going to be about supervised learning in a very traditional I mean in the normal setting that everybody knows.",
+            "So we have data that comes from a distribution of X wise and we are given a sample of N pairs.",
+            "Just a regular training sample and we want to learn as a function that Maps X to YS so that some risk for some specified loss function Delta gets minimized.",
+            "So from that perspective, it's very standard NBF lots of methods for you know, classification regression that fall into this supervised learning setting.",
+            "So.",
+            "What's going to be different in this talk or?",
+            "Not standard in this talk is considering these problems where the prediction Y is not just a like a binary label or multiclass label.",
+            "But some structured and complex object.",
+            "So both X&Y will typically be some discrete object, like a graph in this in this talk.",
+            "So what are the types of problems that I'm thinking about so for?"
+        ],
+        [
+            "Apple.",
+            "Natural language parsing, right?",
+            "That's a problem where the prediction.",
+            "Is a tree.",
+            "So a specific graph.",
+            "And, um.",
+            "So.",
+            "Given a sentence like a sequence of words.",
+            "We want to predict what's the correct posture.",
+            "And if you think about this, it's not easy to break this problem down into, let's say multiple binary classification problems, right?",
+            "Yeah, it's kind of hard to say, you know.",
+            "So the first 2 words have to be a noun phrase.",
+            "Because everything is connected, everything depends is dependent.",
+            "Eventually the whole thing has to form a graph.",
+            "So it's not clear how we could actually break that down into binary classification problems, for example.",
+            "So here the prediction Y is a tree."
+        ],
+        [
+            "Here's another problem.",
+            "Sequence alignment, one of the kind of staple techniques in bioinformatics.",
+            "Given two sequences, S&T.",
+            "We want to predict is what's the correct alignment of these two sequences.",
+            "So.",
+            "And here, well, the prediction again is an alignment and their dependencies.",
+            "If I put a gap here in their line, these two here, then there are certain other options that are kind of eliminated for other alignment."
+        ],
+        [
+            "Here's another one information retrieval.",
+            "You want to predict the ranking.",
+            "And there are two reasons for why I think it's beneficial to think about this as a structured prediction problem.",
+            "One is typically an information retrieval.",
+            "We think about loss functions that are kind of a function of ranking.",
+            "So for example, average precision is a typical loss function that people use, or performance measures that people use in information retrieval.",
+            "And really you can.",
+            "Every transition is not defined on kind of binary labels, but is defined on rankings.",
+            "So if you wanted to kind of optimize this performance measure, we actually have to think about this as a problem of predicting ranking.",
+            "The second one is that would actually like to model dependencies between the results.",
+            "So in particular.",
+            "We wouldn't want to only present results that are, let's say, about SVM software here.",
+            "Because that's only a very kind of narrow interpretation of the query SVM in this example.",
+            "So we actually want to model dependencies and then it becomes a structure."
+        ],
+        [
+            "Action problem again or.",
+            "Take the problem of noun phrase coreference resolution.",
+            "There the problem is given a set of noun phrases, predict equivalence classes of noun phrases that belong to that refer to the same entity in the world.",
+            "So essentially we're predicting equivalence relationship here.",
+            "So all of these are problems where we're given some more or less discrete or structured input, but in particular, where we are predicting a structured output ranking, an equivalence relation to tree, something like that."
+        ],
+        [
+            "And there are many, many other problems, so sequence labeling, collective classification, multi label classification, any kind of optimization of non linear performance measures and also like planning or inverse reinforcement.",
+            "Learning all problems that fall into this category."
+        ],
+        [
+            "So what I want to do in this talk is the following.",
+            "I want to 1st give an overview of.",
+            "A framework for essentially an SVM style algorithm.",
+            "For tackling all of these problems that I've mentioned.",
+            "And what this gives us is kind of a general way of formulating these learning problems.",
+            "Then this leads to an optimization problem and I'm going to talk a little bit about training algorithms and guarantees for these algorithms in terms of efficiency.",
+            "And then.",
+            "Outline how these methods or this framework can be applied to these applications that I mentioned.",
+            "In particular sequence alignment for protein structure prediction.",
+            "Diversification of retrieval results.",
+            "So predicting rankings and supervised clustering.",
+            "So predicting equipment selection."
+        ],
+        [
+            "Alright, so why do I think this is an important, interesting line of research well?",
+            "For this part, for many of these problems that I've mentioned, for example, the information retrieval problem, I don't think we currently have learning algorithms that solve this problem, so this gives us a way of accessing kind of knew learning problems.",
+            "For some of the problems that I've mentioned, methods already exist.",
+            "For example, for the non phrase coreference resolution problem, people often do first pairwise classification and then do a clustering to kind of clean things up.",
+            "And get an equivalence relation, but that it's kind of a complicated process, right?",
+            "You have to 1st get the classification right and then if to tune things so that the clustering works well.",
+            "Be much easier if you could just do that all of that in one step.",
+            "And optimize things directly.",
+            "But yet other problems like natural language parsing problem, we already have methods that do this kind of one step, but in many cases they are generative and the hope is that a discriminative method like support vector machine or some conditional or conditional likelihood method.",
+            "Will allow us to get better prediction performance.",
+            "So for example my experience from tax classification is that.",
+            "Moving from the East base to something like linear SVM, despite the fact that they are learning exactly the same linear model, but they restrained in a different way, you get huge performance benefit.",
+            "And finally.",
+            "In contrast to generative methods where we have to model all of these dependencies, which keeps our models kind of necessarily somewhat simpler.",
+            "In discriminative methods we can use kernels and can avoid these independence assumptions and generally built more complex models."
+        ],
+        [
+            "So to give a kind of.",
+            "Very high level view of the field.",
+            "I'm not going to talk about the genitive training method in terms of discriminative training we have on progression based approaches, in particular kernel dependency estimation.",
+            "Where essentially these prediction problems get translated into multivariate regression problem.",
+            "We have neural network approaches, conditional likelihood approaches, but what I'm going to be following is kinda line of research started by Michael Collins with perception training of Hmm's.",
+            "And kind of start from there and develop that into a large margin framework.",
+            "It's formulations are similar to things like marks, maximum margin Markov networks, but it's actually going to be more general and the training algorithms are going to be different."
+        ],
+        [
+            "OK, so.",
+            "How can we formulate these?",
+            "Structured prediction problems in an SVM style algorithm."
+        ],
+        [
+            "So once like review of binary classification SVM.",
+            "So let's start with that.",
+            "So in the simplest case, we have two classes and we have XY pairs and the Y is just plus 1 -- 1.",
+            "So non structure prediction problem.",
+            "And SVM slowing the linear separator, potentially with Slack variables.",
+            "And if you want to solve this learning problem, it comes down to solving this quadratic program.",
+            "We have this quadratic objective function where we minimize the norm of the weight vector.",
+            "And then we have one constraint for each training example.",
+            "Essentially saying that.",
+            "The example has to lie on the correct side of the hyperplane, and if that's not possible, we pay some penalty in terms of the slack and slack variables are scaled in a way that they're greater than one.",
+            "Exactly when you make a training error, so the sum of the slack variables gives you an upper bound on the training error.",
+            "There's also dual representation.",
+            "That typically more convenient to solve where you have one dual variable for each training example they are connected by by that quivalents.",
+            "One simplification that I'm going to make this talk is that I'm going to not use a threshold B here.",
+            "You can always put it into the into the weight vector.",
+            "Just keeps everything simpler.",
+            "OK, so how can we?",
+            "Generalize that to to this truck."
+        ],
+        [
+            "Prediction problems.",
+            "Well, I mean on very high level structure, prediction is actually a multiclass problem, right?",
+            "You could think about in the following way.",
+            "Let's say I'm going to use natural language parsing as my running example here.",
+            "You could actually have a class for every possible parse tree.",
+            "That's generated by some grammar that's given.",
+            "And then the problem just becomes OK given a new sentence classified into the right class into the right path tree.",
+            "Well, conceptually, that may be the case.",
+            "It's a multiclass problem, but there are a couple of problems, right?",
+            "We have exponentially many classes because there exponentially many parse trees for in the length of the sentence.",
+            "What this means is.",
+            "Even doing a classification is going to take exponential time.",
+            "And it's also not clear how to do the learning right with that many classes and 2nd, even if I just give one parameter for each class.",
+            "I'm going to have an exponential number of parameters an I need a whole lot of training data to fit that model.",
+            "OK. Let's nevertheless try to go."
+        ],
+        [
+            "That route.",
+            "There is a multiclass SVM.",
+            "Are there multiple actually and one is was done by Cramon Singer.",
+            "And.",
+            "Basic idea is that you don't have to just have one weight vector, but you have one weight vector for each class.",
+            "And when you want to do classification, then you just compute the inner product with the X that you want to classify, each weight vector and classify the example into the class that has the highest value.",
+            "So you could think about this as the sorting problem.",
+            "And the class that has the highest value gets predicted.",
+            "This can be formulated again as a quadratic program and.",
+            "Desolator point and.",
+            "So what you get is that for each training example.",
+            "You get a set of constraints that says, oh, the correct class has to have a higher discriminate value than each of the indirect classes.",
+            "And you get that for every training example and then you have ocratic objective here again.",
+            "So it's again a convex quadratic program.",
+            "But so if you wanted to apply this method now to structure prediction, we have to solve 3 problems.",
+            "First, how to predict efficiently, right?",
+            "We can just enumerate all the classes.",
+            "That's too expensive.",
+            "Second, how to learn efficiently?",
+            "Eventually have to solve this type of optimization problem and 3rd.",
+            "Well, how do we bring this down to a manageable number of parameters we can't really afford a weight vector for each class.",
+            "You have too many classes, so let's start with the last one."
+        ],
+        [
+            "Bring it down to a manageable number of parameters.",
+            "Well, So what we're going to do is instead of having one weight vector class, you're going to reformulate the problem.",
+            "And introduce a joint feature map fee.",
+            "So this joint feature map takes input, the X and the label Y returns a set of vector of features and then we have a fixed size feature vector that we multiply with.",
+            "And then to make a prediction, we simply solve this argmax problem.",
+            "What we have now is, well, if we pick.",
+            "Feature map small.",
+            "Then the number of weights that we have to learn small.",
+            "So that's in a sense solves our first problem.",
+            "We now brought it down to a fixed number of parameters that doesn't depend on the number of classes that we have.",
+            "Well, it was just kind of syntactic manipulation so far, right?",
+            "Clearly I have to think about, well, how do I actually build these fees?"
+        ],
+        [
+            "So let's take a look at that.",
+            "Again, for natural language parsing, what I can do is I can take advantage of.",
+            "The grammar structure.",
+            "So let's assume there's an underlying context free grammar.",
+            "Then the way that I constructed the fee is that essentially introduced one feature for each grammar rule in the feature in the.",
+            "In the grammar.",
+            "And then it to represent the feature vector for an XY pair.",
+            "I simply count how often was each grammar rule applied.",
+            "And that's the value of my features.",
+            "So S goes to NP, VP was applied once to generate this tree, so it has the value one.",
+            "This was zero times.",
+            "This was twice, and so on.",
+            "So.",
+            "If you squint and think about this for a second.",
+            "This is actually now taking this in our product.",
+            "Here is now.",
+            "Isomorphic to.",
+            "A probabilistic, or more generally awaited, context free grammar.",
+            "So if you think about it in a general context then these W's here could be the log probabilities and this inner product is just the probability of that tree.",
+            "What this means is.",
+            "That this argmax, here we can now compute with a CKY parser, and we can do that efficiently.",
+            "And in particular, we could do it efficiently, despite the fact that this argmax actually goes over an exponential number of trees.",
+            "Right, we can just do dynamic programming.",
+            "So what this means is that we've solved our second problem right?",
+            "We have kind of by picking the parameterization in a particular way.",
+            "We can now do a prediction efficiently, right?",
+            "Once we know the weight vector.",
+            "We can predict given an X, what's the Y?",
+            "And clearly this is the most simplistic representation that I think I can think of.",
+            "You can come up with much more complicated features as long as they fit into a context free grammar.",
+            "So.",
+            "You can do that.",
+            "But that now is the last problem, namely how whoops.",
+            "Um?",
+            "There we go.",
+            "At least the last problem, how do I actually do the the learning efficiently?"
+        ],
+        [
+            "So.",
+            "Let's think about about the multi class classification problem and apply that to our structure prediction problem here.",
+            "What I essentially want is that for every training example, the correct parse tree has the highest discriminative value.",
+            "So if each of these is a training example, here I want the correct one, the red one to come up to the top.",
+            "So I want to tweak my weights in that way so that that is true, and if that is true, if I manage to do that, then I have zero training error.",
+            "So.",
+            "How can I now formulate that as an optimization problem?",
+            "Well, it becomes again convex quadratic program.",
+            "I simply introduce constraints saying.",
+            "The correct tree.",
+            "Why one should have a higher discriminate value than every incorrect tree Y?",
+            "So there's a for all Y here, and I have a set of constraints like that for every training example.",
+            "And then I regularize that against Mr.",
+            "Norm of W. If that problem has a solution, then I know I have a weight vector that gives me zero training error.",
+            "Probably not possible impact."
+        ],
+        [
+            "So we have to introduce a loss function.",
+            "So for example, if I can't achieve this one, I can actually get to the top.",
+            "Then I would want to pay a penalty aloss that's proportional to.",
+            "A Max of.",
+            "Of how bad this new prediction is here?",
+            "And there are multiple ways of how you can achieve that in a linear model.",
+            "Once called slacker scaling minus margin rescaling and margin rescaling is simply scale the distance that you want to have between the correct one and each incorrect one.",
+            "By the last that you have, so if an incorrect one overtakes.",
+            "You have a slack variable that takes that value that's bounded by that value.",
+            "So in terms of an optimization problem, what you simply do is you replace the margin of one with the loss function.",
+            "That just returns a value, and then the slack variable appear goes into the objective again, just like in a regular SVM.",
+            "And again, it's easy to see that the sum of the slack variables gives you an upper bound on the training loss, just like for a regular SVM as well.",
+            "So by solving this optimization problem, we optimize training error."
+        ],
+        [
+            "OK.",
+            "So let's try that actually for natural language parsing.",
+            "What I've done here is taken the Penn treebank.",
+            "That's the standard data set for parsing and.",
+            "Use only short sentences to keep it more efficient.",
+            "For now that's a efficiency issue of the parser, actually.",
+            "So I'm using Mac Johnson's parser and I've trained.",
+            "A conventional probabilistic context free grammar in the generative sense, just using Mark Johnson's code.",
+            "And the same grammar using this SVM approach where I'm using this F1 score as a loss function, that's a typical kind of score that people use to evaluate the quality of a parse tree.",
+            "And again, just like for text classification, I'm actually learning exactly the same model as exactly the same parameters, But once it's trained in a generative fashion.",
+            "Kind of the naive Bayes equivalent of grammars, and once it's trained, indiscriminate fashion, and what you see is suppose that the error rate, so the number of correct parse trees.",
+            "Or the accuracy?",
+            "The number of correct parts trees goes up and the F1 score goes up as well, not as much As for text classification, but you see the same effect.",
+            "And.",
+            "Task and others have done that for much more complicated features, and I think using essentially the same approach.",
+            "And what they were managed to get was essentially a state of the art parser out of this.",
+            "So."
+        ],
+        [
+            "Oh let me wrap up with this general framework is so.",
+            "If I wanted to apply.",
+            "This method to this general framework to A to a new problem, I have to specify a few things I have to specify loss function.",
+            "So how bad is it to predict a particular label?",
+            "Another one is correct.",
+            "Have to come up with the representation and I can often build upon generative models here like conditional random fields.",
+            "And.",
+            "Then to do a prediction, I solve this discriminate value discriminate problem over this linear model.",
+            "And for training I have to solve this quadratic programming.",
+            "And what I will show in the rest of the talk is actually quite a lot of structure prediction problems fit into this general framework.",
+            "So one thing that you may wonder about now was glossed over.",
+            "Small little detail here, right?",
+            "How did I actually solve this problem here?",
+            "If you look at this well, it's a convex quadratic program.",
+            "But it's big.",
+            "And what I've kind of hidden in the notation here is that I have a lot of constraints here.",
+            "In particular.",
+            "In this, for all notation, here is.",
+            "I have a constraint that says.",
+            "The correct parse tree has to have higher value in any incorrect parse tree, so I have a constraint for every incorrect parse tree that's possible.",
+            "That's an exponential number of constraints again.",
+            "One is convex quadratic, it's huge.",
+            "So typing this into MATLAB is not possible even for a small toy problems.",
+            "So how do I actually solve these quadratic programs?",
+            "Is that actually tractable?",
+            "So that.",
+            "Brings up the question of, well, actually training algorithms, not just the formulation of the problem, But the training algorithm."
+        ],
+        [
+            "So let's think about this problem a little bit.",
+            "So here's the optimization problem again.",
+            "And despite the fact that I have a lot of constraints here.",
+            "Well.",
+            "If you think about it, then the solution that I'm looking for just lies in a corner somewhere off of that set of constraints, right?",
+            "So if this is the depiction where the shading is the objective value and the lines are the constraints, then really at the solution there probably going to be only a few constraints that are actually active.",
+            "These other grayed out constraints here, while they're in the problem, but they don't actually matter, I can just leave him out.",
+            "And what we were able to show.",
+            "Initially was that in fact you can, if you only are interested in a solution that's.",
+            "Correct up to some epsilon which can be arbitrary.",
+            "Then the number of constraints that you have to consider that are active at the solution is polynomial bounded in that absolute.",
+            "So despite the fact that you have an exponential number of constraints, the number of instances actually need is small.",
+            "Why it's polynomial?",
+            "Well.",
+            "It's polynomial, but it's still actually kind of big.",
+            "And again, if you think about the dual of this problem here.",
+            "Then you will notice that you have at least one constraint that is active for each training example.",
+            "So if you increase the number of training examples, the number of constraints increases at least linearly.",
+            "So if I have an increasingly linearly increasing number of these black constraints means the size of my problem still increases.",
+            "And since quadratic programming is cubic.",
+            "For large training set this still becomes expensive.",
+            "So.",
+            "Here's an idea."
+        ],
+        [
+            "We could do and what we're going to do is, well, we're going to add even more constraints.",
+            "But we're going to Adam in a way.",
+            "That the solution becomes potentially even sparser.",
+            "So, for example in this case.",
+            "I happen to have a constraint that is perpendicular to the gradient here.",
+            "So here I actually get away with just a single constraint that is active.",
+            "This is of course just depiction here, but there's some truth to that in general, so in particular we're going to reformulate the problem in the following equivalent way.",
+            "The old one I called the N Slack formulation.",
+            "The new one.",
+            "I called one slack formulation.",
+            "What we're going to do is we take all possible sums of constraints that they did that in the original problem.",
+            "So again, we exponentially blow up the number of constraints.",
+            "But what this gives us is that we can reduce everything to just having a single slack variable.",
+            "Again, if you stay with that for awhile, you'll see that these two problems are equivalent.",
+            "They describe the same feasible region.",
+            "But we have only one slack variable.",
+            "One way you can think about this is that here we are building kind of a global model off the the riskware.",
+            "There we are building a local model of each individual loss for each training example.",
+            "So, but in a sense, we've made things worse, right?",
+            "We have even more constraints.",
+            "But so how are we going to solve this now?",
+            "Well, clearly we don't want to actually touch all of the constraints.",
+            "But what we can do is we can just greedily search for the for small set of constraints that is active."
+        ],
+        [
+            "And here is a very simple algorithm for doing that.",
+            "And it's the algorithm that you would.",
+            "Probably would be your first guess of what you would want to use.",
+            "Straightforward cutting plane algorithm.",
+            "And what you do is the following.",
+            "You start with the objective and no constraints, and then you literally keep adding constraints in the greedy fashion.",
+            "So this is all my set of constraints.",
+            "My working set S. And then there's this repeat until loop here.",
+            "And what you do in each iteration is.",
+            "You find the constraint that is most violated.",
+            "Then you check.",
+            "That's in the first for loop.",
+            "There you check whether that constraint is violated by more than epsilon.",
+            "Um and.",
+            "If it's violated by more than epsilon, you add it to your current working set and you optimize your objective over that working set.",
+            "And then you keep doing that.",
+            "So a very straightforward algorithm.",
+            "No, there are three questions that you probably have about this algorithm.",
+            "First one is, is it actually correct?",
+            "And.",
+            "It's pretty easy to see that it is.",
+            "It terminates only once you have a solution that is accurate up to your desired precision epsilon.",
+            "Right here you finding the most violated constraint.",
+            "And you're stopping only if that most violated constraint is not violated by more than epsilon.",
+            "Right, so this algorithm, when it stops, gives you an absolute epsilon accurate solution.",
+            "Second question is well efficiency, right?",
+            "Second and third?",
+            "How efficient is each iteration through this algorithm?",
+            "And well, this is cheap.",
+            "I mean, this doesn't cost anything.",
+            "The only thing that's potentially expensive is computing these art.",
+            "Max is here.",
+            "But if you look at this Max then you'll see except for the loss function Delta.",
+            "Here it's actually the same argmax's doing a prediction.",
+            "So.",
+            "And we can probably use the same trick like CKY parser to solve this argmax as well, so we can do typically do that efficiently.",
+            "And then the final question is, well, how many iterations do I have to go through this repeat until loop?",
+            "Right before it terminates."
+        ],
+        [
+            "And.",
+            "It turns out that.",
+            "You will ever only need a constant number of iterations.",
+            "That doesn't actually depend on the number of training examples.",
+            "And so this is a bound that kind of comes through.",
+            "Through a series of papers and most recently was actually there was a.",
+            "We originally had an epsilon squared here and.",
+            "Alex and Vician others, and actually managed to get that down to just epsilon here.",
+            "And if you look at this bound then you'll notice that it's pulling normal in all the parameters.",
+            "And the number of training examples doesn't actually occur.",
+            "So the number of iterations that you have to take and the number of constraints that you eventually got to add.",
+            "Is is constant.",
+            "What this means is it gives you a linear time algorithm for solving these problems.",
+            "Each iteration takes only linear time and you do only a constant number of iterations.",
+            "It turns out, so it means we can actually solve these problems very efficiently, and there's actually a lot of interest if you go to ICM L in.",
+            "Algorithm for solving this type of problem and the very efficient ways of doing.",
+            "It's like stochastic subgradient algorithms as well."
+        ],
+        [
+            "So here is just to give you an example of runtimes.",
+            "This is an old algorithm that solves the N select formulation directly and as you can see the number of constraints keeps growing with the number of training examples.",
+            "In the new formulation, not only the bound tells you it's a constant number, but actually empirically it's a pretty constant number as well.",
+            "And you can see this here.",
+            "We had to solve quadratic programs in the old formulation with like 100,000 constraints.",
+            "Here, it's always less than 1000.",
+            "Even for this is for an HMM space of part of speech tagging problem with like almost 1,000,000 words.",
+            "And if you look at runtime.",
+            "Compared to the number of training examples, the new algorithm actually really has linear runtime.",
+            "So.",
+            "We have a very efficient way of solving these problems."
+        ],
+        [
+            "No.",
+            "Let's step back again.",
+            "So not only do we have a formulation for solving all of these problems, we also have a very general algorithm for solving these problems.",
+            "In particular, so if I wanted to apply.",
+            "This method to a new set of problems.",
+            "Also, in terms of implementation.",
+            "I can reuse a lot of work from the general framework.",
+            "All I really have to implement is in your loss function and you representation.",
+            "And methods for solving these two arc Max problems.",
+            "And typically it's actually so this is for doing the prediction and this is for doing the separation Oracle finding the most violated constraint.",
+            "And kind of all of the rest.",
+            "Just taste the same.",
+            "So if you want to try it, there's actually an implementation of the general algorithm on my my web page is called SVM struct.",
+            "Um?",
+            "So in a sense, it's kind of a plug and play setting, right?",
+            "And what I want to demonstrate in the rest of the talk is how we can take this general algorithm and just plug in different.",
+            "Applications.",
+            "By keeping actually most of the code."
+        ],
+        [
+            "Same.",
+            "So in particular, we talk about these three briefly sequence alignment diversification of search results.",
+            "Insert provides clustering, and so whatever you have to do for each is specify a loss function, specify representation, and a method for computing the art.",
+            "Max is."
+        ],
+        [
+            "So let's start with the sequence alignment problem and see how it goes there.",
+            "So kind of the Holy Grail of.",
+            "One of the Holy Grails in bioinformatics is.",
+            "Given a sequence of amino acids, predict what their structure is.",
+            "Well, it would be nice if we could directly solve data structure prediction problem, but I don't know how to do that.",
+            "The problem is that the search space over structures is really big, and while we have good understanding of the physics, it's just too expensive to do a search directly in this space.",
+            "So what people typically do, or one of the methods that they use is what's called comparative modeling.",
+            "Each you have a set of known structures and it turns out that proteins kind of come in families and they don't really fall into fold into arbitrary structures, but they're kind of a couple of templates that they can fold into a few thousands of those.",
+            "And so the way that you can do structured prediction, then is in an efficient way is.",
+            "Your first kind of try to predict which family this structure this sequence lies in, and that's maybe a binary classification problem.",
+            "Then you take the sequence and you try to thread it into the structure.",
+            "How it best fits.",
+            "And that hopefully gives you a good enough starting point to do a local search from there and actually find the correct structure.",
+            "So what I want to talk about here is the 2nd task.",
+            "Given the sequence Understructure, predict how they.",
+            "Right into each other, how they align?",
+            "So."
+        ],
+        [
+            "This becomes an alignment problem, so just a quick reminder on sequence alignment.",
+            "Typically formulated again as an argmax over a linear scoring function.",
+            "Let's say we have two sequences S&T.",
+            "Then if we align him in in this way so that we align a with BB was AC with CD with C here.",
+            "The way the alignment score is computed is we have a matrix that tells us what's the score of lining and a within a that's 10.",
+            "Or here we aligning and able to be.",
+            "We look this up on the table.",
+            "Oh, that's zero be within a that's zero.",
+            "See what the see that gives a score of 10 and deal with the C. That gives us a score of minus 10, so the overall score of this alignment is.",
+            "There's some of those and it would be 0 here.",
+            "Here's another alignment that has gaps in it, so then we have a score of aligning with B with a gap that's be with a gap.",
+            "That's a -- 5, and so on.",
+            "So overall possible alignment.",
+            "We solve this argmax problem of the score and return the alignment as the highest score.",
+            "And again, we can solve that via dynamic programming efficiently.",
+            "Now that's straightforward sequence alignment."
+        ],
+        [
+            "Just have characters in the sequence, but the alignment problem in the threading problem, where we're threading a sequence into a structure is more complicated, because what we actually lime aligning here is sequences of feature vectors.",
+            "So for example, we have a sequence here that describes each position in our structure.",
+            "So what's the amino acid?",
+            "What's the exposed surface area?",
+            "What's the secondary structure at?",
+            "Position in the in the structure and so on, so we don't just have a single.",
+            "Kind of character, but we have these feature vectors.",
+            "And the same thing for the sequence.",
+            "We could have like what's the predicted secondary structure at that position as well.",
+            "So we really aligning feature vectors here.",
+            "And then it becomes.",
+            "Kind of hard to just write down a table of you know of alignment scores."
+        ],
+        [
+            "Instead, we need something more general scoring model.",
+            "In particular.",
+            "We gotta compute the score of an alignment.",
+            "Um?",
+            "And each position again as a linear function.",
+            "So instead of just having a number here and summing over all the positions.",
+            "We are allowing now to have a linear function that takes the input sequences and the alignment operation at that position, and we can tune the weight vectors to give us an alignment score for each position.",
+            "That includes also.",
+            "Insertions and deletions.",
+            "And note that this and now doing a genitive estimation of this setting would be really, really hard, because we would have to model dependencies between these feature vectors, which would give us huge models, but it's not a problem in a generative setting."
+        ],
+        [
+            "Somehow this.",
+            "Moves in different way.",
+            "So we fixed the representation and we figured out how to do the argmax, just dynamic programming again.",
+            "The last thing that we have to do is specify loss function.",
+            "And so first guess that you might have is just count the number of incorrect alignment operations.",
+            "So for example, if this is the correct alignment line a with BA with a here be with C&C.",
+            "With C, this is the predicted alignment whether a is actually offset here not in the correct position.",
+            "You would get a loss of one out of three.",
+            "There are three possible one you've got one of them wrong.",
+            "But actually, the bioinformatics collaborators told us that this is too harsh.",
+            "It doesn't really matter if you get it exactly right if you get it within a window of four, that's good enough.",
+            "From there you can do the local search and it's probably going to find the solution.",
+            "So that's what we call the Q four loss function.",
+            "So if you just get you know the two amino acids here into the into the correct window four, that's good enough.",
+            "And then again, if you think about this a little bit, then the separation Oracle that you need doing the cutting plane training again you can do via dynamic programming is actually the same alignment algorithm again."
+        ],
+        [
+            "So now we've specified everything we can.",
+            "Just plug that into the code and locally get a couple of experiments.",
+            "So this is a standard data set.",
+            "We train on roughly 5000 known alignments.",
+            "I have a validation set of another 5000 alignments to pick parameters and then we have a large test set.",
+            "Um?",
+            "And we use these features here.",
+            "Amino acid identity the secondary structure and the exposed surface area that's known for the structures, and we used the predicted values used predicted by sable for the new sequences that we want to classify."
+        ],
+        [
+            "So these are the results.",
+            "We went through different.",
+            "Feature.",
+            "Representation and the point that I that I want to make is.",
+            "That kind of in conventional generative training you would probably build models that have maybe 1000 features or something like that.",
+            "And we try to push it and actually come up with, you know, features that describe pairs or triplets.",
+            "Describe the window around the current location, so pushing it all the way to models that have around half a million of features.",
+            "And if you look at the test set performance, higher is better.",
+            "You actually benefit from building these complex models.",
+            "So the best best results we actually got with the most complex models.",
+            "So this allows us to kind of build these models that you just wouldn't be able to really train in an easy way with the genitive method.",
+            "Here's a comparison against existing methods.",
+            "If you just do kind of a simple blast alignment that's not.",
+            "Not going to work at all.",
+            "These are all sequences that are hard that have no similarity.",
+            "This is the best results that we got picked on the validation set.",
+            "This is kind of the state of the art generative method that involved a lot of hand tuning and picking parameters, and this is the result of a PhD thesis and.",
+            "And a lot of work went into that, and despite the fact that we've invested a lot less time, we got better results.",
+            "And this is kind of a.",
+            "At an upper bound baseline, this is cheated.",
+            "This is actually if you know the structure and do the alignment.",
+            "This is the best that you can hope for.",
+            "So there's still some room for improvement.",
+            "But not actually that much."
+        ],
+        [
+            "Alright, um, more briefly, the second tool so.",
+            "Going from Bioinformatics now to information retrieval, but it stays the same thing.",
+            "We just have to pass."
+        ],
+        [
+            "For these three things.",
+            "We have to specify what's the representation was the loss function, how to compute the argmax?",
+            "So here's the problem in information retrieval.",
+            "Let's say you have the query SVM and you present these results here.",
+            "People in this room are probably going to be happy with these results, but the rest of the world is not.",
+            "So all the people who are actually looking for.",
+            "Stock quote on ServiceMaster Company which has the stock ticker symbol SVM are not going to be happy with this.",
+            "Everybody who is looking for the French magazine SVM is not going to be happy with this.",
+            "All students of veterinary medicine are not going to be happy with this.",
+            "My dad who knows their spot fine mapping is not going to be happy with this ranking so.",
+            "The.",
+            "What people in information retrieval have recognized is that kind of putting.",
+            "All your eggs into one basket and just looking at one interpretation of the query is not a good strategy.",
+            "In particular, kind of user happiness is a kind of submodular function, so users are not going to be happy at all if you don't give them any relevant results.",
+            "But they're actually almost there.",
+            "Actually quite happy if you just give him one.",
+            "So a better ranking to present in this case would actually be something like this, right?",
+            "So people were looking for machine learning method are going to be happy people who are looking for the stock ticker symbol are happy.",
+            "Soccer fans are happy.",
+            "So, but to be able to do this, we have to be able to model dependencies between the results.",
+            "In particular, we have to recognize the model that once we've presented one machine learning result, we don't want to, we want to present other results first.",
+            "So in this way it becomes a structured prediction problem.",
+            "We have to model these dependence."
+        ],
+        [
+            "So how are we going to do that?",
+            "So formally we we formulate this as a problem of given an X, which is a set of results maybe.",
+            "The top 100 results that our current search engine returns.",
+            "And why is the subset that we want to predict in the top ten spots?",
+            "So it's a mapping from a set to a subset.",
+            "Actually we want to map to a ranking here, but let's keep it simpler.",
+            "So how we going to represent this problem?",
+            "We're going to follow the idea from people at Microsoft called Essential Pages where we say OK, Topic diversity is the same as word diversity.",
+            "So if you think about this diagram here, as these are all the words that are occurring in D1 or the words that are occurring in the two, so these are the documents.",
+            "Let's say the top 100 documents off my search result, then the way that I want to pick the subset is.",
+            "I want to kind of maximize the total number of words that are covered in my subset.",
+            "I want to pick a set of documents that kind of covers almost all of the words that occur in the total result set.",
+            "So this is a Max coverage problem.",
+            "It's NP hard, but they're good approximation algorithms.",
+            "So for example, a simple greedy approximation gives us a 1 -- 1 over epsilon 1 / E approximation because there's a submodular problem.",
+            "So give your algorithm is simple.",
+            "It works probably as you expect it.",
+            "You start with.",
+            "First, taking the largest area here, the document that covers most of the words.",
+            "Then you take the document that.",
+            "If you subtract the words that are already covered, covers most of the words that would be D2 here.",
+            "Then you look which next document covers the kind of gives the most marginal benefit before it's actually bigger, but most of the words are already covered, so you're taking the three.",
+            "And then before, and this way you cover all of almost all of the words except for these kind of portions here.",
+            "So, um.",
+            "But as you song like to put it with the coauthor in this work.",
+            "Yeah, not all words are equally important.",
+            "So what we actually want to learn in this problem here is.",
+            "What are the right ways?",
+            "To give to each individual words so important words that are important to cover.",
+            "So get high weight unimportant words should get a little weight.",
+            "And again, we're going to model that as a linear function."
+        ],
+        [
+            "And we can put in features like.",
+            "You know?",
+            "How often does the word car occur in the resultset?",
+            "How often does it occur, at least in the title of the result set, so we can come up with a whole set of features again and put those into the feature vector?",
+            "Let me skip the details.",
+            "Actually you songs talk is it I CML on Tuesday I think.",
+            "So I refer."
+        ],
+        [
+            "To that.",
+            "So we've picked no representation.",
+            "We've come up with how to do the argmax.",
+            "That's just the greedy algorithm.",
+            "Here's the loss function that we're going to use.",
+            "We want to cover.",
+            "The kind of popular topics.",
+            "So if you have no results at 12345 subtopics and the first subtopic has three documents in this, one is 5 documents in it.",
+            "Then our last function is of the following form.",
+            "We want to make sure we cover the popular topics so our loss is just going to be.",
+            "Let's say for D1 and D10D1 covers this subtopic D. 10 covers this subtopic.",
+            "What's uncovered is these three here left, so all losses 3 out of 12, so that's pretty low.",
+            "If we predicted D2 and D7, these two here, then we would cover only these two documents here.",
+            "Our loss would be much higher.",
+            "10 / 12.",
+            "And again, the separation Oracle that we need during training it actually is again just the same structure.",
+            "It's a Max coverage problem, so we can use the same algorithm again."
+        ],
+        [
+            "So we just plug this into the general cutting plane learning algorithm.",
+            "And share the results.",
+            "This is for actually kind of hard to get data for this because it's a learning problem that people haven't looked at yet, but there is data from the track interactive track.",
+            "We have documents actually explicitly labeled with subtopics.",
+            "And some.",
+            "It's a small data set unfortunately, but.",
+            "Seven are documents.",
+            "Somewhat, at least on the reasonable side.",
+            "So if you take this loss function that I've defined before.",
+            "And just want to take a random subset.",
+            "This is the loss that you get.",
+            "This is the kind of just as a kind of sanity check.",
+            "This is a standard retrieval measure, okapi.",
+            "It's not designed to optimize for diversity, so.",
+            "But just to make sure you know it's kind of the same as random because it's really not designed to do that.",
+            "If we just take an unweighted model, essentially all words getting an equal weight of 1 again, that doesn't actually work, so we actually have to learn something about specific words.",
+            "If you use essential pages, motivating paper for this.",
+            "And they come up with puristic of how to pick the words that gives you this performance.",
+            "So it's better than just doing it random.",
+            "But if you actually do it via learning, you get quite a substantial improvement again.",
+            "And in particular, if you look at the learning curve here, this is the number of training examples.",
+            "This is how test loss drops.",
+            "Clearly, if you had more training examples, you would probably get a lot better still."
+        ],
+        [
+            "And finally, just in two slides."
+        ],
+        [
+            "Drive home the point.",
+            "The problem of predicting equivalence relationship.",
+            "So, given a set of items, predict an improvement relation."
+        ],
+        [
+            "How we do that?",
+            "Well, we have to pick a representation.",
+            "Let's assume each pair of items is described by a feature vector.",
+            "And the label we represent as a 01 matrix, which is just the indicator matrix of the equivalence relation that we want to predict.",
+            "We just have to make sure that this is reflexive, symmetric and transitive, so not all 01 matrices are valid, just the equivalence relationships.",
+            "We have to pick a feature map.",
+            "We just take the sum of all the feature vectors times the label that we have.",
+            "So this is a depiction of a equivalence relation of Y.",
+            "Then we have to pick a loss function.",
+            "So if this is the correct Y, this is one that we predict we just take the L1 distance between the two matrices, so we get a loss of 123456 here.",
+            "And finally we have to pick how to predict the how to compute the argmax is.",
+            "It's essentially a rounding problem where we take a matrix of real values that comes from these inner products.",
+            "And rounded to 01 matrix that is an equivalence relationship.",
+            "And you can.",
+            "It's kind of it's equivalent to what's called correlation clustering.",
+            "It's NP hard, but what you can do is you can use linear relaxation by domain and a more liquor to get an approximate solution.",
+            "And then you have to do the separation Oracle for finding the most violated constraint, and again you can.",
+            "You can formulate that in the same way."
+        ],
+        [
+            "OK, so I think that brings home the point that you can take this framework and.",
+            "Bring a lot of applications into this form.",
+            "So it goes all the way from like alignment problems to information retrieval and predicting equivalence relationships.",
+            "I think what this gives you is kind of a tool to model problems from kind of start to beginning and not having to break it up into multiple problems that you have to solve sequentially.",
+            "You just kind of specify what you what your desired kind of relationship between inputs and outputs is, and then you learn it in one step.",
+            "I think that's conceptually and also probably practically much simpler.",
+            "Um?",
+            "Not only the model but also the algorithms then actually become quite general.",
+            "So you just have to plug in.",
+            "A few things into that general learning algorithm and your hair.",
+            "It much of the theorie.",
+            "You always get a linear time algorithm, so you inherit much of that.",
+            "You don't have to start from scratch.",
+            "So more details.",
+            "As I said, the diversified retrieval application of your song is going to talk about that on Tuesday.",
+            "The part about sequence alignment that there's a paper at re comp and coming out as in the JCB Journal.",
+            "Supervised clustering might want to talk to Thomas Finley, who is also here at ICML about his new work on K means supervised version of K means.",
+            "Um?",
+            "One thing that I glossed over in this talk was.",
+            "That when I described the general cutting plane algorithm, I actually assumed that I could solve these argmax problems exactly.",
+            "But in two of my applications I couldn't.",
+            "I just had approximate solutions.",
+            "So Tom Finley has a talk I think on Monday that characterizes what happens in this case, and that if you have epsilon approximate solutions.",
+            "You still get kind of performance guarantees, so I encourage you to go to that.",
+            "And.",
+            "And none of this work.",
+            "Kernels were used all for these linear models, so.",
+            "You can extend those two kernels as well.",
+            "There's a KDD paper coming out of that.",
+            "So if you're interested in trying this, the software is available here.",
+            "That general API that lets you implement your own application, but there also several instances implemented already.",
+            "Alright, so thank you very much.",
+            "Time for questions.",
+            "Thank you.",
+            "In your algorithm, it seems that except for the step to find wise of I prime.",
+            "Other steps in Indetermination take only linear time with respect to the number of data points and the number of iterations are independent of the number of data points.",
+            "The number of iterations doesn't actually depend on the number of data points.",
+            "If you so each iteration depends on the number of data points.",
+            "But this works differently.",
+            "But if you look at the at the at the bound, then the number of data points actually doesn't."
+        ],
+        [
+            "Doesn't go into the bound, and if I mean also, if you look at the empirical results right?",
+            "I mean there's some wiggling in the beginning, but then actually the number of iterations stays flat even if you increase the number of trainings then.",
+            "So if your algorithm is used for general classification task, it would be much faster than conventional severe algorithms becausw the overall training complexity is linear to the number of data points, right?",
+            "Yeah, so actually a.",
+            "You can use the same algorithm to train just binary classification as we can, and you get a linear time algorithm.",
+            "Yeah, that that's true, yeah think.",
+            "I have two questions.",
+            "The first one is you mentioned that the finding fee is very important.",
+            "So how do you know if you actually found the right fee?",
+            "How do you know if you cannot find the solution?",
+            "Because the problem is difficult or just because you're not looking at the right features.",
+            "I could answer that before the second question, that's the.",
+            "The usual problem machine learning you have to pick a representation and.",
+            "That's where you have to be smart, unfortunately."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So and what it came down to was.",
+                    "label": 0
+                },
+                {
+                    "sent": "Talk that kind of combined some more general view of.",
+                    "label": 0
+                },
+                {
+                    "sent": "These kinds of large margin methods for structured prediction combined with the applications that I'm going to be introducing here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "This talk is going to be about supervised learning in a very traditional I mean in the normal setting that everybody knows.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have data that comes from a distribution of X wise and we are given a sample of N pairs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just a regular training sample and we want to learn as a function that Maps X to YS so that some risk for some specified loss function Delta gets minimized.",
+                    "label": 1
+                },
+                {
+                    "sent": "So from that perspective, it's very standard NBF lots of methods for you know, classification regression that fall into this supervised learning setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's going to be different in this talk or?",
+                    "label": 0
+                },
+                {
+                    "sent": "Not standard in this talk is considering these problems where the prediction Y is not just a like a binary label or multiclass label.",
+                    "label": 0
+                },
+                {
+                    "sent": "But some structured and complex object.",
+                    "label": 0
+                },
+                {
+                    "sent": "So both X&Y will typically be some discrete object, like a graph in this in this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what are the types of problems that I'm thinking about so for?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Apple.",
+                    "label": 0
+                },
+                {
+                    "sent": "Natural language parsing, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a problem where the prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a specific graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "And, um.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given a sentence like a sequence of words.",
+                    "label": 1
+                },
+                {
+                    "sent": "We want to predict what's the correct posture.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you think about this, it's not easy to break this problem down into, let's say multiple binary classification problems, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, it's kind of hard to say, you know.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the first 2 words have to be a noun phrase.",
+                    "label": 1
+                },
+                {
+                    "sent": "Because everything is connected, everything depends is dependent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Eventually the whole thing has to form a graph.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it's not clear how we could actually break that down into binary classification problems, for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here the prediction Y is a tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here's another problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sequence alignment, one of the kind of staple techniques in bioinformatics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given two sequences, S&T.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to predict is what's the correct alignment of these two sequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here, well, the prediction again is an alignment and their dependencies.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I put a gap here in their line, these two here, then there are certain other options that are kind of eliminated for other alignment.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Here's another one information retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want to predict the ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are two reasons for why I think it's beneficial to think about this as a structured prediction problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is typically an information retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think about loss functions that are kind of a function of ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, average precision is a typical loss function that people use, or performance measures that people use in information retrieval.",
+                    "label": 1
+                },
+                {
+                    "sent": "And really you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every transition is not defined on kind of binary labels, but is defined on rankings.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you wanted to kind of optimize this performance measure, we actually have to think about this as a problem of predicting ranking.",
+                    "label": 1
+                },
+                {
+                    "sent": "The second one is that would actually like to model dependencies between the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in particular.",
+                    "label": 0
+                },
+                {
+                    "sent": "We wouldn't want to only present results that are, let's say, about SVM software here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because that's only a very kind of narrow interpretation of the query SVM in this example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we actually want to model dependencies and then it becomes a structure.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Action problem again or.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take the problem of noun phrase coreference resolution.",
+                    "label": 0
+                },
+                {
+                    "sent": "There the problem is given a set of noun phrases, predict equivalence classes of noun phrases that belong to that refer to the same entity in the world.",
+                    "label": 1
+                },
+                {
+                    "sent": "So essentially we're predicting equivalence relationship here.",
+                    "label": 1
+                },
+                {
+                    "sent": "So all of these are problems where we're given some more or less discrete or structured input, but in particular, where we are predicting a structured output ranking, an equivalence relation to tree, something like that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And there are many, many other problems, so sequence labeling, collective classification, multi label classification, any kind of optimization of non linear performance measures and also like planning or inverse reinforcement.",
+                    "label": 0
+                },
+                {
+                    "sent": "Learning all problems that fall into this category.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what I want to do in this talk is the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to 1st give an overview of.",
+                    "label": 0
+                },
+                {
+                    "sent": "A framework for essentially an SVM style algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "For tackling all of these problems that I've mentioned.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what this gives us is kind of a general way of formulating these learning problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then this leads to an optimization problem and I'm going to talk a little bit about training algorithms and guarantees for these algorithms in terms of efficiency.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then.",
+                    "label": 0
+                },
+                {
+                    "sent": "Outline how these methods or this framework can be applied to these applications that I mentioned.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular sequence alignment for protein structure prediction.",
+                    "label": 1
+                },
+                {
+                    "sent": "Diversification of retrieval results.",
+                    "label": 1
+                },
+                {
+                    "sent": "So predicting rankings and supervised clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So predicting equipment selection.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so why do I think this is an important, interesting line of research well?",
+                    "label": 0
+                },
+                {
+                    "sent": "For this part, for many of these problems that I've mentioned, for example, the information retrieval problem, I don't think we currently have learning algorithms that solve this problem, so this gives us a way of accessing kind of knew learning problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "For some of the problems that I've mentioned, methods already exist.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, for the non phrase coreference resolution problem, people often do first pairwise classification and then do a clustering to kind of clean things up.",
+                    "label": 1
+                },
+                {
+                    "sent": "And get an equivalence relation, but that it's kind of a complicated process, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to 1st get the classification right and then if to tune things so that the clustering works well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Be much easier if you could just do that all of that in one step.",
+                    "label": 0
+                },
+                {
+                    "sent": "And optimize things directly.",
+                    "label": 1
+                },
+                {
+                    "sent": "But yet other problems like natural language parsing problem, we already have methods that do this kind of one step, but in many cases they are generative and the hope is that a discriminative method like support vector machine or some conditional or conditional likelihood method.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will allow us to get better prediction performance.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example my experience from tax classification is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Moving from the East base to something like linear SVM, despite the fact that they are learning exactly the same linear model, but they restrained in a different way, you get huge performance benefit.",
+                    "label": 1
+                },
+                {
+                    "sent": "And finally.",
+                    "label": 1
+                },
+                {
+                    "sent": "In contrast to generative methods where we have to model all of these dependencies, which keeps our models kind of necessarily somewhat simpler.",
+                    "label": 0
+                },
+                {
+                    "sent": "In discriminative methods we can use kernels and can avoid these independence assumptions and generally built more complex models.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to give a kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very high level view of the field.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to talk about the genitive training method in terms of discriminative training we have on progression based approaches, in particular kernel dependency estimation.",
+                    "label": 1
+                },
+                {
+                    "sent": "Where essentially these prediction problems get translated into multivariate regression problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have neural network approaches, conditional likelihood approaches, but what I'm going to be following is kinda line of research started by Michael Collins with perception training of Hmm's.",
+                    "label": 1
+                },
+                {
+                    "sent": "And kind of start from there and develop that into a large margin framework.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's formulations are similar to things like marks, maximum margin Markov networks, but it's actually going to be more general and the training algorithms are going to be different.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "How can we formulate these?",
+                    "label": 0
+                },
+                {
+                    "sent": "Structured prediction problems in an SVM style algorithm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So once like review of binary classification SVM.",
+                    "label": 1
+                },
+                {
+                    "sent": "So let's start with that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the simplest case, we have two classes and we have XY pairs and the Y is just plus 1 -- 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "So non structure prediction problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And SVM slowing the linear separator, potentially with Slack variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you want to solve this learning problem, it comes down to solving this quadratic program.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have this quadratic objective function where we minimize the norm of the weight vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have one constraint for each training example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially saying that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The example has to lie on the correct side of the hyperplane, and if that's not possible, we pay some penalty in terms of the slack and slack variables are scaled in a way that they're greater than one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly when you make a training error, so the sum of the slack variables gives you an upper bound on the training error.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also dual representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "That typically more convenient to solve where you have one dual variable for each training example they are connected by by that quivalents.",
+                    "label": 0
+                },
+                {
+                    "sent": "One simplification that I'm going to make this talk is that I'm going to not use a threshold B here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can always put it into the into the weight vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just keeps everything simpler.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so how can we?",
+                    "label": 0
+                },
+                {
+                    "sent": "Generalize that to to this truck.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Prediction problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I mean on very high level structure, prediction is actually a multiclass problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You could think about in the following way.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say I'm going to use natural language parsing as my running example here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could actually have a class for every possible parse tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's generated by some grammar that's given.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the problem just becomes OK given a new sentence classified into the right class into the right path tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, conceptually, that may be the case.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a multiclass problem, but there are a couple of problems, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have exponentially many classes because there exponentially many parse trees for in the length of the sentence.",
+                    "label": 1
+                },
+                {
+                    "sent": "What this means is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even doing a classification is going to take exponential time.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it's also not clear how to do the learning right with that many classes and 2nd, even if I just give one parameter for each class.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'm going to have an exponential number of parameters an I need a whole lot of training data to fit that model.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Let's nevertheless try to go.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That route.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a multiclass SVM.",
+                    "label": 1
+                },
+                {
+                    "sent": "Are there multiple actually and one is was done by Cramon Singer.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basic idea is that you don't have to just have one weight vector, but you have one weight vector for each class.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when you want to do classification, then you just compute the inner product with the X that you want to classify, each weight vector and classify the example into the class that has the highest value.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you could think about this as the sorting problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the class that has the highest value gets predicted.",
+                    "label": 0
+                },
+                {
+                    "sent": "This can be formulated again as a quadratic program and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Desolator point and.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you get is that for each training example.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get a set of constraints that says, oh, the correct class has to have a higher discriminate value than each of the indirect classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you get that for every training example and then you have ocratic objective here again.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's again a convex quadratic program.",
+                    "label": 0
+                },
+                {
+                    "sent": "But so if you wanted to apply this method now to structure prediction, we have to solve 3 problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, how to predict efficiently, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "We can just enumerate all the classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's too expensive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Second, how to learn efficiently?",
+                    "label": 1
+                },
+                {
+                    "sent": "Eventually have to solve this type of optimization problem and 3rd.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, how do we bring this down to a manageable number of parameters we can't really afford a weight vector for each class.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have too many classes, so let's start with the last one.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Bring it down to a manageable number of parameters.",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, So what we're going to do is instead of having one weight vector class, you're going to reformulate the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And introduce a joint feature map fee.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this joint feature map takes input, the X and the label Y returns a set of vector of features and then we have a fixed size feature vector that we multiply with.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then to make a prediction, we simply solve this argmax problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we have now is, well, if we pick.",
+                    "label": 1
+                },
+                {
+                    "sent": "Feature map small.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the number of weights that we have to learn small.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's in a sense solves our first problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We now brought it down to a fixed number of parameters that doesn't depend on the number of classes that we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it was just kind of syntactic manipulation so far, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Clearly I have to think about, well, how do I actually build these fees?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's take a look at that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, for natural language parsing, what I can do is I can take advantage of.",
+                    "label": 0
+                },
+                {
+                    "sent": "The grammar structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's assume there's an underlying context free grammar.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then the way that I constructed the fee is that essentially introduced one feature for each grammar rule in the feature in the.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it to represent the feature vector for an XY pair.",
+                    "label": 0
+                },
+                {
+                    "sent": "I simply count how often was each grammar rule applied.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's the value of my features.",
+                    "label": 0
+                },
+                {
+                    "sent": "So S goes to NP, VP was applied once to generate this tree, so it has the value one.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was zero times.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was twice, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you squint and think about this for a second.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually now taking this in our product.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Isomorphic to.",
+                    "label": 0
+                },
+                {
+                    "sent": "A probabilistic, or more generally awaited, context free grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you think about it in a general context then these W's here could be the log probabilities and this inner product is just the probability of that tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this means is.",
+                    "label": 1
+                },
+                {
+                    "sent": "That this argmax, here we can now compute with a CKY parser, and we can do that efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in particular, we could do it efficiently, despite the fact that this argmax actually goes over an exponential number of trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, we can just do dynamic programming.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what this means is that we've solved our second problem right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have kind of by picking the parameterization in a particular way.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can now do a prediction efficiently, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Once we know the weight vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can predict given an X, what's the Y?",
+                    "label": 0
+                },
+                {
+                    "sent": "And clearly this is the most simplistic representation that I think I can think of.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can come up with much more complicated features as long as they fit into a context free grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can do that.",
+                    "label": 1
+                },
+                {
+                    "sent": "But that now is the last problem, namely how whoops.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "There we go.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least the last problem, how do I actually do the the learning efficiently?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's think about about the multi class classification problem and apply that to our structure prediction problem here.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I essentially want is that for every training example, the correct parse tree has the highest discriminative value.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if each of these is a training example, here I want the correct one, the red one to come up to the top.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I want to tweak my weights in that way so that that is true, and if that is true, if I manage to do that, then I have zero training error.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 1
+                },
+                {
+                    "sent": "How can I now formulate that as an optimization problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it becomes again convex quadratic program.",
+                    "label": 0
+                },
+                {
+                    "sent": "I simply introduce constraints saying.",
+                    "label": 0
+                },
+                {
+                    "sent": "The correct tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why one should have a higher discriminate value than every incorrect tree Y?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a for all Y here, and I have a set of constraints like that for every training example.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I regularize that against Mr.",
+                    "label": 0
+                },
+                {
+                    "sent": "Norm of W. If that problem has a solution, then I know I have a weight vector that gives me zero training error.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably not possible impact.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we have to introduce a loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if I can't achieve this one, I can actually get to the top.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I would want to pay a penalty aloss that's proportional to.",
+                    "label": 0
+                },
+                {
+                    "sent": "A Max of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of how bad this new prediction is here?",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are multiple ways of how you can achieve that in a linear model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once called slacker scaling minus margin rescaling and margin rescaling is simply scale the distance that you want to have between the correct one and each incorrect one.",
+                    "label": 0
+                },
+                {
+                    "sent": "By the last that you have, so if an incorrect one overtakes.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a slack variable that takes that value that's bounded by that value.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in terms of an optimization problem, what you simply do is you replace the margin of one with the loss function.",
+                    "label": 1
+                },
+                {
+                    "sent": "That just returns a value, and then the slack variable appear goes into the objective again, just like in a regular SVM.",
+                    "label": 1
+                },
+                {
+                    "sent": "And again, it's easy to see that the sum of the slack variables gives you an upper bound on the training loss, just like for a regular SVM as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So by solving this optimization problem, we optimize training error.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's try that actually for natural language parsing.",
+                    "label": 1
+                },
+                {
+                    "sent": "What I've done here is taken the Penn treebank.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the standard data set for parsing and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Use only short sentences to keep it more efficient.",
+                    "label": 0
+                },
+                {
+                    "sent": "For now that's a efficiency issue of the parser, actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm using Mac Johnson's parser and I've trained.",
+                    "label": 0
+                },
+                {
+                    "sent": "A conventional probabilistic context free grammar in the generative sense, just using Mark Johnson's code.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the same grammar using this SVM approach where I'm using this F1 score as a loss function, that's a typical kind of score that people use to evaluate the quality of a parse tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, just like for text classification, I'm actually learning exactly the same model as exactly the same parameters, But once it's trained in a generative fashion.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of the naive Bayes equivalent of grammars, and once it's trained, indiscriminate fashion, and what you see is suppose that the error rate, so the number of correct parse trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or the accuracy?",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of correct parts trees goes up and the F1 score goes up as well, not as much As for text classification, but you see the same effect.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Task and others have done that for much more complicated features, and I think using essentially the same approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what they were managed to get was essentially a state of the art parser out of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Oh let me wrap up with this general framework is so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I wanted to apply.",
+                    "label": 0
+                },
+                {
+                    "sent": "This method to this general framework to A to a new problem, I have to specify a few things I have to specify loss function.",
+                    "label": 1
+                },
+                {
+                    "sent": "So how bad is it to predict a particular label?",
+                    "label": 0
+                },
+                {
+                    "sent": "Another one is correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "Have to come up with the representation and I can often build upon generative models here like conditional random fields.",
+                    "label": 1
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then to do a prediction, I solve this discriminate value discriminate problem over this linear model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for training I have to solve this quadratic programming.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I will show in the rest of the talk is actually quite a lot of structure prediction problems fit into this general framework.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one thing that you may wonder about now was glossed over.",
+                    "label": 0
+                },
+                {
+                    "sent": "Small little detail here, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "How did I actually solve this problem here?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at this well, it's a convex quadratic program.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's big.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I've kind of hidden in the notation here is that I have a lot of constraints here.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this, for all notation, here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have a constraint that says.",
+                    "label": 0
+                },
+                {
+                    "sent": "The correct parse tree has to have higher value in any incorrect parse tree, so I have a constraint for every incorrect parse tree that's possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's an exponential number of constraints again.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is convex quadratic, it's huge.",
+                    "label": 0
+                },
+                {
+                    "sent": "So typing this into MATLAB is not possible even for a small toy problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do I actually solve these quadratic programs?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that actually tractable?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Brings up the question of, well, actually training algorithms, not just the formulation of the problem, But the training algorithm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's think about this problem a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the optimization problem again.",
+                    "label": 0
+                },
+                {
+                    "sent": "And despite the fact that I have a lot of constraints here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think about it, then the solution that I'm looking for just lies in a corner somewhere off of that set of constraints, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if this is the depiction where the shading is the objective value and the lines are the constraints, then really at the solution there probably going to be only a few constraints that are actually active.",
+                    "label": 0
+                },
+                {
+                    "sent": "These other grayed out constraints here, while they're in the problem, but they don't actually matter, I can just leave him out.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we were able to show.",
+                    "label": 0
+                },
+                {
+                    "sent": "Initially was that in fact you can, if you only are interested in a solution that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Correct up to some epsilon which can be arbitrary.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the number of constraints that you have to consider that are active at the solution is polynomial bounded in that absolute.",
+                    "label": 0
+                },
+                {
+                    "sent": "So despite the fact that you have an exponential number of constraints, the number of instances actually need is small.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why it's polynomial?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's polynomial, but it's still actually kind of big.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, if you think about the dual of this problem here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you will notice that you have at least one constraint that is active for each training example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you increase the number of training examples, the number of constraints increases at least linearly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I have an increasingly linearly increasing number of these black constraints means the size of my problem still increases.",
+                    "label": 0
+                },
+                {
+                    "sent": "And since quadratic programming is cubic.",
+                    "label": 0
+                },
+                {
+                    "sent": "For large training set this still becomes expensive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's an idea.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We could do and what we're going to do is, well, we're going to add even more constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're going to Adam in a way.",
+                    "label": 0
+                },
+                {
+                    "sent": "That the solution becomes potentially even sparser.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "I happen to have a constraint that is perpendicular to the gradient here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here I actually get away with just a single constraint that is active.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is of course just depiction here, but there's some truth to that in general, so in particular we're going to reformulate the problem in the following equivalent way.",
+                    "label": 0
+                },
+                {
+                    "sent": "The old one I called the N Slack formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "The new one.",
+                    "label": 0
+                },
+                {
+                    "sent": "I called one slack formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we're going to do is we take all possible sums of constraints that they did that in the original problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, we exponentially blow up the number of constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what this gives us is that we can reduce everything to just having a single slack variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, if you stay with that for awhile, you'll see that these two problems are equivalent.",
+                    "label": 0
+                },
+                {
+                    "sent": "They describe the same feasible region.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we have only one slack variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way you can think about this is that here we are building kind of a global model off the the riskware.",
+                    "label": 0
+                },
+                {
+                    "sent": "There we are building a local model of each individual loss for each training example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, but in a sense, we've made things worse, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have even more constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "But so how are we going to solve this now?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, clearly we don't want to actually touch all of the constraints.",
+                    "label": 1
+                },
+                {
+                    "sent": "But what we can do is we can just greedily search for the for small set of constraints that is active.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And here is a very simple algorithm for doing that.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it's the algorithm that you would.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably would be your first guess of what you would want to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Straightforward cutting plane algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you do is the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "You start with the objective and no constraints, and then you literally keep adding constraints in the greedy fashion.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is all my set of constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "My working set S. And then there's this repeat until loop here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you do in each iteration is.",
+                    "label": 0
+                },
+                {
+                    "sent": "You find the constraint that is most violated.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you check.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's in the first for loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "There you check whether that constraint is violated by more than epsilon.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um and.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's violated by more than epsilon, you add it to your current working set and you optimize your objective over that working set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you keep doing that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a very straightforward algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, there are three questions that you probably have about this algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "First one is, is it actually correct?",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's pretty easy to see that it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It terminates only once you have a solution that is accurate up to your desired precision epsilon.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right here you finding the most violated constraint.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you're stopping only if that most violated constraint is not violated by more than epsilon.",
+                    "label": 1
+                },
+                {
+                    "sent": "Right, so this algorithm, when it stops, gives you an absolute epsilon accurate solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Second question is well efficiency, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Second and third?",
+                    "label": 0
+                },
+                {
+                    "sent": "How efficient is each iteration through this algorithm?",
+                    "label": 0
+                },
+                {
+                    "sent": "And well, this is cheap.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, this doesn't cost anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only thing that's potentially expensive is computing these art.",
+                    "label": 0
+                },
+                {
+                    "sent": "Max is here.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you look at this Max then you'll see except for the loss function Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here it's actually the same argmax's doing a prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can probably use the same trick like CKY parser to solve this argmax as well, so we can do typically do that efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the final question is, well, how many iterations do I have to go through this repeat until loop?",
+                    "label": 0
+                },
+                {
+                    "sent": "Right before it terminates.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You will ever only need a constant number of iterations.",
+                    "label": 0
+                },
+                {
+                    "sent": "That doesn't actually depend on the number of training examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this is a bound that kind of comes through.",
+                    "label": 0
+                },
+                {
+                    "sent": "Through a series of papers and most recently was actually there was a.",
+                    "label": 0
+                },
+                {
+                    "sent": "We originally had an epsilon squared here and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alex and Vician others, and actually managed to get that down to just epsilon here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you look at this bound then you'll notice that it's pulling normal in all the parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the number of training examples doesn't actually occur.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the number of iterations that you have to take and the number of constraints that you eventually got to add.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is is constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this means is it gives you a linear time algorithm for solving these problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each iteration takes only linear time and you do only a constant number of iterations.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out, so it means we can actually solve these problems very efficiently, and there's actually a lot of interest if you go to ICM L in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Algorithm for solving this type of problem and the very efficient ways of doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like stochastic subgradient algorithms as well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here is just to give you an example of runtimes.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an old algorithm that solves the N select formulation directly and as you can see the number of constraints keeps growing with the number of training examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the new formulation, not only the bound tells you it's a constant number, but actually empirically it's a pretty constant number as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see this here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We had to solve quadratic programs in the old formulation with like 100,000 constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here, it's always less than 1000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even for this is for an HMM space of part of speech tagging problem with like almost 1,000,000 words.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you look at runtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "Compared to the number of training examples, the new algorithm actually really has linear runtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a very efficient way of solving these problems.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "No.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's step back again.",
+                    "label": 0
+                },
+                {
+                    "sent": "So not only do we have a formulation for solving all of these problems, we also have a very general algorithm for solving these problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, so if I wanted to apply.",
+                    "label": 0
+                },
+                {
+                    "sent": "This method to a new set of problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, in terms of implementation.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can reuse a lot of work from the general framework.",
+                    "label": 1
+                },
+                {
+                    "sent": "All I really have to implement is in your loss function and you representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And methods for solving these two arc Max problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And typically it's actually so this is for doing the prediction and this is for doing the separation Oracle finding the most violated constraint.",
+                    "label": 0
+                },
+                {
+                    "sent": "And kind of all of the rest.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just taste the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you want to try it, there's actually an implementation of the general algorithm on my my web page is called SVM struct.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 1
+                },
+                {
+                    "sent": "So in a sense, it's kind of a plug and play setting, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I want to demonstrate in the rest of the talk is how we can take this general algorithm and just plug in different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "By keeping actually most of the code.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Same.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in particular, we talk about these three briefly sequence alignment diversification of search results.",
+                    "label": 1
+                },
+                {
+                    "sent": "Insert provides clustering, and so whatever you have to do for each is specify a loss function, specify representation, and a method for computing the art.",
+                    "label": 0
+                },
+                {
+                    "sent": "Max is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's start with the sequence alignment problem and see how it goes there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So kind of the Holy Grail of.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the Holy Grails in bioinformatics is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given a sequence of amino acids, predict what their structure is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it would be nice if we could directly solve data structure prediction problem, but I don't know how to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that the search space over structures is really big, and while we have good understanding of the physics, it's just too expensive to do a search directly in this space.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what people typically do, or one of the methods that they use is what's called comparative modeling.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each you have a set of known structures and it turns out that proteins kind of come in families and they don't really fall into fold into arbitrary structures, but they're kind of a couple of templates that they can fold into a few thousands of those.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so the way that you can do structured prediction, then is in an efficient way is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your first kind of try to predict which family this structure this sequence lies in, and that's maybe a binary classification problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you take the sequence and you try to thread it into the structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "How it best fits.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that hopefully gives you a good enough starting point to do a local search from there and actually find the correct structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I want to talk about here is the 2nd task.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given the sequence Understructure, predict how they.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right into each other, how they align?",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This becomes an alignment problem, so just a quick reminder on sequence alignment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Typically formulated again as an argmax over a linear scoring function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say we have two sequences S&T.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then if we align him in in this way so that we align a with BB was AC with CD with C here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way the alignment score is computed is we have a matrix that tells us what's the score of lining and a within a that's 10.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or here we aligning and able to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "We look this up on the table.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, that's zero be within a that's zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "See what the see that gives a score of 10 and deal with the C. That gives us a score of minus 10, so the overall score of this alignment is.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some of those and it would be 0 here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's another alignment that has gaps in it, so then we have a score of aligning with B with a gap that's be with a gap.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a -- 5, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So overall possible alignment.",
+                    "label": 0
+                },
+                {
+                    "sent": "We solve this argmax problem of the score and return the alignment as the highest score.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, we can solve that via dynamic programming efficiently.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now that's straightforward sequence alignment.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Just have characters in the sequence, but the alignment problem in the threading problem, where we're threading a sequence into a structure is more complicated, because what we actually lime aligning here is sequences of feature vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, we have a sequence here that describes each position in our structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what's the amino acid?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the exposed surface area?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the secondary structure at?",
+                    "label": 0
+                },
+                {
+                    "sent": "Position in the in the structure and so on, so we don't just have a single.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of character, but we have these feature vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the same thing for the sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could have like what's the predicted secondary structure at that position as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we really aligning feature vectors here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it becomes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of hard to just write down a table of you know of alignment scores.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Instead, we need something more general scoring model.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular.",
+                    "label": 0
+                },
+                {
+                    "sent": "We gotta compute the score of an alignment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "And each position again as a linear function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So instead of just having a number here and summing over all the positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are allowing now to have a linear function that takes the input sequences and the alignment operation at that position, and we can tune the weight vectors to give us an alignment score for each position.",
+                    "label": 0
+                },
+                {
+                    "sent": "That includes also.",
+                    "label": 0
+                },
+                {
+                    "sent": "Insertions and deletions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And note that this and now doing a genitive estimation of this setting would be really, really hard, because we would have to model dependencies between these feature vectors, which would give us huge models, but it's not a problem in a generative setting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Somehow this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Moves in different way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we fixed the representation and we figured out how to do the argmax, just dynamic programming again.",
+                    "label": 0
+                },
+                {
+                    "sent": "The last thing that we have to do is specify loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so first guess that you might have is just count the number of incorrect alignment operations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if this is the correct alignment line a with BA with a here be with C&C.",
+                    "label": 0
+                },
+                {
+                    "sent": "With C, this is the predicted alignment whether a is actually offset here not in the correct position.",
+                    "label": 0
+                },
+                {
+                    "sent": "You would get a loss of one out of three.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are three possible one you've got one of them wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "But actually, the bioinformatics collaborators told us that this is too harsh.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't really matter if you get it exactly right if you get it within a window of four, that's good enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "From there you can do the local search and it's probably going to find the solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's what we call the Q four loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you just get you know the two amino acids here into the into the correct window four, that's good enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then again, if you think about this a little bit, then the separation Oracle that you need doing the cutting plane training again you can do via dynamic programming is actually the same alignment algorithm again.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now we've specified everything we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just plug that into the code and locally get a couple of experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a standard data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "We train on roughly 5000 known alignments.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have a validation set of another 5000 alignments to pick parameters and then we have a large test set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "And we use these features here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Amino acid identity the secondary structure and the exposed surface area that's known for the structures, and we used the predicted values used predicted by sable for the new sequences that we want to classify.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So these are the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "We went through different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Feature.",
+                    "label": 0
+                },
+                {
+                    "sent": "Representation and the point that I that I want to make is.",
+                    "label": 0
+                },
+                {
+                    "sent": "That kind of in conventional generative training you would probably build models that have maybe 1000 features or something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we try to push it and actually come up with, you know, features that describe pairs or triplets.",
+                    "label": 0
+                },
+                {
+                    "sent": "Describe the window around the current location, so pushing it all the way to models that have around half a million of features.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you look at the test set performance, higher is better.",
+                    "label": 0
+                },
+                {
+                    "sent": "You actually benefit from building these complex models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the best best results we actually got with the most complex models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this allows us to kind of build these models that you just wouldn't be able to really train in an easy way with the genitive method.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's a comparison against existing methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you just do kind of a simple blast alignment that's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not going to work at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are all sequences that are hard that have no similarity.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the best results that we got picked on the validation set.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is kind of the state of the art generative method that involved a lot of hand tuning and picking parameters, and this is the result of a PhD thesis and.",
+                    "label": 0
+                },
+                {
+                    "sent": "And a lot of work went into that, and despite the fact that we've invested a lot less time, we got better results.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is kind of a.",
+                    "label": 0
+                },
+                {
+                    "sent": "At an upper bound baseline, this is cheated.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually if you know the structure and do the alignment.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the best that you can hope for.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's still some room for improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "But not actually that much.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, um, more briefly, the second tool so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going from Bioinformatics now to information retrieval, but it stays the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just have to pass.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "For these three things.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to specify what's the representation was the loss function, how to compute the argmax?",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the problem in information retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say you have the query SVM and you present these results here.",
+                    "label": 1
+                },
+                {
+                    "sent": "People in this room are probably going to be happy with these results, but the rest of the world is not.",
+                    "label": 0
+                },
+                {
+                    "sent": "So all the people who are actually looking for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Stock quote on ServiceMaster Company which has the stock ticker symbol SVM are not going to be happy with this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everybody who is looking for the French magazine SVM is not going to be happy with this.",
+                    "label": 0
+                },
+                {
+                    "sent": "All students of veterinary medicine are not going to be happy with this.",
+                    "label": 1
+                },
+                {
+                    "sent": "My dad who knows their spot fine mapping is not going to be happy with this ranking so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "What people in information retrieval have recognized is that kind of putting.",
+                    "label": 0
+                },
+                {
+                    "sent": "All your eggs into one basket and just looking at one interpretation of the query is not a good strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, kind of user happiness is a kind of submodular function, so users are not going to be happy at all if you don't give them any relevant results.",
+                    "label": 0
+                },
+                {
+                    "sent": "But they're actually almost there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually quite happy if you just give him one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a better ranking to present in this case would actually be something like this, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So people were looking for machine learning method are going to be happy people who are looking for the stock ticker symbol are happy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Soccer fans are happy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, but to be able to do this, we have to be able to model dependencies between the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, we have to recognize the model that once we've presented one machine learning result, we don't want to, we want to present other results first.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this way it becomes a structured prediction problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to model these dependence.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So how are we going to do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "So formally we we formulate this as a problem of given an X, which is a set of results maybe.",
+                    "label": 0
+                },
+                {
+                    "sent": "The top 100 results that our current search engine returns.",
+                    "label": 0
+                },
+                {
+                    "sent": "And why is the subset that we want to predict in the top ten spots?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a mapping from a set to a subset.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually we want to map to a ranking here, but let's keep it simpler.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how we going to represent this problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to follow the idea from people at Microsoft called Essential Pages where we say OK, Topic diversity is the same as word diversity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you think about this diagram here, as these are all the words that are occurring in D1 or the words that are occurring in the two, so these are the documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say the top 100 documents off my search result, then the way that I want to pick the subset is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to kind of maximize the total number of words that are covered in my subset.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to pick a set of documents that kind of covers almost all of the words that occur in the total result set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a Max coverage problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's NP hard, but they're good approximation algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, a simple greedy approximation gives us a 1 -- 1 over epsilon 1 / E approximation because there's a submodular problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So give your algorithm is simple.",
+                    "label": 1
+                },
+                {
+                    "sent": "It works probably as you expect it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You start with.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, taking the largest area here, the document that covers most of the words.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you take the document that.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you subtract the words that are already covered, covers most of the words that would be D2 here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you look which next document covers the kind of gives the most marginal benefit before it's actually bigger, but most of the words are already covered, so you're taking the three.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then before, and this way you cover all of almost all of the words except for these kind of portions here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, um.",
+                    "label": 0
+                },
+                {
+                    "sent": "But as you song like to put it with the coauthor in this work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, not all words are equally important.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we actually want to learn in this problem here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "What are the right ways?",
+                    "label": 0
+                },
+                {
+                    "sent": "To give to each individual words so important words that are important to cover.",
+                    "label": 0
+                },
+                {
+                    "sent": "So get high weight unimportant words should get a little weight.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, we're going to model that as a linear function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And we can put in features like.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know?",
+                    "label": 0
+                },
+                {
+                    "sent": "How often does the word car occur in the resultset?",
+                    "label": 0
+                },
+                {
+                    "sent": "How often does it occur, at least in the title of the result set, so we can come up with a whole set of features again and put those into the feature vector?",
+                    "label": 1
+                },
+                {
+                    "sent": "Let me skip the details.",
+                    "label": 1
+                },
+                {
+                    "sent": "Actually you songs talk is it I CML on Tuesday I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I refer.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've picked no representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've come up with how to do the argmax.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's just the greedy algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the loss function that we're going to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to cover.",
+                    "label": 0
+                },
+                {
+                    "sent": "The kind of popular topics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have no results at 12345 subtopics and the first subtopic has three documents in this, one is 5 documents in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then our last function is of the following form.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to make sure we cover the popular topics so our loss is just going to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say for D1 and D10D1 covers this subtopic D. 10 covers this subtopic.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's uncovered is these three here left, so all losses 3 out of 12, so that's pretty low.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we predicted D2 and D7, these two here, then we would cover only these two documents here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our loss would be much higher.",
+                    "label": 0
+                },
+                {
+                    "sent": "10 / 12.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, the separation Oracle that we need during training it actually is again just the same structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a Max coverage problem, so we can use the same algorithm again.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we just plug this into the general cutting plane learning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And share the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is for actually kind of hard to get data for this because it's a learning problem that people haven't looked at yet, but there is data from the track interactive track.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have documents actually explicitly labeled with subtopics.",
+                    "label": 0
+                },
+                {
+                    "sent": "And some.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a small data set unfortunately, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Seven are documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "Somewhat, at least on the reasonable side.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you take this loss function that I've defined before.",
+                    "label": 0
+                },
+                {
+                    "sent": "And just want to take a random subset.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the loss that you get.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the kind of just as a kind of sanity check.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a standard retrieval measure, okapi.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not designed to optimize for diversity, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "But just to make sure you know it's kind of the same as random because it's really not designed to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we just take an unweighted model, essentially all words getting an equal weight of 1 again, that doesn't actually work, so we actually have to learn something about specific words.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you use essential pages, motivating paper for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they come up with puristic of how to pick the words that gives you this performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's better than just doing it random.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you actually do it via learning, you get quite a substantial improvement again.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in particular, if you look at the learning curve here, this is the number of training examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is how test loss drops.",
+                    "label": 0
+                },
+                {
+                    "sent": "Clearly, if you had more training examples, you would probably get a lot better still.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And finally, just in two slides.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Drive home the point.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem of predicting equivalence relationship.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, given a set of items, predict an improvement relation.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "How we do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we have to pick a representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's assume each pair of items is described by a feature vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the label we represent as a 01 matrix, which is just the indicator matrix of the equivalence relation that we want to predict.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just have to make sure that this is reflexive, symmetric and transitive, so not all 01 matrices are valid, just the equivalence relationships.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have to pick a feature map.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just take the sum of all the feature vectors times the label that we have.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is a depiction of a equivalence relation of Y.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we have to pick a loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if this is the correct Y, this is one that we predict we just take the L1 distance between the two matrices, so we get a loss of 123456 here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally we have to pick how to predict the how to compute the argmax is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's essentially a rounding problem where we take a matrix of real values that comes from these inner products.",
+                    "label": 0
+                },
+                {
+                    "sent": "And rounded to 01 matrix that is an equivalence relationship.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's kind of it's equivalent to what's called correlation clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's NP hard, but what you can do is you can use linear relaxation by domain and a more liquor to get an approximate solution.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then you have to do the separation Oracle for finding the most violated constraint, and again you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can formulate that in the same way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so I think that brings home the point that you can take this framework and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bring a lot of applications into this form.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it goes all the way from like alignment problems to information retrieval and predicting equivalence relationships.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think what this gives you is kind of a tool to model problems from kind of start to beginning and not having to break it up into multiple problems that you have to solve sequentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just kind of specify what you what your desired kind of relationship between inputs and outputs is, and then you learn it in one step.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that's conceptually and also probably practically much simpler.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "Not only the model but also the algorithms then actually become quite general.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you just have to plug in.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few things into that general learning algorithm and your hair.",
+                    "label": 0
+                },
+                {
+                    "sent": "It much of the theorie.",
+                    "label": 0
+                },
+                {
+                    "sent": "You always get a linear time algorithm, so you inherit much of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't have to start from scratch.",
+                    "label": 0
+                },
+                {
+                    "sent": "So more details.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said, the diversified retrieval application of your song is going to talk about that on Tuesday.",
+                    "label": 0
+                },
+                {
+                    "sent": "The part about sequence alignment that there's a paper at re comp and coming out as in the JCB Journal.",
+                    "label": 0
+                },
+                {
+                    "sent": "Supervised clustering might want to talk to Thomas Finley, who is also here at ICML about his new work on K means supervised version of K means.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing that I glossed over in this talk was.",
+                    "label": 0
+                },
+                {
+                    "sent": "That when I described the general cutting plane algorithm, I actually assumed that I could solve these argmax problems exactly.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in two of my applications I couldn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just had approximate solutions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Tom Finley has a talk I think on Monday that characterizes what happens in this case, and that if you have epsilon approximate solutions.",
+                    "label": 0
+                },
+                {
+                    "sent": "You still get kind of performance guarantees, so I encourage you to go to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "And none of this work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kernels were used all for these linear models, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can extend those two kernels as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a KDD paper coming out of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you're interested in trying this, the software is available here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That general API that lets you implement your own application, but there also several instances implemented already.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so thank you very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "Time for questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "In your algorithm, it seems that except for the step to find wise of I prime.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other steps in Indetermination take only linear time with respect to the number of data points and the number of iterations are independent of the number of data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of iterations doesn't actually depend on the number of data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you so each iteration depends on the number of data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this works differently.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you look at the at the at the bound, then the number of data points actually doesn't.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Doesn't go into the bound, and if I mean also, if you look at the empirical results right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean there's some wiggling in the beginning, but then actually the number of iterations stays flat even if you increase the number of trainings then.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if your algorithm is used for general classification task, it would be much faster than conventional severe algorithms becausw the overall training complexity is linear to the number of data points, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so actually a.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can use the same algorithm to train just binary classification as we can, and you get a linear time algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that that's true, yeah think.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have two questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first one is you mentioned that the finding fee is very important.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do you know if you actually found the right fee?",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you know if you cannot find the solution?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because the problem is difficult or just because you're not looking at the right features.",
+                    "label": 0
+                },
+                {
+                    "sent": "I could answer that before the second question, that's the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The usual problem machine learning you have to pick a representation and.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's where you have to be smart, unfortunately.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

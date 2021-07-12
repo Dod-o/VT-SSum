@@ -1,0 +1,1782 @@
+{
+    "id": "2vrv3fv24bpgz2xen7p56cqrpxblwwss",
+    "title": "MCMC Inference Inside the DB for Extraction, Resolution, Alignment, Provenance and Queries",
+    "info": {
+        "author": [
+            "Andrew McCallum, Department of Computer Science, University of Massachusetts Amherst"
+        ],
+        "published": "June 7, 2010",
+        "recorded": "May 2010",
+        "category": [
+            "Top->Computer Science->Machine Learning->Monte Carlo Methods",
+            "Top->Computer Science->Machine Learning->Markov Processes"
+        ]
+    },
+    "url": "http://videolectures.net/akbc2010_mccallum_mcmc/",
+    "segmentation": [
+        [
+            "So I fondly remember when I built my."
+        ],
+        [
+            "First knowledge base in 1997 I along with a couple of graduate students from Carnegie Mellon, built a system that spider the web for post trip of research papers and built a knowledge base like this is the days before PDF really existed or was very prominent and you know it was.",
+            "It was not quite trivially size that had maybe a few.",
+            "10s of thousands of research papers in it, and we did coreference among citations and so on.",
+            "And then when I."
+        ],
+        [
+            "But yes, I wanted to do something a little more substantial and look at more types of entities, not just papers, but some other ones as well.",
+            "And so we began to build this system that we call Rexall, which is still running and being improved today.",
+            "And you can not only."
+        ],
+        [
+            "Query papers."
+        ],
+        [
+            "And see home pages for with papers that know about incoming and outgoing references, but also it."
+        ],
+        [
+            "Has done identity resolution of people and."
+        ],
+        [
+            "Grants."
+        ],
+        [
+            "And of institutions and venues.",
+            "And it's a little bit more nontrivially sized.",
+            "But still nothing in comparison with Google, about 8 million research papers, 2 million authors.",
+            "Grants, institutions and venues, and it also does allow user corrections.",
+            "And Rex, a like so many other knowledge bases is built by a pie."
+        ],
+        [
+            "Applying that looks something like this in this cartoon, but right we gather some raw data.",
+            "This produces some text which is input into some extraction modules which produces mentions of some entities which then goes into entity resolution, from which you get some entities and you think about this as the truth that's out in the world.",
+            "The truth gets injected into a database and then from there we serve the web.",
+            "So of course the issue here is that and then of course you can issue queries, get answers, serve the web, etc.",
+            "Of course, the issue here is that extraction is not perfect and this makes us think about capturing the uncertainty of this extraction.",
+            "And often what this looks like.",
+            "Then what this would look like is, say, well, in extraction doesn't produce just.",
+            "Sharp, precise mentions, but instead some probability distribution over possible mentions an.",
+            "From here we get it probably distribution over entities, which you can think of is like probably distribution over the truth, and this is what gets injected into the database, and then when you issue a query you get a distribution over answers.",
+            "But this in my mind off."
+        ],
+        [
+            "So has a number of problems.",
+            "So one is just something about how to represent and inject uncertainty from information extraction into the database, right?",
+            "These steps of extraction have factors that are representing dependencies and uncertainty in a certain way and is the database equipped to represent those same uncertainties, or something slightly orthogonal.",
+            "And then there was another discussion about it's going to do some numbers which is going to call probabilities, but are those really the probabilities in which you would bet money?",
+            "Maybe not.",
+            "And maybe then you wouldn't want to directly look at probabilities of answers here from those.",
+            "And Furthermore, of course, extraction as an high was describing this morning is not one shot.",
+            "You receive some data this week and then next week you're going to receive some more data and you're going to want to send this through, and you're going to want to redo inference here.",
+            "I mean not only on the new data that arrive, but that new data might want to cause you to change your mind about what you saw previously, and this is quite a process, and it's an ongoing thing, and there's a lot of data involved in the text, and these intermediate representations along the way, and.",
+            "Gosh, it seems like it would be nice to have some database help for me to manage that process here.",
+            "And Lastly, and in some ways for me most importantly I want to use the contents of the database to help me do a better job of this extraction and resolution very much in the same way that Sophie does, and but the probability is over what I the truth I know already.",
+            "You're sitting all the way over here and I need them over here and to kind of go to the database through some query system like this in order to try to get them when I had all of my inference procedures and machinery here seems a little bit.",
+            "A little bit tougher than I would like.",
+            "So this makes me advocate the following kind of worldview in which.",
+            "The extraction the entrance for."
+        ],
+        [
+            "Struction and resolution happened when I call inside the database.",
+            "So you don't.",
+            "You don't inject the truth into the database.",
+            "You don't get to observe the truth, you only get to observe evidence, and it's the job of inference to figure out the truth and and all of that.",
+            "Truth figuring out should happen inside the database is what I'm advocating.",
+            "And."
+        ],
+        [
+            "I'll describe further what I mean by this, But this has a number of advantages.",
+            "Not only do I solve all four of my problems from my previous slide, but it also lets me think a little bit more broadly about about evidence, and that evidence can include things like the kinds of human corrections that aren't.",
+            "I was talking about earlier this morning as well, as human doesn't get to reach into the database and change a truth value that's far too dangerous, right?",
+            "When a human expresses something about what should be changed, that's just another piece of evidence.",
+            "It's saying you know, Joe said that the value of this should be this instead, and it's the job of inference to take that additional evidence, perform inference on it in order to decide what the underlying truth is.",
+            "This also lets us reason about then provenance about the reputation of some users versus others to decide what we believe.",
+            "And in all of this, so that's so."
+        ],
+        [
+            "Summary of what I mean here.",
+            "So maybe just so the philosophy, right?",
+            "So this kind of truth is inferred not observed.",
+            "Is may refer to this as constructivists.",
+            "Epistemology, which again you don't get to observe the truth.",
+            "You must construct it to infer it yourself.",
+            "And so, just as a recap here, in contrast, many probabilistic databases in that for them inference is used for answering queries about the truth, and the truth is injected from other components representing uncertainty in their output.",
+            "And what I'm advocating is that inference inside the database is used not only to answer queries, but also for discovering the truth itself from raw observations by performing extraction matching in the rest.",
+            "So note then, if we're going to do this, then this means that whatever inference procedure runs inside the database, it will be necessary for it must be capable of representing the dependencies that are necessary for these truth discovery modules for extraction and coreference and the rest.",
+            "And so this is going to give rise."
+        ],
+        [
+            "As to some issues, which I'll talk about in a minute, so let me talk again, recap some of my practical motivations, so I want to have it incrementally built knowledge base in which I'm able to add new data, add new evidence, add corrections as they go along, and maintain the database as I go.",
+            "And there's been some great work on incrementally built knowledge bases, but don't really handle uncertainty so much.",
+            "I want to be able to handle uncertainty, to know, to be able to reflect uncertainty in the query answers.",
+            "But primarily, I actually think the biggest reason I'm interested in uncertainties in order to be able to better manage a more accurate truth discovery, extraction and coreference system.",
+            "And I want to be able to use this uncertainty in order to change my change the old contents of the database given some new evidence to change the truth with new evidence.",
+            "And I now also have a unified infrastructure in which I can perform joint inference for extraction and matching as well as other kinds of inference altogether, and we're going to later talk about some of the benefits and show you empirically some of the benefits of joint inference, and this will provide me a nice infrastructure for that.",
+            "And you know, Sophie provides a very nice example of leveraging the existing knowledge base to do better extraction.",
+            "And here I want to do this with the full probabilistic machinery that people have found.",
+            "To be so useful and accurate in natural language processing.",
+            "OK, yeah, and Furthermore I can inject raw data.",
+            "Providence Human Connections in the same system.",
+            "Alright, so again.",
+            "Note then that I am going to do this.",
+            "I have to represent all the dependencies necessary for performing information extraction and those accurate systems for doing that can be quite complicated, can have some fairly complicated dependencies and this might put some new burdens on what we need or what we mean by a probabilistic database and the kind of inference that will have to perform.",
+            "And so next I want to talk about some models for performing extraction and coreference in order to.",
+            "Get this complicated structure on the table."
+        ],
+        [
+            "So here's the plan.",
+            "Will talk sort of in a whirlwind way about some graphical models for various parts of extraction and information integration.",
+            "Then talk about a system that helps people program these sort of complicated restructuring models and then talk about how we can embed this inside of the database.",
+            "Alright, so I'm going to."
+        ],
+        [
+            "Think about models in terms of conditional random fields, which maybe is not a surprise.",
+            "So these are undirected graphical models or more generally, factor graphs that who have their parameters trained according to to maximize the conditional probability, and so we have circles to represent random variables and these black boxes to represent the factors or compatibility functions that, through some real valued output that some function of their the values of their neighbors expresses how happy they are to see certain values in those neighbors or not and.",
+            "The probability or how much I like the entire configuration is a product of all of these compatibility functions normalized into a probability distribution.",
+            "And of course I can do with the linear chains."
+        ],
+        [
+            "F like this one.",
+            "Structured like this, I can do very nice information extraction by treating my observed words as one set of random variables here and the predicted labels for each word.",
+            "Here some compatibility's, both between corresponding words and labels, and Markov assumptions in which the values that these variables take on will be various kinds of named entities and these kinds of models are sort of near state of the art for doing extraction.",
+            "Alright, so this is a particularly simple kind of model, but now I want to."
+        ],
+        [
+            "About something that has a bit more complicated structure to it and that is coreference or entity resolution."
+        ],
+        [
+            "So this is the problem of given some set of mentions.",
+            "I want to cluster them into the set of mentions that all refer to this."
+        ],
+        [
+            "Same entity, it's a clustering problem."
+        ],
+        [
+            "In which I don't know how."
+        ],
+        [
+            "Any clusters there are in advance, so here I'm very interested in the task in which I don't know the set of entities in advance.",
+            "I'm not just trying to match mentions to an existing set of entities, I need to discover the set of entities.",
+            "Anne."
+        ],
+        [
+            "And this task can be solved also with a conditional random field in which I can place a compatibility function between each pair of mentions to say how compatible I find it that these two would each be referring to the same entity."
+        ],
+        [
+            "There's some random variable here that represents that output of.",
+            "Yes, these two are coreference know these two mentions are not coreference and can then put together all of these compatibility functions with some mechanism for preserving transitivity and get fairly good results with a model like this.",
+            "But I still have some regrets even with a model.",
+            "That's this complicated.",
+            "And to motivate that."
+        ],
+        [
+            "Let me change my example a little bit.",
+            "I'm going to change these three mentions here to the word she, and then hypothesize the coreference decision that looks something like this."
+        ],
+        [
+            "In the first place, this might seem like not a bad partitioning of these mentions.",
+            "You would have other evidence from context about how these things should be should be clustered.",
+            "Until I think a little bit further and I look at this entity, he ran its mentions and I realize that.",
+            "What this is really saying?",
+            "This is saying, for example, there's some newswire article in which there's some mention some entity that's discussed, but this entity entity is never mentioned by name.",
+            "It's only ever referred to by pronoun.",
+            "And that seems highly unlikely in a newswire article this would ever happen, yes?",
+            "Yes.",
+            "Yes.",
+            "So if one of them were an end now so.",
+            "Yes.",
+            "Yes.",
+            "If I had an end there, yes.",
+            "Right, so so that would be some impossible configuration that does not obey transitivity, and we can disallow those by various schemes.",
+            "I mean this is maybe corresponds to the kind of hard constraint that Gerhard was talking about earlier and.",
+            "Our our method for doing inference in this model ensures that we satisfy that constraint and it does it in actually very efficient way that I'm not going to take the time to talk about now.",
+            "Um?",
+            "OK so I'm facing some possible world that seems incredibly unlikely to me, but this graphical model has no way to see that I've gotten myself into this kind of trouble because it has factors that only look at pairs of mentions.",
+            "It says oh here I have a pair of she's in this cluster that seems fine here too.",
+            "She's here seems fine.",
+            "Also, and these seem fine.",
+            "Also know where it can the model?",
+            "See that I have a partition that consists only of pronouns.",
+            "And so this model is not expressive enough to solve this problem.",
+            "And this is."
+        ],
+        [
+            "Just one example of a case in which I would like to be able to look at the set of all mentions in a in a partition in order to decide how compatible I find some coreference decision and here a number of other examples.",
+            "I'm not going to take the time to go through them in detail, but just trust that there are many reasons to want want this capability to be able to ask arbitrary questions about the set of all mentions in a Co reference set.",
+            "So what I want instead of a graphical MoD."
+        ],
+        [
+            "Like this is one that looks like this, in which I have a compatibility function that's simultaneously examining all of the members of the set and then inside.",
+            "Here I can put some function that asks well are they all pronouns and if that feature is true about learning a negative weight on that feature and I'll do better.",
+            "OK.",
+            "So note, however, that this set of factors.",
+            "Is set of factors specific for this particular Co reference hypothesis, and it's the job of inference to explore various different hypothesis to find the one that scores the best.",
+            "And so I should consider not only this one but say so."
+        ],
+        [
+            "Other one that might correspond."
+        ],
+        [
+            "Effector structure like this or this one or this one?"
+        ],
+        [
+            "And there."
+        ],
+        [
+            "Actually, a lot of them, and I'm going to need a lot of factors in order to represent all of these different possible partitionings.",
+            "It's a very large number.",
+            "It's super exponential.",
+            "It's called the Bell number, and already even with five mentions, getting big and a normal newswire article, I might have a couple 100 mentions.",
+            "And then we're talking about more factors than there are atoms in the universe, and things are very bad.",
+            "It makes things worse.",
+            "Strictly speaking, factors.",
+            "The arguments of Affecter have a rank.",
+            "You didn't say the first argument, the second one.",
+            "Well, here it seems that you're already doing some simplification, but the factor seems to be yes.",
+            "Yes, Yep, that's right.",
+            "So I mean I can use universal and extensional quantifiers to ask questions about an arbitrary set size, but it's really need some mechanism to ask questions about an arbitrary size.",
+            "So I said alright, so I'm in big trouble.",
+            "I can't, I could.",
+            "I can't possibly create all these factors.",
+            "I cannot unroll my graphical model in order to do inference on it."
+        ],
+        [
+            "So how can I possibly do inference and learning on models that can't be unrolled?",
+            "And so here's how."
+        ],
+        [
+            "Do it instead of representing all possible alternatives or enough graphical model structure to do inference over alternatives."
+        ],
+        [
+            "Represent.",
+            "Enough structure to capture one possible world, one possible hypothesis, and I'll do intrants by proposing some stochastic jump to some alternative possible world and scoring this jump to see how much I like it, and then I'll either accept this jump or reject it.",
+            "And explore my space of possible worlds in this way, and because and you know, representing the factors needed for just one possible world at a time is very tractable and doesn't cause me these problems.",
+            "And this kind of inference method that performs stochastic jumps like this is called Markov chain Monte Carlo, and the particular kind of Markov chain Monte Carlo that will use quite a bit."
+        ],
+        [
+            "It is Metropolis Hastings.",
+            "Which is really not so complicated.",
+            "We start with just our standard kind of general affecter graph and some function Q, which is a proposal distribution that, given some previous state of the variables I'm trying to predict, provides a distribution over some new state of the world.",
+            "New values, which is just some proposed change to the state of the world.",
+            "And then I perform inference by beginning in some initial configuration and over some number of iterations, drawing some local modification according to this Q function.",
+            "Of my predicted variables and then I'll decide to accept this change or reject it and undo the change according to this value.",
+            "Alpha decided according to this Formula One part of which is just the ratio of probabilities of these two configurations according to my model.",
+            "Right here, and also a ratio of these forward and backward jump probabilities to make up for biases in my proposal distribution, and this can be used to do marginal inference.",
+            "But we can also use very similar mechanism to do map inference or to do optimization to find the most likely configuration by decreasing the temperature on this ratio of peas here and Metropolis.",
+            "Hastings has some very nice."
+        ],
+        [
+            "Properties One is that this partition function or one over zed which sums over all possible worlds which would have been so hairy to deal with otherwise very nicely in this ratio cancels, so I don't have to deal with it at all, and even beyond that not only does partition function cancel, but also any of the individual factors that were in this product that do not touch variables that change during this jump will have the same value before and after the jump, and so those factors will also cancel.",
+            "So to evaluate some jump, I only need to look at the factors that touch variables that changed, and in these jumps you typically only change a handful of variables at a time, so evaluating whether I accept or reject this jump in practice can be incredibly fast.",
+            "I mean, it's easy to do millions and millions of jumps in very small small amounts of time.",
+            "OK, there's a question about how I learned the parameters of this model, and I'm not going to talk about that today, but we have a method largely developed by Michael Wick here in the in the audience called Sample Rank, which learns these parameters very, very fast that is actually embedded inside of this inference procedure."
+        ],
+        [
+            "OK, so a model like this that leverages more than pairwise affinity's that uses partition wise affinity's can do very well and it's led to some dramatic results on a particular pretty standard coreference task that people have been working with for awhile.",
+            "an A paper from several years ago, we showed results jumping from 69% to 82% based on an enhancement to the model like this.",
+            "In the experiment, so it might be something like taking one mention and moving it from one entity cluster to another entity cluster.",
+            "Just yes, I mean, in practice, in order to have in order to score the jump quickly, you just want it not to touch too many factors, which is usually happens very naturally.",
+            "Yes, well, there's something called B cubed, so it's not paralyzed fun.",
+            "It's be queued, which is another measure that's often used for coreference.",
+            "That's pretty standard.",
+            "Alright, so the other thing that I like."
+        ],
+        [
+            "What about these kind of partition wise Co reference models as they give you a very natural way to do not only coreference but canonicalization, by which I mean coming up with the string values that you would actually stick into the database to represent these entities in a Canonical way.",
+            "You know the first name, the last name, the title and, and so on, and and notice that from such a model.",
+            "Then, when it's deciding what the Canonical string should be, can look at all the mentions together and can also have compatibility's that look among the various.",
+            "Values within the entity representation to note say that this is the title, even though that string appeared nowhere among the mentions.",
+            "Alright, OK yeah.",
+            "So in other words this is a model that helps us discover this inferred truth that we were that I described at the beginning.",
+            "All."
+        ],
+        [
+            "Right OK so.",
+            "Just now it's going to fly through the last example, which is not just."
+        ],
+        [
+            "Reference but information integration, in which I'm given to databases and it's my goal to come up with a single Canonical database that represents all the data that came from each one of 'em, and in order to do this, I want to automatically do schema matching automatically.",
+            "Do Co reference among the various rows that I see in the two tables, and then automatically infer the Canonical values that should go in them.",
+            "And.",
+            "This is a task that's right for joint inference because.",
+            "These tasks interact with each other very strongly, doing schema matching first can really help you do a good job of coreference in some ways that if I had more time, I could explain in detail.",
+            "On the other hand, also doing Coreference first can really help you do a good job of schema matching so it's very hard to know which one to do first, so we say.",
+            "Don't do either one of them first, do them both at the same time, and again, I'm not going to describe the details of this, but just to fight."
+        ],
+        [
+            "To say that schema matching is a little bit like a slightly more complicated coreference problem in which there are some extra constraints in relations that you're representing, but you're almost it's almost like doing coreference among columns of these different tables, and we can build a model for."
+        ],
+        [
+            "We can also build a model for coreference and also Canonical is."
+        ],
+        [
+            "And together and then take these two models and put them together into one massive factor graph that represents these all at once and do inference on these two problems together."
+        ],
+        [
+            "And I just want to point out then that when we run this on a real data set of data about about people and their contact information and job titles in affiliation and so on, we get."
+        ],
+        [
+            "Very nice results.",
+            "This is showing a 15% error reduction in coreference due to doing joint inference versus doing isolated inference and a 60%."
+        ],
+        [
+            "Error reduction in schema matching again due to joint inference.",
+            "So this is so.",
+            "There are some questions earlier about.",
+            "Well, we know why.",
+            "The probabilities matter.",
+            "Why should we really do joint inference?",
+            "It can really help you get better accuracy.",
+            "And here's."
+        ],
+        [
+            "Even a larger task in a larger set of data that's doing ontology alignment in which we got some very nice state of the art results in doing ontology alignment."
+        ],
+        [
+            "OK, so yes."
+        ],
+        [
+            "Actually looked at the contents, but actually did not bother about their labels.",
+            "Would you say you're not actually doing joint inference, so making use of the content?",
+            "Yes, yes we are looking at the contents of those fields and the labels.",
+            "Also I forgotten or just the contents.",
+            "OK, yeah, that was my memory.",
+            "Also does that answer your question?",
+            "We get a lot of accuracy advantage without having to solve a harder inference task, so you're arguing that adding more evidence made it harder.",
+            "Sing it harder because you are trying to do joint labeling and is trying to do joint coreference and schema matching decisions.",
+            "Yes, schema matching decisions while looking at the content but without looking at the coreference decisions.",
+            "So it's like the X does not have to be just the schema crazy I see.",
+            "But I guess I, but I argue that knowing Coreference lets you add some extra features that you wouldn't have been able to create otherwise.",
+            "That does help accuracy.",
+            "OK, I see I see I see I see.",
+            "OK yes, good point.",
+            "OK so we should talk about that.",
+            "All the data in order to get the benefit, yes, yes.",
+            "Yeah, weather.",
+            "It still might be similar.",
+            "Yeah yeah, yeah.",
+            "From a schema matching perspective, you're sort of making the problem bigger and you need to.",
+            "Yep, that's right.",
+            "So there's some optimizations that we could do to make this run faster.",
+            "I don't think accuracy would get better by ignoring some of that data.",
+            "Yeah, yeah yeah, yeah, I haven't really made any statements about speed of inference here and things like that, but I'm going to show a demo of something later and actually, Mike, do you remember how long this took to do test time inference?",
+            "It wasn't much slower than just doing an isolation.",
+            "Models are already quite based on their owners, yeah?",
+            "So wait until last night so the if you know to the."
+        ],
+        [
+            "Some picture about mapping right, right?",
+            "So you really are you actually looking at the contents of the bills particular, yes, the factors that are expressing preferences about schema matching or looking at yes, the contents inside the Rose.",
+            "Killer.",
+            "I added two different questions.",
+            "I guess you don't.",
+            "You're not dealing with the question here is there might be 2 columns that it could be married to.",
+            "You know what they are.",
+            "I just don't know what the value of the Valleys Mountains trust.",
+            "No, no, no.",
+            "I don't know how the columns should map and.",
+            "Sparse sample problems enough.",
+            "We don't need to take me.",
+            "Well, it would be very helpful to have samples from different database in which you knew that the rows were coreference with each other.",
+            "I think, but it's may be hard to find those actually.",
+            "But that you can everywhere, given that they were working and CMC setting, you can cheat by having to include initial cast by some distance or something like that and then and then yes, it's true.",
+            "So in practice actually for a lot of these models we'll initialize their state.",
+            "The result of some heuristic, and then continue from there.",
+            "You know along common.",
+            "Is that you?",
+            "You don't need to look at everything right to do a pretty good job if you just want to know that particular column.",
+            "Girls with that.",
+            "Yep, you will.",
+            "Yeah, I agree and so I think this is repeat.",
+            "I mean, let me let me repeat.",
+            "I think this is a comment about how to make this faster, more efficient, but you know not how to make it more accurate.",
+            "What kind of matches are you getting my message here.",
+            "Say for example one column here is the definition of yes.",
+            "Yep, that's right.",
+            "And there are then features that detect that that's a good thing if you know you have two Co. Referent rose from two different databases and you know these two columns go together to make this column, you can actually take maybe the concatenation of the string values there and ask what the string edit distance between that concatenation and a single value over here is and use that as a feature in this model.",
+            "So that's an example of how knowing coreference and doing that kind of joining can be quite powerful.",
+            "OK."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I fondly remember when I built my.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "First knowledge base in 1997 I along with a couple of graduate students from Carnegie Mellon, built a system that spider the web for post trip of research papers and built a knowledge base like this is the days before PDF really existed or was very prominent and you know it was.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was not quite trivially size that had maybe a few.",
+                    "label": 0
+                },
+                {
+                    "sent": "10s of thousands of research papers in it, and we did coreference among citations and so on.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then when I.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But yes, I wanted to do something a little more substantial and look at more types of entities, not just papers, but some other ones as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we began to build this system that we call Rexall, which is still running and being improved today.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can not only.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Query papers.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And see home pages for with papers that know about incoming and outgoing references, but also it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Has done identity resolution of people and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Grants.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And of institutions and venues.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's a little bit more nontrivially sized.",
+                    "label": 0
+                },
+                {
+                    "sent": "But still nothing in comparison with Google, about 8 million research papers, 2 million authors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Grants, institutions and venues, and it also does allow user corrections.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Rex, a like so many other knowledge bases is built by a pie.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Applying that looks something like this in this cartoon, but right we gather some raw data.",
+                    "label": 0
+                },
+                {
+                    "sent": "This produces some text which is input into some extraction modules which produces mentions of some entities which then goes into entity resolution, from which you get some entities and you think about this as the truth that's out in the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "The truth gets injected into a database and then from there we serve the web.",
+                    "label": 0
+                },
+                {
+                    "sent": "So of course the issue here is that and then of course you can issue queries, get answers, serve the web, etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, the issue here is that extraction is not perfect and this makes us think about capturing the uncertainty of this extraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "And often what this looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then what this would look like is, say, well, in extraction doesn't produce just.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sharp, precise mentions, but instead some probability distribution over possible mentions an.",
+                    "label": 0
+                },
+                {
+                    "sent": "From here we get it probably distribution over entities, which you can think of is like probably distribution over the truth, and this is what gets injected into the database, and then when you issue a query you get a distribution over answers.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this in my mind off.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So has a number of problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one is just something about how to represent and inject uncertainty from information extraction into the database, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "These steps of extraction have factors that are representing dependencies and uncertainty in a certain way and is the database equipped to represent those same uncertainties, or something slightly orthogonal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there was another discussion about it's going to do some numbers which is going to call probabilities, but are those really the probabilities in which you would bet money?",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe not.",
+                    "label": 0
+                },
+                {
+                    "sent": "And maybe then you wouldn't want to directly look at probabilities of answers here from those.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Furthermore, of course, extraction as an high was describing this morning is not one shot.",
+                    "label": 0
+                },
+                {
+                    "sent": "You receive some data this week and then next week you're going to receive some more data and you're going to want to send this through, and you're going to want to redo inference here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean not only on the new data that arrive, but that new data might want to cause you to change your mind about what you saw previously, and this is quite a process, and it's an ongoing thing, and there's a lot of data involved in the text, and these intermediate representations along the way, and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gosh, it seems like it would be nice to have some database help for me to manage that process here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Lastly, and in some ways for me most importantly I want to use the contents of the database to help me do a better job of this extraction and resolution very much in the same way that Sophie does, and but the probability is over what I the truth I know already.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're sitting all the way over here and I need them over here and to kind of go to the database through some query system like this in order to try to get them when I had all of my inference procedures and machinery here seems a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "A little bit tougher than I would like.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this makes me advocate the following kind of worldview in which.",
+                    "label": 0
+                },
+                {
+                    "sent": "The extraction the entrance for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Struction and resolution happened when I call inside the database.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't inject the truth into the database.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't get to observe the truth, you only get to observe evidence, and it's the job of inference to figure out the truth and and all of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Truth figuring out should happen inside the database is what I'm advocating.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'll describe further what I mean by this, But this has a number of advantages.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not only do I solve all four of my problems from my previous slide, but it also lets me think a little bit more broadly about about evidence, and that evidence can include things like the kinds of human corrections that aren't.",
+                    "label": 0
+                },
+                {
+                    "sent": "I was talking about earlier this morning as well, as human doesn't get to reach into the database and change a truth value that's far too dangerous, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "When a human expresses something about what should be changed, that's just another piece of evidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's saying you know, Joe said that the value of this should be this instead, and it's the job of inference to take that additional evidence, perform inference on it in order to decide what the underlying truth is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This also lets us reason about then provenance about the reputation of some users versus others to decide what we believe.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in all of this, so that's so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Summary of what I mean here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So maybe just so the philosophy, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this kind of truth is inferred not observed.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is may refer to this as constructivists.",
+                    "label": 0
+                },
+                {
+                    "sent": "Epistemology, which again you don't get to observe the truth.",
+                    "label": 0
+                },
+                {
+                    "sent": "You must construct it to infer it yourself.",
+                    "label": 1
+                },
+                {
+                    "sent": "And so, just as a recap here, in contrast, many probabilistic databases in that for them inference is used for answering queries about the truth, and the truth is injected from other components representing uncertainty in their output.",
+                    "label": 1
+                },
+                {
+                    "sent": "And what I'm advocating is that inference inside the database is used not only to answer queries, but also for discovering the truth itself from raw observations by performing extraction matching in the rest.",
+                    "label": 0
+                },
+                {
+                    "sent": "So note then, if we're going to do this, then this means that whatever inference procedure runs inside the database, it will be necessary for it must be capable of representing the dependencies that are necessary for these truth discovery modules for extraction and coreference and the rest.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this is going to give rise.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "As to some issues, which I'll talk about in a minute, so let me talk again, recap some of my practical motivations, so I want to have it incrementally built knowledge base in which I'm able to add new data, add new evidence, add corrections as they go along, and maintain the database as I go.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's been some great work on incrementally built knowledge bases, but don't really handle uncertainty so much.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to be able to handle uncertainty, to know, to be able to reflect uncertainty in the query answers.",
+                    "label": 1
+                },
+                {
+                    "sent": "But primarily, I actually think the biggest reason I'm interested in uncertainties in order to be able to better manage a more accurate truth discovery, extraction and coreference system.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I want to be able to use this uncertainty in order to change my change the old contents of the database given some new evidence to change the truth with new evidence.",
+                    "label": 1
+                },
+                {
+                    "sent": "And I now also have a unified infrastructure in which I can perform joint inference for extraction and matching as well as other kinds of inference altogether, and we're going to later talk about some of the benefits and show you empirically some of the benefits of joint inference, and this will provide me a nice infrastructure for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you know, Sophie provides a very nice example of leveraging the existing knowledge base to do better extraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here I want to do this with the full probabilistic machinery that people have found.",
+                    "label": 1
+                },
+                {
+                    "sent": "To be so useful and accurate in natural language processing.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, yeah, and Furthermore I can inject raw data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Providence Human Connections in the same system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so again.",
+                    "label": 0
+                },
+                {
+                    "sent": "Note then that I am going to do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have to represent all the dependencies necessary for performing information extraction and those accurate systems for doing that can be quite complicated, can have some fairly complicated dependencies and this might put some new burdens on what we need or what we mean by a probabilistic database and the kind of inference that will have to perform.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so next I want to talk about some models for performing extraction and coreference in order to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get this complicated structure on the table.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the plan.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will talk sort of in a whirlwind way about some graphical models for various parts of extraction and information integration.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then talk about a system that helps people program these sort of complicated restructuring models and then talk about how we can embed this inside of the database.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so I'm going to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Think about models in terms of conditional random fields, which maybe is not a surprise.",
+                    "label": 1
+                },
+                {
+                    "sent": "So these are undirected graphical models or more generally, factor graphs that who have their parameters trained according to to maximize the conditional probability, and so we have circles to represent random variables and these black boxes to represent the factors or compatibility functions that, through some real valued output that some function of their the values of their neighbors expresses how happy they are to see certain values in those neighbors or not and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The probability or how much I like the entire configuration is a product of all of these compatibility functions normalized into a probability distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course I can do with the linear chains.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "F like this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Structured like this, I can do very nice information extraction by treating my observed words as one set of random variables here and the predicted labels for each word.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here some compatibility's, both between corresponding words and labels, and Markov assumptions in which the values that these variables take on will be various kinds of named entities and these kinds of models are sort of near state of the art for doing extraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so this is a particularly simple kind of model, but now I want to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "About something that has a bit more complicated structure to it and that is coreference or entity resolution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is the problem of given some set of mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to cluster them into the set of mentions that all refer to this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Same entity, it's a clustering problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In which I don't know how.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Any clusters there are in advance, so here I'm very interested in the task in which I don't know the set of entities in advance.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not just trying to match mentions to an existing set of entities, I need to discover the set of entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this task can be solved also with a conditional random field in which I can place a compatibility function between each pair of mentions to say how compatible I find it that these two would each be referring to the same entity.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "There's some random variable here that represents that output of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, these two are coreference know these two mentions are not coreference and can then put together all of these compatibility functions with some mechanism for preserving transitivity and get fairly good results with a model like this.",
+                    "label": 1
+                },
+                {
+                    "sent": "But I still have some regrets even with a model.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's this complicated.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to motivate that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let me change my example a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to change these three mentions here to the word she, and then hypothesize the coreference decision that looks something like this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In the first place, this might seem like not a bad partitioning of these mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "You would have other evidence from context about how these things should be should be clustered.",
+                    "label": 0
+                },
+                {
+                    "sent": "Until I think a little bit further and I look at this entity, he ran its mentions and I realize that.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this is really saying?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is saying, for example, there's some newswire article in which there's some mention some entity that's discussed, but this entity entity is never mentioned by name.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's only ever referred to by pronoun.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that seems highly unlikely in a newswire article this would ever happen, yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if one of them were an end now so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I had an end there, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so so that would be some impossible configuration that does not obey transitivity, and we can disallow those by various schemes.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean this is maybe corresponds to the kind of hard constraint that Gerhard was talking about earlier and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our our method for doing inference in this model ensures that we satisfy that constraint and it does it in actually very efficient way that I'm not going to take the time to talk about now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so I'm facing some possible world that seems incredibly unlikely to me, but this graphical model has no way to see that I've gotten myself into this kind of trouble because it has factors that only look at pairs of mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "It says oh here I have a pair of she's in this cluster that seems fine here too.",
+                    "label": 0
+                },
+                {
+                    "sent": "She's here seems fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, and these seem fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also know where it can the model?",
+                    "label": 0
+                },
+                {
+                    "sent": "See that I have a partition that consists only of pronouns.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this model is not expressive enough to solve this problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Just one example of a case in which I would like to be able to look at the set of all mentions in a in a partition in order to decide how compatible I find some coreference decision and here a number of other examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to take the time to go through them in detail, but just trust that there are many reasons to want want this capability to be able to ask arbitrary questions about the set of all mentions in a Co reference set.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what I want instead of a graphical MoD.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Like this is one that looks like this, in which I have a compatibility function that's simultaneously examining all of the members of the set and then inside.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I can put some function that asks well are they all pronouns and if that feature is true about learning a negative weight on that feature and I'll do better.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So note, however, that this set of factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is set of factors specific for this particular Co reference hypothesis, and it's the job of inference to explore various different hypothesis to find the one that scores the best.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so I should consider not only this one but say so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Other one that might correspond.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Effector structure like this or this one or this one?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And there.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Actually, a lot of them, and I'm going to need a lot of factors in order to represent all of these different possible partitionings.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a very large number.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's super exponential.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's called the Bell number, and already even with five mentions, getting big and a normal newswire article, I might have a couple 100 mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're talking about more factors than there are atoms in the universe, and things are very bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "It makes things worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "Strictly speaking, factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "The arguments of Affecter have a rank.",
+                    "label": 0
+                },
+                {
+                    "sent": "You didn't say the first argument, the second one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, here it seems that you're already doing some simplification, but the factor seems to be yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, Yep, that's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I mean I can use universal and extensional quantifiers to ask questions about an arbitrary set size, but it's really need some mechanism to ask questions about an arbitrary size.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I said alright, so I'm in big trouble.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can't, I could.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can't possibly create all these factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "I cannot unroll my graphical model in order to do inference on it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So how can I possibly do inference and learning on models that can't be unrolled?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so here's how.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Do it instead of representing all possible alternatives or enough graphical model structure to do inference over alternatives.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Represent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Enough structure to capture one possible world, one possible hypothesis, and I'll do intrants by proposing some stochastic jump to some alternative possible world and scoring this jump to see how much I like it, and then I'll either accept this jump or reject it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And explore my space of possible worlds in this way, and because and you know, representing the factors needed for just one possible world at a time is very tractable and doesn't cause me these problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this kind of inference method that performs stochastic jumps like this is called Markov chain Monte Carlo, and the particular kind of Markov chain Monte Carlo that will use quite a bit.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It is Metropolis Hastings.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is really not so complicated.",
+                    "label": 0
+                },
+                {
+                    "sent": "We start with just our standard kind of general affecter graph and some function Q, which is a proposal distribution that, given some previous state of the variables I'm trying to predict, provides a distribution over some new state of the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "New values, which is just some proposed change to the state of the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I perform inference by beginning in some initial configuration and over some number of iterations, drawing some local modification according to this Q function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of my predicted variables and then I'll decide to accept this change or reject it and undo the change according to this value.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alpha decided according to this Formula One part of which is just the ratio of probabilities of these two configurations according to my model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right here, and also a ratio of these forward and backward jump probabilities to make up for biases in my proposal distribution, and this can be used to do marginal inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we can also use very similar mechanism to do map inference or to do optimization to find the most likely configuration by decreasing the temperature on this ratio of peas here and Metropolis.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hastings has some very nice.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Properties One is that this partition function or one over zed which sums over all possible worlds which would have been so hairy to deal with otherwise very nicely in this ratio cancels, so I don't have to deal with it at all, and even beyond that not only does partition function cancel, but also any of the individual factors that were in this product that do not touch variables that change during this jump will have the same value before and after the jump, and so those factors will also cancel.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to evaluate some jump, I only need to look at the factors that touch variables that changed, and in these jumps you typically only change a handful of variables at a time, so evaluating whether I accept or reject this jump in practice can be incredibly fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, it's easy to do millions and millions of jumps in very small small amounts of time.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, there's a question about how I learned the parameters of this model, and I'm not going to talk about that today, but we have a method largely developed by Michael Wick here in the in the audience called Sample Rank, which learns these parameters very, very fast that is actually embedded inside of this inference procedure.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so a model like this that leverages more than pairwise affinity's that uses partition wise affinity's can do very well and it's led to some dramatic results on a particular pretty standard coreference task that people have been working with for awhile.",
+                    "label": 0
+                },
+                {
+                    "sent": "an A paper from several years ago, we showed results jumping from 69% to 82% based on an enhancement to the model like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the experiment, so it might be something like taking one mention and moving it from one entity cluster to another entity cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just yes, I mean, in practice, in order to have in order to score the jump quickly, you just want it not to touch too many factors, which is usually happens very naturally.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, well, there's something called B cubed, so it's not paralyzed fun.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's be queued, which is another measure that's often used for coreference.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's pretty standard.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so the other thing that I like.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What about these kind of partition wise Co reference models as they give you a very natural way to do not only coreference but canonicalization, by which I mean coming up with the string values that you would actually stick into the database to represent these entities in a Canonical way.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the first name, the last name, the title and, and so on, and and notice that from such a model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then, when it's deciding what the Canonical string should be, can look at all the mentions together and can also have compatibility's that look among the various.",
+                    "label": 0
+                },
+                {
+                    "sent": "Values within the entity representation to note say that this is the title, even though that string appeared nowhere among the mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, OK yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in other words this is a model that helps us discover this inferred truth that we were that I described at the beginning.",
+                    "label": 0
+                },
+                {
+                    "sent": "All.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Right OK so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just now it's going to fly through the last example, which is not just.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Reference but information integration, in which I'm given to databases and it's my goal to come up with a single Canonical database that represents all the data that came from each one of 'em, and in order to do this, I want to automatically do schema matching automatically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do Co reference among the various rows that I see in the two tables, and then automatically infer the Canonical values that should go in them.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a task that's right for joint inference because.",
+                    "label": 0
+                },
+                {
+                    "sent": "These tasks interact with each other very strongly, doing schema matching first can really help you do a good job of coreference in some ways that if I had more time, I could explain in detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, also doing Coreference first can really help you do a good job of schema matching so it's very hard to know which one to do first, so we say.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't do either one of them first, do them both at the same time, and again, I'm not going to describe the details of this, but just to fight.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To say that schema matching is a little bit like a slightly more complicated coreference problem in which there are some extra constraints in relations that you're representing, but you're almost it's almost like doing coreference among columns of these different tables, and we can build a model for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We can also build a model for coreference and also Canonical is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And together and then take these two models and put them together into one massive factor graph that represents these all at once and do inference on these two problems together.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And I just want to point out then that when we run this on a real data set of data about about people and their contact information and job titles in affiliation and so on, we get.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Very nice results.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is showing a 15% error reduction in coreference due to doing joint inference versus doing isolated inference and a 60%.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Error reduction in schema matching again due to joint inference.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is so.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are some questions earlier about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we know why.",
+                    "label": 0
+                },
+                {
+                    "sent": "The probabilities matter.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why should we really do joint inference?",
+                    "label": 0
+                },
+                {
+                    "sent": "It can really help you get better accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Even a larger task in a larger set of data that's doing ontology alignment in which we got some very nice state of the art results in doing ontology alignment.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so yes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Actually looked at the contents, but actually did not bother about their labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would you say you're not actually doing joint inference, so making use of the content?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yes we are looking at the contents of those fields and the labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also I forgotten or just the contents.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, yeah, that was my memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also does that answer your question?",
+                    "label": 0
+                },
+                {
+                    "sent": "We get a lot of accuracy advantage without having to solve a harder inference task, so you're arguing that adding more evidence made it harder.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sing it harder because you are trying to do joint labeling and is trying to do joint coreference and schema matching decisions.",
+                    "label": 1
+                },
+                {
+                    "sent": "Yes, schema matching decisions while looking at the content but without looking at the coreference decisions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's like the X does not have to be just the schema crazy I see.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I guess I, but I argue that knowing Coreference lets you add some extra features that you wouldn't have been able to create otherwise.",
+                    "label": 0
+                },
+                {
+                    "sent": "That does help accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I see I see I see I see.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK yes, good point.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so we should talk about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the data in order to get the benefit, yes, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, weather.",
+                    "label": 0
+                },
+                {
+                    "sent": "It still might be similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "From a schema matching perspective, you're sort of making the problem bigger and you need to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep, that's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's some optimizations that we could do to make this run faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think accuracy would get better by ignoring some of that data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah yeah, yeah, I haven't really made any statements about speed of inference here and things like that, but I'm going to show a demo of something later and actually, Mike, do you remember how long this took to do test time inference?",
+                    "label": 0
+                },
+                {
+                    "sent": "It wasn't much slower than just doing an isolation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Models are already quite based on their owners, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "So wait until last night so the if you know to the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Some picture about mapping right, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you really are you actually looking at the contents of the bills particular, yes, the factors that are expressing preferences about schema matching or looking at yes, the contents inside the Rose.",
+                    "label": 0
+                },
+                {
+                    "sent": "Killer.",
+                    "label": 0
+                },
+                {
+                    "sent": "I added two different questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess you don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're not dealing with the question here is there might be 2 columns that it could be married to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know what they are.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just don't know what the value of the Valleys Mountains trust.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, no, no.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know how the columns should map and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sparse sample problems enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't need to take me.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it would be very helpful to have samples from different database in which you knew that the rows were coreference with each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think, but it's may be hard to find those actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that you can everywhere, given that they were working and CMC setting, you can cheat by having to include initial cast by some distance or something like that and then and then yes, it's true.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in practice actually for a lot of these models we'll initialize their state.",
+                    "label": 0
+                },
+                {
+                    "sent": "The result of some heuristic, and then continue from there.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know along common.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that you?",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't need to look at everything right to do a pretty good job if you just want to know that particular column.",
+                    "label": 0
+                },
+                {
+                    "sent": "Girls with that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep, you will.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, I agree and so I think this is repeat.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, let me let me repeat.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think this is a comment about how to make this faster, more efficient, but you know not how to make it more accurate.",
+                    "label": 0
+                },
+                {
+                    "sent": "What kind of matches are you getting my message here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say for example one column here is the definition of yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep, that's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are then features that detect that that's a good thing if you know you have two Co. Referent rose from two different databases and you know these two columns go together to make this column, you can actually take maybe the concatenation of the string values there and ask what the string edit distance between that concatenation and a single value over here is and use that as a feature in this model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's an example of how knowing coreference and doing that kind of joining can be quite powerful.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

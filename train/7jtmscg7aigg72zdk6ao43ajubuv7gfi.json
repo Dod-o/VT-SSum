@@ -1,0 +1,2431 @@
+{
+    "id": "7jtmscg7aigg72zdk6ao43ajubuv7gfi",
+    "title": "Vowpal Wabbit",
+    "info": {
+        "author": [
+            "John Langford, Microsoft Research",
+            "Nikos Karampatziakis, Department of Computer Science, Cornell University",
+            "Daniel Hsu, Microsoft Research New England, Microsoft Research",
+            "Matt Hoffman, Adobe Systems Incorporated"
+        ],
+        "published": "Jan. 13, 2011",
+        "recorded": "December 2010",
+        "category": [
+            "Top->Computer Science->Machine Learning->Computational Learning Theory"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2010_langford_vow/",
+    "segmentation": [
+        [
+            "OK, so this is a tutorial tutorial on the new version of Velebit 5.0 which really just before.",
+            "This is an open source project which you can get right here with Git.",
+            "It's version control system.",
+            "Alright, so.",
+            "So what is this?"
+        ],
+        [
+            "So.",
+            "There's a lot of different projects which open source projects for machine learning, and then why do we want to have this one?",
+            "Well, OK, so.",
+            "I guess the claim is that there aren't.",
+            "There isn't much in the way of open source online learning projects where systems were trying to actually learn an online system with an online way, and that's kind of the thing that I'm focusing on most with the development of a VW.",
+            "There's a nice coincidence which comes in, which is that online learning is also very useful for online optimization, which.",
+            "Which is which is.",
+            "One of the best practices for actually training on a very large amount of data.",
+            "So, so that is also the case that VW, in addition to being online in an online learning sense, is a pretty good online optimizer.",
+            "And then I'm also trying to make the different different flags orthogonal as possible.",
+            "So there's several tricks which are built into the system.",
+            "Using hashing is feature representation or caching.",
+            "Some some parallelization across cores, some different feature manipulation options, which can be done implicitly and with us making things extremely fast.",
+            "So I took a look at the number of lines of code, or now up to 6000, which is a little bit high for me, but.",
+            "But it's still not too many lines of code, and hopefully we'll be able to reduce it a bit more with a little bit more thought.",
+            "OK, so.",
+            "So in terms of speed, there's some here some benchmarks to give you a sense of where we're at, so some of these I did a tutorial like this at the last nips as well with the earlier version of VW.",
+            "Some of these are the same, so the top ones are."
+        ],
+        [
+            "Same, it's about 3 seconds on.",
+            "The Reuters text data set.",
+            "And I'm telling you which optimizations here which were helpful and making this extremely fast.",
+            "So caching is is having a compressed bitwise representation of the data set.",
+            "An pipelining here is having a parser which is independent of the learning core, so you can do two things at the same time.",
+            "This number is actually I got a new desktop because my old one blew apart and this number is actually reduced on my on my new desktop anyways.",
+            "There's this large scale learning challenge and if you run on just the raw features that challenge, none of the datasets take more than 10 minutes to to make a pass with pretty reasonable results.",
+            "There's some some tricks that we did, so this hashing trick is extremely helpful in a lot of situations, so one of them was we wanted to make a personalized spam filter for 1000 users and that can be done extremely efficiently using using the hashing trick.",
+            "Another one was we wanted to do conditional probability estimation, so imagine that you have 5:50 classes and you want to predict the.",
+            "The probability of Y given X for any chosen X&Y, right?",
+            "So we could do that in about an hour on.",
+            "On a large ad related data set.",
+            "What does large mean so?",
+            "In the compressed in the Super compressed binary format of EW, it's about 5 gigabytes.",
+            "If you want to have a human readable gzip compress, it's about 50.",
+            "If you want to not gzip compress, it's about a TB.",
+            "So we in order to do this, so this is not in the core VW.",
+            "We're using the VW code base is a library that we accessed in order to.",
+            "OK, yeah.",
+            "OK so I had a grad student from Rutgers come up to me who told me that it was great because he had some sort of example per day data feed.",
+            "And he really liked the fact that.",
+            "This album could swallow the data.",
+            "Matt Hoffland, Matt Hoffman.",
+            "We just implemented this LDA in VW with Matt Hoffman's.",
+            "New online LDA algorithm, and so this is kind of slow by my standards, but it gets about 2.5 million Wikipedia articles in an hour, which is just maybe.",
+            "I don't know.",
+            "It's a little over my standards, but nevertheless it does reasonably fast.",
+            "And then Paul Monero tells me that VW is helping people find true love at eHarmony, which is.",
+            "Accomplishment for learning algorithm.",
+            "And then I'm pretty sure that there are some hedge fund types that are using this, but.",
+            "Because there's a bunch of people who don't tell me what they're doing, but they really are quite keen on asking certain questions.",
+            "Right so not clear.",
+            "OK, so this is the plan tutorial."
+        ],
+        [
+            "So I'm going to talk about the baseline system, which is most of the flags in conjugate gradient, which is not.",
+            "It's actually a batch design, it's a batch algorithm which is using second order information, which makes it only kind of slow compared to online learning, and sometimes sometimes it's beneficial because you want to integrate away noise in a pretty serious way.",
+            "And the Nikos will talk about.",
+            "Importance aware updates in adaptive updates.",
+            "And then you'll talk about active learning.",
+            "And then Matt will talk about the online LDA and then hopefully we'll have some time before the real workshop.",
+            "I would like to have a break before that.",
+            "So the questions that come up then feel free to ask them.",
+            "OK, so the basic learning algorithm is just online linear prediction.",
+            "So the way to think about this is you have a bunch of weights.",
+            "The weights."
+        ],
+        [
+            "Have value 0.",
+            "Initially and then, you're going to go into a loop and in the loop you're going to get a feature vector.",
+            "And then you're going to make a prediction.",
+            "Prediction by default is clipped to the interval 01.",
+            "Although you can widen that interval and actually it automatically automagically widens to the.",
+            "To the width of the labels that you are so far.",
+            "If that makes sense.",
+            "So for example, if your labels are minus one, then it will become minus one or one after about 2 examples.",
+            "OK, so after that you learn the truth why?",
+            "Which is 01 actually can be more complex than that, but is also you can also specify an importance weight.",
+            "You can say this example is 3 times more important than a typical example.",
+            "And then and then you do an update and it's just a gradient update.",
+            "So this is the gradient of squared loss.",
+            "OK. And then you repeat.",
+            "So this is the core loop and now."
+        ],
+        [
+            "The question about the input languages and the input language is a little bit more flexible than you might be used to, so if you use to sort of an SVM light like format.",
+            "This is a.",
+            "The key advantage of this language is that it allows you to group features right?",
+            "So you can specify.",
+            "Two different groups of features you can have this group in this group in two different namespaces.",
+            "And that allows you to manipulate the sets of features later on.",
+            "So, but otherwise it's a.",
+            "It's a sparse representation format, very similar to SVM light.",
+            "There's another trick which is which is that we're using.",
+            "We use hashing as a core representation.",
+            "Which means that if the features here consists of a string.",
+            "Which is by default not a integer.",
+            "Then we will hash it into nature, and if it's an integer, then we'll just use that integer like you would expect.",
+            "OK, so this allows VW to take its input much roar data than you might be used to learning items taking as input.",
+            "And that could be that can be convenient and helpful in many situations.",
+            "To.",
+            "If you want to have a label specified first, then you specify an importance weight.",
+            "If you care about that and then you can also have A tag.",
+            "So what is the tag?",
+            "The tag is often when you are using a learning algorithm, especially at Test time you put in features, then you get out of prediction and you can tag is something which you get out along with the prediction.",
+            "So it's some way to help keep track of externally of which prediction corresponds to which example.",
+            "So that's pretty helpful in a lot of situations.",
+            "OK, so."
+        ],
+        [
+            "So other questions about this language.",
+            "So some examples that may be helpful.",
+            "So these are all valid inputs.",
+            "This is extremely SVM light like so the namespace is not identified, it's just a just a space there and so it it has no.",
+            "It's an anonymous namespace essentially.",
+            "And we just have a label.",
+            "You can also actually not specify any label, in which cases it's treated as a test example.",
+            "So this is a test example here, so there is no label on the way that system knows there's no label is that there's no space between this blob and the bar, right?",
+            "And then after the bar there is a named namespace.",
+            "Which is excuses, so that's not a feature.",
+            "That's something which is used to group the features which follow.",
+            "And then you have features.",
+            "Here you have 5 features.",
+            "The dog ate my homework right, so each of those is hashed into an integer and then given a default value of 1 for the feature value.",
+            "OK, so now this is a more complicated complex example.",
+            "Here we have a label and importance weight.",
+            "We think this example is worth half as much as a typical example.",
+            "And then we have A tag and then we have.",
+            "So we know we have.",
+            "That we have a float which is going to modify the feature value within the namespace, right?",
+            "So this 0.1 is going to modify the feature values within the namespace.",
+            "It's going to be all the features in that they should be multiplied by zero point 1, so it's a way to kind of control the values of many features simultaneously.",
+            "And then and then for some of these, we actually specify an explicit value 0.01 and for others we don't, we just get the default of 1.",
+            "And then we have another namespace here.",
+            "Oh, I see the colourings off.",
+            "OK, so the coupling here should be.",
+            "The purple pink so male white Bagnall aiad breakfast is.",
+            "Is are also features.",
+            "Right in there in a different namespace.",
+            "Right so.",
+            "Yeah, so these are these are valid input examples.",
+            "Other questions about the input format, yeah?",
+            "Individual personal guards.",
+            "Shouldn't there be a vertical bar here?",
+            "But there is a vertical bar right here before no.",
+            "OK, so the bar separates namespaces.",
+            "And all of these features are in the same namespace, so it's feature 13 and feature 24 in feature 69.",
+            "And because there is no because the namespaces anonymous.",
+            "The precise value of the index of the weight.",
+            "Which corresponds to that feature is 13 for the first one.",
+            "So if you have an anonymous namespace and you have integer features than that actually is the index.",
+            "If you have a.",
+            "If you have a, you have a word for your namespace.",
+            "And then you have integer index then.",
+            "Then what's going to happen is, the word will be hashed.",
+            "And that will be used to offset all the feature values so the intervals remain the same.",
+            "Yeah.",
+            "Call instead of.",
+            "What does it do regression?",
+            "Yeah.",
+            "But it depends a little bit on which loss you're using, so there's multiple loss functions.",
+            "And the default squared loss, in which case it's going to be doing regression.",
+            "Yeah.",
+            "Say so for instance, if there were excuses and it was 2, three and four.",
+            "It sounds like you get a lot of cash locality.",
+            "That's right.",
+            "But normally like it does excuses the hash possibly to like some crazy different page than excuses.",
+            "Dog, yes, that's right so.",
+            "These dog ate my homework after the hash function will go to essentially near that.",
+            "Well, it's not actually random 'cause it's a deterministic function, but they go to some strange and unrelated locations in the hash array, and the weight array.",
+            "OK, so that's the input language."
+        ],
+        [
+            "And now there's a lot of input options, and.",
+            "One of the things that we've tried to do actually is to have a lot of different kinds of inputs because I think in a lot of different situations you want to experiment with different kinds of inputs till the 1st baseline is.",
+            "You can just read from a file, and in fact you don't even have to specify if you don't specify, just put something on the command line that's.",
+            "Of unclear origin, then it will treat it as a file and try to read from it.",
+            "You can read from standard in if there's no input file, it'll just referenced in default.",
+            "You can make it listen on a TCP socket right so?",
+            "Port 39524 by default.",
+            "You can change the port if you want.",
+            "You can also you can make it run multiple passes over over your.",
+            "Your data set.",
+            "And in particular, if you're doing well passes, you should be using.",
+            "You should be using the cash, so you want to.",
+            "You want to create a compressed binary format so that you don't have to parsing, parsing, human readable stuff."
+        ],
+        [
+            "This is pretty computationally intense, at least compared to the learning algorithm.",
+            "And that means that it's very helpful to."
+        ],
+        [
+            "Of a compressed binary format which can be read very fast by the system.",
+            "So you can specify, so this is just as creative cash and this says use this cash file so you can point directly to the cache file and then then often you also want to do gzip compression.",
+            "Or maybe you want to read from a gzip compressed file, in which case you can just tell it where the compressed file is.",
+            "OK, so these are.",
+            "These are basic inputs that you kind of expect.",
+            "OK, so now as far as outputs.",
+            "Let me let me show you an example of VW running.",
+            "OK so this is VW running on a."
+        ],
+        [
+            "Cache data set.",
+            "This is the rotors are CV one data set.",
+            "Anne, it's running along.",
+            "OK, so this first.",
+            "Column here is the progressive validation loss, so if you're unfamiliar with progressive validation, you should probably be familiar with it for online learning.",
+            "This basic observation that.",
+            "If you evaluate before you.",
+            "If you make a prediction before you see before you update for the label.",
+            "Then the squared loss between your prediction and your label has a stability, like a test set.",
+            "To train in this you test on this and then you get the label for this and you have some squared loss and then you train on this.",
+            "And then you test on this and then you get the label for this and then you have some squared loss and you train on this right and so forth.",
+            "Now the claim is that the average of the squared losses is a.",
+            "Is an unbiased estimator of the average performance of different trains regressors at each step if uniform over those regressors and the deviations of that are like a test set of this size.",
+            "OK, so the claim is that this number when you're doing a single pass, can be relied upon like you can rely upon a test set.",
+            "And that's very helpful.",
+            "This column here is the same number, except that we restarted after every print out.",
+            "And then, and this is the number of examples you've seen, so there's two.",
+            "There's a number of examples in this sum of importance weights.",
+            "And then these are these columns.",
+            "Over here are related to the current examples so that they can give you some way to diagnose if there's a problem, right?",
+            "So for example, if you ended up with zero or one features, then probably you have an issue.",
+            "This is the number of features over here.",
+            "This is the label, and this is the prediction and you can see that the label in the prediction are becoming very similar as we get towards the end of the data set, which is which is richer."
+        ],
+        [
+            "OK, so you can also get the raw prediction which is at this point it's almost the same thing as the prediction.",
+            "It differs because it's not clipped.",
+            "So there's some sort of safety clipping going on to make sure that your predictions don't get wildly different from your labels by default, you can.",
+            "And in reductions, make sure that you get that directly.",
+            "If you're using Dash Damon, then you want to be able to talk to the Daemon and the way to talk to it is to use into.",
+            "So use another VW somewhere else.",
+            "To digest the data into the right format and spit it over the network to the VW which is running similar.",
+            "Running as a daemon.",
+            "OK. Often, very often when you are needed.",
+            "Trying to figure out why things aren't working.",
+            "It's helpful to actually look at the.",
+            "At the details of what's going on South.",
+            "You want to know which feature gets mapped to which index in the weight array, what the value of the way it is, and what the value of the feature is.",
+            "So so audit gives you some way to do that.",
+            "And.",
+            "So the baseline format is.",
+            "You have the feature name, which includes the namespace, if that exists.",
+            "You have the feature index.",
+            "You have the feature value, then you have the weight value.",
+            "So this is, this is not something that you want to be running everything all the time because it it actually.",
+            "In order to track the information required to print out for dash audit, you actually actually change the way that you parse features in to be much slower, because normally that information is just discarded right?",
+            "Once you have the weight index, you throw away the string.",
+            "But but this can be very helpful when you're debugging.",
+            "And the last thing is that you can turn off the default output.",
+            "You can just stay quiet.",
+            "Then it doesn't print out this stuff up here.",
+            "OK, so that's the output, so you have a sense now of what the input is and what the output is and what the baseline learning algorithm is.",
+            "Are there any questions about this, yeah.",
+            "Any kind of regularization?",
+            "So when you're doing online learning with a single pass, there's an equivalence between the choice of regularization and the choice of learning rate so.",
+            "Most the time I just try to tune things to fix the learning rate.",
+            "With that said.",
+            "I'm probably going to implement some kind of reputation on top of this.",
+            "There's a little bit difficulty with standardization because you need to have twice as much RAM to do it, but.",
+            "I mean, a lot of people are used to it, and so maybe it's a it's a reasonable thing to do.",
+            "So I guess the answer at the moment is no, but maybe soon.",
+            "There's an I'll get.",
+            "I'll talk about that."
+        ],
+        [
+            "Later, OK, so now you also want to be able to manipulate the examples inside of VW.",
+            "So there's some very simple manipulations and some more interesting manipulation, so the simplest one is just if there's a label.",
+            "Don't train, which is what testimony does.",
+            "Because by default it will try to train PW pretty aggressive about using whatever information is available to make a better predictor.",
+            "Another one, which is a phenomenal improvement computationally is is this cute when it's appropriate, so it's reasonably common that you have two sets of features and you care about.",
+            "Not producing in this set, not predicting that set, but you care about predicting in the in the outer product set.",
+            "In the cross product set right?",
+            "So an example of this comes when you're dealing with search like things, right?",
+            "So you have a query, you have the objects that you're querying over, and each query has features.",
+            "The objects have features you care about.",
+            "Interactions between these features and not about.",
+            "The features individually.",
+            "OK, so so.",
+            "Because we can expand the outer product in the core.",
+            "You can switch by default VW is going to be IO bound.",
+            "It's going to run about as fast as you can read data from the disk.",
+            "Anne.",
+            "If you did the outer product that would still be.",
+            "If you did that product in your data set, there would still be true, right?",
+            "But since we do it in the core that becomes no longer true and you can get it out of order of magnitude more performance.",
+            "So by default VW used to sort features because it was actually helpful as a representation to have a sorted list of features, but.",
+            "But you have to explicitly turn that on now, and the reason why is because.",
+            "Because we also added in Gram support right?",
+            "And if you sort your features before you have in grams then well, it just makes so much sense.",
+            "So.",
+            "So you can, so you should think of sort features an engram as we should exclusive and skips is also a modification of engram, so you can have in grams with skips, which we've seen be useful in a few applications.",
+            "So this idea there is a skip is that you care about the 1st, third and fourth word.",
+            "Right, and you create a feature for every first, third, and fourth word every first, second, and fourth word, and so forth.",
+            "And there's one more feature down here which is.",
+            "By default, the if you specify an integer.",
+            "That is going to be used to directly apply the hash function to the string.",
+            "With integer you actually just use the integer, but sometimes situations you actually just want to hash everything either.",
+            "This was fed by an integer, so you can switch the hash function to be to hash everything.",
+            "OK, so.",
+            "Other questions about this, yeah?",
+            "I would operate on all namespaces.",
+            "It does right now.",
+            "I think that I should probably limit the scope to where you can limit.",
+            "You can operate in just a single namespace.",
+            "Yeah.",
+            "Probably should make that change.",
+            "It's straight forward, hasn't happened yet.",
+            "So this is an example of using the quadratic features.",
+            "To work on the other product right so we had the example before where you're trying to make excuses for Drew and maybe you want to you don't care about.",
+            "But the excuse that worked the most in general, or the excuse that or.",
+            "You want the interaction between the two.",
+            "You want to know that if you ate breakfast, what's the excuse to use?",
+            "Right?"
+        ],
+        [
+            "OK, so.",
+            "When you're doing stochastic gradient descent or online gradient descent, there's a learning rate, the learning rate.",
+            "It's one of those things which is kind of frustrating because people parameterized it in various ways, and I said this.",
+            "There's a.",
+            "A plentiful parameterisation of the learning right here.",
+            "So the thing that pay attention to do first is the learning rate.",
+            "The base learning rate, which is just L. OK and then.",
+            "Typically the defaults have changed.",
+            "OK, so by default Now the learning rate is actually 1/2.",
+            "So poverty is 1/2 so so poverty is this thing down here.",
+            "So we have the some of the important switches of all the examples that we've seen so far.",
+            "So we used some of the important ways to kind of measure how many examples we've seen so far.",
+            "And then we're going to.",
+            "If P is 0, then all this is just going to go away, and if it is 1 so it's the first pass then, then it's just going to be learning rate right?",
+            "So.",
+            "You want parity to be somewhere between zero and one.",
+            "If it's zero, then you're doing sort of state tracking.",
+            "You're trying to keep up with the system, which is changing overtime.",
+            "So think about like common filter like applications where you're just trying to keep track of where you should be.",
+            "If you're doing 1/2, which is the default now, it's no longer 0 then.",
+            "Then you're doing the minimax optimal choice with respect to various kinds of online learning theory, right?",
+            "So if you have an adversary creating examples and you want to make sure that you compete with.",
+            "With the best linear predictor in some reasonable volume, then 1/2 is the right choice, and if you choose one then.",
+            "You're being hyperaggressive.",
+            "You're really trying to decay away.",
+            "Your learning rate very quickly, because this will be like if P is 1.",
+            "So kind of going to be like 1 / T or T is the number of examples we've seen so far.",
+            "So numbers larger than one don't really make sense and numbers less than zero don't really make sense.",
+            "And you just want to keep track of that.",
+            "There's a fair argument that in the stochastic setting.",
+            "P should really be one, but I found one to be relatively unstable.",
+            "Respect to the parameters so the default is 1/2.",
+            "OK then, when you when you pass through the data multiple times.",
+            "You kind of want to K away the learning rate because.",
+            "Well, you want to converge to something right so?",
+            "Yeah, so there's some default decay built in there.",
+            "OK, so you can also specify different loss functions, so there's a squared loss.",
+            "There's a log loss, there's a hinge loss, and there's a quantile loss, so these are sort of log is really sort of logistic loss, so is treated as logistic, so these are the ones that I've.",
+            "I've seen be useful or could easily imagine being useful that we could imagine others, yeah.",
+            "No multiclass builtin right now, so for the multiclass applications that we've had, we've used this code base is a library.",
+            "For some other.",
+            "Similar front end system.",
+            "OK, so.",
+            "So that was.",
+            "They were.",
+            "Changes that."
+        ],
+        [
+            "It's a change that I look forward to doing in the next year.",
+            "It's not.",
+            "It's not a fundamental change, so wait till we get to some of the algorithms and you'll see the kinds of things that we've done.",
+            "And then.",
+            "It'll be a little bit clearer.",
+            "OK, so.",
+            "So what are you?"
+        ],
+        [
+            "For the wait.",
+            "So we have this.",
+            "We have this hash function which Maps are features into a waiter A.",
+            "It's important to specify how big this weight array is.",
+            "You do that in log base two, which is what dash B is specifying.",
+            "And then you can also specify an initial regressor.",
+            "You can specify final regressor.",
+            "You can say.",
+            "I want to randomize the weights.",
+            "This is necessary with LDA because.",
+            "Because otherwise you have you have the symmetry breaking fail, right?",
+            "So it's actually doing that.",
+            "Whether I see very good.",
+            "OK, so and then there's you know, specify initial weight value, which is maybe useful sometimes I don't know.",
+            "OK, so the."
+        ],
+        [
+            "Several kinds of parallelization in VW, these are, I think they're useful.",
+            "Options wait a moment.",
+            "I wouldn't even say that so.",
+            "So thread bits is for multi core parallelism you specify is the way the multicore parallelism works in BW is you.",
+            "You partition the weight array.",
+            "Across the course right in this and.",
+            "B is a log base.",
+            "Two of the number of cores.",
+            "So I've seen example thread bits up to two be useful, but I haven't seen anything beyond to be useful, but that might be just because of having worked with a machine with more than eight physical cores.",
+            "This one is really.",
+            "For.",
+            "Kiss it.",
+            "I say this.",
+            "Multi source and predict to our features related to cluster parallelism.",
+            "So if you want to cluster parallelism where you have a node which is taking as inputs from several different nodes, then use multi source to specify that you're that master node.",
+            "In the use predicted to specify where that prediction is going, the cluster parallelism is still something that I'm not entirely happy with, and we're still working on, but this of course does."
+        ],
+        [
+            "When you when you doing the cluster parallelism, there's several different flags related to different kinds of cluster parallel learning algorithms, so those are actually talked about over here, but I think.",
+            "Because I'm not really confident these are the right algorithms, I think I don't want to go into detail about them.",
+            "Um?",
+            "OK, so now when the new things in VW is conjugate gradient, Saucony gradient is a batch algorithm which requires that you pass all the way over the data, not just once but twice in order to in order to make an update.",
+            "So that's a relatively slow operation, but in the hand I've seen it be very effective at kind of integrating away noise, and it's a pretty strong optimization method so.",
+            "If you use it, it's almost essential to use regularization, because otherwise it will overfit in a pretty hard way.",
+            "In the implementation, VW has pretty cool trick.",
+            "Which is often when you try to use conjugate gradient.",
+            "You have to you have to actually compute the Hessian.",
+            "Which is not a very good idea because it's going to be quadratic in your number of features.",
+            "Right, but it turns out to be the case that."
+        ],
+        [
+            "If you are, if you have a linear predictor, then you can implicitly compute the Hessian dot product with some particular direction this way.",
+            "What's that?",
+            "That the precondition well you want to figure out what your step size is.",
+            "So, so when you need constant gradient, you have a direction which you compute which is different from the direction of the derivative and then you want to know how far to step in that direction.",
+            "So you want to do some sort of Newton like thing to figure out how far to step.",
+            "In that involves that involves this quantity here.",
+            "No, there's no line search, no line search.",
+            "You just doing Newton step.",
+            "And the constant gradient direction.",
+            "There is, by the way, preconditioning built into this.",
+            "So align search seems like it would be too inefficient because you have to pass over the data some number of times rather than one additional time which is.",
+            "Maybe desirable.",
+            "Yeah.",
+            "Country.",
+            "It's not about it, haven't done it yet.",
+            "Young lacune swears by it.",
+            "Mini batch country gradient.",
+            "At least it is often said that if you don't actually minimize the objective function, if you don't do a monster under great works poorly, do you see that you do anything to?",
+            "I've seen this work.",
+            "Yeah, so at least for linear settings, which I've seen this applied to, it's been pretty effective, so this is just.",
+            "Thanks squared loss and logistic loss.",
+            "It works pretty well, that's been tested.",
+            "If you think about it, there's actually a bit of an issue with hinge loss and quantile loss because.",
+            "Because this number here."
+        ],
+        [
+            "There is zero.",
+            "The.",
+            "There's no second derivative.",
+            "So.",
+            "It doesn't actually die necessarily because you have regularization, which gives you some sort of curvature, but it may be less stable with those losses."
+        ],
+        [
+            "OK, so.",
+            "If you have some other loss function that you like, there's a function named last month, but it is a filename.",
+            "Muscle functions at CC, which is several examples now, so it's very easy to implement things.",
+            "And.",
+            "If you have some other learning algorithm that you really like, then there's a lot of examples of different learning algorithm cores, so I've discussed.",
+            "GD and SGD SGD is the default CG is conjugate gradient.",
+            "We're going to so sender is related to cluster parallelism, 'cause you want to want to have some way to cut up your examples.",
+            "No op does nothing, which is which is more useful than you might imagine, because sometimes what you want to do is you want to use VW as a compressor to create a data set in the right format in a compressed binary format, right?",
+            "And then and then LDA.",
+            "I think Matt is going to talk about.",
+            "OK, so and the modifications here are relatively straightforward.",
+            "OK, so."
+        ],
+        [
+            "So that's it for my part.",
+            "This is where I was looking at these slides from last time, and there were three things last time.",
+            "And and actually I got one of the three, done it.",
+            "There's a.",
+            "There's more learning algorithms which are inside in the core.",
+            "But now there's four things.",
+            "Maybe that's the way things go.",
+            "So we're still experimenting with cluster parallelism and hopefully will make more progress on that, and then I would really like to have some need of learning reductions which would allow us to deal with multiclass directly without using things of the library and then learning.",
+            "Albums are of course interesting.",
+            "And then another request that I've had is.",
+            "He's in an online environment.",
+            "Alright, now if you connect to it any feet examples.",
+            "And then you finish, then it will.",
+            "It will stop right?",
+            "But often you want to have a server learning server which just stays up there and you want to be able to send it commands like you do with like an FTP server or something like that which which could be great use in some situations.",
+            "OK, so.",
+            "I think Nikos is going to go next."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so this is a tutorial tutorial on the new version of Velebit 5.0 which really just before.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an open source project which you can get right here with Git.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's version control system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what is this?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a lot of different projects which open source projects for machine learning, and then why do we want to have this one?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess the claim is that there aren't.",
+                    "label": 0
+                },
+                {
+                    "sent": "There isn't much in the way of open source online learning projects where systems were trying to actually learn an online system with an online way, and that's kind of the thing that I'm focusing on most with the development of a VW.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a nice coincidence which comes in, which is that online learning is also very useful for online optimization, which.",
+                    "label": 1
+                },
+                {
+                    "sent": "Which is which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the best practices for actually training on a very large amount of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, so that is also the case that VW, in addition to being online in an online learning sense, is a pretty good online optimizer.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I'm also trying to make the different different flags orthogonal as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's several tricks which are built into the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using hashing is feature representation or caching.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some some parallelization across cores, some different feature manipulation options, which can be done implicitly and with us making things extremely fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I took a look at the number of lines of code, or now up to 6000, which is a little bit high for me, but.",
+                    "label": 1
+                },
+                {
+                    "sent": "But it's still not too many lines of code, and hopefully we'll be able to reduce it a bit more with a little bit more thought.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in terms of speed, there's some here some benchmarks to give you a sense of where we're at, so some of these I did a tutorial like this at the last nips as well with the earlier version of VW.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of these are the same, so the top ones are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Same, it's about 3 seconds on.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Reuters text data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm telling you which optimizations here which were helpful and making this extremely fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "So caching is is having a compressed bitwise representation of the data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "An pipelining here is having a parser which is independent of the learning core, so you can do two things at the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "This number is actually I got a new desktop because my old one blew apart and this number is actually reduced on my on my new desktop anyways.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's this large scale learning challenge and if you run on just the raw features that challenge, none of the datasets take more than 10 minutes to to make a pass with pretty reasonable results.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some some tricks that we did, so this hashing trick is extremely helpful in a lot of situations, so one of them was we wanted to make a personalized spam filter for 1000 users and that can be done extremely efficiently using using the hashing trick.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another one was we wanted to do conditional probability estimation, so imagine that you have 5:50 classes and you want to predict the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The probability of Y given X for any chosen X&Y, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we could do that in about an hour on.",
+                    "label": 0
+                },
+                {
+                    "sent": "On a large ad related data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "What does large mean so?",
+                    "label": 0
+                },
+                {
+                    "sent": "In the compressed in the Super compressed binary format of EW, it's about 5 gigabytes.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to have a human readable gzip compress, it's about 50.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to not gzip compress, it's about a TB.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we in order to do this, so this is not in the core VW.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're using the VW code base is a library that we accessed in order to.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so I had a grad student from Rutgers come up to me who told me that it was great because he had some sort of example per day data feed.",
+                    "label": 0
+                },
+                {
+                    "sent": "And he really liked the fact that.",
+                    "label": 0
+                },
+                {
+                    "sent": "This album could swallow the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Matt Hoffland, Matt Hoffman.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just implemented this LDA in VW with Matt Hoffman's.",
+                    "label": 0
+                },
+                {
+                    "sent": "New online LDA algorithm, and so this is kind of slow by my standards, but it gets about 2.5 million Wikipedia articles in an hour, which is just maybe.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a little over my standards, but nevertheless it does reasonably fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then Paul Monero tells me that VW is helping people find true love at eHarmony, which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Accomplishment for learning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I'm pretty sure that there are some hedge fund types that are using this, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because there's a bunch of people who don't tell me what they're doing, but they really are quite keen on asking certain questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right so not clear.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is the plan tutorial.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I'm going to talk about the baseline system, which is most of the flags in conjugate gradient, which is not.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's actually a batch design, it's a batch algorithm which is using second order information, which makes it only kind of slow compared to online learning, and sometimes sometimes it's beneficial because you want to integrate away noise in a pretty serious way.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the Nikos will talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Importance aware updates in adaptive updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you'll talk about active learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then Matt will talk about the online LDA and then hopefully we'll have some time before the real workshop.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would like to have a break before that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the questions that come up then feel free to ask them.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the basic learning algorithm is just online linear prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way to think about this is you have a bunch of weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "The weights.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Have value 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "Initially and then, you're going to go into a loop and in the loop you're going to get a feature vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you're going to make a prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Prediction by default is clipped to the interval 01.",
+                    "label": 0
+                },
+                {
+                    "sent": "Although you can widen that interval and actually it automatically automagically widens to the.",
+                    "label": 0
+                },
+                {
+                    "sent": "To the width of the labels that you are so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "If that makes sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if your labels are minus one, then it will become minus one or one after about 2 examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so after that you learn the truth why?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is 01 actually can be more complex than that, but is also you can also specify an importance weight.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can say this example is 3 times more important than a typical example.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then and then you do an update and it's just a gradient update.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the gradient of squared loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. And then you repeat.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the core loop and now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The question about the input languages and the input language is a little bit more flexible than you might be used to, so if you use to sort of an SVM light like format.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "The key advantage of this language is that it allows you to group features right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can specify.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two different groups of features you can have this group in this group in two different namespaces.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that allows you to manipulate the sets of features later on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, but otherwise it's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a sparse representation format, very similar to SVM light.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's another trick which is which is that we're using.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use hashing as a core representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which means that if the features here consists of a string.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is by default not a integer.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we will hash it into nature, and if it's an integer, then we'll just use that integer like you would expect.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this allows VW to take its input much roar data than you might be used to learning items taking as input.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that could be that can be convenient and helpful in many situations.",
+                    "label": 0
+                },
+                {
+                    "sent": "To.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to have a label specified first, then you specify an importance weight.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you care about that and then you can also have A tag.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what is the tag?",
+                    "label": 0
+                },
+                {
+                    "sent": "The tag is often when you are using a learning algorithm, especially at Test time you put in features, then you get out of prediction and you can tag is something which you get out along with the prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's some way to help keep track of externally of which prediction corresponds to which example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's pretty helpful in a lot of situations.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So other questions about this language.",
+                    "label": 0
+                },
+                {
+                    "sent": "So some examples that may be helpful.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are all valid inputs.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is extremely SVM light like so the namespace is not identified, it's just a just a space there and so it it has no.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an anonymous namespace essentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we just have a label.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can also actually not specify any label, in which cases it's treated as a test example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a test example here, so there is no label on the way that system knows there's no label is that there's no space between this blob and the bar, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then after the bar there is a named namespace.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is excuses, so that's not a feature.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's something which is used to group the features which follow.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you have features.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here you have 5 features.",
+                    "label": 0
+                },
+                {
+                    "sent": "The dog ate my homework right, so each of those is hashed into an integer and then given a default value of 1 for the feature value.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so now this is a more complicated complex example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we have a label and importance weight.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think this example is worth half as much as a typical example.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have A tag and then we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we know we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "That we have a float which is going to modify the feature value within the namespace, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this 0.1 is going to modify the feature values within the namespace.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to be all the features in that they should be multiplied by zero point 1, so it's a way to kind of control the values of many features simultaneously.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then and then for some of these, we actually specify an explicit value 0.01 and for others we don't, we just get the default of 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have another namespace here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, I see the colourings off.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the coupling here should be.",
+                    "label": 1
+                },
+                {
+                    "sent": "The purple pink so male white Bagnall aiad breakfast is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is are also features.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right in there in a different namespace.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so these are these are valid input examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other questions about the input format, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "Individual personal guards.",
+                    "label": 0
+                },
+                {
+                    "sent": "Shouldn't there be a vertical bar here?",
+                    "label": 0
+                },
+                {
+                    "sent": "But there is a vertical bar right here before no.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the bar separates namespaces.",
+                    "label": 0
+                },
+                {
+                    "sent": "And all of these features are in the same namespace, so it's feature 13 and feature 24 in feature 69.",
+                    "label": 0
+                },
+                {
+                    "sent": "And because there is no because the namespaces anonymous.",
+                    "label": 0
+                },
+                {
+                    "sent": "The precise value of the index of the weight.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which corresponds to that feature is 13 for the first one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have an anonymous namespace and you have integer features than that actually is the index.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a, you have a word for your namespace.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you have integer index then.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then what's going to happen is, the word will be hashed.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that will be used to offset all the feature values so the intervals remain the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Call instead of.",
+                    "label": 0
+                },
+                {
+                    "sent": "What does it do regression?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it depends a little bit on which loss you're using, so there's multiple loss functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the default squared loss, in which case it's going to be doing regression.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say so for instance, if there were excuses and it was 2, three and four.",
+                    "label": 0
+                },
+                {
+                    "sent": "It sounds like you get a lot of cash locality.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "But normally like it does excuses the hash possibly to like some crazy different page than excuses.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dog, yes, that's right so.",
+                    "label": 1
+                },
+                {
+                    "sent": "These dog ate my homework after the hash function will go to essentially near that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it's not actually random 'cause it's a deterministic function, but they go to some strange and unrelated locations in the hash array, and the weight array.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's the input language.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And now there's a lot of input options, and.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the things that we've tried to do actually is to have a lot of different kinds of inputs because I think in a lot of different situations you want to experiment with different kinds of inputs till the 1st baseline is.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can just read from a file, and in fact you don't even have to specify if you don't specify, just put something on the command line that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of unclear origin, then it will treat it as a file and try to read from it.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can read from standard in if there's no input file, it'll just referenced in default.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can make it listen on a TCP socket right so?",
+                    "label": 0
+                },
+                {
+                    "sent": "Port 39524 by default.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can change the port if you want.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can also you can make it run multiple passes over over your.",
+                    "label": 1
+                },
+                {
+                    "sent": "Your data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in particular, if you're doing well passes, you should be using.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should be using the cash, so you want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want to create a compressed binary format so that you don't have to parsing, parsing, human readable stuff.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is pretty computationally intense, at least compared to the learning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that means that it's very helpful to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Of a compressed binary format which can be read very fast by the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can specify, so this is just as creative cash and this says use this cash file so you can point directly to the cache file and then then often you also want to do gzip compression.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or maybe you want to read from a gzip compressed file, in which case you can just tell it where the compressed file is.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so these are.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are basic inputs that you kind of expect.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now as far as outputs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me let me show you an example of VW running.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so this is VW running on a.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Cache data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the rotors are CV one data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne, it's running along.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this first.",
+                    "label": 0
+                },
+                {
+                    "sent": "Column here is the progressive validation loss, so if you're unfamiliar with progressive validation, you should probably be familiar with it for online learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "This basic observation that.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you evaluate before you.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you make a prediction before you see before you update for the label.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the squared loss between your prediction and your label has a stability, like a test set.",
+                    "label": 0
+                },
+                {
+                    "sent": "To train in this you test on this and then you get the label for this and you have some squared loss and then you train on this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you test on this and then you get the label for this and then you have some squared loss and you train on this right and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the claim is that the average of the squared losses is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is an unbiased estimator of the average performance of different trains regressors at each step if uniform over those regressors and the deviations of that are like a test set of this size.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the claim is that this number when you're doing a single pass, can be relied upon like you can rely upon a test set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's very helpful.",
+                    "label": 0
+                },
+                {
+                    "sent": "This column here is the same number, except that we restarted after every print out.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then, and this is the number of examples you've seen, so there's two.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a number of examples in this sum of importance weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then these are these columns.",
+                    "label": 0
+                },
+                {
+                    "sent": "Over here are related to the current examples so that they can give you some way to diagnose if there's a problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if you ended up with zero or one features, then probably you have an issue.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the number of features over here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the label, and this is the prediction and you can see that the label in the prediction are becoming very similar as we get towards the end of the data set, which is which is richer.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so you can also get the raw prediction which is at this point it's almost the same thing as the prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "It differs because it's not clipped.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's some sort of safety clipping going on to make sure that your predictions don't get wildly different from your labels by default, you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in reductions, make sure that you get that directly.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're using Dash Damon, then you want to be able to talk to the Daemon and the way to talk to it is to use into.",
+                    "label": 0
+                },
+                {
+                    "sent": "So use another VW somewhere else.",
+                    "label": 0
+                },
+                {
+                    "sent": "To digest the data into the right format and spit it over the network to the VW which is running similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Running as a daemon.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Often, very often when you are needed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Trying to figure out why things aren't working.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's helpful to actually look at the.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the details of what's going on South.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want to know which feature gets mapped to which index in the weight array, what the value of the way it is, and what the value of the feature is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so audit gives you some way to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the baseline format is.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have the feature name, which includes the namespace, if that exists.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have the feature index.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have the feature value, then you have the weight value.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is, this is not something that you want to be running everything all the time because it it actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to track the information required to print out for dash audit, you actually actually change the way that you parse features in to be much slower, because normally that information is just discarded right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Once you have the weight index, you throw away the string.",
+                    "label": 0
+                },
+                {
+                    "sent": "But but this can be very helpful when you're debugging.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the last thing is that you can turn off the default output.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can just stay quiet.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it doesn't print out this stuff up here.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's the output, so you have a sense now of what the input is and what the output is and what the baseline learning algorithm is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are there any questions about this, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any kind of regularization?",
+                    "label": 0
+                },
+                {
+                    "sent": "So when you're doing online learning with a single pass, there's an equivalence between the choice of regularization and the choice of learning rate so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most the time I just try to tune things to fix the learning rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "With that said.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm probably going to implement some kind of reputation on top of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a little bit difficulty with standardization because you need to have twice as much RAM to do it, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, a lot of people are used to it, and so maybe it's a it's a reasonable thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I guess the answer at the moment is no, but maybe soon.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's an I'll get.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll talk about that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Later, OK, so now you also want to be able to manipulate the examples inside of VW.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's some very simple manipulations and some more interesting manipulation, so the simplest one is just if there's a label.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't train, which is what testimony does.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because by default it will try to train PW pretty aggressive about using whatever information is available to make a better predictor.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another one, which is a phenomenal improvement computationally is is this cute when it's appropriate, so it's reasonably common that you have two sets of features and you care about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not producing in this set, not predicting that set, but you care about predicting in the in the outer product set.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the cross product set right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So an example of this comes when you're dealing with search like things, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you have a query, you have the objects that you're querying over, and each query has features.",
+                    "label": 0
+                },
+                {
+                    "sent": "The objects have features you care about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interactions between these features and not about.",
+                    "label": 0
+                },
+                {
+                    "sent": "The features individually.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because we can expand the outer product in the core.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can switch by default VW is going to be IO bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to run about as fast as you can read data from the disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you did the outer product that would still be.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you did that product in your data set, there would still be true, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But since we do it in the core that becomes no longer true and you can get it out of order of magnitude more performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So by default VW used to sort features because it was actually helpful as a representation to have a sorted list of features, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you have to explicitly turn that on now, and the reason why is because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because we also added in Gram support right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you sort your features before you have in grams then well, it just makes so much sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can, so you should think of sort features an engram as we should exclusive and skips is also a modification of engram, so you can have in grams with skips, which we've seen be useful in a few applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this idea there is a skip is that you care about the 1st, third and fourth word.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, and you create a feature for every first, third, and fourth word every first, second, and fourth word, and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's one more feature down here which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "By default, the if you specify an integer.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is going to be used to directly apply the hash function to the string.",
+                    "label": 0
+                },
+                {
+                    "sent": "With integer you actually just use the integer, but sometimes situations you actually just want to hash everything either.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was fed by an integer, so you can switch the hash function to be to hash everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other questions about this, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "I would operate on all namespaces.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that I should probably limit the scope to where you can limit.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can operate in just a single namespace.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably should make that change.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's straight forward, hasn't happened yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is an example of using the quadratic features.",
+                    "label": 0
+                },
+                {
+                    "sent": "To work on the other product right so we had the example before where you're trying to make excuses for Drew and maybe you want to you don't care about.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the excuse that worked the most in general, or the excuse that or.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want the interaction between the two.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want to know that if you ate breakfast, what's the excuse to use?",
+                    "label": 0
+                },
+                {
+                    "sent": "Right?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you're doing stochastic gradient descent or online gradient descent, there's a learning rate, the learning rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's one of those things which is kind of frustrating because people parameterized it in various ways, and I said this.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "A plentiful parameterisation of the learning right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the thing that pay attention to do first is the learning rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "The base learning rate, which is just L. OK and then.",
+                    "label": 0
+                },
+                {
+                    "sent": "Typically the defaults have changed.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so by default Now the learning rate is actually 1/2.",
+                    "label": 0
+                },
+                {
+                    "sent": "So poverty is 1/2 so so poverty is this thing down here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have the some of the important switches of all the examples that we've seen so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we used some of the important ways to kind of measure how many examples we've seen so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "If P is 0, then all this is just going to go away, and if it is 1 so it's the first pass then, then it's just going to be learning rate right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want parity to be somewhere between zero and one.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's zero, then you're doing sort of state tracking.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're trying to keep up with the system, which is changing overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "So think about like common filter like applications where you're just trying to keep track of where you should be.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're doing 1/2, which is the default now, it's no longer 0 then.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you're doing the minimax optimal choice with respect to various kinds of online learning theory, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have an adversary creating examples and you want to make sure that you compete with.",
+                    "label": 0
+                },
+                {
+                    "sent": "With the best linear predictor in some reasonable volume, then 1/2 is the right choice, and if you choose one then.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're being hyperaggressive.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're really trying to decay away.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your learning rate very quickly, because this will be like if P is 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "So kind of going to be like 1 / T or T is the number of examples we've seen so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "So numbers larger than one don't really make sense and numbers less than zero don't really make sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you just want to keep track of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a fair argument that in the stochastic setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "P should really be one, but I found one to be relatively unstable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Respect to the parameters so the default is 1/2.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK then, when you when you pass through the data multiple times.",
+                    "label": 0
+                },
+                {
+                    "sent": "You kind of want to K away the learning rate because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you want to converge to something right so?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so there's some default decay built in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so you can also specify different loss functions, so there's a squared loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a log loss, there's a hinge loss, and there's a quantile loss, so these are sort of log is really sort of logistic loss, so is treated as logistic, so these are the ones that I've.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've seen be useful or could easily imagine being useful that we could imagine others, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "No multiclass builtin right now, so for the multiclass applications that we've had, we've used this code base is a library.",
+                    "label": 0
+                },
+                {
+                    "sent": "For some other.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similar front end system.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that was.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were.",
+                    "label": 0
+                },
+                {
+                    "sent": "Changes that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's a change that I look forward to doing in the next year.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a fundamental change, so wait till we get to some of the algorithms and you'll see the kinds of things that we've done.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then.",
+                    "label": 0
+                },
+                {
+                    "sent": "It'll be a little bit clearer.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what are you?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "For the wait.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have this.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have this hash function which Maps are features into a waiter A.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's important to specify how big this weight array is.",
+                    "label": 0
+                },
+                {
+                    "sent": "You do that in log base two, which is what dash B is specifying.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you can also specify an initial regressor.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can specify final regressor.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can say.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to randomize the weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is necessary with LDA because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because otherwise you have you have the symmetry breaking fail, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's actually doing that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whether I see very good.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so and then there's you know, specify initial weight value, which is maybe useful sometimes I don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Several kinds of parallelization in VW, these are, I think they're useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "Options wait a moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "I wouldn't even say that so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So thread bits is for multi core parallelism you specify is the way the multicore parallelism works in BW is you.",
+                    "label": 0
+                },
+                {
+                    "sent": "You partition the weight array.",
+                    "label": 0
+                },
+                {
+                    "sent": "Across the course right in this and.",
+                    "label": 0
+                },
+                {
+                    "sent": "B is a log base.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two of the number of cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I've seen example thread bits up to two be useful, but I haven't seen anything beyond to be useful, but that might be just because of having worked with a machine with more than eight physical cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "This one is really.",
+                    "label": 0
+                },
+                {
+                    "sent": "For.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kiss it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I say this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Multi source and predict to our features related to cluster parallelism.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you want to cluster parallelism where you have a node which is taking as inputs from several different nodes, then use multi source to specify that you're that master node.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the use predicted to specify where that prediction is going, the cluster parallelism is still something that I'm not entirely happy with, and we're still working on, but this of course does.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "When you when you doing the cluster parallelism, there's several different flags related to different kinds of cluster parallel learning algorithms, so those are actually talked about over here, but I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because I'm not really confident these are the right algorithms, I think I don't want to go into detail about them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now when the new things in VW is conjugate gradient, Saucony gradient is a batch algorithm which requires that you pass all the way over the data, not just once but twice in order to in order to make an update.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's a relatively slow operation, but in the hand I've seen it be very effective at kind of integrating away noise, and it's a pretty strong optimization method so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you use it, it's almost essential to use regularization, because otherwise it will overfit in a pretty hard way.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the implementation, VW has pretty cool trick.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is often when you try to use conjugate gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to you have to actually compute the Hessian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is not a very good idea because it's going to be quadratic in your number of features.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, but it turns out to be the case that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If you are, if you have a linear predictor, then you can implicitly compute the Hessian dot product with some particular direction this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's that?",
+                    "label": 0
+                },
+                {
+                    "sent": "That the precondition well you want to figure out what your step size is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, so when you need constant gradient, you have a direction which you compute which is different from the direction of the derivative and then you want to know how far to step in that direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you want to do some sort of Newton like thing to figure out how far to step.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that involves that involves this quantity here.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, there's no line search, no line search.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just doing Newton step.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the constant gradient direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is, by the way, preconditioning built into this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So align search seems like it would be too inefficient because you have to pass over the data some number of times rather than one additional time which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe desirable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Country.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not about it, haven't done it yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "Young lacune swears by it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mini batch country gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least it is often said that if you don't actually minimize the objective function, if you don't do a monster under great works poorly, do you see that you do anything to?",
+                    "label": 0
+                },
+                {
+                    "sent": "I've seen this work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so at least for linear settings, which I've seen this applied to, it's been pretty effective, so this is just.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks squared loss and logistic loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "It works pretty well, that's been tested.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think about it, there's actually a bit of an issue with hinge loss and quantile loss because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because this number here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "There is zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no second derivative.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't actually die necessarily because you have regularization, which gives you some sort of curvature, but it may be less stable with those losses.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have some other loss function that you like, there's a function named last month, but it is a filename.",
+                    "label": 0
+                },
+                {
+                    "sent": "Muscle functions at CC, which is several examples now, so it's very easy to implement things.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have some other learning algorithm that you really like, then there's a lot of examples of different learning algorithm cores, so I've discussed.",
+                    "label": 0
+                },
+                {
+                    "sent": "GD and SGD SGD is the default CG is conjugate gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to so sender is related to cluster parallelism, 'cause you want to want to have some way to cut up your examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "No op does nothing, which is which is more useful than you might imagine, because sometimes what you want to do is you want to use VW as a compressor to create a data set in the right format in a compressed binary format, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then and then LDA.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think Matt is going to talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so and the modifications here are relatively straightforward.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that's it for my part.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is where I was looking at these slides from last time, and there were three things last time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And and actually I got one of the three, done it.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's more learning algorithms which are inside in the core.",
+                    "label": 0
+                },
+                {
+                    "sent": "But now there's four things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe that's the way things go.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're still experimenting with cluster parallelism and hopefully will make more progress on that, and then I would really like to have some need of learning reductions which would allow us to deal with multiclass directly without using things of the library and then learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Albums are of course interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then another request that I've had is.",
+                    "label": 0
+                },
+                {
+                    "sent": "He's in an online environment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, now if you connect to it any feet examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you finish, then it will.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will stop right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But often you want to have a server learning server which just stays up there and you want to be able to send it commands like you do with like an FTP server or something like that which which could be great use in some situations.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think Nikos is going to go next.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,2868 @@
+{
+    "id": "ucqx5sejymstopylkojvhxw4bagj3cgd",
+    "title": "Online Learning with Implicit User Preferences",
+    "info": {
+        "author": [
+            "Thorsten Joachims, Department of Computer Science, Cornell University"
+        ],
+        "published": "Jan. 24, 2012",
+        "recorded": "December 2011",
+        "category": [
+            "Top->Computer Science->Machine Learning->On-line Learning"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2011_joachims_learning/",
+    "segmentation": [
+        [
+            "So thanks for coming here.",
+            "On the last day this early in the morning.",
+            "So I I hope I'll keep you awake and interested.",
+            "So what I want to talk about today is online learning with implicit preferences from user behavior, and it's going to touch on the on work with that I've done over the years with a lot of people.",
+            "And in particular, Joseph Browder, Jerry Gay, Laura Grahnke, Bobby Kleinberg, medical refill appeared in Ski Panago Swami and his song you and I particularly want to point out that Panago has a poster in this workshop that is actually going to go into much more of the technical details on the second half of the top.",
+            "OK, so."
+        ],
+        [
+            "When I'm going to talk about what's going to motivate the methods that I want to talk about, are these kind of knowledge based systems of today that we use on a daily basis like a search engine recommender system?",
+            "And to all of these systems have to keep maintaining their knowledge, they have to acquire their knowledge and they do that through multiple processes.",
+            "Things like actually some data comes from experts, but most of the data actually comes from the users of these systems, because the users actually know themselves best kind of what serves the information need.",
+            "And some of it comes from tagging some of this from explicit ratings, but what I want to explore in this talk is the information that we can get out of simply observing users use these systems.",
+            "And clearly users to make.",
+            "Explicit choices when you with these systems and by making explicit explicit sources, they reveal something about their preferences and I want to explore how we can use kind of mechanisms to get at these preferences to aggregate them and to eventually gather new knowledge for these systems."
+        ],
+        [
+            "To make everything a little bit less abstract, I'm going to focus on search engines or any kind of search where we particularly focus on the goal of learning an improved ranking function.",
+            "But much of what I'm going to talk about is actually more general.",
+            "Apply to recommender systems to many of the other systems as well.",
+            "So what these systems do?",
+            "I mean what I'm going to particular search engine does is it presents you give it a query, it comes back with the ranking and has complete choice over what ranking it presents and then what the user does it the user will click on something.",
+            "Or you could go into more detail.",
+            "You could look at things like dwell time.",
+            "Does the user go in somewhere, come back out?",
+            "How long does it take scrolling behavior?",
+            "Reformulating the query and even things like eye tracking where it could actually see where the user looks on the screen is built into some of the laptops today already so.",
+            "But again, in this talk I'm going to keep it simple.",
+            "I'm just going to look at clicks as a feedback signal."
+        ],
+        [
+            "OK, so.",
+            "The overall process is very naturally an online learning process where we have a system with a learning algorithm.",
+            "That can decide to present a certain action to the user.",
+            "So a ranking or recommendation.",
+            "The user sees this action and it has a certain utility to the user.",
+            "We don't know what the utility function that the user uses is, and that's basically something that we want to learn overtime.",
+            "The user then interacts with the system and we want to interpret this interaction as feedback.",
+            "And overtime going through many iterations of this process, we want to improve the utility of the actions that the system presents.",
+            "So it's this cooperative system we really have to think about both.",
+            "We have to think about the learning algorithm and we have to think about the user.",
+            "One of them, we can design the algorithm.",
+            "We can design, right?",
+            "We can design the algorithm to and the actions that it presents at any particular time step.",
+            "So that's the machine learning part.",
+            "But we also have to model the user, right?",
+            "We have to model how the user reaction is.",
+            "Actually, what this reveals about the utility, that function that the user has.",
+            "And so this is going to be a modeling problem.",
+            "And again, in this talk I'm going to address both of them and respect in particular which models of user behavior go with which algorithm.",
+            "And we're going to talk about kind of two instantiations of this feedback cycle here of this online learning process.",
+            "And that are kind of that revolve around the question of who does the exploration?",
+            "And both parts are going to be structured in the following way.",
+            "I'm going to look at.",
+            "User behavior through user studies.",
+            "And then.",
+            "Design algorithms that can exploit this type of feedback."
+        ],
+        [
+            "OK, let's start with the very simplest learning problem in ranking.",
+            "Let's say we have two ranking functions, F1 and F2.",
+            "A distribution of users that issue queries.",
+            "And so, for example, for the query that I issue and that is the query string SVM ranking function F1 would return this ranking.",
+            "That would have a certain utility to me ranking function R 2F2.",
+            "But present this ranking that also has a certain utility to be.",
+            "And now over this distribution of queries I want to just decide which of the two ranking functions is better.",
+            "That's the very simplest learning problem that you can probably think of.",
+            "No."
+        ],
+        [
+            "What feedback signals from the user could I make use of to decide which of the two ranking functions is better?",
+            "So algorithmically?",
+            "This is a trivial problem, right?",
+            "It's really a problem of how to interpret feedback.",
+            "And there at least two approaches that people have tried.",
+            "The first one I call absolute metrics, and So what you could do is you could set up an experiment, show half of your users ranking function of 1/2 of the users ranking function F2.",
+            "And then measure things like the number of clicks or what's the abandonment rate, like how many queries don't get any clicks.",
+            "And then make the assumption that somehow the utility of the user is kind of monotonic in these observable statistics.",
+            "So let's say the higher the abandonment rate, the lower the utility.",
+            "The second approach would be to do some kind of pair comparison test where I actually want to elicit a preference between the two ranking functions.",
+            "And now what?",
+            "So we're going to.",
+            "Go through in the next few slides is see which of these two approaches actually works.",
+            "Let's start with."
+        ],
+        [
+            "First one.",
+            "So we.",
+            "We implement it so to test which of the two actually works.",
+            "In practice, we implemented a search engine fulltext search engine for the physics eprint archive, so it's this repository of papers for physics, but also for computer science physics.",
+            "It's really the repository.",
+            "Lots of people use it.",
+            "And So what we had now, we had an operational system that people actually use on a daily basis, and that we could then test our hypothesis.",
+            "So it's a kind of field study context, and So what we need now is we need retrieval functions ranking functions where we actually know which one is better than the other.",
+            "So what we did was.",
+            "Philip implemented a hand tuned retrieval function where you know we have different weights for different fields, like how important is it to match the title?",
+            "Important to match the author Fulltext Abstract and he turned these weights to actually get a pretty good retrieval function, and that's the referral function that we call original.",
+            "And we didn't know how to make this reliably better, but we knew how to make it reliably worse.",
+            "So what we did was instead of."
+        ],
+        [
+            "Presenting the results from this retrieval function we actually took.",
+            "2 results from the top five and so optimize results from the bottom.",
+            "So that's a Great's retrieval quality on a very mild assumptions, so we know the original results are better than the swap 2 result, and we did an even stronger degradation where we swapped for results.",
+            "This gives us is now a triple of retrieval functions where we know original is better than Swap 2 is better than swap 4.",
+            "And we did to another kind of set triple like that in a different way.",
+            "We took our original results.",
+            "We threw away all the field weights that were that were in there.",
+            "That's flat.",
+            "And again, that's worse.",
+            "And then we also took the results from flat and randomize the order of the top 10.",
+            "And that's again, worse, right?",
+            "So we have two triples now where we know the ground truth.",
+            "And now we can test whether these."
+        ],
+        [
+            "Observable signals actually reflect.",
+            "This this known ordering.",
+            "So we started with these absolute metrics.",
+            "We looked at the literature of what people have proposed to measure that were supposed to reflect retrieval quality.",
+            "So things like abandonment rate, clicks per query, kind of here statistic about statistics about the rank where people click and then we hypothesize how these are going to change.",
+            "So for example, if I decrease retrieval quality, I would hypothesize that my abandonment rate goes up.",
+            "Or if I decrease retrieval quality, we have authorized the number of clicks goes down not entirely clear that it should really go down, but at least we would expect that these metrics should change monotonically with retrieval quality.",
+            "So we feel that the six retrieval functions that we had for a month computed these statistics.",
+            "And here are the result."
+        ],
+        [
+            "These are the different statistics that we measured and the blue.",
+            "Here is the values for the first triple, original, flat and rent ordered from best to worst and this is the second triple original swap two and Swap 4 again, best to worst and these little whiskers here show the hypothesized change that we.",
+            "Thought you'd see.",
+            "Well, if you look at this graph, you see that they don't, right?",
+            "Um?",
+            "So actually, none of these metrics or these statistics reflects the expected order.",
+            "There's always at least one kind of pair that is swapped.",
+            "No, if I had actually put error bars on here, you would see that many of the differences are not significant.",
+            "So even with the month of data, actually the differences are so small that they're really difficult to pick up and differentiate.",
+            "We've actually done this user study on the Yahoo search engine as well.",
+            "And.",
+            "There you get significant results, actually, not for all of them, even after millions of queries sums.",
+            "Some of these are not significant yet because the differences are extremely small.",
+            "But again, you don't see consistency with the known ordering.",
+            "So."
+        ],
+        [
+            "The conclusion is that.",
+            "Interpreting these signals in an absolute way is at least.",
+            "A very under it's really difficult to get significant results in our experiments.",
+            "We don't actually see that the reflected the expected order."
+        ],
+        [
+            "Now let's look at the at the second approach.",
+            "These pair comparison tests, and if you think about what we've done in the first experiment, is essentially that we've split our population in half, right?",
+            "We gave you.",
+            "One retrieval function gives you the other retrieval function, and then we asked you.",
+            "Kind of to rate them on an absolute scale, and that's really hard.",
+            "It's like they think of the Pepsi test, right?",
+            "You wouldn't give half of the room Pepsi and the other half poke and rating from a scale from 1 to 10.",
+            "Probably pick a design where you give everybody Coke and Pepsi and have an expressive preference, right?",
+            "And that's the idea behind the second approach.",
+            "So can we do this kind of paired comparison?"
+        ],
+        [
+            "Also for retrieval functions.",
+            "Now what we could do is we could have a new user interface to your search engine where on the left hand side it presents the results from one retrieval function on the right hand side.",
+            "The results from the other retrieval function.",
+            "Then we see like.",
+            "Where do people go and click.",
+            "Well.",
+            "Would at least destroy the user interface of your of your search engine, right?",
+            "But you can get a similar effect.",
+            "Without destroying the user interface."
+        ],
+        [
+            "And what you can do is you can interleave the two rankings and then present the interleaving to the user.",
+            "So let's say for a particular query we compute the ranking from F1, compute the ranking from F2.",
+            "But what we present to the user is this interleaving of the two rankings.",
+            "That you can compute in many ways and you have to think about what's a fair interleaving, and it's actually.",
+            "A very interesting question of what makes a fair interleaving.",
+            "Here's one particular definition of Fair.",
+            "You flip a coin, and let's say if two wins gets to go first, gets to put his 1st result into the first position here.",
+            "Then the other one gets to go because it's kind of one behind and that one's already in there.",
+            "So now we have the invariant that the top one here is the Union of the top one from here and the Union of the top one from here.",
+            "And we're going to keep that invariant.",
+            "So we flip a coin again if one wins, gets to put us next result in there.",
+            "If 2 gets to go as well and again now, this is the union of the top two.",
+            "From here in the top two from there and you can do this interleaving so that every cut of point in the interleaved ranking the user has seen.",
+            "As many from the top of retrieval function, one as from the top of retrieval function, 2 + -- 1.",
+            "Now we can look at the interleaved ranking and see where people clicked.",
+            "Let's see the user clicked on one, three and seven.",
+            "You can now trace back where these results came from.",
+            "So here we have all three results.",
+            "We're in the top four here.",
+            "Only one of the results was in the top four.",
+            "Here you would say now this for this particular ranking F Two wins the pairwise comparison.",
+            "So what we get out is a kind of noisy preference between the two ranking functions for different queries, preference may have been a different way."
+        ],
+        [
+            "So we feel that all six possible interleaving pairs for three triplets, again on the search engine, gathered a month of data.",
+            "And these other pairs always, so that the better retrieval function is on the left here, and these bars indicate that.",
+            "How often?",
+            "What's the percentage of wins for the better retrieval function and the percentage of wins for the worst retrieval function?",
+            "And as you can see, in all cases, the better retrieval function wins, and all of these differences are actually significant.",
+            "So.",
+            "After the same amount of data, you get a very significant and reliable signal out of these pairwise preference tests.",
+            "And because it's going to be interested are important for later in the talk.",
+            "Another property, at least for this.",
+            "For these two triples hold, which is called strong stochastic transitivity.",
+            "What this means is, if you look at so.",
+            "Original and flat were kind of too close to each other.",
+            "Flatten rent were also close to each other and the white pair was original and Rand right that was kind of the transitive closure of the two.",
+            "And what you can see here is that the difference here.",
+            "Of the kind of large difference pair is also bigger than the differences between the intermediate pairs.",
+            "This transitive relationship, right and the same thing here.",
+            "This one is bigger than these two that any of the two which is this property of strongest after classic transitivity, which is going to be important for later algorithm.",
+            "Now this is only very weak evidence that this holds in general, and it probably doesn't, but I just wanted to explain what that was.",
+            "We also allowed ties, so if you see that.",
+            "You know, if you have that, there's one result in the top K clicked and one result in the top K. We have a tie and that those get dropped out here.",
+            "What was the end you got this?",
+            "Presentation algorithm was the underlying search algorithm.",
+            "That you used to bring back the results in the 1st place before you Rang curiosity.",
+            "So the search engine there was based on Lucene, which does a kind of vector space model retrieval.",
+            "This was web based.",
+            "Yeah, so this is if you go to archive.",
+            "If you go do the full text search there, that's what you get.",
+            "So are you using?",
+            "Yep, so like we have different fields like who's the author, what's the title?",
+            "What's the abstract?",
+            "You know all of the fields that you have an archive."
+        ],
+        [
+            "So from this interleaving experiments you do get kind of the expected order and you get more sensitive kind of feedback."
+        ],
+        [
+            "No, what's the algorithmic side of this?",
+            "Well, we.",
+            "If you do, if you have more than two retrieval function, let's say four, we are faced with the following problem, right?",
+            "We have to pick now which pairs of retrieval functions should be compared at any point of time.",
+            "And we have two conflicting goals.",
+            "Eventually we want to figure out what's the best retrieval function.",
+            "But we also want to annoy the user in the process as little as possible.",
+            "So if I take for example interleaving of, so let's say our ranking functions are in quality rank that B is the best, G is slightly worse.",
+            "Why is a lot worse and a is worse than that again?",
+            "I guess you could tell where I gave this talk.",
+            "Then if we.",
+            "Interleaf B&G.",
+            "Then that's very low cost to the user, right?",
+            "I've interleaved two good ranking functions.",
+            "And yeah, not much is lost, right?",
+            "If I interleave B&Y, that's a bit higher cost, right?",
+            "Because half of my results come from a not so good retrieval function.",
+            "And if I interleave why and a, then that's a that's an even higher cost, right?",
+            "I have 0 cost.",
+            "If I interleave B&B, the best retrieval function.",
+            "So now the problem is, how do I minimize regret over the whole runtime of the algorithm?",
+            "So that basically I don't present bad pairs more often than necessary to ensure convergence to the best ranking function.",
+            "So it's an exploration exploitation problem.",
+            "And we call this the dueling bandits problem.",
+            "If you if you know bandit algorithms right and bandit algorithm you allowed to pull one arm and you observe your payoff.",
+            "In this setting here, basically you allow to pull two arms of the bandit.",
+            "And you never observe what the absolute pay offs are, but you observe which of the bandits paid off more."
+        ],
+        [
+            "So let me make this a little bit more formal.",
+            "We have, let's say a set of candidate retrieval functions, K of them, and I'm always indexing them so that the best one is index one and the worst one is index K. We have noisy pairwise comparison test and now we have to define our notion of regret and regret is going to be defined as this thing and it's going to based on the probability that the one that we presented.",
+            "Loses against the best retrieval function that there is, so the best one would be F1 here.",
+            "My rotation over here F star.",
+            "So here's an example, if maybe in the first time step I interleaf F9 and F-12 pretty bad retrieval functions.",
+            "I observe that F Nine wins.",
+            "But it comes at a pretty high cost, so F9 loses with 95% probability against the best retrieval function.",
+            "F-12 user that's that's a little inconsistent with my notation, loses with 85% probability against the best retrieval function.",
+            "So I subtract 1 and my regret is oh point 8 here.",
+            "Overtime I will start.",
+            "Hopefully interleaving only good retrieval functions, so let's say F1 and F3F1 has a probability of 1/2.",
+            "Losing against itself.",
+            "And three maybe has slightly higher than 1/2 probability.",
+            "Oh Point 5 one.",
+            "So my regret is oh .01.",
+            "So we got this based on this notion of losing or presenting worse results than the best retrieval function."
+        ],
+        [
+            "So now when we have capable functions, how we're going to figure out which one is the best one?",
+            "The first thought that we had is all we're going to make a tournament, right?",
+            "That doesn't work.",
+            "And.",
+            "Let me illustrate that with the.",
+            "I play badminton against a good friend of mine is called Ralph and say that's me and that's Ralph.",
+            "We are very evenly matched, so figuring out who of the two is actually really better player will take us a lot of games.",
+            "Now we are also both really really bad.",
+            "Which means that figuring out who's the winner of the tool.",
+            "About it in terms of ranking functions would have to present bad results really really often.",
+            "It really doesn't matter who of the two wins this pairwise comparison because we are so much worse than the best guy that you know we should just.",
+            "It's really not worth figuring this out.",
+            "A tournament doesn't do this now.",
+            "What does work?"
+        ],
+        [
+            "So here's an algorithm that does work.",
+            "It's called Interleaf filter too.",
+            "And instead of going through the code here, let me show you kind of an example of how it works.",
+            "You have five retrieval functions here, or five bandits.",
+            "You pick one at random and call that your incumbent, and then you keep playing this incumbent roundrobin against the other ones.",
+            "Doing pairwise comparisons until one of two conditions.",
+            "Occurs either one ranking function becomes significantly worse than our incumbent, or one becomes significantly better than our incumbent.",
+            "So let's do a couple of rounds and what happened here is that F5 has lossed.",
+            "Nine games against the against this one has one only one, and so we can conclude with properly tuned confidence that F5 is definitely worse.",
+            "So we can throw it out.",
+            "Then let we keep playing and now what's happening here is that if one wins, 13 comparisons loses only two against our incumbent.",
+            "At this point we can conclude that if one is actually at a high enough level, security, better.",
+            "So what we're going to do is we're going to.",
+            "Kick this one out and make this our new incumbent.",
+            "Interestingly, we can also kick this one out any any retrieval function or any bandit that was empirically worse than the one that we that was our previous incumbent.",
+            "That's a little bit harder to see.",
+            "But it's a it's a valid conclusion as well, and then we are reduced to a kind of a new set of retrieval functions, and we would just now play these guys here until we were converged."
+        ],
+        [
+            "You have to make a few assumptions to prove anything about this algorithm.",
+            "The biggest one is really the strong stochastic transitivity that I explained before, and I don't want to go through all the details.",
+            "Basically what these assumptions come down to is that there is a nice ordering of the retrieval functions and that your preference relationship doesn't have any cycles.",
+            "Otherwise.",
+            "You can obviously see that you don't necessarily converge to a single best one."
+        ],
+        [
+            "What you can show is that the regret that I defined before can be upper bounded.",
+            "In in by linear in K in linear in the number of retrieval functions that we have.",
+            "And it's locked T so nicely grows very slowly with T. So.",
+            "That is nice.",
+            "This may be a problem right?",
+            "If we have a lot of retrieval functions that we want to compare in particular, in real retrieval systems we actually have, like a space of parameters.",
+            "So we have an infinite number of retrieval functions where we can tune parameters, right?",
+            "You can extend."
+        ],
+        [
+            "Essentially the same setting.",
+            "Also, it's actually tight."
+        ],
+        [
+            "Down to two A to the case where you have kind of infinite set of of bandits.",
+            "And here is 1 particular way of doing this, where you assume that.",
+            "There is a utility function that's convex in his parameters.",
+            "And each setting of the parameters is essentially abandoned.",
+            "And then you have like a Bradley Terry Model Style connection that tells you what the what the difference, what the preference probability is, and it's based on the difference in utility between the two ranking functions.",
+            "And so for the same notion of regrets, you can come up with a kind of estimated stochastic gradient mesh."
+        ],
+        [
+            "But that gives you again about on the regret.",
+            "Now here the scaling was T is a lot worse.",
+            "It converges more slowly in terms of T. And you have things like the dimensionality of the OR the number of parameters that you have.",
+            "Basically in your in your red bound.",
+            "So if you're a lot of parameters, this converges pretty slowly.",
+            "Two actually."
+        ],
+        [
+            "Try this in experiments, so here's an experiment for web search and I don't want to go into the details here, but what I do want to point out is the.",
+            "Little number down here that says 10 to the six.",
+            "So really the number of kind of comparisons that you have to do is pretty large, so it's not a problem with your web search engine.",
+            "Getting a building queries is easy, but for like tuning your desktop search this is probably not what you wanted."
+        ],
+        [
+            "So.",
+            "We could either now think about how do we make this kind of dueling bandits.",
+            "Problem question.",
+            "So.",
+            "If it is, was there a significant difference in the ranking functions previously?",
+            "Yeah, so this was a whole space of retrieval."
+        ],
+        [
+            "Functions it had like 367 features and if you tune the parameters in different ways they are vastly different yet."
+        ],
+        [
+            "So we could either put more information to this dueling bandit set up so that it does more goal directed expiration, or we could rethink our learning problem here by rethinking about where we can actually do exploration.",
+            "And.",
+            "I want to.",
+            "Think about step back a little bit about.",
+            "Think about.",
+            "That there is actually the user as a source of exploration.",
+            "And that potentially the user is much better at exploring.",
+            "And does it basically for free anyway.",
+            "Then our algorithms could possibly be."
+        ],
+        [
+            "So this is my Netflix page.",
+            "And the way that.",
+            "That I typically pick movies to watch on Netflix is, you know, I look at my recommendations.",
+            "I know this looks interesting.",
+            "Here I go to the page.",
+            "There is another kind of related kind of set of related movies to this one, and there's a section on users who like this show also like this show.",
+            "So I keep browsing and then eventually I find another watch.",
+            "So what I've done here is, I've actually explored the collection to some extent, not fully.",
+            "I'm not.",
+            "I haven't found the best movie to watch, but I've found a good movie to watch."
+        ],
+        [
+            "Over here in web search, I hear I've somebody typed in the period VM, looked at the results, didn't see anything interesting or anything that fit the result.",
+            "They were actually fans of their sport, fine."
+        ],
+        [
+            "Happened, which is a, I think, through TRP German soccer club.",
+            "So they reformulated their query to SQL MAP and and then they got the result that they wanted and they clicked on it right?",
+            "And again users have done that.",
+            "The user has done some exploration for us.",
+            "So can we take advantage of this exploration that the user has done?"
+        ],
+        [
+            "So how can we turn this into a feedback signal?",
+            "More formally, let's say we have a query and we see that the user clicked on results 1, three, and five.",
+            "Well, we can construct a better ranking than the one that represented by taking the results that were clicked and moving them on the top.",
+            "So in particular, the user has skipped over 4 and 2.",
+            "Four and two get demoted here.",
+            "And the other ones get promoted, so this is probably a better ranking, but let's again check this in a user study."
+        ],
+        [
+            "So we got undergrads into our lab and we gave him 10 questions that they're supposed to answer, and some of them were informational questions like who discovered the first modern antibiotic?",
+            "Other ones were kind of navigational questions.",
+            "Find the home page for greater housing at Carnegie Mellon University.",
+            "And we just told him answer these questions.",
+            "And the only restriction is you have to start with Google.",
+            "Which I guess wasn't a big restriction.",
+            "And then we kept track of all the queries or the results that got collected, all the clicks and everything.",
+            "Also, for all the rankings that represented, we afterwards got manual relevance judgments.",
+            "So we got some approximation of what the true relevance of the results was for.",
+            "For any of the results that was presented."
+        ],
+        [
+            "So now we're coming back to our feedback generation strategy.",
+            "So is this really a valid preference to draw?",
+            "So.",
+            "If this result is really better than this result in this result, then clearly promoting at the top of the tool for any kind of measure of retrieval performance would be beneficial, right?",
+            "Would improve quality.",
+            "So what we can ask now is is 3.",
+            "Really better than two and is 5 really better than four and two?",
+            "And since we got these men are relevant judgments, we can.",
+            "We can check whether these pairwise preferences between documents are actually correct.",
+            "And what you get is something around 80% accuracy, which isn't actually that far away from introduction agreement on this problem.",
+            "So this is against problem.",
+            "Kind of noisy, but it's in general a valid preference to draw.",
+            "It's a preference between rankings."
+        ],
+        [
+            "You can do that in different ways as well, so let's say again, the user typed in a query, didn't see anything that they liked reform."
+        ],
+        [
+            "Made the query and then clicked on the results number 1, three and five.",
+            "Now to generate a preference from that or a better ranking from that, we could take the click results.",
+            "And substitute them in for the.",
+            "3 results that were on top of the original ranking that the user didn't click on anything.",
+            "And then again draw this preference.",
+            "And again, we can check that against the manual relevant judgments that we get, so indeed any of these click results is better than the first one or the second one where somewhere in the kind of 80% accuracy again.",
+            "So again, we get a preference from the user saying here is a ranking that is better than the ranking that represented.",
+            "It's not the optimal ranking, just maybe slightly better than what we presented, but it's a better ranking."
+        ],
+        [
+            "Let's get that."
+        ],
+        [
+            "So let's formalize this model now.",
+            "So again, we have utility function that's in the user's head.",
+            "And that he or she uses to make decisions and what we would like to present is the ranking Y for a query X that maximizes the user's utility.",
+            "But we don't know the utility function.",
+            "What we do present is some other ranking Y, typically other ranking Y.",
+            "And if we present a different ranking then we measure the loss of our prediction by what's the difference of utility utility of what we presented versus the best thing that we could have presented, right?",
+            "So it's a very natural measure of floss.",
+            "And then our online learning process is basically that we observe a context to query we.",
+            "Our learning algorithm comes up with the prediction Y that it presents.",
+            "That prediction incurs some regret.",
+            "If it's the optimal position, this this would be.",
+            "This loss would be 0.",
+            "And then what the user returns as feedback is.",
+            "Here's a different ranking.",
+            "Why prime?",
+            "That is better than the one that we presented?",
+            "So it's an interesting kind of setting that somewhere between the expert setting in the expert setting, you assume that you would receive the actual Cardinal value of all the utilities of all possible rankings that you would have presented.",
+            "Apart from the fact that we have exponentially many rankings, this is we can't get that in our setting.",
+            "It's different, so our feedback is weaker than this.",
+            "But it's slightly stronger than the bandit setting right in the bandit setting.",
+            "You only get feedback for the one ranking that you presented, right?",
+            "And our preference setting we get.",
+            "Feedback that says this ranking is better than the one that we presented.",
+            "We never observed any Cardinal values of utility.",
+            "We just observed this preference."
+        ],
+        [
+            "So here's the simplest algorithm that can use this feedback and is actually surprisingly strong.",
+            "And if you go to Panagos poster, he will show you more sophisticated algorithms that actually have better guarantees, and that are even stronger and more general.",
+            "The basic assumption that this algorithm makes, we call it the preference perceptron, is that the user's utility can be represented as a linear function in some feature representation of that describes the match between query and ranking.",
+            "So this joint feature map is the same that you would have in a structural SVM or in conditional random field.",
+            "And it's a it's a linear model.",
+            "So this is the thing that you want to learn.",
+            "Of course, the users W is unknown.",
+            "So what the algorithm does is it starts with some W. And it maintains a W in each iteration, so it takes a query or a context X. Presents the ranking that a current order into the algorithms current guess of W is the best ranking.",
+            "So in a sense, it's purely exploiting.",
+            "Obtains this feedback ranking that is slightly better than the one that represented.",
+            "And then updates according to the simple Perceptron style rule.",
+            "So it's a very simple algorithm.",
+            "And it actually looks a lot like a multiclass perceptron or structured perceptron, but it's different in the sense that our feedback is different.",
+            "We don't get the optimal ranking here.",
+            "We only get one that's slightly better.",
+            "And our regret is different.",
+            "We measure regret in terms of utility difference of this unknown function of the user, not in terms of misclassification rate or something like that."
+        ],
+        [
+            "So what can we prove about this algorithm?",
+            "So the big assumption is that we assume that it's linear, but can be kernelized.",
+            "So it can make this a kernelized algorithm as well.",
+            "So in that sense, it could be nonlinear.",
+            "And it's not really an assumption, but it's a characterization.",
+            "Our feedback.",
+            "How strong our feedback is, and we call this Alpha informative feedback.",
+            "And basically what this says is this is the ranking get represented?",
+            "This is the ranking that's optimal.",
+            "The best utility ranking and this is the ranking that the user gives us.",
+            "And this Alpha here shows us or kind of characterizes how much better in terms of total distance does the user feedback get than the one that we've presented.",
+            "So if Alpha is equal to five, it would be in the middle here.",
+            "If it's oh point 1, it's like 10% better.",
+            "You can also have violations of this feedback and then you incur some slack here so that not every feedback has to be Alpha informative.",
+            "You get a regret bound for this algorithm where get that the upper bound on the regret is a term that this case square root and T which is kind of like a perceptron style.",
+            "Decay, even in the in the experts say.",
+            "And then this R times W that's the same R times W that you would have like in a support vector machine or or a.",
+            "Or in regular perceptron as well, right?",
+            "So this is kind of a bound on your feature space.",
+            "Diameter, and this is the norm of the weight vector that the user describes.",
+            "The users utility function and then if you have violations, if you have noise in your process, you get this additional noise term in there as well.",
+            "So if you go to panagos poster, you can also say they see that this you can relax this informative elf informative feedback assumption that just has to hold an expectation you can go get rid of the linear restriction to linear can have kind of convex function convex loss function as well, and you can come up with algorithms that are log T / T here not square root of T."
+        ],
+        [
+            "So here is an experiment again for web search.",
+            "And using so this plots DCG at five.",
+            "It's a standard information retrieval measure, and our model that our algorithm uses.",
+            "Our linear model is basically the same, just that we stick in here.",
+            "Our kind of linear approximation of the true ratings that the judges gave.",
+            "And as you can see I mean regret the case and so Alpha equals one would mean ideal feedback.",
+            "That's this green curve.",
+            "And then Alpha getting closer to 0 here means that the feedback becomes kind of just the steps that the ranking is better is just tiny little bit better.",
+            "But even for mid range alphas you get something like on the get good convergence in the order of hundreds of iterations, not millions of iterations so much much faster.",
+            "So this is something you can do for your desktop search."
+        ],
+        [
+            "OK, so let me wrap up.",
+            "So I talked about.",
+            "These kind of motivated by these online information systems about this these learning problems which are really a cycle that involves both the algorithm and the user and it requires designing an appropriate algorithm for kind of assumptions or model of user behavior that is accurate and you have to really think about both parts of this process.",
+            "So it comes down to becoming an online learning problem is partial observations and really.",
+            "I think one of the take home messages is that if you're working with implicit usage data.",
+            "Then really, you should interpret this as preferences.",
+            "Interpret them on some kind of Cardinal or absolute scale is very difficult.",
+            "Preferences are much more reliable.",
+            "We actually have additional experiments that drive home the point that I didn't mention here.",
+            "And typically I mean if you think back what assumptions are made about or the models of user behavior, probably model the user as some kind of approximately boundedly rational agent.",
+            "And so I think that's a. Proximation, but it's a.",
+            "It's a good guiding principle.",
+            "I talked about these two algorithms where if one algorithm do algorithm guided exploration of figuring out which pairs to present, the user gives a preference bit.",
+            "And you get things like scaling in kind of essentially in the size of your of your action space versus the learning by user driven exploration, where the algorithm is purely next exploitation algorithm.",
+            "But you are now using that the user does some exploration for you and that actually this tiny little bit of exploration that the user does actually gives you quite strong results.",
+            "Interesting, obvious, interesting question is how to combine the two and I'm happy to talk to you about that at the Post or somewhere right?",
+            "Thank you.",
+            "In the.",
+            "Do you?",
+            "Hope they."
+        ],
+        [
+            "Do you?",
+            "The features for the individual document or combine those so these these are feature vectors for the whole ranking.",
+            "Those are aggregated from the individual documents, so one of the aggregation methods was."
+        ],
+        [
+            "I know it doesn't say it.",
+            "Yeah, yes it does say it here.",
+            "So this is one way you could aggregate the document features into into ranking features.",
+            "Understanding methodology.",
+            "This part of the experiment, so you took some number of students and you gave him a search problem.",
+            "And with those questions and you watched everything they did.",
+            "Now you re ranked at the end of that."
+        ],
+        [
+            "Serious.",
+            "So the rankings were based on the cumulative impacts of all of the users based on the individual user.",
+            "So in this user study this was purely using Google.",
+            "There was no learning involved, we just wanted to understand how users actually browse the results and how do they make clicks.",
+            "And so this was this involved, no learning.",
+            "Additional things that we actually did in this user study is we did eye tracking.",
+            "So in particular, we wanted to see if."
+        ],
+        [
+            "If a user actually reads results, whether user reach results from top to bottom.",
+            "So actually the real feedback signal is, you know, has the user looked at this result and decided to not click on it, right?",
+            "That's actually the real.",
+            "That's a real signal that you're getting from the eye tracking.",
+            "We could see whether people actually made an informed decision about the not click results.",
+            "And yes they do.",
+            "This is in your yes, yes.",
+            "So how did you meet?",
+            "John Deere algorithm at that point, based on their various signals?",
+            "Or did you then do another test with your own engine to see how those parameters with playing with no no.",
+            "This was this was actually done in 2005 already.",
+            "This user study and we're just reusing the results.",
+            "So the end of the original study was actually different.",
+            "So this was a second analysis.",
+            "So I think it doesn't will be around prostitution as well, so you can ask additional questions.",
+            "Thank you."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So thanks for coming here.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the last day this early in the morning.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I I hope I'll keep you awake and interested.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I want to talk about today is online learning with implicit preferences from user behavior, and it's going to touch on the on work with that I've done over the years with a lot of people.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in particular, Joseph Browder, Jerry Gay, Laura Grahnke, Bobby Kleinberg, medical refill appeared in Ski Panago Swami and his song you and I particularly want to point out that Panago has a poster in this workshop that is actually going to go into much more of the technical details on the second half of the top.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "When I'm going to talk about what's going to motivate the methods that I want to talk about, are these kind of knowledge based systems of today that we use on a daily basis like a search engine recommender system?",
+                    "label": 1
+                },
+                {
+                    "sent": "And to all of these systems have to keep maintaining their knowledge, they have to acquire their knowledge and they do that through multiple processes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things like actually some data comes from experts, but most of the data actually comes from the users of these systems, because the users actually know themselves best kind of what serves the information need.",
+                    "label": 1
+                },
+                {
+                    "sent": "And some of it comes from tagging some of this from explicit ratings, but what I want to explore in this talk is the information that we can get out of simply observing users use these systems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And clearly users to make.",
+                    "label": 0
+                },
+                {
+                    "sent": "Explicit choices when you with these systems and by making explicit explicit sources, they reveal something about their preferences and I want to explore how we can use kind of mechanisms to get at these preferences to aggregate them and to eventually gather new knowledge for these systems.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To make everything a little bit less abstract, I'm going to focus on search engines or any kind of search where we particularly focus on the goal of learning an improved ranking function.",
+                    "label": 1
+                },
+                {
+                    "sent": "But much of what I'm going to talk about is actually more general.",
+                    "label": 0
+                },
+                {
+                    "sent": "Apply to recommender systems to many of the other systems as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what these systems do?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean what I'm going to particular search engine does is it presents you give it a query, it comes back with the ranking and has complete choice over what ranking it presents and then what the user does it the user will click on something.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you could go into more detail.",
+                    "label": 1
+                },
+                {
+                    "sent": "You could look at things like dwell time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Does the user go in somewhere, come back out?",
+                    "label": 0
+                },
+                {
+                    "sent": "How long does it take scrolling behavior?",
+                    "label": 0
+                },
+                {
+                    "sent": "Reformulating the query and even things like eye tracking where it could actually see where the user looks on the screen is built into some of the laptops today already so.",
+                    "label": 0
+                },
+                {
+                    "sent": "But again, in this talk I'm going to keep it simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm just going to look at clicks as a feedback signal.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The overall process is very naturally an online learning process where we have a system with a learning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "That can decide to present a certain action to the user.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a ranking or recommendation.",
+                    "label": 0
+                },
+                {
+                    "sent": "The user sees this action and it has a certain utility to the user.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't know what the utility function that the user uses is, and that's basically something that we want to learn overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "The user then interacts with the system and we want to interpret this interaction as feedback.",
+                    "label": 0
+                },
+                {
+                    "sent": "And overtime going through many iterations of this process, we want to improve the utility of the actions that the system presents.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's this cooperative system we really have to think about both.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to think about the learning algorithm and we have to think about the user.",
+                    "label": 1
+                },
+                {
+                    "sent": "One of them, we can design the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can design, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We can design the algorithm to and the actions that it presents at any particular time step.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the machine learning part.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we also have to model the user, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to model how the user reaction is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, what this reveals about the utility, that function that the user has.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this is going to be a modeling problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "And again, in this talk I'm going to address both of them and respect in particular which models of user behavior go with which algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're going to talk about kind of two instantiations of this feedback cycle here of this online learning process.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that are kind of that revolve around the question of who does the exploration?",
+                    "label": 0
+                },
+                {
+                    "sent": "And both parts are going to be structured in the following way.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "User behavior through user studies.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then.",
+                    "label": 1
+                },
+                {
+                    "sent": "Design algorithms that can exploit this type of feedback.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, let's start with the very simplest learning problem in ranking.",
+                    "label": 1
+                },
+                {
+                    "sent": "Let's say we have two ranking functions, F1 and F2.",
+                    "label": 1
+                },
+                {
+                    "sent": "A distribution of users that issue queries.",
+                    "label": 1
+                },
+                {
+                    "sent": "And so, for example, for the query that I issue and that is the query string SVM ranking function F1 would return this ranking.",
+                    "label": 1
+                },
+                {
+                    "sent": "That would have a certain utility to me ranking function R 2F2.",
+                    "label": 0
+                },
+                {
+                    "sent": "But present this ranking that also has a certain utility to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now over this distribution of queries I want to just decide which of the two ranking functions is better.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the very simplest learning problem that you can probably think of.",
+                    "label": 0
+                },
+                {
+                    "sent": "No.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What feedback signals from the user could I make use of to decide which of the two ranking functions is better?",
+                    "label": 0
+                },
+                {
+                    "sent": "So algorithmically?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a trivial problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's really a problem of how to interpret feedback.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there at least two approaches that people have tried.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first one I call absolute metrics, and So what you could do is you could set up an experiment, show half of your users ranking function of 1/2 of the users ranking function F2.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then measure things like the number of clicks or what's the abandonment rate, like how many queries don't get any clicks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then make the assumption that somehow the utility of the user is kind of monotonic in these observable statistics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say the higher the abandonment rate, the lower the utility.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second approach would be to do some kind of pair comparison test where I actually want to elicit a preference between the two ranking functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now what?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Go through in the next few slides is see which of these two approaches actually works.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's start with.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "First one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we.",
+                    "label": 0
+                },
+                {
+                    "sent": "We implement it so to test which of the two actually works.",
+                    "label": 0
+                },
+                {
+                    "sent": "In practice, we implemented a search engine fulltext search engine for the physics eprint archive, so it's this repository of papers for physics, but also for computer science physics.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's really the repository.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lots of people use it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what we had now, we had an operational system that people actually use on a daily basis, and that we could then test our hypothesis.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a kind of field study context, and So what we need now is we need retrieval functions ranking functions where we actually know which one is better than the other.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we did was.",
+                    "label": 0
+                },
+                {
+                    "sent": "Philip implemented a hand tuned retrieval function where you know we have different weights for different fields, like how important is it to match the title?",
+                    "label": 0
+                },
+                {
+                    "sent": "Important to match the author Fulltext Abstract and he turned these weights to actually get a pretty good retrieval function, and that's the referral function that we call original.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we didn't know how to make this reliably better, but we knew how to make it reliably worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we did was instead of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Presenting the results from this retrieval function we actually took.",
+                    "label": 0
+                },
+                {
+                    "sent": "2 results from the top five and so optimize results from the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's a Great's retrieval quality on a very mild assumptions, so we know the original results are better than the swap 2 result, and we did an even stronger degradation where we swapped for results.",
+                    "label": 1
+                },
+                {
+                    "sent": "This gives us is now a triple of retrieval functions where we know original is better than Swap 2 is better than swap 4.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we did to another kind of set triple like that in a different way.",
+                    "label": 0
+                },
+                {
+                    "sent": "We took our original results.",
+                    "label": 0
+                },
+                {
+                    "sent": "We threw away all the field weights that were that were in there.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's flat.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, that's worse.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then we also took the results from flat and randomize the order of the top 10.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's again, worse, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have two triples now where we know the ground truth.",
+                    "label": 1
+                },
+                {
+                    "sent": "And now we can test whether these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Observable signals actually reflect.",
+                    "label": 0
+                },
+                {
+                    "sent": "This this known ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we started with these absolute metrics.",
+                    "label": 1
+                },
+                {
+                    "sent": "We looked at the literature of what people have proposed to measure that were supposed to reflect retrieval quality.",
+                    "label": 0
+                },
+                {
+                    "sent": "So things like abandonment rate, clicks per query, kind of here statistic about statistics about the rank where people click and then we hypothesize how these are going to change.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example, if I decrease retrieval quality, I would hypothesize that my abandonment rate goes up.",
+                    "label": 1
+                },
+                {
+                    "sent": "Or if I decrease retrieval quality, we have authorized the number of clicks goes down not entirely clear that it should really go down, but at least we would expect that these metrics should change monotonically with retrieval quality.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we feel that the six retrieval functions that we had for a month computed these statistics.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here are the result.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "These are the different statistics that we measured and the blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is the values for the first triple, original, flat and rent ordered from best to worst and this is the second triple original swap two and Swap 4 again, best to worst and these little whiskers here show the hypothesized change that we.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thought you'd see.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if you look at this graph, you see that they don't, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "So actually, none of these metrics or these statistics reflects the expected order.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's always at least one kind of pair that is swapped.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, if I had actually put error bars on here, you would see that many of the differences are not significant.",
+                    "label": 0
+                },
+                {
+                    "sent": "So even with the month of data, actually the differences are so small that they're really difficult to pick up and differentiate.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've actually done this user study on the Yahoo search engine as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "There you get significant results, actually, not for all of them, even after millions of queries sums.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of these are not significant yet because the differences are extremely small.",
+                    "label": 0
+                },
+                {
+                    "sent": "But again, you don't see consistency with the known ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The conclusion is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interpreting these signals in an absolute way is at least.",
+                    "label": 0
+                },
+                {
+                    "sent": "A very under it's really difficult to get significant results in our experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't actually see that the reflected the expected order.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now let's look at the at the second approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "These pair comparison tests, and if you think about what we've done in the first experiment, is essentially that we've split our population in half, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We gave you.",
+                    "label": 0
+                },
+                {
+                    "sent": "One retrieval function gives you the other retrieval function, and then we asked you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of to rate them on an absolute scale, and that's really hard.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like they think of the Pepsi test, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You wouldn't give half of the room Pepsi and the other half poke and rating from a scale from 1 to 10.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably pick a design where you give everybody Coke and Pepsi and have an expressive preference, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's the idea behind the second approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "So can we do this kind of paired comparison?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Also for retrieval functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what we could do is we could have a new user interface to your search engine where on the left hand side it presents the results from one retrieval function on the right hand side.",
+                    "label": 0
+                },
+                {
+                    "sent": "The results from the other retrieval function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we see like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where do people go and click.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would at least destroy the user interface of your of your search engine, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But you can get a similar effect.",
+                    "label": 0
+                },
+                {
+                    "sent": "Without destroying the user interface.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And what you can do is you can interleave the two rankings and then present the interleaving to the user.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say for a particular query we compute the ranking from F1, compute the ranking from F2.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what we present to the user is this interleaving of the two rankings.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you can compute in many ways and you have to think about what's a fair interleaving, and it's actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "A very interesting question of what makes a fair interleaving.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's one particular definition of Fair.",
+                    "label": 0
+                },
+                {
+                    "sent": "You flip a coin, and let's say if two wins gets to go first, gets to put his 1st result into the first position here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the other one gets to go because it's kind of one behind and that one's already in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we have the invariant that the top one here is the Union of the top one from here and the Union of the top one from here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're going to keep that invariant.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we flip a coin again if one wins, gets to put us next result in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "If 2 gets to go as well and again now, this is the union of the top two.",
+                    "label": 0
+                },
+                {
+                    "sent": "From here in the top two from there and you can do this interleaving so that every cut of point in the interleaved ranking the user has seen.",
+                    "label": 0
+                },
+                {
+                    "sent": "As many from the top of retrieval function, one as from the top of retrieval function, 2 + -- 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we can look at the interleaved ranking and see where people clicked.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's see the user clicked on one, three and seven.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can now trace back where these results came from.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we have all three results.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're in the top four here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only one of the results was in the top four.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here you would say now this for this particular ranking F Two wins the pairwise comparison.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we get out is a kind of noisy preference between the two ranking functions for different queries, preference may have been a different way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we feel that all six possible interleaving pairs for three triplets, again on the search engine, gathered a month of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these other pairs always, so that the better retrieval function is on the left here, and these bars indicate that.",
+                    "label": 0
+                },
+                {
+                    "sent": "How often?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the percentage of wins for the better retrieval function and the percentage of wins for the worst retrieval function?",
+                    "label": 0
+                },
+                {
+                    "sent": "And as you can see, in all cases, the better retrieval function wins, and all of these differences are actually significant.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "After the same amount of data, you get a very significant and reliable signal out of these pairwise preference tests.",
+                    "label": 0
+                },
+                {
+                    "sent": "And because it's going to be interested are important for later in the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another property, at least for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "For these two triples hold, which is called strong stochastic transitivity.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this means is, if you look at so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Original and flat were kind of too close to each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "Flatten rent were also close to each other and the white pair was original and Rand right that was kind of the transitive closure of the two.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you can see here is that the difference here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of the kind of large difference pair is also bigger than the differences between the intermediate pairs.",
+                    "label": 0
+                },
+                {
+                    "sent": "This transitive relationship, right and the same thing here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This one is bigger than these two that any of the two which is this property of strongest after classic transitivity, which is going to be important for later algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this is only very weak evidence that this holds in general, and it probably doesn't, but I just wanted to explain what that was.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also allowed ties, so if you see that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, if you have that, there's one result in the top K clicked and one result in the top K. We have a tie and that those get dropped out here.",
+                    "label": 0
+                },
+                {
+                    "sent": "What was the end you got this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Presentation algorithm was the underlying search algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you used to bring back the results in the 1st place before you Rang curiosity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the search engine there was based on Lucene, which does a kind of vector space model retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was web based.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so this is if you go to archive.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you go do the full text search there, that's what you get.",
+                    "label": 0
+                },
+                {
+                    "sent": "So are you using?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep, so like we have different fields like who's the author, what's the title?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the abstract?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know all of the fields that you have an archive.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So from this interleaving experiments you do get kind of the expected order and you get more sensitive kind of feedback.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "No, what's the algorithmic side of this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do, if you have more than two retrieval function, let's say four, we are faced with the following problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to pick now which pairs of retrieval functions should be compared at any point of time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we have two conflicting goals.",
+                    "label": 0
+                },
+                {
+                    "sent": "Eventually we want to figure out what's the best retrieval function.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we also want to annoy the user in the process as little as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I take for example interleaving of, so let's say our ranking functions are in quality rank that B is the best, G is slightly worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is a lot worse and a is worse than that again?",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess you could tell where I gave this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then if we.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interleaf B&G.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then that's very low cost to the user, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "I've interleaved two good ranking functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, not much is lost, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "If I interleave B&Y, that's a bit higher cost, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because half of my results come from a not so good retrieval function.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I interleave why and a, then that's a that's an even higher cost, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I have 0 cost.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I interleave B&B, the best retrieval function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now the problem is, how do I minimize regret over the whole runtime of the algorithm?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that basically I don't present bad pairs more often than necessary to ensure convergence to the best ranking function.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it's an exploration exploitation problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we call this the dueling bandits problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you if you know bandit algorithms right and bandit algorithm you allowed to pull one arm and you observe your payoff.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this setting here, basically you allow to pull two arms of the bandit.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you never observe what the absolute pay offs are, but you observe which of the bandits paid off more.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let me make this a little bit more formal.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have, let's say a set of candidate retrieval functions, K of them, and I'm always indexing them so that the best one is index one and the worst one is index K. We have noisy pairwise comparison test and now we have to define our notion of regret and regret is going to be defined as this thing and it's going to based on the probability that the one that we presented.",
+                    "label": 1
+                },
+                {
+                    "sent": "Loses against the best retrieval function that there is, so the best one would be F1 here.",
+                    "label": 1
+                },
+                {
+                    "sent": "My rotation over here F star.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's an example, if maybe in the first time step I interleaf F9 and F-12 pretty bad retrieval functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "I observe that F Nine wins.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it comes at a pretty high cost, so F9 loses with 95% probability against the best retrieval function.",
+                    "label": 0
+                },
+                {
+                    "sent": "F-12 user that's that's a little inconsistent with my notation, loses with 85% probability against the best retrieval function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I subtract 1 and my regret is oh point 8 here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Overtime I will start.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully interleaving only good retrieval functions, so let's say F1 and F3F1 has a probability of 1/2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Losing against itself.",
+                    "label": 0
+                },
+                {
+                    "sent": "And three maybe has slightly higher than 1/2 probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh Point 5 one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So my regret is oh .01.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we got this based on this notion of losing or presenting worse results than the best retrieval function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now when we have capable functions, how we're going to figure out which one is the best one?",
+                    "label": 0
+                },
+                {
+                    "sent": "The first thought that we had is all we're going to make a tournament, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That doesn't work.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me illustrate that with the.",
+                    "label": 0
+                },
+                {
+                    "sent": "I play badminton against a good friend of mine is called Ralph and say that's me and that's Ralph.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are very evenly matched, so figuring out who of the two is actually really better player will take us a lot of games.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we are also both really really bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which means that figuring out who's the winner of the tool.",
+                    "label": 0
+                },
+                {
+                    "sent": "About it in terms of ranking functions would have to present bad results really really often.",
+                    "label": 0
+                },
+                {
+                    "sent": "It really doesn't matter who of the two wins this pairwise comparison because we are so much worse than the best guy that you know we should just.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's really not worth figuring this out.",
+                    "label": 0
+                },
+                {
+                    "sent": "A tournament doesn't do this now.",
+                    "label": 0
+                },
+                {
+                    "sent": "What does work?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's an algorithm that does work.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's called Interleaf filter too.",
+                    "label": 0
+                },
+                {
+                    "sent": "And instead of going through the code here, let me show you kind of an example of how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have five retrieval functions here, or five bandits.",
+                    "label": 0
+                },
+                {
+                    "sent": "You pick one at random and call that your incumbent, and then you keep playing this incumbent roundrobin against the other ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "Doing pairwise comparisons until one of two conditions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Occurs either one ranking function becomes significantly worse than our incumbent, or one becomes significantly better than our incumbent.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's do a couple of rounds and what happened here is that F5 has lossed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nine games against the against this one has one only one, and so we can conclude with properly tuned confidence that F5 is definitely worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we can throw it out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then let we keep playing and now what's happening here is that if one wins, 13 comparisons loses only two against our incumbent.",
+                    "label": 0
+                },
+                {
+                    "sent": "At this point we can conclude that if one is actually at a high enough level, security, better.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to do is we're going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kick this one out and make this our new incumbent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interestingly, we can also kick this one out any any retrieval function or any bandit that was empirically worse than the one that we that was our previous incumbent.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a little bit harder to see.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's a it's a valid conclusion as well, and then we are reduced to a kind of a new set of retrieval functions, and we would just now play these guys here until we were converged.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You have to make a few assumptions to prove anything about this algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "The biggest one is really the strong stochastic transitivity that I explained before, and I don't want to go through all the details.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically what these assumptions come down to is that there is a nice ordering of the retrieval functions and that your preference relationship doesn't have any cycles.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can obviously see that you don't necessarily converge to a single best one.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What you can show is that the regret that I defined before can be upper bounded.",
+                    "label": 0
+                },
+                {
+                    "sent": "In in by linear in K in linear in the number of retrieval functions that we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's locked T so nicely grows very slowly with T. So.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "This may be a problem right?",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have a lot of retrieval functions that we want to compare in particular, in real retrieval systems we actually have, like a space of parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have an infinite number of retrieval functions where we can tune parameters, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You can extend.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Essentially the same setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, it's actually tight.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Down to two A to the case where you have kind of infinite set of of bandits.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here is 1 particular way of doing this, where you assume that.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a utility function that's convex in his parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "And each setting of the parameters is essentially abandoned.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you have like a Bradley Terry Model Style connection that tells you what the what the difference, what the preference probability is, and it's based on the difference in utility between the two ranking functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so for the same notion of regrets, you can come up with a kind of estimated stochastic gradient mesh.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But that gives you again about on the regret.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now here the scaling was T is a lot worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "It converges more slowly in terms of T. And you have things like the dimensionality of the OR the number of parameters that you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically in your in your red bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you're a lot of parameters, this converges pretty slowly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two actually.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Try this in experiments, so here's an experiment for web search and I don't want to go into the details here, but what I do want to point out is the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Little number down here that says 10 to the six.",
+                    "label": 0
+                },
+                {
+                    "sent": "So really the number of kind of comparisons that you have to do is pretty large, so it's not a problem with your web search engine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Getting a building queries is easy, but for like tuning your desktop search this is probably not what you wanted.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could either now think about how do we make this kind of dueling bandits.",
+                    "label": 0
+                },
+                {
+                    "sent": "Problem question.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it is, was there a significant difference in the ranking functions previously?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so this was a whole space of retrieval.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Functions it had like 367 features and if you tune the parameters in different ways they are vastly different yet.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we could either put more information to this dueling bandit set up so that it does more goal directed expiration, or we could rethink our learning problem here by rethinking about where we can actually do exploration.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think about step back a little bit about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think about.",
+                    "label": 0
+                },
+                {
+                    "sent": "That there is actually the user as a source of exploration.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that potentially the user is much better at exploring.",
+                    "label": 0
+                },
+                {
+                    "sent": "And does it basically for free anyway.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then our algorithms could possibly be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is my Netflix page.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the way that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That I typically pick movies to watch on Netflix is, you know, I look at my recommendations.",
+                    "label": 0
+                },
+                {
+                    "sent": "I know this looks interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I go to the page.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is another kind of related kind of set of related movies to this one, and there's a section on users who like this show also like this show.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I keep browsing and then eventually I find another watch.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I've done here is, I've actually explored the collection to some extent, not fully.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not.",
+                    "label": 0
+                },
+                {
+                    "sent": "I haven't found the best movie to watch, but I've found a good movie to watch.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Over here in web search, I hear I've somebody typed in the period VM, looked at the results, didn't see anything interesting or anything that fit the result.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were actually fans of their sport, fine.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Happened, which is a, I think, through TRP German soccer club.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they reformulated their query to SQL MAP and and then they got the result that they wanted and they clicked on it right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And again users have done that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The user has done some exploration for us.",
+                    "label": 0
+                },
+                {
+                    "sent": "So can we take advantage of this exploration that the user has done?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So how can we turn this into a feedback signal?",
+                    "label": 0
+                },
+                {
+                    "sent": "More formally, let's say we have a query and we see that the user clicked on results 1, three, and five.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we can construct a better ranking than the one that represented by taking the results that were clicked and moving them on the top.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in particular, the user has skipped over 4 and 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Four and two get demoted here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the other ones get promoted, so this is probably a better ranking, but let's again check this in a user study.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we got undergrads into our lab and we gave him 10 questions that they're supposed to answer, and some of them were informational questions like who discovered the first modern antibiotic?",
+                    "label": 0
+                },
+                {
+                    "sent": "Other ones were kind of navigational questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Find the home page for greater housing at Carnegie Mellon University.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we just told him answer these questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the only restriction is you have to start with Google.",
+                    "label": 1
+                },
+                {
+                    "sent": "Which I guess wasn't a big restriction.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we kept track of all the queries or the results that got collected, all the clicks and everything.",
+                    "label": 1
+                },
+                {
+                    "sent": "Also, for all the rankings that represented, we afterwards got manual relevance judgments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we got some approximation of what the true relevance of the results was for.",
+                    "label": 0
+                },
+                {
+                    "sent": "For any of the results that was presented.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now we're coming back to our feedback generation strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So is this really a valid preference to draw?",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "If this result is really better than this result in this result, then clearly promoting at the top of the tool for any kind of measure of retrieval performance would be beneficial, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Would improve quality.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we can ask now is is 3.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really better than two and is 5 really better than four and two?",
+                    "label": 0
+                },
+                {
+                    "sent": "And since we got these men are relevant judgments, we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can check whether these pairwise preferences between documents are actually correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you get is something around 80% accuracy, which isn't actually that far away from introduction agreement on this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is against problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of noisy, but it's in general a valid preference to draw.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a preference between rankings.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You can do that in different ways as well, so let's say again, the user typed in a query, didn't see anything that they liked reform.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Made the query and then clicked on the results number 1, three and five.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now to generate a preference from that or a better ranking from that, we could take the click results.",
+                    "label": 0
+                },
+                {
+                    "sent": "And substitute them in for the.",
+                    "label": 0
+                },
+                {
+                    "sent": "3 results that were on top of the original ranking that the user didn't click on anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then again draw this preference.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, we can check that against the manual relevant judgments that we get, so indeed any of these click results is better than the first one or the second one where somewhere in the kind of 80% accuracy again.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, we get a preference from the user saying here is a ranking that is better than the ranking that represented.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not the optimal ranking, just maybe slightly better than what we presented, but it's a better ranking.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let's get that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's formalize this model now.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, we have utility function that's in the user's head.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that he or she uses to make decisions and what we would like to present is the ranking Y for a query X that maximizes the user's utility.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we don't know the utility function.",
+                    "label": 1
+                },
+                {
+                    "sent": "What we do present is some other ranking Y, typically other ranking Y.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we present a different ranking then we measure the loss of our prediction by what's the difference of utility utility of what we presented versus the best thing that we could have presented, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a very natural measure of floss.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then our online learning process is basically that we observe a context to query we.",
+                    "label": 1
+                },
+                {
+                    "sent": "Our learning algorithm comes up with the prediction Y that it presents.",
+                    "label": 0
+                },
+                {
+                    "sent": "That prediction incurs some regret.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's the optimal position, this this would be.",
+                    "label": 0
+                },
+                {
+                    "sent": "This loss would be 0.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then what the user returns as feedback is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's a different ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why prime?",
+                    "label": 0
+                },
+                {
+                    "sent": "That is better than the one that we presented?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's an interesting kind of setting that somewhere between the expert setting in the expert setting, you assume that you would receive the actual Cardinal value of all the utilities of all possible rankings that you would have presented.",
+                    "label": 1
+                },
+                {
+                    "sent": "Apart from the fact that we have exponentially many rankings, this is we can't get that in our setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's different, so our feedback is weaker than this.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's slightly stronger than the bandit setting right in the bandit setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "You only get feedback for the one ranking that you presented, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And our preference setting we get.",
+                    "label": 1
+                },
+                {
+                    "sent": "Feedback that says this ranking is better than the one that we presented.",
+                    "label": 0
+                },
+                {
+                    "sent": "We never observed any Cardinal values of utility.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just observed this preference.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the simplest algorithm that can use this feedback and is actually surprisingly strong.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you go to Panagos poster, he will show you more sophisticated algorithms that actually have better guarantees, and that are even stronger and more general.",
+                    "label": 0
+                },
+                {
+                    "sent": "The basic assumption that this algorithm makes, we call it the preference perceptron, is that the user's utility can be represented as a linear function in some feature representation of that describes the match between query and ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this joint feature map is the same that you would have in a structural SVM or in conditional random field.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's a it's a linear model.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is the thing that you want to learn.",
+                    "label": 1
+                },
+                {
+                    "sent": "Of course, the users W is unknown.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what the algorithm does is it starts with some W. And it maintains a W in each iteration, so it takes a query or a context X. Presents the ranking that a current order into the algorithms current guess of W is the best ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in a sense, it's purely exploiting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Obtains this feedback ranking that is slightly better than the one that represented.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then updates according to the simple Perceptron style rule.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a very simple algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it actually looks a lot like a multiclass perceptron or structured perceptron, but it's different in the sense that our feedback is different.",
+                    "label": 1
+                },
+                {
+                    "sent": "We don't get the optimal ranking here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We only get one that's slightly better.",
+                    "label": 1
+                },
+                {
+                    "sent": "And our regret is different.",
+                    "label": 0
+                },
+                {
+                    "sent": "We measure regret in terms of utility difference of this unknown function of the user, not in terms of misclassification rate or something like that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what can we prove about this algorithm?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the big assumption is that we assume that it's linear, but can be kernelized.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it can make this a kernelized algorithm as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in that sense, it could be nonlinear.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's not really an assumption, but it's a characterization.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our feedback.",
+                    "label": 0
+                },
+                {
+                    "sent": "How strong our feedback is, and we call this Alpha informative feedback.",
+                    "label": 0
+                },
+                {
+                    "sent": "And basically what this says is this is the ranking get represented?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the ranking that's optimal.",
+                    "label": 0
+                },
+                {
+                    "sent": "The best utility ranking and this is the ranking that the user gives us.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this Alpha here shows us or kind of characterizes how much better in terms of total distance does the user feedback get than the one that we've presented.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if Alpha is equal to five, it would be in the middle here.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's oh point 1, it's like 10% better.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can also have violations of this feedback and then you incur some slack here so that not every feedback has to be Alpha informative.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get a regret bound for this algorithm where get that the upper bound on the regret is a term that this case square root and T which is kind of like a perceptron style.",
+                    "label": 0
+                },
+                {
+                    "sent": "Decay, even in the in the experts say.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then this R times W that's the same R times W that you would have like in a support vector machine or or a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or in regular perceptron as well, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is kind of a bound on your feature space.",
+                    "label": 0
+                },
+                {
+                    "sent": "Diameter, and this is the norm of the weight vector that the user describes.",
+                    "label": 0
+                },
+                {
+                    "sent": "The users utility function and then if you have violations, if you have noise in your process, you get this additional noise term in there as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you go to panagos poster, you can also say they see that this you can relax this informative elf informative feedback assumption that just has to hold an expectation you can go get rid of the linear restriction to linear can have kind of convex function convex loss function as well, and you can come up with algorithms that are log T / T here not square root of T.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here is an experiment again for web search.",
+                    "label": 1
+                },
+                {
+                    "sent": "And using so this plots DCG at five.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a standard information retrieval measure, and our model that our algorithm uses.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our linear model is basically the same, just that we stick in here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our kind of linear approximation of the true ratings that the judges gave.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as you can see I mean regret the case and so Alpha equals one would mean ideal feedback.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's this green curve.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then Alpha getting closer to 0 here means that the feedback becomes kind of just the steps that the ranking is better is just tiny little bit better.",
+                    "label": 0
+                },
+                {
+                    "sent": "But even for mid range alphas you get something like on the get good convergence in the order of hundreds of iterations, not millions of iterations so much much faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is something you can do for your desktop search.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so let me wrap up.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I talked about.",
+                    "label": 0
+                },
+                {
+                    "sent": "These kind of motivated by these online information systems about this these learning problems which are really a cycle that involves both the algorithm and the user and it requires designing an appropriate algorithm for kind of assumptions or model of user behavior that is accurate and you have to really think about both parts of this process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it comes down to becoming an online learning problem is partial observations and really.",
+                    "label": 1
+                },
+                {
+                    "sent": "I think one of the take home messages is that if you're working with implicit usage data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then really, you should interpret this as preferences.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interpret them on some kind of Cardinal or absolute scale is very difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "Preferences are much more reliable.",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually have additional experiments that drive home the point that I didn't mention here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And typically I mean if you think back what assumptions are made about or the models of user behavior, probably model the user as some kind of approximately boundedly rational agent.",
+                    "label": 1
+                },
+                {
+                    "sent": "And so I think that's a. Proximation, but it's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a good guiding principle.",
+                    "label": 0
+                },
+                {
+                    "sent": "I talked about these two algorithms where if one algorithm do algorithm guided exploration of figuring out which pairs to present, the user gives a preference bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you get things like scaling in kind of essentially in the size of your of your action space versus the learning by user driven exploration, where the algorithm is purely next exploitation algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you are now using that the user does some exploration for you and that actually this tiny little bit of exploration that the user does actually gives you quite strong results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interesting, obvious, interesting question is how to combine the two and I'm happy to talk to you about that at the Post or somewhere right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you?",
+                    "label": 0
+                },
+                {
+                    "sent": "Hope they.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Do you?",
+                    "label": 0
+                },
+                {
+                    "sent": "The features for the individual document or combine those so these these are feature vectors for the whole ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are aggregated from the individual documents, so one of the aggregation methods was.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I know it doesn't say it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yes it does say it here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is one way you could aggregate the document features into into ranking features.",
+                    "label": 0
+                },
+                {
+                    "sent": "Understanding methodology.",
+                    "label": 0
+                },
+                {
+                    "sent": "This part of the experiment, so you took some number of students and you gave him a search problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And with those questions and you watched everything they did.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you re ranked at the end of that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Serious.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the rankings were based on the cumulative impacts of all of the users based on the individual user.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this user study this was purely using Google.",
+                    "label": 0
+                },
+                {
+                    "sent": "There was no learning involved, we just wanted to understand how users actually browse the results and how do they make clicks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this was this involved, no learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Additional things that we actually did in this user study is we did eye tracking.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in particular, we wanted to see if.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If a user actually reads results, whether user reach results from top to bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "So actually the real feedback signal is, you know, has the user looked at this result and decided to not click on it, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's actually the real.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a real signal that you're getting from the eye tracking.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could see whether people actually made an informed decision about the not click results.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yes they do.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is in your yes, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how did you meet?",
+                    "label": 0
+                },
+                {
+                    "sent": "John Deere algorithm at that point, based on their various signals?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or did you then do another test with your own engine to see how those parameters with playing with no no.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was this was actually done in 2005 already.",
+                    "label": 0
+                },
+                {
+                    "sent": "This user study and we're just reusing the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the end of the original study was actually different.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this was a second analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think it doesn't will be around prostitution as well, so you can ask additional questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

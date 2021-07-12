@@ -1,0 +1,1227 @@
+{
+    "id": "nipszdxllhz3wnw3ykx47jwcpn3bcq24",
+    "title": "Scalable Learning in Computer Vision",
+    "info": {
+        "author": [
+            "Adam Coates, Baidu, Inc."
+        ],
+        "published": "Jan. 19, 2010",
+        "recorded": "December 2009",
+        "category": [
+            "Top->Computer Science->Computer Vision"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops09_coates_slcv/",
+    "segmentation": [
+        [
+            "Thanks, thank the gentleman from Yahoo for yielding the remainder of this time.",
+            "Yeah.",
+            "I'm going to stop by.",
+            "Future to lunch.",
+            "The thing I'm going to talk about here is a scalable learning, an important application area, computer vision and this is joint work with my lab mates unlikely and reject Raina.",
+            "We gotta talk about some of their results here too.",
+            "And of course, with my advisor and reading all of this is Stanford.",
+            "So I'd like to start with this slide today."
+        ],
+        [
+            "Sort of remind myself and everyone that computer vision is painfully hard.",
+            "This is an image that's sort of extreme, but really brings home the point.",
+            "This is from an old system we used on our robot where you've asked the robot to go find coffee mugs and use some simple off the shelf machine learning algorithm and it just as terribly.",
+            "Not only does it find the coffee mugs, but it finds pretty much everything else.",
+            "And.",
+            "One of the things that makes us so hard is that we're using these."
+        ],
+        [
+            "Small datasets and.",
+            "If you think about the task that you're putting in front of your learning algorithm, you only get to see, say, 800 or 1000 coffee mugs, and then maybe thousands of negative examples and suddenly you're being asked to deal with the real world and common data set sizes and computer vision applications range in the hundreds to thousands of labeled examples and with the very largest datasets being in the 10s of thousands and then beyond that you have only synthetic data with maybe 10s of thousands of points."
+        ],
+        [
+            "But like I said, the real world is really complicated and it's hard to get extremely high accuracy to the point that your robot becomes useful if you haven't seen enough real imagery yet.",
+            "So here's a plot of a simple learning algorithm trying to identify clawhammer's like you might have in your shop is something we want our robot to be able to find and go pick up.",
+            "And you can see that if our training set sizes down around 1000 examples up through maybe 30,000 examples, you're getting good performance.",
+            "90% area under curve at best, but that's still not enough for a useful robot.",
+            "If your robot comes back with the wrong object 10% of the time, you're probably not going to be happy spending $100,000 on it."
+        ],
+        [
+            "So.",
+            "If we want to go to large datasets, we sort of have to accept that this is a bit of a game changer for computer vision in that when we were when we're working on small datasets, that tradition is to be developing these very clever features that are designed to be robust to lighting and have lots of invariants to them.",
+            "And we work on very clever models that account for high level structure that we understand as humans, but with large datasets we sort of need to take a different tack.",
+            "We need to use simpler features that will scale up to all of these types of.",
+            "To this size of data set and we also want to use much simpler models, things that are generic that work on lots of objects and they don't require so much human knowledge.",
+            "And for that we're going to need to rely on machine learning to solve essentially all of the problems involved."
+        ],
+        [
+            "So the first thing I'm going to talk about is how we might do this with supervised learning.",
+            "And to."
+        ],
+        [
+            "Think about the problems we have to deal with here.",
+            "Here's the sort of standard pipeline for learning and vision.",
+            "As we take some image data that we've collected maybe by hand or off the Internet, hopefully with labels.",
+            "And then we want to scale that up to giving us really large datasets.",
+            "And then we take these images.",
+            "We compute some low level features, say we run edge detectors or texture features, and then we take those features and input them into some kind of machine learning algorithm.",
+            "And each of these key components has to be scaled up so that we don't have a bottleneck.",
+            "We've actually got to fix each one of these in order to tackle large datasets."
+        ],
+        [
+            "So one way to handle the data set problem is to use synthetic data because we don't have enough labeled data for our algorithms to learn all of the knowledge that they need.",
+            "So if they want to learn lighting variation, then they need to see the same object under lots of different lighting conditions, object pose, interclass variation.",
+            "All of this is just way too much for hand labeled datasets.",
+            "So one simple way around this that's been taken before is to try to synthesize lots of positive examples, and of course negative examples come essentially for free 'cause you can download lots of images off of Flickr, and very few of them will have Hammers in them.",
+            "And even if we just synthesize this to have lighting variation in background variation in them, that's a whole lot easier than sitting around trying to design features that take into account all of those things by hand.",
+            "So how this actually works in practice is well."
+        ],
+        [
+            "Make an object like our hammer here and we'll put it on a green screen background that has a turntable underneath.",
+            "Then we can segment the object out from the backdrop, synthesize it on a random background which is just images from around our building or off of the Internet, and then we can apply a whole bunch of different types of photo, photometric and geometric distortions too.",
+            "Sort of imitate the kinds of things that can happen to you in real life, like under exposed images or overexposed images or camera distortion."
+        ],
+        [
+            "And even though it's not as good as real data, in practice it's actually pretty reasonable.",
+            "So for comparison, on the top or some finished synthetic examples, some of which are really awfully hard, like the one in the center, and then some real examples from around our office and the one on the right is actually.",
+            "Pretty pretty difficult.",
+            "In fact, when you see it in a whole size image, it's tough for a human to realize it's there, but in fact the system can find things like this.",
+            "The datasets are close enough for practical purposes."
+        ],
+        [
+            "So going back to our pipeline, we say now we've got all of this synthetic image data.",
+            "For instance, maybe we can build 100 million examples, maybe a 10,000,000 positives, let's say in 90 million negatives.",
+            "And we can come up with, let's say, 1000 features.",
+            "We'd like to have 1000 features for our learning algorithm.",
+            "That means we need to be computing about 100 billion feature values.",
+            "In order to just put this into our learning algorithm in the 1st place.",
+            "So now we have a new bottleneck and."
+        ],
+        [
+            "To sort of tackle this we we can look at a current hardware trend, which is that it's getting really difficult to scale up feature computations on CPU's.",
+            "CPUs have been designed for very general purpose computing.",
+            "They have branch prediction out of order instructions really.",
+            "Deep caches and GPU's on the other hand, graphics cards have been designed for very repetitive workloads that can be done in parallel and as a result the computational power of GPU's is is outstripping CPUs.",
+            "Quite rare."
+        ],
+        [
+            "So the features that we decided to use are simple cross correlations with image patches.",
+            "We extract a bunch of image patches from positive examples that we've sent the size and then you just compute cross correlation over a small region with this image Patch.",
+            "And then there's some Max pooling in there and that's it.",
+            "And the nice thing about this is that cross correlation can be implemented brute force on the GPU and that turns out to be incredibly fast, and in fact so fast for reasonably sized filters that it's even faster than running an FFT, which is an asymptotically efficient thing to do.",
+            "The hardware is just so good at all.",
+            "These floating point multiplies and adds that that you don't even need to do that.",
+            "This thing turns out to be even quicker, and it goes without saying that this is orders of magnitude faster than anything you can do on a CPU.",
+            "So, so this is a critical way to update your feature computations.",
+            "If you want to scale to really big datasets, because this is letting us tackle 20 to 100 times as much data in the same amount of time."
+        ],
+        [
+            "And finally, if we want to actually learn anything from this, we're going to have to scale up our learning algorithm to be able to handle 100 million labeled examples.",
+            "And the real trouble here now is that we have 100 million, namely 100 billion feature values on disk, and in order to train this learning algorithm, we're going to have to spin through all of them eventually.",
+            "So you can imagine one simple thing you might try is to take your favorite online learning algorithm, which we know can learn from basically unlimited data, just handed new examples in sequence.",
+            "But the trouble is that you're going to be bottlenecked on disk access, and it's going to take you a really long time, and because of hard disks being.",
+            "Rotational and we can build RAID arrays and things, but it's still orders of magnitude slower than just keeping things in memory.",
+            "So how do we solve that?",
+            "I think all this stuff."
+        ],
+        [
+            "Guys.com or or newegg.com solution which is that if we have to store everything in RAM, that's no problem.",
+            "We just go buy more RAM.",
+            "Because if you wait around long enough for a sale, you can get RAM for $20 a GB and you can build a machine with 12 gigabytes of RAM in it, which is which means you can build a very inexpensive cluster that can accommodate over 100 million examples, all in memory at once.",
+            "And this is for 1000 features, which we quantize down to one byte each, which turns out not to be such a bad approximation."
+        ],
+        [
+            "So what kinds of algorithms work well in this sort of situation?",
+            "We know that we have to distribute it if you're using multiple machines, and we know that algorithms that can be trained from sufficient statistics of the data work well in this situation.",
+            "So we decided to use boosted decision trees because one way that you can train a decision tree is actually to split up your data across all of the machines, build histograms of each feature for each chunk of the data, and then you send all the histograms back to a master machine, add them together.",
+            "And that histogram is basically the same as you would get if you were to run everything on one machine and from this sufficient statistic of the data you can compute the correct split for your decision tree just as though you were running it on a single machine."
+        ],
+        [
+            "So now we've gone through each section of this and we've scaled everything up by a pretty large factor.",
+            "And even though 10X is not even close to 1000 X, the thing that we kind of found was that.",
+            "We weren't really using all of our resources before, so these things are actually kind of all on par.",
+            "Now that the amount of time it takes a human to go and buy Hammers from Home Depot and collect all the data is roughly the same amount of time as it takes to compute all the features which and synthesize all the examples.",
+            "Which is, you know, 4 five hours for 100 million of them, and then the learning algorithm takes another five or six hours.",
+            "And so these things are all taking about the same amount of time, so this is pretty well optimized and it scales extremely well with the hardware.",
+            "So."
+        ],
+        [
+            "What happens?",
+            "Turns out that this actually makes a big difference.",
+            "If you look at the left half, that's the plot I showed earlier, and as you go up to 1,000,000 examples, 10,000,000 examples and getting close to 100 million examples, this actually gets you into the high 90s in terms of accuracy.",
+            "So that's not quite a commercial grade robot yet, but we're actually starting to get very close and you can see that the trend is still sort of going there, and it's not clear yet how far you can go, so we're hoping that with even larger datasets you might be able to improve on this.",
+            "Still a little bit more."
+        ],
+        [
+            "So I'm going to sort of.",
+            "Branch off in another direction briefly here to explain one other way that we might consider trying to scale up to large datasets.",
+            "And remember that I explained that we're using this synthesis approach where we have to set an object out and let you see all the different sides of it.",
+            "And we also are using a bunch of hand hand engineered features."
+        ],
+        [
+            "So in order to collect all of that data, even it still takes a fair amount of time and not to mention the fact that you still have to go to Home Depot and buy a lot of Hammers.",
+            "Which actually gets to be a little funny.",
+            "'cause people wonder why you spent $1000 on your grant on Hammers.",
+            "So we sort of like to do better than that so that we don't have to do this for every single object class.",
+            "We don't want to have to go collect 1000 motorcycles, for instance.",
+            "So in traditional supervised learning, this is sort of what we're stuck with.",
+            "We have to go find a bunch of examples of cars, a bunch of examples of motorcycles, for instance, label them, and then ask what is this?",
+            "But there's this framework that's been proposed by Rajesh Raina, hung likely and entering.",
+            "Where we say, well, maybe we can only do with a few examples of cars."
+        ],
+        [
+            "Motorcycles and then somehow try to leverage unlabeled images, a bunch of natural images to sort of tell us about the world and learn good features of the world that can then be reused and make our learning tasks simpler.",
+            "And hopefully that means we need a little bit less data or.",
+            "If we have a lot of data can improve our performance overall."
+        ],
+        [
+            "So the part that we're actually working on here is using more image data, but for the purpose of improving our low level features.",
+            "So where do we get these good low level features right now?"
+        ],
+        [
+            "And it turns out in computer vision that we're using mostly very carefully hand constructed ones, and computer vision has been working for quite awhile to build all of these amazing features that can detect lots of interesting local structures, but unfortunately it's not clear how to generalize the ideas contained in these two really high level abstractions.",
+            "And it's also a little bit unsatisfying that.",
+            "We're not really sure if this is exhaustive.",
+            "We don't know if these are right for the application, we just sort of have to try them and hope it works."
+        ],
+        [
+            "So if we want to learn features, we can try using an unsupervised algorithm.",
+            "So deep belief networks, which we've all likely heard of this sort of neural net like algorithms where we can think of this bottom layer of nodes as being the input pixels in an image, and then the next layer up each node is a feature or a response to some kind of pattern.",
+            "And each node is responding to a different pattern, and if you use an algorithm like sparse coding, it turns out that this learns some very interesting features.",
+            "In particular, it learns edge detectors, which of course are a very popular low level feature in computer vision, and that has a relationship to what is actually in our visual cortex.",
+            "The kinds of features that were."
+        ],
+        [
+            "And with some work you can actually extend this to even higher layers and learn higher level extractions.",
+            "For instance, combinations of edges that are similar to what we have at higher levels of the human visual system.",
+            "But it's sort of an open question Now, what happens if we go to higher and higher layers?",
+            "And what happens is we use more and more data and the big challenge here is that this thing is incredibly difficult to train.",
+            "It's very expensive to train, because if your input images say 100 by 100, then you have 10,000 weights for each hidden node in the first layer times the number of hidden nodes, and you can already get up too many millions of parameters.",
+            "And in order to actually train.",
+            "All of these weights without overfitting.",
+            "You're going to need millions of examples, so that creates a very large number of learning updates that you have to do, which is very difficult right now."
+        ],
+        [
+            "So one way to get around this again is to return to GPU's, where it's actually pretty easy to batch these updates on the graphics card, and it turns out that this actually makes a huge difference, again because GPU's are really great at these sort of repetitive high intensity computations that CPU's aren't designed for.",
+            "So this is some work by reject Raina where she shows.",
+            "Essentially that whereas previous work has really been restricted to the left side of this graph, you could only train and maybe a few million parameters if you had 10,000,000 examples with the help of GPU's, which we hope will be with us for quite awhile, you can bring down this computation time by a factor of 70, and so you can think of trying to train 70 times as many weights now or on 70 times as much data."
+        ],
+        [
+            "So the outputs of these things are pretty remarkable.",
+            "This is from some work on smaller training sets that we can handle.",
+            "Right now we can't run it on completely natural images alone, but if you use just unlabeled examples of a bunch of different objects, you don't tell the algorithm which object is which, and then you scale this algorithm up so that you can do a whole bunch of layers with really large images.",
+            "It turns out that it learns some pretty cool things like object part detectors, and it learns object models and so now using these GPU's were able to train very complex networks.",
+            "And it's able to learn increasingly complex features.",
+            "And the sort of interesting thing about this, and why we think it's very promising for supervised learning and other learning algorithms, is that these features could be useful for classification and so on, because they're on the one hand more generic, we can get them for lots of different objects.",
+            "It works for audio, lots of different kinds of sensor data.",
+            "All at the same time.",
+            "Also more specific to our application, we don't have to hand engineer our own features for these situations anymore."
+        ],
+        [
+            "So to conclude, the performance gains that we get in terms of accuracy from really large training sets are really significant, and even for a very simple learning algorithm off the shelf like boosted decision trees that people have been using for quite awhile and which actually do much better once you scale them up to 10s of millions or 100 million examples.",
+            "And the kind of neat thing about this is that if you design your whole system to be scalable with current hardware, then these algorithms sort of get better for free as hardware improves.",
+            "So we've we've just bought a new cluster that had more RAM or GPU's and everything, and suddenly you can handle twice as much or three times as much data, even though it's not really that much newer.",
+            "It's not that much more expensive.",
+            "And also unsupervised algorithms promises really high quality features.",
+            "So one of the restrictions right now is that our features may not be expressive enough to separate all of the data, or there may be lots of ambiguity or data may not be very well clustered in that space.",
+            "But unsupervised learning will maybe allow us to learn very simple properties of the world such that these higher level problems of classification become much easier.",
+            "The trick there being that we need to figure out how to scale these algorithms up to these kinds of datasets.",
+            "And finally, just as a side note, GPU's are a major enabling technology for all of this.",
+            "We think these are going to be really key in the future for scaling up to much larger datasets and giving us improve performance because the computation, the computational workloads that we're starting to create are very specific to these kinds of architectures."
+        ],
+        [
+            "Glad I can take questions.",
+            "Thank you.",
+            "Yeah, actually there's no reason you can't use a GPU for building up histograms.",
+            "You would just need to load the data onto the GPU and then you know, let it run every once in awhile.",
+            "So the nice thing is you only have to load the data into memory once and then after that any any old processor that can build a histogram will do it just so happens for the number of GPU's that we have versus the number of CPUs that we have.",
+            "You know as well as the amount of time I have to implement all these things.",
+            "You know that turns out to be the better trade off, but.",
+            "I think the first CUDA program you write will take like a week to actually, you know, debug it and figure out you know how it all works.",
+            "After that.",
+            "It's actually not so bad.",
+            "I think the abstraction there is actually kind of reasonable for most parallel jobs, so you can't write, you know, air traffic control systems in it, or anything horribly complicated.",
+            "But if your goal is to write something straightforward like you want to do edge detectors or convolutions, then it will take you a couple of days at most.",
+            "Now so basically we have 100 million examples which is about 100 gigabytes of memory.",
+            "So current GPU's you need about 100 of them, which which we don't have.",
+            "So this is one reason we keep it all in main memory on the system.",
+            "So basically all of the features are computed on the GPU.",
+            "As sort of a preprocess, and I want you have all of those feature vectors, they go into main memory and then your multicore CPUs go through and use this for training decision trees.",
+            "These are just sort of separate stages in the algorithm that are separate.",
+            "So this kind of a missing primitive experiences online learning.",
+            "Every good ways to do online learning?",
+            "If you get, it seems like it be a silver one with the amount is.",
+            "How do you place data?",
+            "Yeah, it assuming that you know if it's more like an incremental type of algorithm, right where you can go through the data set once.",
+            "Then I think that might actually work well.",
+            "The trick you know when we tried simple things like perceptron and such just for curiosity, the thing that kills you is you need to go back through the data set more than once and that really ends up kicking your butt, so keeping it all in memory.",
+            "If you can do it is nice but but I think you're right that would be cool.",
+            "One in the back.",
+            "Yeah.",
+            "Cars.",
+            "Right, so there's.",
+            "Whole bunch of issues in there, so the first one was scaling up to full 3 dimensions.",
+            "Right now we're doing sort of the very simple thing of splitting different orientations into separate classes.",
+            "Which is sort of to deal with the expressiveness of boosted decision trees, but.",
+            "There's no reason that you can't do this for full 3 dimensions, but your algorithm has to be able to recognize much wider fields of view, so we're still working on that.",
+            "The thing that's sort of unsaid in this talk is the amount of time it takes you to run at Test time, which if you have, say, 10 different orientations that you're trying to recognize is not such a big deal.",
+            "But if you go to full 3D now, you may have, say, 1000 orientations that you want to recognize, and that can be pretty prohibitive, so we're not sure how to get around that just yet.",
+            "I think the sort of classical vision algorithms that handle this are not.",
+            "They're not scalable in this way, and I'm sorry.",
+            "What was the second part of that again?",
+            "Right, so we're working on small numbers again.",
+            "You know, there's some cool stuff about feature sharing that we're hoping hoping to implement so that you can do lots of classes at once, but that's still in the future.",
+            "Yeah.",
+            "Yeah, at this point since everything is independent on the various GPU's.",
+            "If you you know you give us twice as many GPU's then we'll train either twice as many data points or twice as fast that there's no restriction at this point as far as having more GPU's.",
+            "Thank you very much."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Thanks, thank the gentleman from Yahoo for yielding the remainder of this time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to stop by.",
+                    "label": 0
+                },
+                {
+                    "sent": "Future to lunch.",
+                    "label": 0
+                },
+                {
+                    "sent": "The thing I'm going to talk about here is a scalable learning, an important application area, computer vision and this is joint work with my lab mates unlikely and reject Raina.",
+                    "label": 1
+                },
+                {
+                    "sent": "We gotta talk about some of their results here too.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, with my advisor and reading all of this is Stanford.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'd like to start with this slide today.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Sort of remind myself and everyone that computer vision is painfully hard.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an image that's sort of extreme, but really brings home the point.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is from an old system we used on our robot where you've asked the robot to go find coffee mugs and use some simple off the shelf machine learning algorithm and it just as terribly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not only does it find the coffee mugs, but it finds pretty much everything else.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the things that makes us so hard is that we're using these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Small datasets and.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think about the task that you're putting in front of your learning algorithm, you only get to see, say, 800 or 1000 coffee mugs, and then maybe thousands of negative examples and suddenly you're being asked to deal with the real world and common data set sizes and computer vision applications range in the hundreds to thousands of labeled examples and with the very largest datasets being in the 10s of thousands and then beyond that you have only synthetic data with maybe 10s of thousands of points.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But like I said, the real world is really complicated and it's hard to get extremely high accuracy to the point that your robot becomes useful if you haven't seen enough real imagery yet.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here's a plot of a simple learning algorithm trying to identify clawhammer's like you might have in your shop is something we want our robot to be able to find and go pick up.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see that if our training set sizes down around 1000 examples up through maybe 30,000 examples, you're getting good performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "90% area under curve at best, but that's still not enough for a useful robot.",
+                    "label": 0
+                },
+                {
+                    "sent": "If your robot comes back with the wrong object 10% of the time, you're probably not going to be happy spending $100,000 on it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want to go to large datasets, we sort of have to accept that this is a bit of a game changer for computer vision in that when we were when we're working on small datasets, that tradition is to be developing these very clever features that are designed to be robust to lighting and have lots of invariants to them.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we work on very clever models that account for high level structure that we understand as humans, but with large datasets we sort of need to take a different tack.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to use simpler features that will scale up to all of these types of.",
+                    "label": 0
+                },
+                {
+                    "sent": "To this size of data set and we also want to use much simpler models, things that are generic that work on lots of objects and they don't require so much human knowledge.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for that we're going to need to rely on machine learning to solve essentially all of the problems involved.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the first thing I'm going to talk about is how we might do this with supervised learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Think about the problems we have to deal with here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the sort of standard pipeline for learning and vision.",
+                    "label": 0
+                },
+                {
+                    "sent": "As we take some image data that we've collected maybe by hand or off the Internet, hopefully with labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we want to scale that up to giving us really large datasets.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then we take these images.",
+                    "label": 0
+                },
+                {
+                    "sent": "We compute some low level features, say we run edge detectors or texture features, and then we take those features and input them into some kind of machine learning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And each of these key components has to be scaled up so that we don't have a bottleneck.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've actually got to fix each one of these in order to tackle large datasets.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So one way to handle the data set problem is to use synthetic data because we don't have enough labeled data for our algorithms to learn all of the knowledge that they need.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if they want to learn lighting variation, then they need to see the same object under lots of different lighting conditions, object pose, interclass variation.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of this is just way too much for hand labeled datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one simple way around this that's been taken before is to try to synthesize lots of positive examples, and of course negative examples come essentially for free 'cause you can download lots of images off of Flickr, and very few of them will have Hammers in them.",
+                    "label": 0
+                },
+                {
+                    "sent": "And even if we just synthesize this to have lighting variation in background variation in them, that's a whole lot easier than sitting around trying to design features that take into account all of those things by hand.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how this actually works in practice is well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Make an object like our hammer here and we'll put it on a green screen background that has a turntable underneath.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then we can segment the object out from the backdrop, synthesize it on a random background which is just images from around our building or off of the Internet, and then we can apply a whole bunch of different types of photo, photometric and geometric distortions too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of imitate the kinds of things that can happen to you in real life, like under exposed images or overexposed images or camera distortion.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And even though it's not as good as real data, in practice it's actually pretty reasonable.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for comparison, on the top or some finished synthetic examples, some of which are really awfully hard, like the one in the center, and then some real examples from around our office and the one on the right is actually.",
+                    "label": 1
+                },
+                {
+                    "sent": "Pretty pretty difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, when you see it in a whole size image, it's tough for a human to realize it's there, but in fact the system can find things like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "The datasets are close enough for practical purposes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So going back to our pipeline, we say now we've got all of this synthetic image data.",
+                    "label": 0
+                },
+                {
+                    "sent": "For instance, maybe we can build 100 million examples, maybe a 10,000,000 positives, let's say in 90 million negatives.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we can come up with, let's say, 1000 features.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'd like to have 1000 features for our learning algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "That means we need to be computing about 100 billion feature values.",
+                    "label": 1
+                },
+                {
+                    "sent": "In order to just put this into our learning algorithm in the 1st place.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we have a new bottleneck and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To sort of tackle this we we can look at a current hardware trend, which is that it's getting really difficult to scale up feature computations on CPU's.",
+                    "label": 1
+                },
+                {
+                    "sent": "CPUs have been designed for very general purpose computing.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have branch prediction out of order instructions really.",
+                    "label": 0
+                },
+                {
+                    "sent": "Deep caches and GPU's on the other hand, graphics cards have been designed for very repetitive workloads that can be done in parallel and as a result the computational power of GPU's is is outstripping CPUs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quite rare.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the features that we decided to use are simple cross correlations with image patches.",
+                    "label": 1
+                },
+                {
+                    "sent": "We extract a bunch of image patches from positive examples that we've sent the size and then you just compute cross correlation over a small region with this image Patch.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there's some Max pooling in there and that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the nice thing about this is that cross correlation can be implemented brute force on the GPU and that turns out to be incredibly fast, and in fact so fast for reasonably sized filters that it's even faster than running an FFT, which is an asymptotically efficient thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "The hardware is just so good at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "These floating point multiplies and adds that that you don't even need to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "This thing turns out to be even quicker, and it goes without saying that this is orders of magnitude faster than anything you can do on a CPU.",
+                    "label": 1
+                },
+                {
+                    "sent": "So, so this is a critical way to update your feature computations.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to scale to really big datasets, because this is letting us tackle 20 to 100 times as much data in the same amount of time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And finally, if we want to actually learn anything from this, we're going to have to scale up our learning algorithm to be able to handle 100 million labeled examples.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the real trouble here now is that we have 100 million, namely 100 billion feature values on disk, and in order to train this learning algorithm, we're going to have to spin through all of them eventually.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can imagine one simple thing you might try is to take your favorite online learning algorithm, which we know can learn from basically unlimited data, just handed new examples in sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the trouble is that you're going to be bottlenecked on disk access, and it's going to take you a really long time, and because of hard disks being.",
+                    "label": 1
+                },
+                {
+                    "sent": "Rotational and we can build RAID arrays and things, but it's still orders of magnitude slower than just keeping things in memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do we solve that?",
+                    "label": 0
+                },
+                {
+                    "sent": "I think all this stuff.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Guys.com or or newegg.com solution which is that if we have to store everything in RAM, that's no problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "We just go buy more RAM.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because if you wait around long enough for a sale, you can get RAM for $20 a GB and you can build a machine with 12 gigabytes of RAM in it, which is which means you can build a very inexpensive cluster that can accommodate over 100 million examples, all in memory at once.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is for 1000 features, which we quantize down to one byte each, which turns out not to be such a bad approximation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what kinds of algorithms work well in this sort of situation?",
+                    "label": 0
+                },
+                {
+                    "sent": "We know that we have to distribute it if you're using multiple machines, and we know that algorithms that can be trained from sufficient statistics of the data work well in this situation.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we decided to use boosted decision trees because one way that you can train a decision tree is actually to split up your data across all of the machines, build histograms of each feature for each chunk of the data, and then you send all the histograms back to a master machine, add them together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that histogram is basically the same as you would get if you were to run everything on one machine and from this sufficient statistic of the data you can compute the correct split for your decision tree just as though you were running it on a single machine.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now we've gone through each section of this and we've scaled everything up by a pretty large factor.",
+                    "label": 1
+                },
+                {
+                    "sent": "And even though 10X is not even close to 1000 X, the thing that we kind of found was that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We weren't really using all of our resources before, so these things are actually kind of all on par.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that the amount of time it takes a human to go and buy Hammers from Home Depot and collect all the data is roughly the same amount of time as it takes to compute all the features which and synthesize all the examples.",
+                    "label": 1
+                },
+                {
+                    "sent": "Which is, you know, 4 five hours for 100 million of them, and then the learning algorithm takes another five or six hours.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so these things are all taking about the same amount of time, so this is pretty well optimized and it scales extremely well with the hardware.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What happens?",
+                    "label": 0
+                },
+                {
+                    "sent": "Turns out that this actually makes a big difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at the left half, that's the plot I showed earlier, and as you go up to 1,000,000 examples, 10,000,000 examples and getting close to 100 million examples, this actually gets you into the high 90s in terms of accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's not quite a commercial grade robot yet, but we're actually starting to get very close and you can see that the trend is still sort of going there, and it's not clear yet how far you can go, so we're hoping that with even larger datasets you might be able to improve on this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Still a little bit more.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I'm going to sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Branch off in another direction briefly here to explain one other way that we might consider trying to scale up to large datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "And remember that I explained that we're using this synthesis approach where we have to set an object out and let you see all the different sides of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we also are using a bunch of hand hand engineered features.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in order to collect all of that data, even it still takes a fair amount of time and not to mention the fact that you still have to go to Home Depot and buy a lot of Hammers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which actually gets to be a little funny.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause people wonder why you spent $1000 on your grant on Hammers.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we sort of like to do better than that so that we don't have to do this for every single object class.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't want to have to go collect 1000 motorcycles, for instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in traditional supervised learning, this is sort of what we're stuck with.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have to go find a bunch of examples of cars, a bunch of examples of motorcycles, for instance, label them, and then ask what is this?",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's this framework that's been proposed by Rajesh Raina, hung likely and entering.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where we say, well, maybe we can only do with a few examples of cars.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Motorcycles and then somehow try to leverage unlabeled images, a bunch of natural images to sort of tell us about the world and learn good features of the world that can then be reused and make our learning tasks simpler.",
+                    "label": 0
+                },
+                {
+                    "sent": "And hopefully that means we need a little bit less data or.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have a lot of data can improve our performance overall.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the part that we're actually working on here is using more image data, but for the purpose of improving our low level features.",
+                    "label": 0
+                },
+                {
+                    "sent": "So where do we get these good low level features right now?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And it turns out in computer vision that we're using mostly very carefully hand constructed ones, and computer vision has been working for quite awhile to build all of these amazing features that can detect lots of interesting local structures, but unfortunately it's not clear how to generalize the ideas contained in these two really high level abstractions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's also a little bit unsatisfying that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not really sure if this is exhaustive.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't know if these are right for the application, we just sort of have to try them and hope it works.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So if we want to learn features, we can try using an unsupervised algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So deep belief networks, which we've all likely heard of this sort of neural net like algorithms where we can think of this bottom layer of nodes as being the input pixels in an image, and then the next layer up each node is a feature or a response to some kind of pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "And each node is responding to a different pattern, and if you use an algorithm like sparse coding, it turns out that this learns some very interesting features.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, it learns edge detectors, which of course are a very popular low level feature in computer vision, and that has a relationship to what is actually in our visual cortex.",
+                    "label": 0
+                },
+                {
+                    "sent": "The kinds of features that were.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And with some work you can actually extend this to even higher layers and learn higher level extractions.",
+                    "label": 0
+                },
+                {
+                    "sent": "For instance, combinations of edges that are similar to what we have at higher levels of the human visual system.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's sort of an open question Now, what happens if we go to higher and higher layers?",
+                    "label": 0
+                },
+                {
+                    "sent": "And what happens is we use more and more data and the big challenge here is that this thing is incredibly difficult to train.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very expensive to train, because if your input images say 100 by 100, then you have 10,000 weights for each hidden node in the first layer times the number of hidden nodes, and you can already get up too many millions of parameters.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in order to actually train.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these weights without overfitting.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're going to need millions of examples, so that creates a very large number of learning updates that you have to do, which is very difficult right now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So one way to get around this again is to return to GPU's, where it's actually pretty easy to batch these updates on the graphics card, and it turns out that this actually makes a huge difference, again because GPU's are really great at these sort of repetitive high intensity computations that CPU's aren't designed for.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is some work by reject Raina where she shows.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially that whereas previous work has really been restricted to the left side of this graph, you could only train and maybe a few million parameters if you had 10,000,000 examples with the help of GPU's, which we hope will be with us for quite awhile, you can bring down this computation time by a factor of 70, and so you can think of trying to train 70 times as many weights now or on 70 times as much data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the outputs of these things are pretty remarkable.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is from some work on smaller training sets that we can handle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right now we can't run it on completely natural images alone, but if you use just unlabeled examples of a bunch of different objects, you don't tell the algorithm which object is which, and then you scale this algorithm up so that you can do a whole bunch of layers with really large images.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that it learns some pretty cool things like object part detectors, and it learns object models and so now using these GPU's were able to train very complex networks.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it's able to learn increasingly complex features.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the sort of interesting thing about this, and why we think it's very promising for supervised learning and other learning algorithms, is that these features could be useful for classification and so on, because they're on the one hand more generic, we can get them for lots of different objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "It works for audio, lots of different kinds of sensor data.",
+                    "label": 0
+                },
+                {
+                    "sent": "All at the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also more specific to our application, we don't have to hand engineer our own features for these situations anymore.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to conclude, the performance gains that we get in terms of accuracy from really large training sets are really significant, and even for a very simple learning algorithm off the shelf like boosted decision trees that people have been using for quite awhile and which actually do much better once you scale them up to 10s of millions or 100 million examples.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the kind of neat thing about this is that if you design your whole system to be scalable with current hardware, then these algorithms sort of get better for free as hardware improves.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've we've just bought a new cluster that had more RAM or GPU's and everything, and suddenly you can handle twice as much or three times as much data, even though it's not really that much newer.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not that much more expensive.",
+                    "label": 1
+                },
+                {
+                    "sent": "And also unsupervised algorithms promises really high quality features.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of the restrictions right now is that our features may not be expressive enough to separate all of the data, or there may be lots of ambiguity or data may not be very well clustered in that space.",
+                    "label": 0
+                },
+                {
+                    "sent": "But unsupervised learning will maybe allow us to learn very simple properties of the world such that these higher level problems of classification become much easier.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trick there being that we need to figure out how to scale these algorithms up to these kinds of datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, just as a side note, GPU's are a major enabling technology for all of this.",
+                    "label": 1
+                },
+                {
+                    "sent": "We think these are going to be really key in the future for scaling up to much larger datasets and giving us improve performance because the computation, the computational workloads that we're starting to create are very specific to these kinds of architectures.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Glad I can take questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, actually there's no reason you can't use a GPU for building up histograms.",
+                    "label": 0
+                },
+                {
+                    "sent": "You would just need to load the data onto the GPU and then you know, let it run every once in awhile.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the nice thing is you only have to load the data into memory once and then after that any any old processor that can build a histogram will do it just so happens for the number of GPU's that we have versus the number of CPUs that we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know as well as the amount of time I have to implement all these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know that turns out to be the better trade off, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think the first CUDA program you write will take like a week to actually, you know, debug it and figure out you know how it all works.",
+                    "label": 0
+                },
+                {
+                    "sent": "After that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's actually not so bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think the abstraction there is actually kind of reasonable for most parallel jobs, so you can't write, you know, air traffic control systems in it, or anything horribly complicated.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if your goal is to write something straightforward like you want to do edge detectors or convolutions, then it will take you a couple of days at most.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now so basically we have 100 million examples which is about 100 gigabytes of memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So current GPU's you need about 100 of them, which which we don't have.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is one reason we keep it all in main memory on the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically all of the features are computed on the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "As sort of a preprocess, and I want you have all of those feature vectors, they go into main memory and then your multicore CPUs go through and use this for training decision trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are just sort of separate stages in the algorithm that are separate.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this kind of a missing primitive experiences online learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every good ways to do online learning?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you get, it seems like it be a silver one with the amount is.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you place data?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, it assuming that you know if it's more like an incremental type of algorithm, right where you can go through the data set once.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I think that might actually work well.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trick you know when we tried simple things like perceptron and such just for curiosity, the thing that kills you is you need to go back through the data set more than once and that really ends up kicking your butt, so keeping it all in memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you can do it is nice but but I think you're right that would be cool.",
+                    "label": 0
+                },
+                {
+                    "sent": "One in the back.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cars.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so there's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whole bunch of issues in there, so the first one was scaling up to full 3 dimensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right now we're doing sort of the very simple thing of splitting different orientations into separate classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is sort of to deal with the expressiveness of boosted decision trees, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no reason that you can't do this for full 3 dimensions, but your algorithm has to be able to recognize much wider fields of view, so we're still working on that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The thing that's sort of unsaid in this talk is the amount of time it takes you to run at Test time, which if you have, say, 10 different orientations that you're trying to recognize is not such a big deal.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you go to full 3D now, you may have, say, 1000 orientations that you want to recognize, and that can be pretty prohibitive, so we're not sure how to get around that just yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think the sort of classical vision algorithms that handle this are not.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're not scalable in this way, and I'm sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "What was the second part of that again?",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so we're working on small numbers again.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, there's some cool stuff about feature sharing that we're hoping hoping to implement so that you can do lots of classes at once, but that's still in the future.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, at this point since everything is independent on the various GPU's.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you you know you give us twice as many GPU's then we'll train either twice as many data points or twice as fast that there's no restriction at this point as far as having more GPU's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you very much.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

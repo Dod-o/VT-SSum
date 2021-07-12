@@ -1,0 +1,1836 @@
+{
+    "id": "2k7skh2o4ahxff4x7xjdgfdonkvvmuh5",
+    "title": "Jointly Learning to Parse and Perceive: Connecting Natural Language to the Physical World",
+    "info": {
+        "author": [
+            "Jayant Krishnamurthy, Computer Science Department, Carnegie Mellon University"
+        ],
+        "published": "Oct. 2, 2013",
+        "recorded": "August 2013",
+        "category": [
+            "Top->Computer Science->Computational Linguistics"
+        ]
+    },
+    "url": "http://videolectures.net/acl2013_krishnamurthy_parse/",
+    "segmentation": [
+        [
+            "Hi everyone, I'm Jan and today I'm going to talk about some work we've been doing at Carnegie Mellon on trying to connect natural language onto the physical world.",
+            "Before I start, I just want to mention that the title in the program is wrong, so this is the correct title.",
+            "If you do want to look at the paper, just you know it's kind of a mess up.",
+            "OK, So what do I mean by connecting natural language with the physical world?"
+        ],
+        [
+            "Well, this is sort of the problem of taking a natural language statement and mapping it onto the objects, events, actions, locations in the real world that that statement refers to.",
+            "And I think this is an interesting problem really, for two reasons.",
+            "The first reason is a very practical one, which is like, say, robotic applications.",
+            "If you want to give a natural language command to robot and you want to be able to execute this command, it's going to need to be able to find the objects in the environment better than my office.",
+            "All of these things, so this is we're going to be able to solve this sort of grounded language understanding type problems for these robotics applications.",
+            "The other reason I think this is an exciting area is because it's a really great way to test out different theories of semantics.",
+            "So right now we have a lot of different ways of thinking about semantics.",
+            "We can do vector space semantics, frame semantics.",
+            "All these things, we don't have a sort of common tasks that we can try.",
+            "All of these things on and I like grounded language understanding because it's sort of unambiguous.",
+            "If you give the robot a command and it does the right thing, and you do this 200 times, who can say that this robot doesn't really understand language?",
+            "So from this perspective, I think it's a great task, at least some subset of language, I mean, anyway, so I think this is a great task to consider now in this paper we're not going to consider this exact robot command understanding task.",
+            "Instead, we're going to the following task."
+        ],
+        [
+            "The input in this House is going to be an image along with a collection of bounding boxes around the objects in the image.",
+            "So here there's four bounding boxes, including the table.",
+            "I hope you can see the table and then the second input will be a natural language description such as the mugs and the output is the set of objects which that description refers to.",
+            "So in this case it's the two mugs.",
+            "Now obviously this is a very simple piece of language I can give you more complex piece of language like the mug to the left of the monitor, and again the output is the set of objects.",
+            "In this case is only one referred to by that statement.",
+            "Now just to give you a preview of where this entire talks going to what I'm going to do is I'm going to introduce a model for solving this problem, which can be trained using the data that you see here and achieves about 70% accuracy on held out images, so that's sort of just the summary of what's going to happen in this talk.",
+            "Now there's a couple of things I want to mention about this problem which differentiate it from work that people have considered in the past.",
+            "The first thing is that the output is set valued, so there's been some work on similar problems in robotics where they sort of assumed that each word Maps onto a single object in the environment, and here we're not going to make that assumption here.",
+            "We're going to use.",
+            "Sets such as mugs referring to sets of objects.",
+            "The second thing I'd like to point out is that we're not given a knowledge base operate, so there's been some work where people have sort of assumed the environment has a logical representation and tried to map onto that, or there's things like semantic parsing, which assume a logical environment representation.",
+            "Here, we're not going to do anything like that.",
+            "And finally, we're also going to handle relational language, so we're going to have relations like left the most similar to ours is actually this Matuszak paper, which has done a similar task, but only for categories, so it's only done like Mugen blew.",
+            "It can't handle relations like left.",
+            "So that's just kind of a summary of what's different about this task in previous work.",
+            "OK."
+        ],
+        [
+            "That sort of brings me to what I'm going to talk about.",
+            "So the first thing I'm going to do is I'm going to introduce my model or our model for solving this problem, which we call logical semantics with perception.",
+            "Then I'm going to do some weakly supervised training procedure, which is going to allow us to estimate parameters for this model using the kind of training data which I just showed you, and then finally I'll present some experiments, sort of examining the performance of our model under some different circumstances.",
+            "OK."
+        ],
+        [
+            "So.",
+            "This is again the task that we're trying to do.",
+            "We get some language, we get an image which I'm going to call the environment here and our goal is to predict some set of objects and the way we're going to do this analysis.",
+            "We're going to have a three step process, the 1st."
+        ],
+        [
+            "We're going to do is we're going to semantically parse the input natural language and produce the logical form.",
+            "So in this paper we're going to sort of standard CCG Luke Zettlemoyer style semantic parser for this step.",
+            "Now.",
+            "One thing you'll notice that the logical form here does have some logical predicates in them, and you might wonder where they came from.",
+            "When I said we're not getting giving ourselves a logical representation, but we just make up a set of predicates based on the training data.",
+            "OK, so these are just invented predicates, they're not, you know, they don't have any definition as input.",
+            "OK, the next thing we're going to do is we're going to take this environment and we're going to map it onto a logical knowledge representation instead."
+        ],
+        [
+            "Which I call perception.",
+            "So this here is sort of my schematic representation of our logical knowledge base, which contains both one argument predicates like mug and the set of objects which are mugs along with two argument predicates like relation like left and a set of tuples for those predicates, basically representing the set of things which are left of other things right?",
+            "So here the first argument is left of the second argument.",
+            "OK, and then finally, once we've produced both the semantic parts and this knowledge base, it's actually quite easy to produce the output set.",
+            "All you have to do is evaluate the semantic parse on the."
+        ],
+        [
+            "Remember that a semantic parse is essentially just a database query, and this thing here is essentially a database, so this is kind of a deterministic thing.",
+            "You can do.",
+            "You can imagine just like a select and join kind of situation.",
+            "OK, so this is the high level overview of the LSP model and I'll just point out that the only components this model."
+        ],
+        [
+            "Really need to be learned.",
+            "Are these two components here?",
+            "We need to learn a semantic parser and we also need to learn a perception function which can perceive the environment.",
+            "Anne.",
+            "OK, also just you know the slide is very pictorial, but this is kind of a graphical model structure of how LSD works.",
+            "So you can imagine replacing each of these things with just like a node and a variable, and these things with edges.",
+            "And it's a Markov network, so I can actually just convert the mathematical formula for you like this."
+        ],
+        [
+            "So we're going to set up the LC models, a maximum margin Markov network, and it's going to three components like.",
+            "We just saw a parsing component which takes some parameters Theta parse and uses that to pick a logical form given some natural language input.",
+            "The perception function similarly is going to take some image and environment and produce this knowledge base and finally the evaluation function is going to deterministically produce this output set.",
+            "OK, now I'm not going to talk too much about the semantic parsing function.",
+            "As I mentioned, we're using a sort of standard CCG semantic parser here, but you can basically think about it as a kind of linear model where we derive some features from the parse tree and then train some parameters to discriminate between the possible semantic parses.",
+            "I will talk about this perception function because it looks like this could be a little bit complicated, right?",
+            "We have as input this image and output this like set of lots of sense.",
+            "So how are we going to do that?",
+            "Well, if you think about the knowledge base in the right way, this is actually very, very straightforward."
+        ],
+        [
+            "Basic idea is this.",
+            "Our goal in the knowledge base is to produce the set of objects which are mugs.",
+            "One way to think about that as simply take every object and decide whether or not that object is a mug independently of all other decisions.",
+            "So that's what we're going to do here, right?",
+            "This is kind of a schematic.",
+            "View the knowledge base.",
+            "From that perspective, you know, we've decided these two things are mug and that thing is not a bug.",
+            "So if we think about the knowledge base this way, I think it's easy to see that we can just treat this as a sort of set of classification problems.",
+            "And that's exactly what we're going to do.",
+            "So we'll assume that for each object we have some feature function.",
+            "Which can compute some feature vector from this object.",
+            "So in our case these are kind of image segment features which we're just going to look at the visual properties of this image and pull out some feature vector and then for each one argument predicate we're going to train a independent classifier using some parameters here like Theta mug to decide whether or not this object is a mug or not OK and similarly going to have different set of parameters for each other product will have a different set of parameters for blue etc.",
+            "Now for relations were going to the same thing, except the features are going to find over pairs of objects and similar going to classify whether or not they are, you know, in the set.",
+            "So hopefully this view of producing knowledge base makes sense to you and I'll just say a word about the features that we're going to do this task.",
+            "So these features here are going to be the hog features along with the kind of color histogram and these relation features.",
+            "We're going to try and capture sort of spatial relationships between the objects, so we're going to do things like vectors between the centroids of the objects and things like that.",
+            "OK.",
+            "So this is the."
+        ],
+        [
+            "LSP model now I'm going to talk about how we're going to train this model using the kind of training data which I showed you in the beginning.",
+            "So."
+        ],
+        [
+            "Here's what that training data looks like.",
+            "We have a natural language statement and we have an environment and image, and we have the annotated output as like the set of objects that we're trying to predict.",
+            "But we don't get to observe a semantic parse or the knowledge base, which are sort of responsible for producing that output.",
+            "So what we're going to do is we're just going to perform subgradient descent and treat these two values like hidden variables throughout the training procedure.",
+            "I'll give you an idea of what that looks like here.",
+            "I'll just show you how to perform a single subgradient update."
+        ],
+        [
+            "So here's the basic idea.",
+            "Here's our training example, right?",
+            "The first thing we have to do, let's pretend this is the training example that we're trying to update on right, we're going to iterate over the data set.",
+            "Look at each example and do an update for each example, right?",
+            "So here's the example.",
+            "The first thing we need to do to do a parameter update is solve some inference problems.",
+            "Now actually should say a word about inference in this model in general, which is that a test time when you have a natural language statement.",
+            "I'll explain the math, just hold on so at Test time when you have a natural language statement and an image, it's actually very easy to compute the correct output, and that's because the evaluation function in LSP's deterministic.",
+            "So if you simply choose the best semantic parsing, the best knowledge base you can just evaluate that parts on the knowledge base and produce the best output.",
+            "So at Test time, inference in LSP is actually tractable.",
+            "Unfortunately at training time.",
+            "There's these constraints on the output value which had to get propagated back through this evaluation function, and they affect the semantic parse and the knowledge base that you want to pick, so that inference problem becomes a little bit harder.",
+            "So the two inference that we solve during training are we need to find first.",
+            "This is like the best prediction of the model under the current parameters.",
+            "OK, so we're going to pick the best semantic parse, the best knowledge base, and the best output set.",
+            "You'll notice there's a funny little cost term here.",
+            "That's what makes it a maximum margin model as opposed to structured perceptron.",
+            "We're using a Hamming cost, which basically is like the difference between the predicted set and the output set.",
+            "You pay a cost of one for each entity.",
+            "The next thing we need to compute is the best explanation for the correct output.",
+            "So this is the semantic parsing knowledge base which are assigned the highest weight under the model that produced the output that was annotated.",
+            "And to solve these infant problems, as I mentioned, these are kind of hard inference problems.",
+            "What we do is we actually do a beam search over the semantic parses and then we have to solve this integer linear program to figure out the best knowledge base.",
+            "In practice is actually pretty fast.",
+            "I mean the model trains in 10 minutes, so it's not a big deal, but for larger domains this could be a problem.",
+            "OK, so now that we've solved these inference problems, what do we do to update our parameters?",
+            "Well, in normal perceptron style training, what you do is you move towards the features of the correct thing away from the features of the incorrect thing.",
+            "That's the same thing we're going to do here for the semantic parser.",
+            "All we do is we move towards the features of the best semantic parse, the semantic parse which explained the labeled output and away from the features of the semantic parse which we predicted, but maybe did not produce the right output.",
+            "You'll notice that if we predicted semantic parts and the true semantic parts are the same, the parameters won't change.",
+            "Right these two 5 parse feature vectors will be equal.",
+            "For the knowledge base again, remember the knowledge base is really collection of different binary classifiers.",
+            "So what I'll do is I'll just show you the update for a single binary classifier."
+        ],
+        [
+            "So here's kind of a schematic of what this is going to look like.",
+            "Let's pretend in our in our predicted knowledge base, this gamma hat we predicted this set for mug.",
+            "And let's pretend in the true knowledge base we predicted that's over there.",
+            "The parameter update is essentially going to.",
+            "Add the feature vectors for things which are in the true set and not in the predicted set, and subtract the ones in this set and not in that set.",
+            "So really this is just a generalization of a subgradient update for an SVM.",
+            "This classifier is essentially just an SVM, except we're doing five or three examples here at a time, right?",
+            "So there's multiple sort of feature vectors that you've had in subtract in there.",
+            "OK, so this is sort of the weakly supervised training procedure that we're going to use to train the parameters of our model."
+        ],
+        [
+            "Now I'm going to talk about some experiments we've done using this model and the way, wow, I'm talking really fast, awesome.",
+            "Lots of time for questions, so I'll talk about some experiments.",
+            "We created two different datasets for these experiments."
+        ],
+        [
+            "The first data set is the one I've been showing you the scene understanding data set and the way this data set worked is we sort of took a number of images of indoor environments like the one I've shown you here, and we collected some language using both members of our research group and Mechanical Turk.",
+            "So this is a pretty.",
+            "Hairy piece of language that someone on Mechanical Turk said.",
+            "But you know, there's also similar language in there as well, and then we manually went through.",
+            "We annotated the set of objects referred to by each statement.",
+            "And in this data set there's 15 different images and there's 284 different natural language descriptions.",
+            "Now the second data set is when I haven't talked about a lot at all, but I wanted to mention in the talk because the LSV model is actually more generic than just doing this image understanding problem.",
+            "So we created the second data set which is kind of a Geo query like data set and the way this data set works is input.",
+            "The model is going to map like this.",
+            "Over here the map contains things like states that contains cities.",
+            "It contains parks.",
+            "UF is a forest, AO is the Atlantic Ocean, so contains a bunch of different physical features and we're also going to get as training data are going to natural language questions.",
+            "These are a lot like the kind of questions you find a jQuery.",
+            "What cities are in what states, what things border with other things, and the goal is to output.",
+            "You know, the set of objects which are the answer to the question.",
+            "OK, now I'll mention that the thing that distinguishes this task from Geo queries that in Geo query you get this great database that you can use to run your semantic parses on and get the answers here.",
+            "You don't get any database here, you actually get a map where the map is represented as polygons of latitude, longitude coordinates, right?",
+            "So it's it's pretty similar to what I've shown you.",
+            "It's just a collection of these sort of lines that the model gets to see which bound all of the entities on the map.",
+            "And from this sort of bounding box information, you need to infer you know what cities are in what states.",
+            "What does in mean you need to infer things like what states border each other, right?",
+            "That's also something that model has to learn it's not given.",
+            "And in this data set there's a ten of these Maps and 263 natural language questions.",
+            "OK, let me talk about how the experiments are going to work so we don't have that much data.",
+            "So what we're going to do is we're going to leave one environment out cross validation.",
+            "What that means is we're going to train on, say, 14 of these images and all of the descriptions in those images, and they were going to valuate on the held out image OK."
+        ],
+        [
+            "So let's pretend this is our held out image.",
+            "at Test time.",
+            "You know the model is going to give an image that it's never been that's never seen before.",
+            "A natural language description for that image, and we're going to know you know what the correct set of objects is for that for that description.",
+            "So what we're going to evaluate?",
+            "Accuracy is we're going to have a model make a prediction, some set of objects which it thinks the description refers to, and we're going to label correctness like this.",
+            "If the set exactly matches the annotated set, we're going to say is correct.",
+            "So for example, here this is clearly correct.",
+            "This is clearly wrong.",
+            "But this is also a case that happens right?",
+            "You can predict more objects than are actually in the annotated set.",
+            "And this is also incorrect.",
+            "You don't get any partial credit for getting some overlap with the annotation.",
+            "This is just a zero, and so the number I'm going to report it simply accuracy, which is the fraction of these test examples for which the model produces exactly the right output set of objects.",
+            "OK.",
+            "So.",
+            "I'm going to talk about results for the scene data set, 'cause I think we're a little bit more familiar with that first."
+        ],
+        [
+            "OK, now the goal of our experiments is really two things.",
+            "First, we want to evaluate whether relations are really important for solving these tasks, right?",
+            "We want to know how well the model learns relations and if they actually help performance, because that's kind of one of the contributions of this work.",
+            "The other thing we want evaluate is weather weekly supervised training is actually effective.",
+            "So you can imagine building a sort of fully supervised procedure for the same problem and seeing how well that did so.",
+            "Those are the two comparisons were going to make and before I present the way we're going to sort of introduce oblated versions of our model.",
+            "Which kind of mimic those conditions, and then we'll compare the sort of procedure and talking about so far with those different models.",
+            "So let me present results for what I've been talking about the whole time, which is the model with categories and relations and trained with weak supervision.",
+            "So here's the performance results.",
+            "So overall, ignore these columns.",
+            "For second, we'll get to that.",
+            "Overall, you can see we're getting about 67% of these for 67% of these descriptions in this unknown image were collect correctly, selecting the set of objects that that description refers to.",
+            "So that's pretty good.",
+            "I'll note that random chance on this task is about 6%, and the reason it's so low is because the output is a set of objects, right?",
+            "So if there's four or five objects in the scene, the probability of choosing the right object is like 1 / 2 to the number of objects, so it's pretty low.",
+            "This 67% encouraging now another thing that we did just to sort of better understand model performance is we sort of separated out the test examples into a number of different categories based on the complexity of the language that you need to understand in order to get the answer right.",
+            "So this is basically based on the number of relations that we think are in the description.",
+            "So we did zero relations.",
+            "Things like Blue Mug where you only need sort of one place.",
+            "Predicates we did one relation so this thing has left of and we did other and other is mostly things which are just not covered by our model.",
+            "For example here there's a superlative closest, which is not something you can model with a relation.",
+            "There's also queries with two relations another, but those are actually pretty rare in our data set, so it's not.",
+            "It's not that confusing of the number, and as you can see actually on the things that are within our model scope.",
+            "The things with zero or one relation.",
+            "We're actually doing much better than 70%.",
+            "We're getting close to 80 or 90% here.",
+            "85 Maybe so it's really the sort of out of scope queries that are models failing on.",
+            "OK, so now I'm going to do the comparison against the determine if relations are going to work and the way we're going to do is going to sort of updated version of our model which only uses one argument, category predicates, and we're going to train the model using the same weekly supervised procedure we've been talking about this whole time, and so the way that this model is going to work is whenever it sees a relational phrase like left of, it's going to pretend that it just ignores that relation and everything to the right of it and just take sort of the head word.",
+            "So the mug left of the monitor is equivalent to the mug to this model.",
+            "And this model is actually sort of equivalent in expressive power to this Matuszak model.",
+            "They were kind of training it with our procedure or not their procedure.",
+            "So there's a slight difference there in comparison.",
+            "OK, so from these results what we can see is overall again our model outperforms this category only model and mostly because on one one relation queries you know there's a dramatic difference in performance here.",
+            "So this suggests that you do need to understand relations on this data set in order to get the right answer, and that our model does a reasonable job of learning these relations.",
+            "OK, now finally we want to know if weekly supervised training is an effective training procedure and the way we're going to do a comparison here.",
+            "We're going to build a fully supervised version of our LSP model and the way this is going to work as we kind of went through our data set and we looked at every single natural language description and we manually annotated a semantic parser.",
+            "This description and then we looked at every image and we manually created a knowledge base with all the predicates and all the annotations of what products work.",
+            "So you can imagine this is actually fairly painful to do.",
+            "But given these annotations, it's really easy to train LSP.",
+            "All you have to do is train a semantic parser and these perception classifiers independently, and then you can combine them in this framework to predict the answer.",
+            "So how does fully supervised training perform well about the same as weakly supervised training?",
+            "You can see that there's about a 3% difference in performance over here overall, so this is an encouraging result, right?",
+            "The weekly supervised training procedure is competitive with fully supervised training, while requiring way less manual annotation."
+        ],
+        [
+            "I'll just briefly mention that we see similar trends on the other data set.",
+            "The Geo QA data set.",
+            "Specifically, we see that the category and relation model outperforms the category only model.",
+            "Actually, much more dramatically, in this case, specifically because these one relation queries are much better.",
+            "In this case, the zero relation queries are better two and then the category plus REL like the full supervision model, performs pretty closely to the weekly supervised model in this data set as well.",
+            "So this is kind of a confirming result which suggests that these results are stable across different datasets."
+        ],
+        [
+            "OK, I just want to sum up here.",
+            "So what I've done in this talk is introduced a model for this grounded language acquisition problem called logical semantics.",
+            "With perception, this model is capable of learning both categorial and relational language.",
+            "And the way it works is it trains a semantic parser and also a set of perceptual classifiers jointly.",
+            "I've also introduced the weakly supervised training procedure, which estimates parameters for this model using natural language descriptions paired with the objects that they refer to in the image, without any need to annotate semantic parses or knowledge bases or anything like that.",
+            "And finally, I just want to mention that all the data that we use this experiment is available online in case you're interested in solving similar problems, so that's it, thank you.",
+            "Since you only have 15 images, can you show them to us?",
+            "Oh, I didn't include that here, but I can if you want to.",
+            "I'm sorry.",
+            "OK yeah.",
+            "So So what kind of objects do you have?",
+            "I mean I can see how many different kinds of modular monitors and you also a little bit more, but that's the image.",
+            "Data set is actually very simple.",
+            "It's the same set of objects, but they are rearranged in position in the scene.",
+            "OK, obviously if you have 15 images, you can't expect to train a mug classifier, which generalizes well, right?",
+            "So don't don't expect that were like solving vision here.",
+            "We're trying to do the sort of.",
+            "We are doing vision.",
+            "We're just doing a very simple form of vision.",
+            "Yes, for the for the geography data set.",
+            "The objects are completely different in every scene.",
+            "I mean, there's different states, so I basically just chunked up the United States into different segments, right?",
+            "So it's completely different states, completely different places, but you do get to know their names in that case, so that's a little bit easier, right?",
+            "OK, so just want to make sure I understand the model.",
+            "The predicates as they are instantiated sort of in semantic parsing.",
+            "Landon Visionland are shared across.",
+            "Yeah, they're the same predicate and you, and even though they're not labeled, you tell the system in advance.",
+            "You know you have two 2 argument predicates to work within one.",
+            "Yeah, So what we do is we actually this is sort of something I kind of glossed over 'cause I was going to time, but I guess I didn't.",
+            "But basically what we do is we kind of induced dyslexic on for the semantic parser and this is kind of a heuristic procedure where you just look at all the language and we kind of generate these lexicon entries which have these predicates which are derived from the word lemma.",
+            "It's like we see words like Mugen mugs.",
+            "We create a predicate mug that kind of like abstracts mug to that predicate.",
+            "For these experiments we actually we actually did some manual filtering of that set.",
+            "You don't have to do this, you get pretty similar results if you don't do this.",
+            "But we had this like error analysis in the paper which kind of requires us to do that.",
+            "But it took like 2 minutes, so it's not.",
+            "Not a lot of annotation.",
+            "OK, cool, thank you.",
+            "Thanks for a nice talk.",
+            "I have one question about negative examples.",
+            "Can you tell us something whether or not you use those in training and or testing?",
+            "For instance red mugs or the table on top of the monitor or stuff like that?",
+            "Well, so negative example.",
+            "That's a good question and the question here is really what is a negative example, right?",
+            "And in the model and negative examples actually like an object which is not in the set that's being described right?",
+            "So if I say mug and I don't annotate table in that set, that kind of is a negative example for training the mug classifier.",
+            "Right, so those are incorporated into training, but it's not like explicitly required to use like language that doesn't refer to anything in the data set, but like it's just with your robot example.",
+            "You if you ask for a pen on the table, you actually would want for your robot to say like, OK, so I'm sorry I don't find any pen on the table, so that's Oh yeah, so the model can predict nothing that does actually happen.",
+            "So in the geography data set, for example, some of the questions are like is Sacramento in Nevada.",
+            "And then the answer is the empty set.",
+            "So that can actually happen, thank you.",
+            "So I'm curious about this other category that you introduced and you have the example of the closest which insert your Dick terms.",
+            "You have a set of objects, and for each of them stand in the same relation and you have some property over this relation.",
+            "And you mentioned this and a few other examples that you didn't see which are harder for the for the system to obtain good accuracy and click.",
+            "This is my impression and the question is where do you think the bottleneck is in the features of the visual side where you maybe don't have the dimension?",
+            "Or is it something in the semantic representation that's essentially missing too?",
+            "Know that?",
+            "OK, so the question here is about how you can learn things like closest like superlatives or these other things.",
+            "Yeah, and this is really a limitation of just the way that we set up the kind of categories in relations.",
+            "So closest isn't really a relation that you can imagine learning as a binary predicate, because really, what you want to do sort of rank the objects on how close they are to each other and then pick the one that's closest right?",
+            "So it's not really like a like a relation that you can detect, so it's the semantic representation.",
+            "Yeah, so I think the way that we solve that is we did induce a sort of more complex logical formula.",
+            "Right and then we have to do inference and all that, but we haven't figured out.",
+            "Again you have.",
+            "This result shows that what you're calling.",
+            "The weekly supervised setting get does pretty much as well as the fully labeled setting, in which all the latent structure is labeled, so there's no longer latent, obviously.",
+            "But I was wondering, do you have any idea how this would scale?",
+            "So it seems to me that within your domain you can probably afford to compute enough analysis that you have some Oracle you have.",
+            "Basically the correct analysis somewhere in your beam.",
+            "Even if you're not getting it right, and so this sort of weekly this week signal is probably good enough.",
+            "Do you think as you get up to much bigger scenes where you can't afford to compute that many analysis for each scene?",
+            "You'd only in very few cases get this with this girl, so that's a good question, and I think I think you're right in that if you get more complex language, you know it is harder to get this beam search to find the right analysis.",
+            "But the thing about this is also you can imagine that there's kind of an incremental nature to this task, right?",
+            "If I know what mug means, and I've learned that pretty well.",
+            "But it's easier to learn what the mug left of the monitor is, right?",
+            "Yeah, so you can imagine that as long as you have sort of a gradient of kind of complex to simple examples, it'll be a little bit easier to solve those kinds of tasks.",
+            "And actually in our data set we do have, you know, some things which are only categories, right?",
+            "Some people say like the blue mug and then it's a little bit easier, and those actually do help us learn the whole thing.",
+            "Do you have many things that you can't get anywhere in the beam to start at the beginning of learning, but you can get towards the end?",
+            "There aren't that many parses of any given sentence.",
+            "I mean, you know.",
+            "We're talking like, I think the average is like 1520, so it's not.",
+            "You know it's not a problem, right?",
+            "Yeah, the beam is, the beam is like 1000 and you never run out thanks.",
+            "Can you talk about how you actually learn the lexicon?",
+            "And if you use any part of speech tags?",
+            "Or yeah, so we use parts like tags and it's just heuristics on those.",
+            "So basically we look at the part of speech tagger thing and then we take kind of like a table and we just kinda OK.",
+            "It's a noun, so we're going to create the one argument predicate.",
+            "Yeah, prior linguistic knowledge as compared to a Matuszek, I don't think they're doing this crap stuff.",
+            "So in Matuszak they use annotated semantic parses and then they use UBL to induce the lexecon.",
+            "So that's actually.",
+            "I mean, I don't know if you want to call that more work or less work.",
+            "There's sort of different work, right?",
+            "So I'm not sure exactly what that comparison should be.",
+            "Thank you.",
+            "Thank you, let's thank our speaker."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Hi everyone, I'm Jan and today I'm going to talk about some work we've been doing at Carnegie Mellon on trying to connect natural language onto the physical world.",
+                    "label": 0
+                },
+                {
+                    "sent": "Before I start, I just want to mention that the title in the program is wrong, so this is the correct title.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do want to look at the paper, just you know it's kind of a mess up.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, So what do I mean by connecting natural language with the physical world?",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Well, this is sort of the problem of taking a natural language statement and mapping it onto the objects, events, actions, locations in the real world that that statement refers to.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I think this is an interesting problem really, for two reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first reason is a very practical one, which is like, say, robotic applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to give a natural language command to robot and you want to be able to execute this command, it's going to need to be able to find the objects in the environment better than my office.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these things, so this is we're going to be able to solve this sort of grounded language understanding type problems for these robotics applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other reason I think this is an exciting area is because it's a really great way to test out different theories of semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So right now we have a lot of different ways of thinking about semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can do vector space semantics, frame semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "All these things, we don't have a sort of common tasks that we can try.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these things on and I like grounded language understanding because it's sort of unambiguous.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you give the robot a command and it does the right thing, and you do this 200 times, who can say that this robot doesn't really understand language?",
+                    "label": 0
+                },
+                {
+                    "sent": "So from this perspective, I think it's a great task, at least some subset of language, I mean, anyway, so I think this is a great task to consider now in this paper we're not going to consider this exact robot command understanding task.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instead, we're going to the following task.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The input in this House is going to be an image along with a collection of bounding boxes around the objects in the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here there's four bounding boxes, including the table.",
+                    "label": 0
+                },
+                {
+                    "sent": "I hope you can see the table and then the second input will be a natural language description such as the mugs and the output is the set of objects which that description refers to.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in this case it's the two mugs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now obviously this is a very simple piece of language I can give you more complex piece of language like the mug to the left of the monitor, and again the output is the set of objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case is only one referred to by that statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now just to give you a preview of where this entire talks going to what I'm going to do is I'm going to introduce a model for solving this problem, which can be trained using the data that you see here and achieves about 70% accuracy on held out images, so that's sort of just the summary of what's going to happen in this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there's a couple of things I want to mention about this problem which differentiate it from work that people have considered in the past.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first thing is that the output is set valued, so there's been some work on similar problems in robotics where they sort of assumed that each word Maps onto a single object in the environment, and here we're not going to make that assumption here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sets such as mugs referring to sets of objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second thing I'd like to point out is that we're not given a knowledge base operate, so there's been some work where people have sort of assumed the environment has a logical representation and tried to map onto that, or there's things like semantic parsing, which assume a logical environment representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here, we're not going to do anything like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, we're also going to handle relational language, so we're going to have relations like left the most similar to ours is actually this Matuszak paper, which has done a similar task, but only for categories, so it's only done like Mugen blew.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can't handle relations like left.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's just kind of a summary of what's different about this task in previous work.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That sort of brings me to what I'm going to talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first thing I'm going to do is I'm going to introduce my model or our model for solving this problem, which we call logical semantics with perception.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then I'm going to do some weakly supervised training procedure, which is going to allow us to estimate parameters for this model using the kind of training data which I just showed you, and then finally I'll present some experiments, sort of examining the performance of our model under some different circumstances.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is again the task that we're trying to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get some language, we get an image which I'm going to call the environment here and our goal is to predict some set of objects and the way we're going to do this analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to have a three step process, the 1st.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We're going to do is we're going to semantically parse the input natural language and produce the logical form.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this paper we're going to sort of standard CCG Luke Zettlemoyer style semantic parser for this step.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing you'll notice that the logical form here does have some logical predicates in them, and you might wonder where they came from.",
+                    "label": 0
+                },
+                {
+                    "sent": "When I said we're not getting giving ourselves a logical representation, but we just make up a set of predicates based on the training data.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so these are just invented predicates, they're not, you know, they don't have any definition as input.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, the next thing we're going to do is we're going to take this environment and we're going to map it onto a logical knowledge representation instead.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Which I call perception.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this here is sort of my schematic representation of our logical knowledge base, which contains both one argument predicates like mug and the set of objects which are mugs along with two argument predicates like relation like left and a set of tuples for those predicates, basically representing the set of things which are left of other things right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So here the first argument is left of the second argument.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, and then finally, once we've produced both the semantic parts and this knowledge base, it's actually quite easy to produce the output set.",
+                    "label": 1
+                },
+                {
+                    "sent": "All you have to do is evaluate the semantic parse on the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Remember that a semantic parse is essentially just a database query, and this thing here is essentially a database, so this is kind of a deterministic thing.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can do.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can imagine just like a select and join kind of situation.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is the high level overview of the LSP model and I'll just point out that the only components this model.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Really need to be learned.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are these two components here?",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to learn a semantic parser and we also need to learn a perception function which can perceive the environment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, also just you know the slide is very pictorial, but this is kind of a graphical model structure of how LSD works.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can imagine replacing each of these things with just like a node and a variable, and these things with edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's a Markov network, so I can actually just convert the mathematical formula for you like this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we're going to set up the LC models, a maximum margin Markov network, and it's going to three components like.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just saw a parsing component which takes some parameters Theta parse and uses that to pick a logical form given some natural language input.",
+                    "label": 0
+                },
+                {
+                    "sent": "The perception function similarly is going to take some image and environment and produce this knowledge base and finally the evaluation function is going to deterministically produce this output set.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now I'm not going to talk too much about the semantic parsing function.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I mentioned, we're using a sort of standard CCG semantic parser here, but you can basically think about it as a kind of linear model where we derive some features from the parse tree and then train some parameters to discriminate between the possible semantic parses.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will talk about this perception function because it looks like this could be a little bit complicated, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have as input this image and output this like set of lots of sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how are we going to do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if you think about the knowledge base in the right way, this is actually very, very straightforward.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Basic idea is this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our goal in the knowledge base is to produce the set of objects which are mugs.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way to think about that as simply take every object and decide whether or not that object is a mug independently of all other decisions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's what we're going to do here, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is kind of a schematic.",
+                    "label": 0
+                },
+                {
+                    "sent": "View the knowledge base.",
+                    "label": 0
+                },
+                {
+                    "sent": "From that perspective, you know, we've decided these two things are mug and that thing is not a bug.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we think about the knowledge base this way, I think it's easy to see that we can just treat this as a sort of set of classification problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's exactly what we're going to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we'll assume that for each object we have some feature function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which can compute some feature vector from this object.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in our case these are kind of image segment features which we're just going to look at the visual properties of this image and pull out some feature vector and then for each one argument predicate we're going to train a independent classifier using some parameters here like Theta mug to decide whether or not this object is a mug or not OK and similarly going to have different set of parameters for each other product will have a different set of parameters for blue etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now for relations were going to the same thing, except the features are going to find over pairs of objects and similar going to classify whether or not they are, you know, in the set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So hopefully this view of producing knowledge base makes sense to you and I'll just say a word about the features that we're going to do this task.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these features here are going to be the hog features along with the kind of color histogram and these relation features.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to try and capture sort of spatial relationships between the objects, so we're going to do things like vectors between the centroids of the objects and things like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "LSP model now I'm going to talk about how we're going to train this model using the kind of training data which I showed you in the beginning.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Here's what that training data looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a natural language statement and we have an environment and image, and we have the annotated output as like the set of objects that we're trying to predict.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we don't get to observe a semantic parse or the knowledge base, which are sort of responsible for producing that output.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what we're going to do is we're just going to perform subgradient descent and treat these two values like hidden variables throughout the training procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll give you an idea of what that looks like here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll just show you how to perform a single subgradient update.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the basic idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's our training example, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "The first thing we have to do, let's pretend this is the training example that we're trying to update on right, we're going to iterate over the data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look at each example and do an update for each example, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the example.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first thing we need to do to do a parameter update is solve some inference problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now actually should say a word about inference in this model in general, which is that a test time when you have a natural language statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll explain the math, just hold on so at Test time when you have a natural language statement and an image, it's actually very easy to compute the correct output, and that's because the evaluation function in LSP's deterministic.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you simply choose the best semantic parsing, the best knowledge base you can just evaluate that parts on the knowledge base and produce the best output.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at Test time, inference in LSP is actually tractable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately at training time.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's these constraints on the output value which had to get propagated back through this evaluation function, and they affect the semantic parse and the knowledge base that you want to pick, so that inference problem becomes a little bit harder.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the two inference that we solve during training are we need to find first.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is like the best prediction of the model under the current parameters.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so we're going to pick the best semantic parse, the best knowledge base, and the best output set.",
+                    "label": 1
+                },
+                {
+                    "sent": "You'll notice there's a funny little cost term here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what makes it a maximum margin model as opposed to structured perceptron.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're using a Hamming cost, which basically is like the difference between the predicted set and the output set.",
+                    "label": 0
+                },
+                {
+                    "sent": "You pay a cost of one for each entity.",
+                    "label": 1
+                },
+                {
+                    "sent": "The next thing we need to compute is the best explanation for the correct output.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the semantic parsing knowledge base which are assigned the highest weight under the model that produced the output that was annotated.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to solve these infant problems, as I mentioned, these are kind of hard inference problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we do is we actually do a beam search over the semantic parses and then we have to solve this integer linear program to figure out the best knowledge base.",
+                    "label": 0
+                },
+                {
+                    "sent": "In practice is actually pretty fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean the model trains in 10 minutes, so it's not a big deal, but for larger domains this could be a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now that we've solved these inference problems, what do we do to update our parameters?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, in normal perceptron style training, what you do is you move towards the features of the correct thing away from the features of the incorrect thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the same thing we're going to do here for the semantic parser.",
+                    "label": 0
+                },
+                {
+                    "sent": "All we do is we move towards the features of the best semantic parse, the semantic parse which explained the labeled output and away from the features of the semantic parse which we predicted, but maybe did not produce the right output.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll notice that if we predicted semantic parts and the true semantic parts are the same, the parameters won't change.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right these two 5 parse feature vectors will be equal.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the knowledge base again, remember the knowledge base is really collection of different binary classifiers.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I'll do is I'll just show you the update for a single binary classifier.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's kind of a schematic of what this is going to look like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's pretend in our in our predicted knowledge base, this gamma hat we predicted this set for mug.",
+                    "label": 0
+                },
+                {
+                    "sent": "And let's pretend in the true knowledge base we predicted that's over there.",
+                    "label": 0
+                },
+                {
+                    "sent": "The parameter update is essentially going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Add the feature vectors for things which are in the true set and not in the predicted set, and subtract the ones in this set and not in that set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So really this is just a generalization of a subgradient update for an SVM.",
+                    "label": 0
+                },
+                {
+                    "sent": "This classifier is essentially just an SVM, except we're doing five or three examples here at a time, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's multiple sort of feature vectors that you've had in subtract in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is sort of the weakly supervised training procedure that we're going to use to train the parameters of our model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now I'm going to talk about some experiments we've done using this model and the way, wow, I'm talking really fast, awesome.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lots of time for questions, so I'll talk about some experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "We created two different datasets for these experiments.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The first data set is the one I've been showing you the scene understanding data set and the way this data set worked is we sort of took a number of images of indoor environments like the one I've shown you here, and we collected some language using both members of our research group and Mechanical Turk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a pretty.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hairy piece of language that someone on Mechanical Turk said.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you know, there's also similar language in there as well, and then we manually went through.",
+                    "label": 0
+                },
+                {
+                    "sent": "We annotated the set of objects referred to by each statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in this data set there's 15 different images and there's 284 different natural language descriptions.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now the second data set is when I haven't talked about a lot at all, but I wanted to mention in the talk because the LSV model is actually more generic than just doing this image understanding problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we created the second data set which is kind of a Geo query like data set and the way this data set works is input.",
+                    "label": 0
+                },
+                {
+                    "sent": "The model is going to map like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Over here the map contains things like states that contains cities.",
+                    "label": 0
+                },
+                {
+                    "sent": "It contains parks.",
+                    "label": 0
+                },
+                {
+                    "sent": "UF is a forest, AO is the Atlantic Ocean, so contains a bunch of different physical features and we're also going to get as training data are going to natural language questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are a lot like the kind of questions you find a jQuery.",
+                    "label": 1
+                },
+                {
+                    "sent": "What cities are in what states, what things border with other things, and the goal is to output.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, the set of objects which are the answer to the question.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now I'll mention that the thing that distinguishes this task from Geo queries that in Geo query you get this great database that you can use to run your semantic parses on and get the answers here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't get any database here, you actually get a map where the map is represented as polygons of latitude, longitude coordinates, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's it's pretty similar to what I've shown you.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just a collection of these sort of lines that the model gets to see which bound all of the entities on the map.",
+                    "label": 0
+                },
+                {
+                    "sent": "And from this sort of bounding box information, you need to infer you know what cities are in what states.",
+                    "label": 0
+                },
+                {
+                    "sent": "What does in mean you need to infer things like what states border each other, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's also something that model has to learn it's not given.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in this data set there's a ten of these Maps and 263 natural language questions.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, let me talk about how the experiments are going to work so we don't have that much data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to do is we're going to leave one environment out cross validation.",
+                    "label": 0
+                },
+                {
+                    "sent": "What that means is we're going to train on, say, 14 of these images and all of the descriptions in those images, and they were going to valuate on the held out image OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's pretend this is our held out image.",
+                    "label": 0
+                },
+                {
+                    "sent": "at Test time.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the model is going to give an image that it's never been that's never seen before.",
+                    "label": 0
+                },
+                {
+                    "sent": "A natural language description for that image, and we're going to know you know what the correct set of objects is for that for that description.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to evaluate?",
+                    "label": 0
+                },
+                {
+                    "sent": "Accuracy is we're going to have a model make a prediction, some set of objects which it thinks the description refers to, and we're going to label correctness like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the set exactly matches the annotated set, we're going to say is correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, here this is clearly correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is clearly wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is also a case that happens right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You can predict more objects than are actually in the annotated set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is also incorrect.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't get any partial credit for getting some overlap with the annotation.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just a zero, and so the number I'm going to report it simply accuracy, which is the fraction of these test examples for which the model produces exactly the right output set of objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to talk about results for the scene data set, 'cause I think we're a little bit more familiar with that first.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, now the goal of our experiments is really two things.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, we want to evaluate whether relations are really important for solving these tasks, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to know how well the model learns relations and if they actually help performance, because that's kind of one of the contributions of this work.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing we want evaluate is weather weekly supervised training is actually effective.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can imagine building a sort of fully supervised procedure for the same problem and seeing how well that did so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are the two comparisons were going to make and before I present the way we're going to sort of introduce oblated versions of our model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which kind of mimic those conditions, and then we'll compare the sort of procedure and talking about so far with those different models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me present results for what I've been talking about the whole time, which is the model with categories and relations and trained with weak supervision.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the performance results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So overall, ignore these columns.",
+                    "label": 0
+                },
+                {
+                    "sent": "For second, we'll get to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Overall, you can see we're getting about 67% of these for 67% of these descriptions in this unknown image were collect correctly, selecting the set of objects that that description refers to.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's pretty good.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll note that random chance on this task is about 6%, and the reason it's so low is because the output is a set of objects, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if there's four or five objects in the scene, the probability of choosing the right object is like 1 / 2 to the number of objects, so it's pretty low.",
+                    "label": 0
+                },
+                {
+                    "sent": "This 67% encouraging now another thing that we did just to sort of better understand model performance is we sort of separated out the test examples into a number of different categories based on the complexity of the language that you need to understand in order to get the answer right.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is basically based on the number of relations that we think are in the description.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we did zero relations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things like Blue Mug where you only need sort of one place.",
+                    "label": 0
+                },
+                {
+                    "sent": "Predicates we did one relation so this thing has left of and we did other and other is mostly things which are just not covered by our model.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example here there's a superlative closest, which is not something you can model with a relation.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also queries with two relations another, but those are actually pretty rare in our data set, so it's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not that confusing of the number, and as you can see actually on the things that are within our model scope.",
+                    "label": 0
+                },
+                {
+                    "sent": "The things with zero or one relation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're actually doing much better than 70%.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're getting close to 80 or 90% here.",
+                    "label": 0
+                },
+                {
+                    "sent": "85 Maybe so it's really the sort of out of scope queries that are models failing on.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now I'm going to do the comparison against the determine if relations are going to work and the way we're going to do is going to sort of updated version of our model which only uses one argument, category predicates, and we're going to train the model using the same weekly supervised procedure we've been talking about this whole time, and so the way that this model is going to work is whenever it sees a relational phrase like left of, it's going to pretend that it just ignores that relation and everything to the right of it and just take sort of the head word.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the mug left of the monitor is equivalent to the mug to this model.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this model is actually sort of equivalent in expressive power to this Matuszak model.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were kind of training it with our procedure or not their procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a slight difference there in comparison.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so from these results what we can see is overall again our model outperforms this category only model and mostly because on one one relation queries you know there's a dramatic difference in performance here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this suggests that you do need to understand relations on this data set in order to get the right answer, and that our model does a reasonable job of learning these relations.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now finally we want to know if weekly supervised training is an effective training procedure and the way we're going to do a comparison here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to build a fully supervised version of our LSP model and the way this is going to work as we kind of went through our data set and we looked at every single natural language description and we manually annotated a semantic parser.",
+                    "label": 0
+                },
+                {
+                    "sent": "This description and then we looked at every image and we manually created a knowledge base with all the predicates and all the annotations of what products work.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can imagine this is actually fairly painful to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "But given these annotations, it's really easy to train LSP.",
+                    "label": 0
+                },
+                {
+                    "sent": "All you have to do is train a semantic parser and these perception classifiers independently, and then you can combine them in this framework to predict the answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how does fully supervised training perform well about the same as weakly supervised training?",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see that there's about a 3% difference in performance over here overall, so this is an encouraging result, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "The weekly supervised training procedure is competitive with fully supervised training, while requiring way less manual annotation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'll just briefly mention that we see similar trends on the other data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Geo QA data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Specifically, we see that the category and relation model outperforms the category only model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, much more dramatically, in this case, specifically because these one relation queries are much better.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, the zero relation queries are better two and then the category plus REL like the full supervision model, performs pretty closely to the weekly supervised model in this data set as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is kind of a confirming result which suggests that these results are stable across different datasets.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, I just want to sum up here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I've done in this talk is introduced a model for this grounded language acquisition problem called logical semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "With perception, this model is capable of learning both categorial and relational language.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the way it works is it trains a semantic parser and also a set of perceptual classifiers jointly.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've also introduced the weakly supervised training procedure, which estimates parameters for this model using natural language descriptions paired with the objects that they refer to in the image, without any need to annotate semantic parses or knowledge bases or anything like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, I just want to mention that all the data that we use this experiment is available online in case you're interested in solving similar problems, so that's it, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since you only have 15 images, can you show them to us?",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, I didn't include that here, but I can if you want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So So what kind of objects do you have?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean I can see how many different kinds of modular monitors and you also a little bit more, but that's the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Data set is actually very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's the same set of objects, but they are rearranged in position in the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, obviously if you have 15 images, you can't expect to train a mug classifier, which generalizes well, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So don't don't expect that were like solving vision here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're trying to do the sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are doing vision.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're just doing a very simple form of vision.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, for the for the geography data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "The objects are completely different in every scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, there's different states, so I basically just chunked up the United States into different segments, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's completely different states, completely different places, but you do get to know their names in that case, so that's a little bit easier, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so just want to make sure I understand the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The predicates as they are instantiated sort of in semantic parsing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Landon Visionland are shared across.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, they're the same predicate and you, and even though they're not labeled, you tell the system in advance.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know you have two 2 argument predicates to work within one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, So what we do is we actually this is sort of something I kind of glossed over 'cause I was going to time, but I guess I didn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "But basically what we do is we kind of induced dyslexic on for the semantic parser and this is kind of a heuristic procedure where you just look at all the language and we kind of generate these lexicon entries which have these predicates which are derived from the word lemma.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like we see words like Mugen mugs.",
+                    "label": 0
+                },
+                {
+                    "sent": "We create a predicate mug that kind of like abstracts mug to that predicate.",
+                    "label": 0
+                },
+                {
+                    "sent": "For these experiments we actually we actually did some manual filtering of that set.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't have to do this, you get pretty similar results if you don't do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we had this like error analysis in the paper which kind of requires us to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it took like 2 minutes, so it's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not a lot of annotation.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, cool, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks for a nice talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have one question about negative examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you tell us something whether or not you use those in training and or testing?",
+                    "label": 0
+                },
+                {
+                    "sent": "For instance red mugs or the table on top of the monitor or stuff like that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so negative example.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a good question and the question here is really what is a negative example, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And in the model and negative examples actually like an object which is not in the set that's being described right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I say mug and I don't annotate table in that set, that kind of is a negative example for training the mug classifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so those are incorporated into training, but it's not like explicitly required to use like language that doesn't refer to anything in the data set, but like it's just with your robot example.",
+                    "label": 0
+                },
+                {
+                    "sent": "You if you ask for a pen on the table, you actually would want for your robot to say like, OK, so I'm sorry I don't find any pen on the table, so that's Oh yeah, so the model can predict nothing that does actually happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the geography data set, for example, some of the questions are like is Sacramento in Nevada.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the answer is the empty set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that can actually happen, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm curious about this other category that you introduced and you have the example of the closest which insert your Dick terms.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a set of objects, and for each of them stand in the same relation and you have some property over this relation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you mentioned this and a few other examples that you didn't see which are harder for the for the system to obtain good accuracy and click.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is my impression and the question is where do you think the bottleneck is in the features of the visual side where you maybe don't have the dimension?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or is it something in the semantic representation that's essentially missing too?",
+                    "label": 0
+                },
+                {
+                    "sent": "Know that?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the question here is about how you can learn things like closest like superlatives or these other things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, and this is really a limitation of just the way that we set up the kind of categories in relations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So closest isn't really a relation that you can imagine learning as a binary predicate, because really, what you want to do sort of rank the objects on how close they are to each other and then pick the one that's closest right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's not really like a like a relation that you can detect, so it's the semantic representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so I think the way that we solve that is we did induce a sort of more complex logical formula.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right and then we have to do inference and all that, but we haven't figured out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "This result shows that what you're calling.",
+                    "label": 0
+                },
+                {
+                    "sent": "The weekly supervised setting get does pretty much as well as the fully labeled setting, in which all the latent structure is labeled, so there's no longer latent, obviously.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I was wondering, do you have any idea how this would scale?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it seems to me that within your domain you can probably afford to compute enough analysis that you have some Oracle you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically the correct analysis somewhere in your beam.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even if you're not getting it right, and so this sort of weekly this week signal is probably good enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you think as you get up to much bigger scenes where you can't afford to compute that many analysis for each scene?",
+                    "label": 0
+                },
+                {
+                    "sent": "You'd only in very few cases get this with this girl, so that's a good question, and I think I think you're right in that if you get more complex language, you know it is harder to get this beam search to find the right analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the thing about this is also you can imagine that there's kind of an incremental nature to this task, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "If I know what mug means, and I've learned that pretty well.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's easier to learn what the mug left of the monitor is, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so you can imagine that as long as you have sort of a gradient of kind of complex to simple examples, it'll be a little bit easier to solve those kinds of tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And actually in our data set we do have, you know, some things which are only categories, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Some people say like the blue mug and then it's a little bit easier, and those actually do help us learn the whole thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you have many things that you can't get anywhere in the beam to start at the beginning of learning, but you can get towards the end?",
+                    "label": 0
+                },
+                {
+                    "sent": "There aren't that many parses of any given sentence.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're talking like, I think the average is like 1520, so it's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know it's not a problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, the beam is, the beam is like 1000 and you never run out thanks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you talk about how you actually learn the lexicon?",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you use any part of speech tags?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or yeah, so we use parts like tags and it's just heuristics on those.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically we look at the part of speech tagger thing and then we take kind of like a table and we just kinda OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a noun, so we're going to create the one argument predicate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, prior linguistic knowledge as compared to a Matuszek, I don't think they're doing this crap stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in Matuszak they use annotated semantic parses and then they use UBL to induce the lexecon.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, I don't know if you want to call that more work or less work.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's sort of different work, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm not sure exactly what that comparison should be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you, let's thank our speaker.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

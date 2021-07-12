@@ -1,0 +1,1195 @@
+{
+    "id": "3wh5gzhzrcxysmvopsh6b5rioasxcqgg",
+    "title": "Regularizing RNNs by Stabilizing Activations",
+    "info": {
+        "author": [
+            "David Scott Krueger, Universit\u00e9 de Montr\u00e9al"
+        ],
+        "published": "May 27, 2016",
+        "recorded": "May 2016",
+        "category": [
+            "Top->Computer Science->Machine Learning"
+        ]
+    },
+    "url": "http://videolectures.net/iclr2016_krueger_regularizing_rnns/",
+    "segmentation": [
+        [
+            "Alright everyone, so I'm going to tell you about some work I did with my advisor role in music."
+        ],
+        [
+            "So the basic idea here is that we introduce a new approach for regularising recurrent neural networks, and it's based on this very simple and general idea of stability.",
+            "So this just means that we don't want our activations to explode.",
+            "In other words, they should not be bounded below by an exponential function."
+        ],
+        [
+            "And that's explode through time, exponential growth three times so."
+        ],
+        [
+            "In particular, we just use this and add it to our cost term called the norm stabilizer.",
+            "This is a regularization penalty."
+        ],
+        [
+            "And so basically we look at the norm of the hidden state at two successive time steps.",
+            "We look at the difference of those norms.",
+            "Actually, look at the squared difference.",
+            "We sum those all up over the whole time series.",
+            "And we add it to our cost with the hyperparameter beta that controls the amount of regularization.",
+            "And this is really simple idea.",
+            "You can do it in two lines.",
+            "In Theano this is pretty much the main thing we do in this paper.",
+            "So if you take nothing else away.",
+            "That's it."
+        ],
+        [
+            "So yeah, before I get to the results and stuff, I'm going to talk about some things to do with stability.",
+            "So the motivation for this.",
+            "So talk about why it's important, why it helps.",
+            "Generalization acting as a regularizer.",
+            "How you can achieve stability in your models?",
+            "Different approaches to that?",
+            "And then I'll just mention a couple of things that we're not doing and common confusion.",
+            "So yeah."
+        ],
+        [
+            "First, why is stability important?"
+        ],
+        [
+            "So basically, in otherwise instability bad.",
+            "So the problem with instability is that your past observations have too much influence, and So what this means is that when your activations grow exponentially.",
+            "A very small change at one of the early time steps has an exponential very large effect at the end and so the cost from those later Timesteps gets back propagated on your gradients explode.",
+            "But uh, sort of.",
+            "An even bigger problem I would say, is that when you're in this unstable regime.",
+            "Your your model actually stops paying any attention to the current observations in the sense so.",
+            "The current observations no longer have any ability to change the.",
+            "Change work what the model is doing to change the attractor that it's moving towards so you have this picture of our analysis.",
+            "Dynamical systems where you sort of just look at the hidden transitions.",
+            "Imagine the inputs don't do anything and see where does it go.",
+            "If I just let it run forever and at a certain point when your model has become unstable, no input that you could possibly see will ever change where your model ends up.",
+            "And that's terrible.",
+            "It basically means you're no longer paying attention to anything that you see, and you're hung up on some past event that happens.",
+            "You know years ago.",
+            "And so specifically we talked well, not in the paper, but right now I'm going to talk about this region of stability, where your inputs are allowed to change the.",
+            "The attractor that you're moving towards, and in particular if you just have one hidden unit and no weight matrix, which is a simple way to look at things that can almost always be generalized to the real case with by looking at eigenvectors and eigenvalues.",
+            "Then essentially you have a threshold of stability, so if the absolute value of that hidden unit is lower than this threshold, you still have some chance to change whether or not you're going to go to zero negative Infinity, her positive Infinity, which are basically the places you can go with one hidden unit with your standard of dynamics."
+        ],
+        [
+            "So you might think that this is a good thing.",
+            "So why doesn't the model just learn to do it on its own?",
+            "So there's a couple of reasons why you don't just automatically have stability in your networks.",
+            "The first is that when you have a standard simple vanilla RNN, so those are three words that mean the same thing.",
+            "A simple RNN.",
+            "You essentially have a hidden translation matrix that is being exponentiated.",
+            "Of course, you also typically have a non linearity and inputs, but if you ignore that you're using the same matrix to generate your new hidden states at every time step, and so you're just applying that matrix over and over again.",
+            "It gets exponentiated if it has any eigenvalues with absolute value greater than one, that means.",
+            "Your hidden state is going to explode because that eigenvalue gets exponentiated.",
+            "So.",
+            "That's an architectural reason why you might see unstability.",
+            "There are also incentives.",
+            "A lot of the times to have large activations.",
+            "So.",
+            "If you're doing classification, or if you're predicting like the precision of the Gaussian, anything where you want to have high confidence, you can achieve high confidence by having large activations and so at training time it might be a really good thing for you to make your activations as large as possible on sequences that are easy to predict so long as you don't crush crossover into this truly unstable regime where you stop paying attention to the future inputs.",
+            "But this is kind of a dangerous game because then at Test time you can actually cross that threshold of stability and wind up in an unstable.",
+            "Region."
+        ],
+        [
+            "So I have an example here, just simple thing.",
+            "If your training example was like.",
+            "Caramel Apple and your test examples.",
+            "Carmalized onions, then I guess the spaces where the training example kind of gets a negative input and gets back into the stable regime now by the time the space rolls around in the test example, it's already seen IZE&D at that point.",
+            "Those all push the activation higher.",
+            "It's in the unstable regime, the space no longer has the ability to decrease the hidden state enough to get it back in the stable regime.",
+            "It'll just keep going to Infinity no matter what inputs the network sees for the rest of the time."
+        ],
+        [
+            "So that's why stability is important.",
+            "Why does it help generalization?",
+            "So I already talked about this a little bit little bit I guess."
+        ],
+        [
+            "With this example here so.",
+            "The thing is, without encouraging or enforcing stability somehow, you can do this at training time.",
+            "You can sort of skirt next to the edge of the stable region, and sometimes you get a lot of bonuses for doing that, but if you actually enforce or encourage stability, then even doing this starting to let your activations blow up a little bit is a bad thing.",
+            "You can't do it.",
+            "You get penalized for doing it.",
+            "So this also lets you generalize to longer sequences if you have some way of encouraging stability in your network.",
+            "Because if you have a short sequence, you can actually just have your activations grow throughout the entire sequence exponentially so long as they don't grow too much.",
+            "But then if you generalize to sequence, let's say 10 times larger, we know what happens if you exponentiate a number 10 times.",
+            "It's very big.",
+            "You probably get numerical instability even, and in fact that's what we saw in some of our experiments, and using our technique.",
+            "Totally solved that problem."
+        ],
+        [
+            "So how do you achieve stability in network?",
+            "So I guess on you can basically enforce it or encourage it.",
+            "One of the novel things outta work I think, is that we're just encouraging stability via cost term and previous approaches basically baked this into the model somehow.",
+            "So in particular."
+        ],
+        [
+            "The standard and ends that people use so simple aren't ends with 10 H units.",
+            "LST Mgr you.",
+            "These all have bounded nonlinearities, and that very simply prevents your states from exploding because you have a bounded non linearity.",
+            "Other work that was done at the same time as ours in art as ours in our lab used a unitary transition matrix, which is, you know, the complex version of orthogonal and this makes you stable as well because an orthogonal matrix doesn't change the norm of its input.",
+            "Multiplication by orthogonal matrix preserves the norm."
+        ],
+        [
+            "So I I think there are some disadvantages to both of these approaches, though that we don't have.",
+            "For bounded nonlinearities one you get close to the asymptotes of a bounded non linearity.",
+            "So I'm also talking about monotonic nonlinearities.",
+            "And those all are going to have asymptotes if they're bounded.",
+            "When you get close to the asymptotes, your gradient goes to 0 and that makes training very difficult using gradient descent.",
+            "Unitary transition matrices don't allow you to forget things in a natural way.",
+            "I would say, or more specifically through the dynamics of the transition matrix, and I think this is a desirable thing.",
+            "I think it makes a lot of sense that sometimes the importance of some observation should fade overtime and you can of course still do this by overriding using your inputs or by using a non linearity that like a really or something.",
+            "But I think it's more natural to do it with the hidden matrix.",
+            "That's just my feeling.",
+            "So what we'd like to do?"
+        ],
+        [
+            "Is instead of using bounded nonlinearities, we'd like to use something like re Lu Ann.",
+            "Indeed, that's what they did.",
+            "Lee gently in Hinton, in this paper from last year called identity Recurrent neural networks, also called I RNS.",
+            "So there they just use Relu, initially initialized WH to be the identity.",
+            "And it works really well in a lot of tasks, but the disadvantage with this now is that your network is not guaranteed to be stable, and in fact in our experiments."
+        ],
+        [
+            "We show that on our problems they weren't stable when we tried to generalize longer sequences.",
+            "So if you look at the top here, that's the norms.",
+            "Sorry, the log of the norms of the hidden state across time.",
+            "The X axis is time, and you see that NH is stable.",
+            "Of course, that has a bounded on annuity, but if you use Relu like they did in that paper, the norm quickly.",
+            "Increases exponentially, so that's the red line, whereas if you use our penalty, you don't have this exponential increase.",
+            "So that's pretty cool."
+        ],
+        [
+            "Yeah, so a couple of things that we're not doing on."
+        ],
+        [
+            "So a common response I get from people I'm talking about.",
+            "This is like, oh, this is like slow feature analysis.",
+            "So yeah, it's kind of like slow feature analysis, but it's also really not so you know our thing is on the left, the norm.",
+            "Oh sorry."
+        ],
+        [
+            "Next slide, so on the left you have the norm stabilizer.",
+            "That's what we're doing and slow feature analysis on the right and so.",
+            "Their slow feature analysis just looks at the change in hidden states, so it says you want your hidden state to stay the same whereas our cost says the norm should stay the same.",
+            "So it's really only targeting this stability thing.",
+            "And in fact if you look at negating the hidden state entirely, that makes our costs zero and it's pretty much the worst thing you can do according to slow feature analysis."
+        ],
+        [
+            "I'm so I think it's worth mentioning, as I did already, that we're not enforcing stability.",
+            "We're just encouraging stability.",
+            "And, you know, I didn't look too much into this, but I think that's a novel thing to do.",
+            "I'd really be interested if anyone has some other examples they want talking about afterwards."
+        ],
+        [
+            "We're also not actually encouraging stability everywhere, so another thing I didn't mention is that all these other approaches, because they sort of baked the stability in are going to be stable everywhere.",
+            "We're just doing it around the data distribution, and that might be a good thing, but maybe not as well."
+        ],
+        [
+            "Finally, we're not encouraging the hidden transition matrix to be orthogonal.",
+            "What we're encouraging is that the transition between the hidden states is orthogonal, but that transition also includes the impact of the inputs, and it also includes the non linearity, and so in fact we found that for simpler and ends I don't even ends.",
+            "Oh wait, Matrix ended up being less orthogonal so you can see the sorted absolute values of the eigenvalues of WH in this figure and without our penalty you see there's a large band of eigenvalues that are very close to one in absolute value.",
+            "With our penalty.",
+            "There's no such band at all.",
+            "There's maybe one eigenvalue that's very close to one there, and I think this is pretty interesting.",
+            "I don't have a great explanation for it, but again, I think you know having."
+        ],
+        [
+            "And this extra flexibility in our model is potentially a good thing because we're really trying to just target this one thing that we care about, which is our inductive bias for stability around the data.",
+            "Alright."
+        ],
+        [
+            "Experiment."
+        ],
+        [
+            "So we tried three tasks in this paper on three different datasets.",
+            "We did character level language modeling, which is basically a next step prediction task on Penn Treebank which is a standard benchmark for this.",
+            "It's a small data set.",
+            "It's sort of like MNIST of language modeling.",
+            "Then we did the phoneme recognition and speech recognition task on TIMIT.",
+            "Another small data set.",
+            "I would say that same list of speech recognition and then we tried this adding problem from the original STM paper by how creator and writer and Schmidhuber.",
+            "And yeah, we got good important, good improvements in performance on all these."
+        ],
+        [
+            "Tasks so yeah, I'm sorry for this huge nasty table.",
+            "Anyways, the point here is that using.",
+            "Re Lu without a bias, which we call Tirek, I recommend not using biases in recurrent neural Nets by the way.",
+            "That might be another thing to take away from this talk, at least in simple recurrent Nets always seem to work better for us.",
+            "But we tried it with biases of course.",
+            "'cause you know that's the standard thing.",
+            "In both cases it improves on.",
+            "This is Penn Treebank with the identity RNN that I mentioned earlier.",
+            "So it's a simple RNN using reluz."
+        ],
+        [
+            "We tried the same task with LS TM.",
+            "Here we also get performance improvements, so the bottom accesses, training time, training epoch the.",
+            "Left axis the Y axis is the bits per character and we and you can see that as we use more and more of our regularizer.",
+            "So beta equals zero is no regularization.",
+            "The performance improves.",
+            "Unfortunately, training time is also longer for this model on this task.",
+            "And yeah, the two different figures here are just if we apply this penalty on the hidden state or the memory cell of the STM."
+        ],
+        [
+            "So then on TIMIT we also saw a good performance.",
+            "Here we use set up a lot like Alex Graves.",
+            "We use CTC but then we don't use beam search or this RNN transducer thing which also tend to I think give you another one or two PR which is the metric for this task.",
+            "So I should've mentioned."
+        ],
+        [
+            "On this slide, that lower is better.",
+            "Lower is better so."
+        ],
+        [
+            "Here again, lower is better and.",
+            "Basically we have three columns, again using more and more regularization, so the left column has no regularization.",
+            "The Middle 1 beta equals 50 in the last one bit equals 500, and then we have the same three columns.",
+            "Also using white noise, which is kind of the default regularizer for this task.",
+            "It's what Alex Graves used, so you see that white noise helps a little bit.",
+            "Norm Stabilizer helps a lot more.",
+            "Combining them doesn't work at all.",
+            "Those bars are off the charts, and this is the average of five experiments and all these.",
+            "And then I should mention I think I took the slide out.",
+            "We also show some improvements on the adding task so."
+        ],
+        [
+            "One more experiment that we did that I'm going to mention.",
+            "Is looking at some alternative cost functions that are similar and maybe also aim at encouraging stability in the hidden state?",
+            "So the first column there is the slow feature analysis cost, where you just penalize the difference of the hidden states.",
+            "The next column is what we actually did.",
+            "You see, that seems to give the best performance on, but the other ones also work pretty well.",
+            "Well, some of them, and so I think you know, we found that this cost worked in our experiments.",
+            "Anne gave good results and it was simple and everything, but there's a lot of other things to try and I guess I would encourage everyone to think about stability in your networks and think about other ways that you could use this and other approaches that might make sense.",
+            "That's pretty much all I have to say, I guess.",
+            "Yeah."
+        ],
+        [
+            "Thanks any questions."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright everyone, so I'm going to tell you about some work I did with my advisor role in music.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the basic idea here is that we introduce a new approach for regularising recurrent neural networks, and it's based on this very simple and general idea of stability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this just means that we don't want our activations to explode.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, they should not be bounded below by an exponential function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And that's explode through time, exponential growth three times so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In particular, we just use this and add it to our cost term called the norm stabilizer.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a regularization penalty.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And so basically we look at the norm of the hidden state at two successive time steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "We look at the difference of those norms.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, look at the squared difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "We sum those all up over the whole time series.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we add it to our cost with the hyperparameter beta that controls the amount of regularization.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is really simple idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can do it in two lines.",
+                    "label": 0
+                },
+                {
+                    "sent": "In Theano this is pretty much the main thing we do in this paper.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you take nothing else away.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So yeah, before I get to the results and stuff, I'm going to talk about some things to do with stability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the motivation for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So talk about why it's important, why it helps.",
+                    "label": 1
+                },
+                {
+                    "sent": "Generalization acting as a regularizer.",
+                    "label": 0
+                },
+                {
+                    "sent": "How you can achieve stability in your models?",
+                    "label": 1
+                },
+                {
+                    "sent": "Different approaches to that?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I'll just mention a couple of things that we're not doing and common confusion.",
+                    "label": 1
+                },
+                {
+                    "sent": "So yeah.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "First, why is stability important?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So basically, in otherwise instability bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem with instability is that your past observations have too much influence, and So what this means is that when your activations grow exponentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "A very small change at one of the early time steps has an exponential very large effect at the end and so the cost from those later Timesteps gets back propagated on your gradients explode.",
+                    "label": 0
+                },
+                {
+                    "sent": "But uh, sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "An even bigger problem I would say, is that when you're in this unstable regime.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your your model actually stops paying any attention to the current observations in the sense so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The current observations no longer have any ability to change the.",
+                    "label": 1
+                },
+                {
+                    "sent": "Change work what the model is doing to change the attractor that it's moving towards so you have this picture of our analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dynamical systems where you sort of just look at the hidden transitions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Imagine the inputs don't do anything and see where does it go.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I just let it run forever and at a certain point when your model has become unstable, no input that you could possibly see will ever change where your model ends up.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's terrible.",
+                    "label": 0
+                },
+                {
+                    "sent": "It basically means you're no longer paying attention to anything that you see, and you're hung up on some past event that happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know years ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so specifically we talked well, not in the paper, but right now I'm going to talk about this region of stability, where your inputs are allowed to change the.",
+                    "label": 1
+                },
+                {
+                    "sent": "The attractor that you're moving towards, and in particular if you just have one hidden unit and no weight matrix, which is a simple way to look at things that can almost always be generalized to the real case with by looking at eigenvectors and eigenvalues.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then essentially you have a threshold of stability, so if the absolute value of that hidden unit is lower than this threshold, you still have some chance to change whether or not you're going to go to zero negative Infinity, her positive Infinity, which are basically the places you can go with one hidden unit with your standard of dynamics.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So you might think that this is a good thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So why doesn't the model just learn to do it on its own?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a couple of reasons why you don't just automatically have stability in your networks.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first is that when you have a standard simple vanilla RNN, so those are three words that mean the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "A simple RNN.",
+                    "label": 0
+                },
+                {
+                    "sent": "You essentially have a hidden translation matrix that is being exponentiated.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, you also typically have a non linearity and inputs, but if you ignore that you're using the same matrix to generate your new hidden states at every time step, and so you're just applying that matrix over and over again.",
+                    "label": 0
+                },
+                {
+                    "sent": "It gets exponentiated if it has any eigenvalues with absolute value greater than one, that means.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your hidden state is going to explode because that eigenvalue gets exponentiated.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's an architectural reason why you might see unstability.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are also incentives.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of the times to have large activations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're doing classification, or if you're predicting like the precision of the Gaussian, anything where you want to have high confidence, you can achieve high confidence by having large activations and so at training time it might be a really good thing for you to make your activations as large as possible on sequences that are easy to predict so long as you don't crush crossover into this truly unstable regime where you stop paying attention to the future inputs.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is kind of a dangerous game because then at Test time you can actually cross that threshold of stability and wind up in an unstable.",
+                    "label": 1
+                },
+                {
+                    "sent": "Region.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I have an example here, just simple thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "If your training example was like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Caramel Apple and your test examples.",
+                    "label": 1
+                },
+                {
+                    "sent": "Carmalized onions, then I guess the spaces where the training example kind of gets a negative input and gets back into the stable regime now by the time the space rolls around in the test example, it's already seen IZE&D at that point.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those all push the activation higher.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's in the unstable regime, the space no longer has the ability to decrease the hidden state enough to get it back in the stable regime.",
+                    "label": 0
+                },
+                {
+                    "sent": "It'll just keep going to Infinity no matter what inputs the network sees for the rest of the time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So that's why stability is important.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why does it help generalization?",
+                    "label": 1
+                },
+                {
+                    "sent": "So I already talked about this a little bit little bit I guess.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "With this example here so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The thing is, without encouraging or enforcing stability somehow, you can do this at training time.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can sort of skirt next to the edge of the stable region, and sometimes you get a lot of bonuses for doing that, but if you actually enforce or encourage stability, then even doing this starting to let your activations blow up a little bit is a bad thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get penalized for doing it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this also lets you generalize to longer sequences if you have some way of encouraging stability in your network.",
+                    "label": 1
+                },
+                {
+                    "sent": "Because if you have a short sequence, you can actually just have your activations grow throughout the entire sequence exponentially so long as they don't grow too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then if you generalize to sequence, let's say 10 times larger, we know what happens if you exponentiate a number 10 times.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very big.",
+                    "label": 0
+                },
+                {
+                    "sent": "You probably get numerical instability even, and in fact that's what we saw in some of our experiments, and using our technique.",
+                    "label": 0
+                },
+                {
+                    "sent": "Totally solved that problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So how do you achieve stability in network?",
+                    "label": 1
+                },
+                {
+                    "sent": "So I guess on you can basically enforce it or encourage it.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the novel things outta work I think, is that we're just encouraging stability via cost term and previous approaches basically baked this into the model somehow.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in particular.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The standard and ends that people use so simple aren't ends with 10 H units.",
+                    "label": 0
+                },
+                {
+                    "sent": "LST Mgr you.",
+                    "label": 0
+                },
+                {
+                    "sent": "These all have bounded nonlinearities, and that very simply prevents your states from exploding because you have a bounded non linearity.",
+                    "label": 1
+                },
+                {
+                    "sent": "Other work that was done at the same time as ours in art as ours in our lab used a unitary transition matrix, which is, you know, the complex version of orthogonal and this makes you stable as well because an orthogonal matrix doesn't change the norm of its input.",
+                    "label": 1
+                },
+                {
+                    "sent": "Multiplication by orthogonal matrix preserves the norm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I I think there are some disadvantages to both of these approaches, though that we don't have.",
+                    "label": 0
+                },
+                {
+                    "sent": "For bounded nonlinearities one you get close to the asymptotes of a bounded non linearity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm also talking about monotonic nonlinearities.",
+                    "label": 0
+                },
+                {
+                    "sent": "And those all are going to have asymptotes if they're bounded.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you get close to the asymptotes, your gradient goes to 0 and that makes training very difficult using gradient descent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unitary transition matrices don't allow you to forget things in a natural way.",
+                    "label": 1
+                },
+                {
+                    "sent": "I would say, or more specifically through the dynamics of the transition matrix, and I think this is a desirable thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it makes a lot of sense that sometimes the importance of some observation should fade overtime and you can of course still do this by overriding using your inputs or by using a non linearity that like a really or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I think it's more natural to do it with the hidden matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's just my feeling.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we'd like to do?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is instead of using bounded nonlinearities, we'd like to use something like re Lu Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "Indeed, that's what they did.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lee gently in Hinton, in this paper from last year called identity Recurrent neural networks, also called I RNS.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there they just use Relu, initially initialized WH to be the identity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it works really well in a lot of tasks, but the disadvantage with this now is that your network is not guaranteed to be stable, and in fact in our experiments.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We show that on our problems they weren't stable when we tried to generalize longer sequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you look at the top here, that's the norms.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, the log of the norms of the hidden state across time.",
+                    "label": 0
+                },
+                {
+                    "sent": "The X axis is time, and you see that NH is stable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, that has a bounded on annuity, but if you use Relu like they did in that paper, the norm quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Increases exponentially, so that's the red line, whereas if you use our penalty, you don't have this exponential increase.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's pretty cool.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, so a couple of things that we're not doing on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So a common response I get from people I'm talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is like, oh, this is like slow feature analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "So yeah, it's kind of like slow feature analysis, but it's also really not so you know our thing is on the left, the norm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh sorry.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Next slide, so on the left you have the norm stabilizer.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's what we're doing and slow feature analysis on the right and so.",
+                    "label": 1
+                },
+                {
+                    "sent": "Their slow feature analysis just looks at the change in hidden states, so it says you want your hidden state to stay the same whereas our cost says the norm should stay the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's really only targeting this stability thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact if you look at negating the hidden state entirely, that makes our costs zero and it's pretty much the worst thing you can do according to slow feature analysis.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I'm so I think it's worth mentioning, as I did already, that we're not enforcing stability.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're just encouraging stability.",
+                    "label": 0
+                },
+                {
+                    "sent": "And, you know, I didn't look too much into this, but I think that's a novel thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd really be interested if anyone has some other examples they want talking about afterwards.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We're also not actually encouraging stability everywhere, so another thing I didn't mention is that all these other approaches, because they sort of baked the stability in are going to be stable everywhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're just doing it around the data distribution, and that might be a good thing, but maybe not as well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Finally, we're not encouraging the hidden transition matrix to be orthogonal.",
+                    "label": 1
+                },
+                {
+                    "sent": "What we're encouraging is that the transition between the hidden states is orthogonal, but that transition also includes the impact of the inputs, and it also includes the non linearity, and so in fact we found that for simpler and ends I don't even ends.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh wait, Matrix ended up being less orthogonal so you can see the sorted absolute values of the eigenvalues of WH in this figure and without our penalty you see there's a large band of eigenvalues that are very close to one in absolute value.",
+                    "label": 0
+                },
+                {
+                    "sent": "With our penalty.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no such band at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's maybe one eigenvalue that's very close to one there, and I think this is pretty interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have a great explanation for it, but again, I think you know having.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this extra flexibility in our model is potentially a good thing because we're really trying to just target this one thing that we care about, which is our inductive bias for stability around the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Experiment.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we tried three tasks in this paper on three different datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "We did character level language modeling, which is basically a next step prediction task on Penn Treebank which is a standard benchmark for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a small data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's sort of like MNIST of language modeling.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we did the phoneme recognition and speech recognition task on TIMIT.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another small data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would say that same list of speech recognition and then we tried this adding problem from the original STM paper by how creator and writer and Schmidhuber.",
+                    "label": 1
+                },
+                {
+                    "sent": "And yeah, we got good important, good improvements in performance on all these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Tasks so yeah, I'm sorry for this huge nasty table.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anyways, the point here is that using.",
+                    "label": 0
+                },
+                {
+                    "sent": "Re Lu without a bias, which we call Tirek, I recommend not using biases in recurrent neural Nets by the way.",
+                    "label": 0
+                },
+                {
+                    "sent": "That might be another thing to take away from this talk, at least in simple recurrent Nets always seem to work better for us.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we tried it with biases of course.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause you know that's the standard thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "In both cases it improves on.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is Penn Treebank with the identity RNN that I mentioned earlier.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it's a simple RNN using reluz.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We tried the same task with LS TM.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we also get performance improvements, so the bottom accesses, training time, training epoch the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Left axis the Y axis is the bits per character and we and you can see that as we use more and more of our regularizer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So beta equals zero is no regularization.",
+                    "label": 0
+                },
+                {
+                    "sent": "The performance improves.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, training time is also longer for this model on this task.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, the two different figures here are just if we apply this penalty on the hidden state or the memory cell of the STM.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So then on TIMIT we also saw a good performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we use set up a lot like Alex Graves.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use CTC but then we don't use beam search or this RNN transducer thing which also tend to I think give you another one or two PR which is the metric for this task.",
+                    "label": 1
+                },
+                {
+                    "sent": "So I should've mentioned.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "On this slide, that lower is better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lower is better so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here again, lower is better and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically we have three columns, again using more and more regularization, so the left column has no regularization.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Middle 1 beta equals 50 in the last one bit equals 500, and then we have the same three columns.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also using white noise, which is kind of the default regularizer for this task.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's what Alex Graves used, so you see that white noise helps a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Norm Stabilizer helps a lot more.",
+                    "label": 0
+                },
+                {
+                    "sent": "Combining them doesn't work at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those bars are off the charts, and this is the average of five experiments and all these.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I should mention I think I took the slide out.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also show some improvements on the adding task so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "One more experiment that we did that I'm going to mention.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is looking at some alternative cost functions that are similar and maybe also aim at encouraging stability in the hidden state?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first column there is the slow feature analysis cost, where you just penalize the difference of the hidden states.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next column is what we actually did.",
+                    "label": 0
+                },
+                {
+                    "sent": "You see, that seems to give the best performance on, but the other ones also work pretty well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, some of them, and so I think you know, we found that this cost worked in our experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne gave good results and it was simple and everything, but there's a lot of other things to try and I guess I would encourage everyone to think about stability in your networks and think about other ways that you could use this and other approaches that might make sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's pretty much all I have to say, I guess.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thanks any questions.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

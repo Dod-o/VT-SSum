@@ -1,0 +1,979 @@
+{
+    "id": "kg5ar6eyxwwokxm5ffkqylleei552tp7",
+    "title": "Fast Support Vector Machine Training and Classification on Graphics Processors",
+    "info": {
+        "author": [
+            "Bryan Catanzaro, Department of Electrical Engineering and Computer Sciences, UC Berkeley"
+        ],
+        "published": "Aug. 5, 2008",
+        "recorded": "July 2008",
+        "category": [
+            "Top->Computer Science->Machine Learning->Kernel Methods->Support Vector Machines",
+            "Top->Computer Science->Computer Graphics"
+        ]
+    },
+    "url": "http://videolectures.net/icml08_catanzaro_fsvm/",
+    "segmentation": [
+        [
+            "This is joint work that I've done with Narayanan, Sunderam, who's here today Ann Kirk weights are at the parallel computing lab at the University of California, Berkeley, an the our work is on fast support vector machine training and classification on graphic."
+        ],
+        [
+            "Processors, so just two.",
+            "Go over the outline for today's talk.",
+            "1st I'm going to motivate why anyone should be interested in thinking about general purpose computing on graphics processors and what it means to the general computing community as a whole that we're starting to see such massively parallel general purpose processors.",
+            "Then I'm going to talk about our support vector machine training, implementation and unlike the two talks that we just heard, we're actually interested not in linear espions but in.",
+            "Kernelized SVM's and we implemented.",
+            "Basically, I'll go through the details of the algorithm that we implemented, including our working set selection heuristic, and then also talk briefly about support vector machine classification on Graphics Pro."
+        ],
+        [
+            "So to motivate, I think the two talks that we just heard have done a good job of motivating why support vector machine training is expensive and kernel based support vector machine training is is even more computationally intensive because of all these kernel evaluations that we have to do, which make it hard to do the the clever things that people have done for linear SVM training.",
+            "We often have a lot more data than we can process, so we're all interested in scalability.",
+            "On the same, on the other hand, we're at the point now in computing where future performance increases are going to come primarily through parallelism, so I don't know if you've noticed.",
+            "But over the past few years, Clock speed of normal processors hasn't been increasing, and the single thread performance of normal processors has been increasing, but at a much slower rate than it has in the past.",
+            "So in order for us to think about scalability in the future.",
+            "We're going to have to think about parallelism.",
+            "I really appreciated the previous talk.",
+            "They did a good job of paralyzing, and I think that's the direction that we're all headed, so the difference is now though compared with parallelism in the past that we have the opportunity to exploit parallelism on a single chip, and this changes a lot of what things are possible to parallelize because synchronization is much cheaper so.",
+            "To synchronize a cluster of CPUs, they all need to synchronize over Ethernet or Mirror net or what have you.",
+            "It's much cheaper when all of the processors on a chip are synchronizing using an on chip network or the external memory interface it because synchronization is so much cheaper, some things that were bottlenecks to parallelization in the past become tractable, and that's what we see."
+        ],
+        [
+            "With our SVM training.",
+            "So.",
+            "Graphics processors.",
+            "Now a lot of you may have heard of general purpose computing on graphics processors in the past, and people have done a lot of really interesting work in that, but it's always been kind of strange like you have to think about all of your data in terms of four vector floats, you have to pack everything in terms of graphics textures and use open GL shaders and so forth.",
+            "So I'm here to tell you today that that era is over.",
+            "Graphics processors are now general purpose.",
+            "You can program them using C. The restrictions of the past are basically gone.",
+            "There are still a few quirks that are being worked out an we've run into some of them, but we didn't.",
+            "All of the implementation that we did here is applicable to general purpose parallel programming, which in five years all of the CPU's from Intel are going to be highly parallel as well, and so the techniques that we apply here are kind of there.",
+            "We see them as being indicative of the future of programming in general.",
+            "So I'm I have on this slide a picture of the die for Nvidia's latest greatest graphics process, the the GE Force GTX 280 and you can see I don't know how many of you have looked at DI plus before, but usually on a die plot you see a big huge cash.",
+            "The thing that looks like cash on this processor.",
+            "All of these clusters right here and right here.",
+            "Those are actually the cores of the processor in on this chip.",
+            "There are 240 cores.",
+            "They are arranged into clusters.",
+            "You can see 10 clusters around the around the edge and each of them has three clusters inside of it, and each of those clusters has eight processors.",
+            "So you multiply it all out, get 240 cores and then this big stuff in the middle, which is the memory interface and synchronization networks and so forth.",
+            "So programming such a parallel processor is very different in the sense that we like massive parallelism, and we're not afraid of launching a million threads at once, so the hardware actually has context to support in the GTX 280, up to 30,000 threads that all can be sitting on the chip, and all have their own context.",
+            "This is not swapping context on and off the chip.",
+            "These are resident threads that each have their own register file and so forth, and so when you went on a normal parallel processor today I say an Intel Core 2 Duo.",
+            "You think about launching two threads at a time here on a graphics processor, we think about launching a million threads at a time and then the hardware takes care of it by processing it in big groups.",
+            "As I said, we can have multiple 10s of thousands of threads running at the same time on the same chip.",
+            "So the GPU's also have large.",
+            "Peak throughput ratings.",
+            "Lots of big memory subsystems.",
+            "It's interesting to point out that the register file is actually larger than the caches by a considerable amount, so register files become really important places to put data.",
+            "And the amount of memory that the graphics card has to work with.",
+            "In the ones that we're using is about a GB.",
+            "NVIDIA does sell ones with larger memory capacity, up to 4 gigabytes, but we're not dealing with those today."
+        ],
+        [
+            "So just to mention briefly about how we program these.",
+            "Programming is these.",
+            "GPS is done through CUDA, which is a small extension to see an basically the way that it works as a programmer expresses computation in terms of serial blocks, which are called grids, and each of those grids is composed of thread blocks.",
+            "All of these thread blocks are going to be done in parallel without any synchronization or right sharing, and then inside that there's going to be threads which which run arbitrarily.",
+            "They can synchronize arbitrarily, they can share data.",
+            "And the programmer then writes one of those parallel threads.",
+            "Ann thinks about having this thread being launched in a context with a million other threads, so that's how it works."
+        ],
+        [
+            "OK, so enough talking about esoteric GPU stuff onto the actual machine learning problems that we're dealing with.",
+            "So we're looking at SVM training the CSV C variant an we're training the dual, so as people have mentioned in the talks previously, none of this should be a surprise to you.",
+            "We have Alpha variables that we're optimizing, and the number of Alpha variables we have is equal to the number of training points we're trying to build up a classifier by learning the Alpha variables for each of these training points.",
+            "We also have labeled data so that we can.",
+            "We can perform this and we consider the standard kernel functions in our talk.",
+            "Today, we're actually going to be focusing on the Gaussian kernel function, since that's the one that we've used."
+        ],
+        [
+            "So the main algorithm that we're using for SVM training is the classic sequential minimal optimization algorithm was invented by Platt in 1999 almost a decade ago.",
+            "And despite the name sequential minimal optimization, it's actually quite parallel.",
+            "Each iteration, what this algorithm does is adjust exactly two of the variables and remember we have L variables where L is the number of training points and because we're adjusting only two of the variables at a time, the entire space that we're looking at collapses into a 1 dimensional problem.",
+            "We've got two variables in a box, and then we've got a one dimension.",
+            "We've got a constraint linking them that makes the space effectively 1 dimensional, so the actual optimization stuff is quite trivial.",
+            "The other good thing about this algorithm is that computing the full kernel matrix between all these points is not required, and we basically generated on the fly as necessary.",
+            "The computation is dominated by KKT optimality condition updates."
+        ],
+        [
+            "And those can be done in parallel.",
+            "So I'm going to talk a little about variable selection heuristics.",
+            "So the job of the variable selection heuristic is actually quite important.",
+            "We have to choose the two variables that we're going to be updating at each step.",
+            "If we choose the wrong ones, then we're going to converge very slowly, so the 1st order selection heuristic that we use is proposed by Keerthy in 2001.",
+            "Is basically constructing this F vector where the length of this vector again is the length of the number of training points, and for every training point we construct this vector iteratively and at every iteration we're going to be searching among.",
+            "We're going to update this vector based on the optimization step that we've just taken.",
+            "We're then going to search among this vector according to these subsets in order to find the maximal violating pair from this vector.",
+            "And the maximum violating pair is showing which two points.",
+            "Have the steepest gradient in the in the functional, which if we need to choosing two points is the same thing as choosing a direction, so it's finding a steep direction and doing this requires order L."
+        ],
+        [
+            "Complexity for each step.",
+            "However, the 1st order here is it can be confused by steep gradients, which ultimately lead to marginal improvements in the objective and so to overcome this fan at all in 2005 proposed a second order heuristic which selects the variables according to the actual change in the objective function.",
+            "So we're trying to avoid situations like this where the gradient is pointing in a direction that's very steep, but ultimately is rather shallow, and we want to choose a direction.",
+            "Potentially that might have a gentler gradient, but.",
+            "Overall, leads to a bigger improvement in our objective function.",
+            "If we're going to do this in the most general way, it actually requires a lot more work because we have to look at all the different pairs to see which pairs cause the most change in the objective function.",
+            "So instead of doing that, we choose one of the variables at the same way that was done in the 1st order heuristic, and then the second one is chosen by checking the change in the objective functional.",
+            "If we were to choose that.",
+            "As the other part of the pair for all variables which actually lead to progression towards the constrained Optima."
+        ],
+        [
+            "Of the problem.",
+            "So to sketch the implementation, the 1st order every iteration that we use the 1st order heuristic basically has a single map reduce step where we can compute the new value of the F vector for every point and then we reduce over that vector according to the subsets that were defined with the KKT conditions to find the maximal violating pair.",
+            "The 2nd order heuristic requires about twice as much work.",
+            "We have two MapReduce steps where we.",
+            "The first one is similar.",
+            "We update F and then we compute one of one of the variables by searching over it and then we have to do another map reduce step where we compute the change in the gradient.",
+            "If we were to choose that variable as the second half of the pair and then finally reduce over that to find the variable, we're going to be using.",
+            "Also some other implementation details.",
+            "We use kernel caching as was presented by Joachim's in 1999.",
+            "We manage the cache on the CPU and keep the rows of the cache in GPU memory.",
+            "So we basically soak up all the GPU memory and use that for the cash.",
+            "We also say pay special attention to ensure efficient memory access patterns keeping the memory access coherent, meaning that we're accessing large pieces of memory at once and making use of GPU local stores which are.",
+            "Basically the."
+        ],
+        [
+            "Cash is.",
+            "However, the 2nd order heuristic can be rather expensive.",
+            "Like I said, it can be about twice as much work in the geometric mean on our test sets was about twice as much work per iteration, and so we actually made an adaptive heuristic which periodically estimates the convergence rate measured by the gap in the optimality gap as a function of wall Clock time, and then chooses the one heuristic that's progressing most productively towards the optimum.",
+            "And the important thing to note is that this adaptive heuristic performs.",
+            "Close to the best heuristic on our test, so there are certain cases like for example on this data set where the 2nd order heuristic does really well in terms of runtime, you know it's reduced runtime by a factor of three, or there's other other places where the 2nd order heuristic is increased.",
+            "Our runtime by almost a factor of two, whereas the adaptive heuristic which is these black lines is close to the best choice regardless of the data set, and that's the heroes."
+        ],
+        [
+            "Squeeze.",
+            "So here's our training results on a series of datasets that we found from the UCI.",
+            "Repository and we are running on.",
+            "We're running live SVM on an Intel Core 2 duo at 2.6 GHz.",
+            "We're running our solver on an NVIDIA GeForce 8800 GTX, which I want to mention came out in November 2006, so the GTX 280 that came out last month has basically twice all of the numbers of the one that we're using here, so we should expect to see much better results, and we are using.",
+            "As I said, the Gaussian kernel and we see.",
+            "Between 9:00 and 35 times faster training."
+        ],
+        [
+            "Moving on to classification classification is a much simpler problem.",
+            "We have to evaluate this every point against the SVM classification surface, and that involves for standard kernels taking dot product between all the support vectors and all the test vectors.",
+            "So we take advantage of the situation when you have multiple data points to classify simultaneously by packing all of those dot product into matrix multiplications.",
+            "In cases where data points are being classified seriously seriously.",
+            "This approach still works, but won't get as good of speedups.",
+            "And then we use map reduce computations to finish out the classification."
+        ],
+        [
+            "Into the actual results.",
+            "We also implemented a optimized CPU SVM classifier using dense matrices and tells Math Kernel Library's an open MP to paralyze the computation as well."
+        ],
+        [
+            "Make the comparison a little bit more enlightening, so the results that we see just moving to the dense version and paralyzing it on the CPU got US 3 to 30X speedup, and then the GPU version achieved an additional 5 to 24X speedup for a total of 81238 X."
+        ],
+        [
+            "So just to speak to the quality of results that are retained by our approach.",
+            "First of all, the GPU training produces very similar classifiers to Lib SVM that we're comparing ourselves with.",
+            "So the number of support vectors found in each of these datasets is essentially identical.",
+            "The plot here is a little bit misleading 'cause it starts so close to one, so it's within 2% the number of support vectors, and then the full system accuracy where we're.",
+            "We're taking the classifier obtained by our GPU classifier an running classification on the GPU versus taking the classifier on the CPU and running classification on the CPU was identical.",
+            "We got the same results, so we're achieving the same same accuracy.",
+            "So."
+        ],
+        [
+            "In conclusion, massively parallel processors provide useful speedups on SVM training and classification.",
+            "There are other sources of parallelism that we haven't explored yet.",
+            "For example, cross validation, an multi class SVM, all multiply the parallelism here, and there's a lot of interesting work to be done in finding massively parallel implementations of machine learning algorithms.",
+            "Our code is not quite sanitized for public consumption yet, but we have a URL and send us an email and we will send you an email when we.",
+            "Get it up.",
+            "Hopefully in the next week or so, so that's it.",
+            "An I'm happy to take questions.",
+            "Questions.",
+            "So you mentioned that the sequential smod is very natural for parallelism.",
+            "On the other hand, the updates, but on the other hand, the choice of the pairs in general is not necessarily good for parallelism.",
+            "In other words, the choices the heuristics designed for assemble are based on a sequential decision, so.",
+            "Did you get the feeling that this was affecting in anyway?",
+            "Yeah, so this.",
+            "Actually this question has come up many times when we've shown this to some of our friends at Berkeley.",
+            "They're like, why don't you use an algorithm that does fewer iterations?",
+            "Does more work per iteration with a bigger chunk than two variables, for example?",
+            "Then it's possible that could lead to speed up.",
+            "The problem is that smol, in my opinion, actually works quite well on SVM's because it's exploiting the sparse nature of the Alpha.",
+            "Variables that come out at the result so it doesn't actually make sense to try to optimize too many variables at once, because you'll often end up undoing things a lot.",
+            "So the Smol algorithm actually works pretty well here.",
+            "We haven't tried any others, but we think the gains from doing that would probably small compared with gains from like implementing multi class.",
+            "An cross validation in parallel on the GPU, so it's not our biggest priority.",
+            "More questions.",
+            "I would like to ask if when you are programming this method you program it in this special language which decides how the algorithm will be paralyzed or you explicitly take the algorithm, understand it and you say OK.",
+            "This number of CPUs will compute this and this, or it's automatically discarded by this manual.",
+            "So you need to find the parallelism yourself.",
+            "In general you know magic compiler techniques that find parallelism have not been.",
+            "Successful, so it's going to be up to us as algorithmic people to find the parallelism and express it in a way that the compiler can take advantage.",
+            "This is single precision, so the GTX 280 that came out last month does have double precision support.",
+            "However, it's going to be slower.",
+            "Basically, you're going to be burning a lot more bandwidth.",
+            "Well, so I mean machine learning, so it's funny that you ask that because we've just seen a bunch of presentations where people look at more approximate methods to SVN's and say, oh, we don't even need kernels.",
+            "We can do it with linear SVM's because they're faster.",
+            "And in any case it's a noisy problem.",
+            "We have noisy data, so a little bit of noise doesn't hurt an I think.",
+            "Actually the gains from going the accuracy gains from going to full double precision would be very.",
+            "Very modest and probably what you wouldn't even be able to notice them.",
+            "There may be some particular situations, for example, if your algorithm depends on the value of the SVM classification and not just @ it may make sense to try to do parts of that in double precision, but overall we don't see the need to do everything in double precision.",
+            "More questions.",
+            "OK, let's thank this speaker again."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is joint work that I've done with Narayanan, Sunderam, who's here today Ann Kirk weights are at the parallel computing lab at the University of California, Berkeley, an the our work is on fast support vector machine training and classification on graphic.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Processors, so just two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Go over the outline for today's talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "1st I'm going to motivate why anyone should be interested in thinking about general purpose computing on graphics processors and what it means to the general computing community as a whole that we're starting to see such massively parallel general purpose processors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I'm going to talk about our support vector machine training, implementation and unlike the two talks that we just heard, we're actually interested not in linear espions but in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kernelized SVM's and we implemented.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, I'll go through the details of the algorithm that we implemented, including our working set selection heuristic, and then also talk briefly about support vector machine classification on Graphics Pro.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to motivate, I think the two talks that we just heard have done a good job of motivating why support vector machine training is expensive and kernel based support vector machine training is is even more computationally intensive because of all these kernel evaluations that we have to do, which make it hard to do the the clever things that people have done for linear SVM training.",
+                    "label": 0
+                },
+                {
+                    "sent": "We often have a lot more data than we can process, so we're all interested in scalability.",
+                    "label": 1
+                },
+                {
+                    "sent": "On the same, on the other hand, we're at the point now in computing where future performance increases are going to come primarily through parallelism, so I don't know if you've noticed.",
+                    "label": 0
+                },
+                {
+                    "sent": "But over the past few years, Clock speed of normal processors hasn't been increasing, and the single thread performance of normal processors has been increasing, but at a much slower rate than it has in the past.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in order for us to think about scalability in the future.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to have to think about parallelism.",
+                    "label": 0
+                },
+                {
+                    "sent": "I really appreciated the previous talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "They did a good job of paralyzing, and I think that's the direction that we're all headed, so the difference is now though compared with parallelism in the past that we have the opportunity to exploit parallelism on a single chip, and this changes a lot of what things are possible to parallelize because synchronization is much cheaper so.",
+                    "label": 0
+                },
+                {
+                    "sent": "To synchronize a cluster of CPUs, they all need to synchronize over Ethernet or Mirror net or what have you.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's much cheaper when all of the processors on a chip are synchronizing using an on chip network or the external memory interface it because synchronization is so much cheaper, some things that were bottlenecks to parallelization in the past become tractable, and that's what we see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "With our SVM training.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Graphics processors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now a lot of you may have heard of general purpose computing on graphics processors in the past, and people have done a lot of really interesting work in that, but it's always been kind of strange like you have to think about all of your data in terms of four vector floats, you have to pack everything in terms of graphics textures and use open GL shaders and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm here to tell you today that that era is over.",
+                    "label": 0
+                },
+                {
+                    "sent": "Graphics processors are now general purpose.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can program them using C. The restrictions of the past are basically gone.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are still a few quirks that are being worked out an we've run into some of them, but we didn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of the implementation that we did here is applicable to general purpose parallel programming, which in five years all of the CPU's from Intel are going to be highly parallel as well, and so the techniques that we apply here are kind of there.",
+                    "label": 0
+                },
+                {
+                    "sent": "We see them as being indicative of the future of programming in general.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm I have on this slide a picture of the die for Nvidia's latest greatest graphics process, the the GE Force GTX 280 and you can see I don't know how many of you have looked at DI plus before, but usually on a die plot you see a big huge cash.",
+                    "label": 0
+                },
+                {
+                    "sent": "The thing that looks like cash on this processor.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these clusters right here and right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are actually the cores of the processor in on this chip.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are 240 cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are arranged into clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see 10 clusters around the around the edge and each of them has three clusters inside of it, and each of those clusters has eight processors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you multiply it all out, get 240 cores and then this big stuff in the middle, which is the memory interface and synchronization networks and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "So programming such a parallel processor is very different in the sense that we like massive parallelism, and we're not afraid of launching a million threads at once, so the hardware actually has context to support in the GTX 280, up to 30,000 threads that all can be sitting on the chip, and all have their own context.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is not swapping context on and off the chip.",
+                    "label": 1
+                },
+                {
+                    "sent": "These are resident threads that each have their own register file and so forth, and so when you went on a normal parallel processor today I say an Intel Core 2 Duo.",
+                    "label": 0
+                },
+                {
+                    "sent": "You think about launching two threads at a time here on a graphics processor, we think about launching a million threads at a time and then the hardware takes care of it by processing it in big groups.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said, we can have multiple 10s of thousands of threads running at the same time on the same chip.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the GPU's also have large.",
+                    "label": 0
+                },
+                {
+                    "sent": "Peak throughput ratings.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lots of big memory subsystems.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's interesting to point out that the register file is actually larger than the caches by a considerable amount, so register files become really important places to put data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the amount of memory that the graphics card has to work with.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the ones that we're using is about a GB.",
+                    "label": 0
+                },
+                {
+                    "sent": "NVIDIA does sell ones with larger memory capacity, up to 4 gigabytes, but we're not dealing with those today.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So just to mention briefly about how we program these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Programming is these.",
+                    "label": 0
+                },
+                {
+                    "sent": "GPS is done through CUDA, which is a small extension to see an basically the way that it works as a programmer expresses computation in terms of serial blocks, which are called grids, and each of those grids is composed of thread blocks.",
+                    "label": 1
+                },
+                {
+                    "sent": "All of these thread blocks are going to be done in parallel without any synchronization or right sharing, and then inside that there's going to be threads which which run arbitrarily.",
+                    "label": 0
+                },
+                {
+                    "sent": "They can synchronize arbitrarily, they can share data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the programmer then writes one of those parallel threads.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ann thinks about having this thread being launched in a context with a million other threads, so that's how it works.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so enough talking about esoteric GPU stuff onto the actual machine learning problems that we're dealing with.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're looking at SVM training the CSV C variant an we're training the dual, so as people have mentioned in the talks previously, none of this should be a surprise to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have Alpha variables that we're optimizing, and the number of Alpha variables we have is equal to the number of training points we're trying to build up a classifier by learning the Alpha variables for each of these training points.",
+                    "label": 1
+                },
+                {
+                    "sent": "We also have labeled data so that we can.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can perform this and we consider the standard kernel functions in our talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Today, we're actually going to be focusing on the Gaussian kernel function, since that's the one that we've used.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the main algorithm that we're using for SVM training is the classic sequential minimal optimization algorithm was invented by Platt in 1999 almost a decade ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "And despite the name sequential minimal optimization, it's actually quite parallel.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each iteration, what this algorithm does is adjust exactly two of the variables and remember we have L variables where L is the number of training points and because we're adjusting only two of the variables at a time, the entire space that we're looking at collapses into a 1 dimensional problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got two variables in a box, and then we've got a one dimension.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got a constraint linking them that makes the space effectively 1 dimensional, so the actual optimization stuff is quite trivial.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other good thing about this algorithm is that computing the full kernel matrix between all these points is not required, and we basically generated on the fly as necessary.",
+                    "label": 0
+                },
+                {
+                    "sent": "The computation is dominated by KKT optimality condition updates.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And those can be done in parallel.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to talk a little about variable selection heuristics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the job of the variable selection heuristic is actually quite important.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have to choose the two variables that we're going to be updating at each step.",
+                    "label": 1
+                },
+                {
+                    "sent": "If we choose the wrong ones, then we're going to converge very slowly, so the 1st order selection heuristic that we use is proposed by Keerthy in 2001.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is basically constructing this F vector where the length of this vector again is the length of the number of training points, and for every training point we construct this vector iteratively and at every iteration we're going to be searching among.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to update this vector based on the optimization step that we've just taken.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're then going to search among this vector according to these subsets in order to find the maximal violating pair from this vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the maximum violating pair is showing which two points.",
+                    "label": 0
+                },
+                {
+                    "sent": "Have the steepest gradient in the in the functional, which if we need to choosing two points is the same thing as choosing a direction, so it's finding a steep direction and doing this requires order L.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Complexity for each step.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, the 1st order here is it can be confused by steep gradients, which ultimately lead to marginal improvements in the objective and so to overcome this fan at all in 2005 proposed a second order heuristic which selects the variables according to the actual change in the objective function.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we're trying to avoid situations like this where the gradient is pointing in a direction that's very steep, but ultimately is rather shallow, and we want to choose a direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Potentially that might have a gentler gradient, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Overall, leads to a bigger improvement in our objective function.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we're going to do this in the most general way, it actually requires a lot more work because we have to look at all the different pairs to see which pairs cause the most change in the objective function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So instead of doing that, we choose one of the variables at the same way that was done in the 1st order heuristic, and then the second one is chosen by checking the change in the objective functional.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we were to choose that.",
+                    "label": 0
+                },
+                {
+                    "sent": "As the other part of the pair for all variables which actually lead to progression towards the constrained Optima.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Of the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to sketch the implementation, the 1st order every iteration that we use the 1st order heuristic basically has a single map reduce step where we can compute the new value of the F vector for every point and then we reduce over that vector according to the subsets that were defined with the KKT conditions to find the maximal violating pair.",
+                    "label": 0
+                },
+                {
+                    "sent": "The 2nd order heuristic requires about twice as much work.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have two MapReduce steps where we.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first one is similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "We update F and then we compute one of one of the variables by searching over it and then we have to do another map reduce step where we compute the change in the gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we were to choose that variable as the second half of the pair and then finally reduce over that to find the variable, we're going to be using.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also some other implementation details.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use kernel caching as was presented by Joachim's in 1999.",
+                    "label": 0
+                },
+                {
+                    "sent": "We manage the cache on the CPU and keep the rows of the cache in GPU memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we basically soak up all the GPU memory and use that for the cash.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also say pay special attention to ensure efficient memory access patterns keeping the memory access coherent, meaning that we're accessing large pieces of memory at once and making use of GPU local stores which are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Cash is.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, the 2nd order heuristic can be rather expensive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like I said, it can be about twice as much work in the geometric mean on our test sets was about twice as much work per iteration, and so we actually made an adaptive heuristic which periodically estimates the convergence rate measured by the gap in the optimality gap as a function of wall Clock time, and then chooses the one heuristic that's progressing most productively towards the optimum.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the important thing to note is that this adaptive heuristic performs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Close to the best heuristic on our test, so there are certain cases like for example on this data set where the 2nd order heuristic does really well in terms of runtime, you know it's reduced runtime by a factor of three, or there's other other places where the 2nd order heuristic is increased.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our runtime by almost a factor of two, whereas the adaptive heuristic which is these black lines is close to the best choice regardless of the data set, and that's the heroes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Squeeze.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's our training results on a series of datasets that we found from the UCI.",
+                    "label": 0
+                },
+                {
+                    "sent": "Repository and we are running on.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're running live SVM on an Intel Core 2 duo at 2.6 GHz.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're running our solver on an NVIDIA GeForce 8800 GTX, which I want to mention came out in November 2006, so the GTX 280 that came out last month has basically twice all of the numbers of the one that we're using here, so we should expect to see much better results, and we are using.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said, the Gaussian kernel and we see.",
+                    "label": 0
+                },
+                {
+                    "sent": "Between 9:00 and 35 times faster training.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Moving on to classification classification is a much simpler problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to evaluate this every point against the SVM classification surface, and that involves for standard kernels taking dot product between all the support vectors and all the test vectors.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we take advantage of the situation when you have multiple data points to classify simultaneously by packing all of those dot product into matrix multiplications.",
+                    "label": 1
+                },
+                {
+                    "sent": "In cases where data points are being classified seriously seriously.",
+                    "label": 1
+                },
+                {
+                    "sent": "This approach still works, but won't get as good of speedups.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we use map reduce computations to finish out the classification.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Into the actual results.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also implemented a optimized CPU SVM classifier using dense matrices and tells Math Kernel Library's an open MP to paralyze the computation as well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Make the comparison a little bit more enlightening, so the results that we see just moving to the dense version and paralyzing it on the CPU got US 3 to 30X speedup, and then the GPU version achieved an additional 5 to 24X speedup for a total of 81238 X.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So just to speak to the quality of results that are retained by our approach.",
+                    "label": 1
+                },
+                {
+                    "sent": "First of all, the GPU training produces very similar classifiers to Lib SVM that we're comparing ourselves with.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the number of support vectors found in each of these datasets is essentially identical.",
+                    "label": 0
+                },
+                {
+                    "sent": "The plot here is a little bit misleading 'cause it starts so close to one, so it's within 2% the number of support vectors, and then the full system accuracy where we're.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're taking the classifier obtained by our GPU classifier an running classification on the GPU versus taking the classifier on the CPU and running classification on the CPU was identical.",
+                    "label": 1
+                },
+                {
+                    "sent": "We got the same results, so we're achieving the same same accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In conclusion, massively parallel processors provide useful speedups on SVM training and classification.",
+                    "label": 1
+                },
+                {
+                    "sent": "There are other sources of parallelism that we haven't explored yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, cross validation, an multi class SVM, all multiply the parallelism here, and there's a lot of interesting work to be done in finding massively parallel implementations of machine learning algorithms.",
+                    "label": 1
+                },
+                {
+                    "sent": "Our code is not quite sanitized for public consumption yet, but we have a URL and send us an email and we will send you an email when we.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get it up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully in the next week or so, so that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "An I'm happy to take questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you mentioned that the sequential smod is very natural for parallelism.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, the updates, but on the other hand, the choice of the pairs in general is not necessarily good for parallelism.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, the choices the heuristics designed for assemble are based on a sequential decision, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Did you get the feeling that this was affecting in anyway?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually this question has come up many times when we've shown this to some of our friends at Berkeley.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're like, why don't you use an algorithm that does fewer iterations?",
+                    "label": 0
+                },
+                {
+                    "sent": "Does more work per iteration with a bigger chunk than two variables, for example?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it's possible that could lead to speed up.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that smol, in my opinion, actually works quite well on SVM's because it's exploiting the sparse nature of the Alpha.",
+                    "label": 0
+                },
+                {
+                    "sent": "Variables that come out at the result so it doesn't actually make sense to try to optimize too many variables at once, because you'll often end up undoing things a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the Smol algorithm actually works pretty well here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We haven't tried any others, but we think the gains from doing that would probably small compared with gains from like implementing multi class.",
+                    "label": 0
+                },
+                {
+                    "sent": "An cross validation in parallel on the GPU, so it's not our biggest priority.",
+                    "label": 0
+                },
+                {
+                    "sent": "More questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would like to ask if when you are programming this method you program it in this special language which decides how the algorithm will be paralyzed or you explicitly take the algorithm, understand it and you say OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "This number of CPUs will compute this and this, or it's automatically discarded by this manual.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you need to find the parallelism yourself.",
+                    "label": 0
+                },
+                {
+                    "sent": "In general you know magic compiler techniques that find parallelism have not been.",
+                    "label": 0
+                },
+                {
+                    "sent": "Successful, so it's going to be up to us as algorithmic people to find the parallelism and express it in a way that the compiler can take advantage.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is single precision, so the GTX 280 that came out last month does have double precision support.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, it's going to be slower.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, you're going to be burning a lot more bandwidth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so I mean machine learning, so it's funny that you ask that because we've just seen a bunch of presentations where people look at more approximate methods to SVN's and say, oh, we don't even need kernels.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can do it with linear SVM's because they're faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in any case it's a noisy problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have noisy data, so a little bit of noise doesn't hurt an I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually the gains from going the accuracy gains from going to full double precision would be very.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very modest and probably what you wouldn't even be able to notice them.",
+                    "label": 0
+                },
+                {
+                    "sent": "There may be some particular situations, for example, if your algorithm depends on the value of the SVM classification and not just @ it may make sense to try to do parts of that in double precision, but overall we don't see the need to do everything in double precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "More questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, let's thank this speaker again.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

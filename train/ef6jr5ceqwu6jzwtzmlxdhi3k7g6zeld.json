@@ -1,0 +1,1560 @@
+{
+    "id": "ef6jr5ceqwu6jzwtzmlxdhi3k7g6zeld",
+    "title": "A Stochastic Memoizer for Sequence Data",
+    "info": {
+        "author": [
+            "Frank Wood, Gatsby Computational Neuroscience Unit, University College London"
+        ],
+        "published": "Aug. 26, 2009",
+        "recorded": "June 2009",
+        "category": [
+            "Top->Computer Science->Optimization Methods->Stochastic Optimization"
+        ]
+    },
+    "url": "http://videolectures.net/icml09_wood_sms/",
+    "segmentation": [
+        [
+            "Thanks, so yes, I will simplify the title somewhat.",
+            "An I'm going to use the phrase sequence memorizer to to refer to our work.",
+            "I'd like to point out Jan Guesthouse.",
+            "He's sitting down here and Cedric is hiding back in the back up there.",
+            "So if you have questions, feel free to talk to both of them.",
+            "Jan has done some very nice follow on work to this and knows the work really, really probably better than I do now.",
+            "So quickly getting into it to just just throw it out there."
+        ],
+        [
+            "But this work is is about what it is.",
+            "If you know a hierarchical Pitman or process, or in particular in the hierarchical Pitman, your process for language modeling, then I can describe this work very efficiently, which is that it's an extension of the hierarchical Pitman yor process such that such that is achieved.",
+            "It's an unbounded depth version of the hierarchical Pitman Yor process.",
+            "The hierarchical Pitman new process itself is a smoothing Markov model of discrete sequences, so this is a smoothing Markov model of discrete sequences with unbounded depth.",
+            "Or unbounded context length.",
+            "The differences between this and the hierarchical bit more process are that one.",
+            "There's a linear time suffix, suffix tree, graphical model identification and construction algorithm, but estimate estimation of the posterior in the in the model is the same.",
+            "It's a standard Chinese restaurant franchise samplers.",
+            "I'm not going to talk much about estimation.",
+            "There's some nice results that come out of doing this unbounded depth extension of the hierarchical bit more process, one of which is that whenever you're doing inference or whenever you're doing predictive inference in particular, you always use the maximum amount of contextual information.",
+            "That you can and.",
+            "As a language model, this sequence minimizer just quite well.",
+            "It's very competitive it in the back of your mind.",
+            "If you know N gram language modeling, the sequence minimizer is the limit of an ngram language model.",
+            "As N goes to Infinity.",
+            "However, there's because of these sort of tricky algorithmics.",
+            "You get this benefit with very little computational cost, so that the computational cost of estimating and doing inference in the sequence minimizers the same as doing.",
+            "A Bayesian interpolating 5 gram language model.",
+            "For typical text data, so the."
+        ],
+        [
+            "Sequence memorizer can be used in any situation in which you want to use a low low in which you want to use a Markov model but low order Markov model isn't going to work well for you.",
+            "It's a drop in replacement for a smoothing Markov model and the name why we call it a stochastic memorizer for sequence data or sequence memoizer for short is that if you read the paper and if we get into get into the details stochastic memorization, IE caching of sequences such that.",
+            "If you ask the cash for an exemplar, you query the cache.",
+            "It will either return a sequence that it's seen before, or generate a new sequence with some probability.",
+            "This describes posterior inference in the model.",
+            "It's kind of a bad way to name a model, but but there's some folks at MIT that we we've stolen this phrase, stochastic stochastic memorization from, so getting into it."
+        ],
+        [
+            "I assume that many of you do not know the hierarchical Pitman or process not in not in significant detail.",
+            "So we're going to build up to the hierarchical Pitman Yor process.",
+            "I'm going to talk about sequence modeling and the build up to the hierarchical Pitman or process and then talk about in the sequence memorizer and then give results.",
+            "So the way that we typically characterize discrete sequences or the way we model them is is to treat a sequence is a set of exchangeable observations and fixed length contexts.",
+            "So this string oasi AC is going to be a string that we see a lot of.",
+            "In this talk, I apologize.",
+            "So if we if we want to characterize this statistics of the generating generating mechanisms between behind oh acac, we might for instance take a unigram approach and just count the individual character occurrences so oh, occurring in no context.",
+            "A occurring no context context, so on and so forth, we might build a bigram model, or we look at the conditional probability of observing a single symbol given a context of length one trigrams, 4 grams, and so on and so forth.",
+            "And along this spectrum we have increasing context length everything to the right of the barile.",
+            "All the context, increasing Markov and increasing order of the Markov model.",
+            "Of course, the number of observations per Markov model decreases as we go to the right here and there is an increasingly large number of conditional distributions to estimate, so each of these conditional distributions would be indexed by the context.",
+            "However, of course, as you go to the right, we get an increasingly more powerful model.",
+            "The number of parameters grows exponentially in the size of the vocabulary, but the estimation problem becomes much, much harder.",
+            "This is a standard tradeoff just to be."
+        ],
+        [
+            "Pedantic if we want to model the probability of a sequence.",
+            "We can write it out as a as a product of a bunch of conditional distributions.",
+            "The standard finite order Markov model assumption is that we truncate those conditional distributions.",
+            "Here, if we set in equals two, this corresponds to a bigram model or a second order Markov model.",
+            "First order Markov model, whichever whichever convention you use.",
+            "Really bad rasterization.",
+            "And again, to be pedantic, the probability of the string, oh acac can be written out this way.",
+            "I'm going to be manipulating probability distributions, discrete probability distribution.",
+            "So I'm going to change notation and this is quite fuzzy.",
+            "I'm sorry, but G is going to be a discrete distribution, so let me take this example.",
+            "For instance, at G of C. In the context, A is totally wrong.",
+            "I have that absolutely wrong, so let's try this one and that one is exactly backwards as well.",
+            "How did I miss that this one is correct, so G of OG in the context?",
+            "Oh of a is the conditional distribution of observing a in the context.",
+            "Oh OK, so these are ignore all of those.",
+            "So."
+        ],
+        [
+            "We're going to be manipulating these discrete distributions or discrete conditional distribution, so discrete conditional distribution is just a vector of parameters.",
+            "Python, 2\u03c0, K are the are the parameters, K is the size of the vocabulary.",
+            "We all know how to do maximum likelihood estimates for discrete distributions given a trading sequence X one to in the probability of observing K in the context, U is equal to \u03c0 K and the way you get Pi K or pie hat K is just to run through this sequence and count the number of times you see you followed by K. And normalized by the number of times you see you standard maximum likelihood estimation predictive inference, you just you know probability of the distribution of random variable X N + 1 given the sequence is just this Pi K. So an example here is the standard graphical model.",
+            "In this case, if you set you to be the empty string, this is a non smooth unigram model."
+        ],
+        [
+            "OK, we're still building towards our commitment to our process.",
+            "So we need to do regularization in these contexts, particularly when you is is is long.",
+            "So the way I do regularization and the way the hierarchal Pittman or process does regularization is to do Bayesian regular regularization where we estimated posterior distribution over Gu.",
+            "This discrete distribution, given given a sequence.",
+            "This is related to Bayes rule to the likelihood of observing the sequence times the prior probability of Gu, and the work is all of the work both in the sequence minimizer in the higher clip in your process.",
+            "Is in in constructing some sort of interesting prior for this and a prior that does well in some sense, so we do predictive inference with posterior like this.",
+            "Then we can average over our uncertainty about this unknown distribution gud.",
+            "So the kind of priors that you can use over distributions GUD, you might use the Jewish lady or seen that earlier in this session.",
+            "Or you can use a Pitman Yor process which will cover, I think in the next slide.",
+            "The point though, is that inference with respect to this unknown distribution.",
+            "Inference, predictive inference in particular, is smooth with respect to uncertainty about this unknown distribution.",
+            "So this if you set you to be the empty string again as a smooth unigram model.",
+            "So this is just standard Bayesian smoothing.",
+            "I talked, I touched on just now."
+        ],
+        [
+            "A way to tie together distributions or a prior.",
+            "Over distributions I'm going to use the PIN or as a way to tie together distributions at as well.",
+            "So if you CGU written as distributed as Pitman Yor with some discount concentration an based distribution, then this is a nice tool for regularization in graphical models.",
+            "But it's also a tool for tying together related distributions and hierarchical models.",
+            "That's a measure of our measures that mirror processes the base measure is the mean measure in the sense that if you draw lots of GPU's from this Pitman yor process and take the expected measure of a particular Atom DX.",
+            "In the.",
+            "That is equal to an expectation.",
+            "The measure of the same Atom under the base distribution.",
+            "So distribution drawn from a pin or process all you really need to know for the purposes of this talk is when you see something like this is that the Pitman yor process.",
+            "You can think of as a black box that takes a base distribution, does something to it, and this draw is related to the base distribution based distribution in some way and they are equal when C is equal to Infinity or D."
+        ],
+        [
+            "Is equal to 1, so generalizations Additionally process.",
+            "It has different different power law properties that are better for text and other natural data like images.",
+            "I'm not going to talk about inference of doing posterior predictive.",
+            "I'm not going to talk about estimation or posterior predictive inference, for instance, but you even though you can't do this integral in this way because there is an infinite dimensional object you can write down and expect.",
+            "You can solve this integral.",
+            "It boils down to some expectation here and this expectation forms the basis for a number of simple and straightforward samplers like the Chinese restaurant process in the Chinese restaurant franchise.",
+            "It also in the land of stochastic memorization forms the cash."
+        ],
+        [
+            "Shrule essentially.",
+            "So we're about two slides away from the hierarchical Pitman or process, the hierarchical bit more processes, a hierarchical Bayesian smoothing model, where we do the same Bayesian things.",
+            "Now we're going to have lots of unknown discrete distributions.",
+            "GWG ujevi.",
+            "These are all latent, hidden and we're going to sample these.",
+            "This is the we're going to build a posterior over.",
+            "All of these will refer to that as Theta.",
+            "We estimated posterior when we do predictive inference.",
+            "We're going to average over uncertainty about this.",
+            "These unknown and hidden hidden parameters.",
+            "The point is that if you tie together naturally related distribution, so if we jump to language modeling for instance, or just discrete sequence modeling, but language modeling in particular, we'd like to see, for instance, that the distribution of words that follow the phrase of the United States.",
+            "This is related to in some ways that the distribution of words that follow United States.",
+            "It's just kind of a natural thing to do, and the pit maneuver process is one way to relate those two distributions.",
+            "The net effect of doing this kind of hierarchical Bayesian smoothing thing is that.",
+            "Observations in one context here are going to affect inference in other context, so in some sense, statistical strength is shared throughout this hierarchy.",
+            "As you see, observations down here, you're going to see statistical strength shared throughout the hierarchy, and if you set again here W to be an empty string and you need to be single symbols from the alphabet, then this is a smoothing bigram model.",
+            "To give."
+        ],
+        [
+            "A sense of what I mean by statistical sharing and how it works.",
+            "Here's a very simple example on the right.",
+            "Here are posterior predictive distributions or probabilities for observing CGP or you in any of these contexts.",
+            "So G is GCP is the distribution of resembles that follow CP.",
+            "This is now not words but but characters.",
+            "GGP is the probability distribution over symbols that follow GP GP, so on and so forth.",
+            "Opera if you start with the uniform distribution.",
+            "This sort of flows throughout this hierarchy and you have a plus a posterior predictive distribution in each of these.",
+            "In each of these contexts, that's uniform as well, but as soon as you introduce a an observation over here in the context CP.",
+            "So let's say we see in some string CPU we have seen one instance of."
+        ],
+        [
+            "You you shows up in the posterior predictive distribution.",
+            "Here it propagates throughout the hierarchy and its influences is.",
+            "Cat is large when things are close together in the sharing hierarchy and grows less as you get further away, but this influence show."
+        ],
+        [
+            "Are pins as you add more observations and the whole point is you get sharing through these kinds of structures?",
+            "That's that's the point.",
+            "So the higher helping your process and I'm going to talk about it in terms of in terms of language modeling.",
+            "Is implements a particular sharing architecture.",
+            "It shares statistical strength between sequentially related predictive conditional distribution."
+        ],
+        [
+            "In the following way, so estimates of a highly specific conditional distribution, like the distribution of words that follow the context, was on the order is going to be coupled with others that are related.",
+            "For instance, the distribution of words that follow is on through a single comment.",
+            "More general share an ancestor, which is the distribution of words that follow on that.",
+            "We're going to drop one word of context, and we're going to.",
+            "That's that's the sharing architecture in the hierarchical thinking.",
+            "Your process language model and then links between these guys are going to be.",
+            "Are going to be put in your process, but in your process links and the kind of sharing that I just demonstrated happens throughout this hierarchy, which is a big big big tree, however.",
+            "At the heart of it, in your process is a couple of limitations, so if you write down a hierarchal pit maneuver process formally, this is what it looks like you have.",
+            "You know, a big tree of distributions and then you see observations X.",
+            "In particular contexts, you being distributed according to the 2G you and then a big tree based hierarchy of share sharing above that.",
+            "So what you need to know about hierarchical bit more processes that Sobeys and generalization of a smoothing in gram Markov model, particularly in language model, is a language model.",
+            "It outperforms sort of very good language models like interpolated concern I smoothing.",
+            "There are efficient inference algorithms.",
+            "We're going to use the exact same information out algorithms.",
+            "The sharing is such that there is only sharing between contexts different.",
+            "The most distant symbols.",
+            "Only the big big limitation of the hierarchical Pitman or process though, is that you have to pick a depth.",
+            "So this is the order of the Markov model, so it's a finite depth.",
+            "But if."
+        ],
+        [
+            "We know about this kind of sharing architecture.",
+            "There's no reason really to limit ourselves to this finite depth tree safe shape structure.",
+            "So let me let's think about a sequence and it's slightly different way.",
+            "It's a little bit nonintuitive for people who do Markov modeling or treat treat sequences, Markov chains.",
+            "The idea here is that a sequence can be characterized by set of single observations and unique contexts of growing length.",
+            "So if you look at, uh, a CAC, oh, you can think of oh is occurring with no in a situation where there's no context.",
+            "A in the context of OC in the context of AOA in the context of C. Oh so on and so forth.",
+            "Now we have increasing context length but only a single observation ever.",
+            "In each of these.",
+            "So we're going to we're going to estimate a bunch of conditional distributions, but we only see a single observation in each one of them, so we have to do regularization.",
+            "We have to do sharing this.",
+            "That's the only way we can possibly get.",
+            "Get good estimates of these distributions.",
+            "A bit of foreshadowing we can.",
+            "We can sort of identify which of these distributions we need to estimate by looking at all the suffixes in this in this string or the reverse of oasi.",
+            "So CAC AO all of these contexts are suffixes of that string.",
+            "So what?"
+        ],
+        [
+            "We are somewhat shamefully call a non Markov model in the in the paper is in fact the sequence memoizer, so the distribution of a sequence here we're not going to do any truncation approximation here, we're just going to write write out the conditional probabilities.",
+            "So for instance, the probability of this sequence, oh acac, is just a product of all of these conditional probabilities where there's no truncation.",
+            "So I already said smoothing is essential and the solution that we're going to take is hierarchical sharing all of the hierarchical Pitman or process.",
+            "So the same kind of sharing that we that happens in the House."
+        ],
+        [
+            "Put more processes are going to happen in the sequence memorizer, except that we make one small change which has relatively profound impact on what the model can do, which is no longer.",
+            "Is there a limit on the depth of the tree is unbounded, and now the question is, can we identify which parts of the tree we care about and assuring still work so.",
+            "But the point though, the take homes are that the sequence memoizer eliminates this Markov order selection.",
+            "You always use full context when making predictions.",
+            "There's a linear time linear space in the length of the observation sequence.",
+            "Way to.",
+            "Identify the graphical model and the performance is limited and engram as it goes to Infinity.",
+            "So here's the here's the trick.",
+            "Will remember back to our algorithms courses where we talk about suffix trees and suffix.",
+            "Tries an prefix trees and perfect prefix, tries and hazardous stuff.",
+            "But let me not belabor the point.",
+            "So in the sequence minimizer, we don't use a graphical model, try, but it's it's a starting off point because this is the graphical model, tries to sharing architecture that you would have in the higher."
+        ],
+        [
+            "Michael Pittman, your process if you instantiate it, all the nodes.",
+            "So here's a acac.",
+            "Let's look at the distribution.",
+            "So this is each one of these circles is a latent conditional distribution.",
+            "So G empty is the probability of seeing something in the empty context.",
+            "So oh, occurs in the empty context, though, is an observation under G, not a is seen in the context.",
+            "Oh, so it's an observation in the under the distribution of that follows, oh.",
+            "And so on and so forth.",
+            "C is an observation in the context, Geo A and so on and so forth.",
+            "As you fill out this entire tree, what you get is the same.",
+            "Sharing architecture is the graphical Pittman or process where you always drop 1 one letter of history or one one symbol of history.",
+            "OK, so we've got observations and we have a big graphical model tree in the shape of the hierarchical bit more process, or in this sharing this Markov model sharing.",
+            "Structure what's nice is that that is that this shape of this tree forget.",
+            "This is a graphical model, and then they're sharing in this and so on and so forth the shape."
+        ],
+        [
+            "This tree can be identified using a suffix.",
+            "I keep saying tree instead of try.",
+            "I'm sorry that's terrible.",
+            "The shape of this graph graphical model can be identified by running a standard suffix trie data structure, constructing a standard suffix trie data structure for the input string.",
+            "CAC, AO.",
+            "So for instance, if you if you want to identify all the suffix strings of suffixes of the string CAC, AO, then then you can just take a suffix trie algorithm and consume."
+        ],
+        [
+            "This this try a suffix tried just remind you as a deterministic finite state automata recognizes all suffixes and input string requires N squared time and space to build in store, which makes it too intensive for many practical."
+        ],
+        [
+            "Sequence modeling applications.",
+            "However, there's a transformation."
+        ],
+        [
+            "Or another algorithm that can identify a similar kind of model.",
+            "So you take the suffix, try and you can represent the same kind of thing with a suffix tree which has which basically just makes a few of these groups makes it.",
+            "How did that hello?",
+            "Which which essentially compresses these edges, so it's a.",
+            "It's a more efficient data structure for doing exactly the same thing, so we're going to lose some of these."
+        ],
+        [
+            "Some of the intermediate nodes and arrive at a much more efficient data structure with a very nice."
+        ],
+        [
+            "Algorithm for constructing it so.",
+            "There should be a slide in here.",
+            "Sorry anyway, so a suffix tree can be constructed in linear time in linear space from from a single input sequence.",
+            "So the problem though is that that that in order to get a data structure like this, there's a graphical model transformation under the coverage.",
+            "So these compressed paths require being able to analytically marginalized out nodes from the graphical model and the results of this marginalization can be thought of as providing."
+        ],
+        [
+            "Set a different set of rules for for a sequence memorizer and the marginalization step that we need is this this coagulations step which comes from some historical work, which is that if you have a higher commitment process where G2 given G1 is distributed according to opinion process with discount D1 concentration zero and based distribution G1 and G3 given G2 is distributed according to process with discount D2 concentration 0.",
+            "And based distribution G2 then G3 given G1 is distributed according to opinion or process with discount D 1 * D Two concentration zero and based distribution G1.",
+            "So neat little trick which allows us to take a graphical model.",
+            "Try like this and remove."
+        ],
+        [
+            "This should also be colored blue.",
+            "A graphical model try which implements hierarchical Pitman Yor process sharing.",
+            "Or ngram smoothing, ngram, smoothing, model and collapse the graphical model down to something that looks like this."
+        ],
+        [
+            "Has a number of nodes that's linear in the length of the observation sequence.",
+            "So the way we get this is we take a single."
+        ],
+        [
+            "Input sequence we run a linear time suffix tree construction algorithm to identify the graphical model.",
+            "The tree is traversed.",
+            "We set the parameters and then we can go."
+        ],
+        [
+            "What we get is the number of nodes in the graphical model is indeed linear, which is kind of cool.",
+            "So when we run this up to 14 million observations, we have perfectly linear growth by another aspect of the model.",
+            "We don't ever actually have to sample any of the leaf nodes, so the number of nodes that we actually have to sample grows linearly as well, but at a much lower rate."
+        ],
+        [
+            "So that's pretty cool.",
+            "I think that maybe the neatest thing that comes out of this work is that there's that provides evidence that you should never actually build anything greater than the 5 gram Model S, or just use the sequence memorizer.",
+            "So the point is, this is a bit of a confusing figure for each symbol, so here's the plus symbol.",
+            "Let's take this one.",
+            "This is the number of nodes, i.e.",
+            "The computation, computational complexity of the sequence memoizer, and this corresponds to something with looks like 13 million.",
+            "Observations here.",
+            "So there's a number of nodes in the sequence memorizer, and this is the number of nodes in the corresponding hierarchal Pitman yor process where the number of nodes grows quadratically instead, right?",
+            "So if you look here at N = 5, so this is the depth of the hierarchical Pitman ARM processor.",
+            "The order of the Markov model.",
+            "Once you get to 5, the number of nodes meets or exceeds the number of nodes in the sequence memoizer.",
+            "So I should say again."
+        ],
+        [
+            "The the the sequence memorizer bounds in grand performance.",
+            "So the test test perplexity is a measure of predictive performance of the sequence memorizer is constant across all end, because in is the limit as N goes to Infinity.",
+            "But if you take just the standard smoothing, Markov model is the hierarchical Pitman or process and you increase in, well, you see that it comes the sequence minimizer is the limit of this of this of this particular model, but the computational complexity.",
+            "Of this blue line far exceeds the orange line once you once you pass five.",
+            "So if there's really if there's a.",
+            "If there's really a take home is.",
+            "If you ever build a discrete Markov model of order greater than five, don't do it this way.",
+            "It's really the way to go.",
+            "My apologies to Andrea C is in here.",
+            "This is there is actually one better performer now.",
+            "As it turns out, but if you apply this"
+        ],
+        [
+            "Language model language isn't that is not a short order Markov kind of structure.",
+            "It benefits a great deal from having being able to take into account longer contexts.",
+            "So if we when we apply this to the AP News corpus and we look at Test perplexity, if you compare this to sort of the best, the best published perplexity results for this corpus.",
+            "The sequence MEMORIZER does quite well as a function of the unbounded depth, so."
+        ],
+        [
+            "The sequence numbers that deep unbounded smoothing Markov model and can be learned to it can be used to learn a joint distribution over discrete sequences in time and space in linear in the length of a single observation sequence, and it's equivalent to a smoothing incident gram, which is another way of thinking about this, but costs more to know more to compute than the 5 gram, and I think that's it.",
+            "Questions please."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thanks, so yes, I will simplify the title somewhat.",
+                    "label": 0
+                },
+                {
+                    "sent": "An I'm going to use the phrase sequence memorizer to to refer to our work.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to point out Jan Guesthouse.",
+                    "label": 0
+                },
+                {
+                    "sent": "He's sitting down here and Cedric is hiding back in the back up there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have questions, feel free to talk to both of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Jan has done some very nice follow on work to this and knows the work really, really probably better than I do now.",
+                    "label": 0
+                },
+                {
+                    "sent": "So quickly getting into it to just just throw it out there.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But this work is is about what it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you know a hierarchical Pitman or process, or in particular in the hierarchical Pitman, your process for language modeling, then I can describe this work very efficiently, which is that it's an extension of the hierarchical Pitman yor process such that such that is achieved.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an unbounded depth version of the hierarchical Pitman Yor process.",
+                    "label": 0
+                },
+                {
+                    "sent": "The hierarchical Pitman new process itself is a smoothing Markov model of discrete sequences, so this is a smoothing Markov model of discrete sequences with unbounded depth.",
+                    "label": 1
+                },
+                {
+                    "sent": "Or unbounded context length.",
+                    "label": 0
+                },
+                {
+                    "sent": "The differences between this and the hierarchical bit more process are that one.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a linear time suffix, suffix tree, graphical model identification and construction algorithm, but estimate estimation of the posterior in the in the model is the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a standard Chinese restaurant franchise samplers.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to talk much about estimation.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some nice results that come out of doing this unbounded depth extension of the hierarchical bit more process, one of which is that whenever you're doing inference or whenever you're doing predictive inference in particular, you always use the maximum amount of contextual information.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you can and.",
+                    "label": 0
+                },
+                {
+                    "sent": "As a language model, this sequence minimizer just quite well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very competitive it in the back of your mind.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you know N gram language modeling, the sequence minimizer is the limit of an ngram language model.",
+                    "label": 0
+                },
+                {
+                    "sent": "As N goes to Infinity.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, there's because of these sort of tricky algorithmics.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get this benefit with very little computational cost, so that the computational cost of estimating and doing inference in the sequence minimizers the same as doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "A Bayesian interpolating 5 gram language model.",
+                    "label": 0
+                },
+                {
+                    "sent": "For typical text data, so the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Sequence memorizer can be used in any situation in which you want to use a low low in which you want to use a Markov model but low order Markov model isn't going to work well for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a drop in replacement for a smoothing Markov model and the name why we call it a stochastic memorizer for sequence data or sequence memoizer for short is that if you read the paper and if we get into get into the details stochastic memorization, IE caching of sequences such that.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you ask the cash for an exemplar, you query the cache.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will either return a sequence that it's seen before, or generate a new sequence with some probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "This describes posterior inference in the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's kind of a bad way to name a model, but but there's some folks at MIT that we we've stolen this phrase, stochastic stochastic memorization from, so getting into it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I assume that many of you do not know the hierarchical Pitman or process not in not in significant detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to build up to the hierarchical Pitman Yor process.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to talk about sequence modeling and the build up to the hierarchical Pitman or process and then talk about in the sequence memorizer and then give results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way that we typically characterize discrete sequences or the way we model them is is to treat a sequence is a set of exchangeable observations and fixed length contexts.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this string oasi AC is going to be a string that we see a lot of.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this talk, I apologize.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we if we want to characterize this statistics of the generating generating mechanisms between behind oh acac, we might for instance take a unigram approach and just count the individual character occurrences so oh, occurring in no context.",
+                    "label": 0
+                },
+                {
+                    "sent": "A occurring no context context, so on and so forth, we might build a bigram model, or we look at the conditional probability of observing a single symbol given a context of length one trigrams, 4 grams, and so on and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "And along this spectrum we have increasing context length everything to the right of the barile.",
+                    "label": 1
+                },
+                {
+                    "sent": "All the context, increasing Markov and increasing order of the Markov model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, the number of observations per Markov model decreases as we go to the right here and there is an increasingly large number of conditional distributions to estimate, so each of these conditional distributions would be indexed by the context.",
+                    "label": 1
+                },
+                {
+                    "sent": "However, of course, as you go to the right, we get an increasingly more powerful model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of parameters grows exponentially in the size of the vocabulary, but the estimation problem becomes much, much harder.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a standard tradeoff just to be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Pedantic if we want to model the probability of a sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can write it out as a as a product of a bunch of conditional distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "The standard finite order Markov model assumption is that we truncate those conditional distributions.",
+                    "label": 1
+                },
+                {
+                    "sent": "Here, if we set in equals two, this corresponds to a bigram model or a second order Markov model.",
+                    "label": 0
+                },
+                {
+                    "sent": "First order Markov model, whichever whichever convention you use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really bad rasterization.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, to be pedantic, the probability of the string, oh acac can be written out this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to be manipulating probability distributions, discrete probability distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to change notation and this is quite fuzzy.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm sorry, but G is going to be a discrete distribution, so let me take this example.",
+                    "label": 0
+                },
+                {
+                    "sent": "For instance, at G of C. In the context, A is totally wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have that absolutely wrong, so let's try this one and that one is exactly backwards as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "How did I miss that this one is correct, so G of OG in the context?",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh of a is the conditional distribution of observing a in the context.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh OK, so these are ignore all of those.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We're going to be manipulating these discrete distributions or discrete conditional distribution, so discrete conditional distribution is just a vector of parameters.",
+                    "label": 1
+                },
+                {
+                    "sent": "Python, 2\u03c0, K are the are the parameters, K is the size of the vocabulary.",
+                    "label": 0
+                },
+                {
+                    "sent": "We all know how to do maximum likelihood estimates for discrete distributions given a trading sequence X one to in the probability of observing K in the context, U is equal to \u03c0 K and the way you get Pi K or pie hat K is just to run through this sequence and count the number of times you see you followed by K. And normalized by the number of times you see you standard maximum likelihood estimation predictive inference, you just you know probability of the distribution of random variable X N + 1 given the sequence is just this Pi K. So an example here is the standard graphical model.",
+                    "label": 1
+                },
+                {
+                    "sent": "In this case, if you set you to be the empty string, this is a non smooth unigram model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, we're still building towards our commitment to our process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need to do regularization in these contexts, particularly when you is is is long.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way I do regularization and the way the hierarchal Pittman or process does regularization is to do Bayesian regular regularization where we estimated posterior distribution over Gu.",
+                    "label": 0
+                },
+                {
+                    "sent": "This discrete distribution, given given a sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is related to Bayes rule to the likelihood of observing the sequence times the prior probability of Gu, and the work is all of the work both in the sequence minimizer in the higher clip in your process.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is in in constructing some sort of interesting prior for this and a prior that does well in some sense, so we do predictive inference with posterior like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can average over our uncertainty about this unknown distribution gud.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the kind of priors that you can use over distributions GUD, you might use the Jewish lady or seen that earlier in this session.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you can use a Pitman Yor process which will cover, I think in the next slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "The point though, is that inference with respect to this unknown distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Inference, predictive inference in particular, is smooth with respect to uncertainty about this unknown distribution.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this if you set you to be the empty string again as a smooth unigram model.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is just standard Bayesian smoothing.",
+                    "label": 0
+                },
+                {
+                    "sent": "I talked, I touched on just now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "A way to tie together distributions or a prior.",
+                    "label": 1
+                },
+                {
+                    "sent": "Over distributions I'm going to use the PIN or as a way to tie together distributions at as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you CGU written as distributed as Pitman Yor with some discount concentration an based distribution, then this is a nice tool for regularization in graphical models.",
+                    "label": 1
+                },
+                {
+                    "sent": "But it's also a tool for tying together related distributions and hierarchical models.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's a measure of our measures that mirror processes the base measure is the mean measure in the sense that if you draw lots of GPU's from this Pitman yor process and take the expected measure of a particular Atom DX.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is equal to an expectation.",
+                    "label": 1
+                },
+                {
+                    "sent": "The measure of the same Atom under the base distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So distribution drawn from a pin or process all you really need to know for the purposes of this talk is when you see something like this is that the Pitman yor process.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can think of as a black box that takes a base distribution, does something to it, and this draw is related to the base distribution based distribution in some way and they are equal when C is equal to Infinity or D.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Is equal to 1, so generalizations Additionally process.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has different different power law properties that are better for text and other natural data like images.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'm not going to talk about inference of doing posterior predictive.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to talk about estimation or posterior predictive inference, for instance, but you even though you can't do this integral in this way because there is an infinite dimensional object you can write down and expect.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can solve this integral.",
+                    "label": 1
+                },
+                {
+                    "sent": "It boils down to some expectation here and this expectation forms the basis for a number of simple and straightforward samplers like the Chinese restaurant process in the Chinese restaurant franchise.",
+                    "label": 0
+                },
+                {
+                    "sent": "It also in the land of stochastic memorization forms the cash.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Shrule essentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're about two slides away from the hierarchical Pitman or process, the hierarchical bit more processes, a hierarchical Bayesian smoothing model, where we do the same Bayesian things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we're going to have lots of unknown discrete distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "GWG ujevi.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are all latent, hidden and we're going to sample these.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the we're going to build a posterior over.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these will refer to that as Theta.",
+                    "label": 0
+                },
+                {
+                    "sent": "We estimated posterior when we do predictive inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to average over uncertainty about this.",
+                    "label": 0
+                },
+                {
+                    "sent": "These unknown and hidden hidden parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "The point is that if you tie together naturally related distribution, so if we jump to language modeling for instance, or just discrete sequence modeling, but language modeling in particular, we'd like to see, for instance, that the distribution of words that follow the phrase of the United States.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is related to in some ways that the distribution of words that follow United States.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just kind of a natural thing to do, and the pit maneuver process is one way to relate those two distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "The net effect of doing this kind of hierarchical Bayesian smoothing thing is that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Observations in one context here are going to affect inference in other context, so in some sense, statistical strength is shared throughout this hierarchy.",
+                    "label": 1
+                },
+                {
+                    "sent": "As you see, observations down here, you're going to see statistical strength shared throughout the hierarchy, and if you set again here W to be an empty string and you need to be single symbols from the alphabet, then this is a smoothing bigram model.",
+                    "label": 0
+                },
+                {
+                    "sent": "To give.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "A sense of what I mean by statistical sharing and how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's a very simple example on the right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here are posterior predictive distributions or probabilities for observing CGP or you in any of these contexts.",
+                    "label": 1
+                },
+                {
+                    "sent": "So G is GCP is the distribution of resembles that follow CP.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is now not words but but characters.",
+                    "label": 0
+                },
+                {
+                    "sent": "GGP is the probability distribution over symbols that follow GP GP, so on and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Opera if you start with the uniform distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "This sort of flows throughout this hierarchy and you have a plus a posterior predictive distribution in each of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "In each of these contexts, that's uniform as well, but as soon as you introduce a an observation over here in the context CP.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say we see in some string CPU we have seen one instance of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "You you shows up in the posterior predictive distribution.",
+                    "label": 1
+                },
+                {
+                    "sent": "Here it propagates throughout the hierarchy and its influences is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cat is large when things are close together in the sharing hierarchy and grows less as you get further away, but this influence show.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Are pins as you add more observations and the whole point is you get sharing through these kinds of structures?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's the point.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the higher helping your process and I'm going to talk about it in terms of in terms of language modeling.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is implements a particular sharing architecture.",
+                    "label": 0
+                },
+                {
+                    "sent": "It shares statistical strength between sequentially related predictive conditional distribution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In the following way, so estimates of a highly specific conditional distribution, like the distribution of words that follow the context, was on the order is going to be coupled with others that are related.",
+                    "label": 0
+                },
+                {
+                    "sent": "For instance, the distribution of words that follow is on through a single comment.",
+                    "label": 0
+                },
+                {
+                    "sent": "More general share an ancestor, which is the distribution of words that follow on that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to drop one word of context, and we're going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's the sharing architecture in the hierarchical thinking.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your process language model and then links between these guys are going to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are going to be put in your process, but in your process links and the kind of sharing that I just demonstrated happens throughout this hierarchy, which is a big big big tree, however.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the heart of it, in your process is a couple of limitations, so if you write down a hierarchal pit maneuver process formally, this is what it looks like you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, a big tree of distributions and then you see observations X.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular contexts, you being distributed according to the 2G you and then a big tree based hierarchy of share sharing above that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you need to know about hierarchical bit more processes that Sobeys and generalization of a smoothing in gram Markov model, particularly in language model, is a language model.",
+                    "label": 1
+                },
+                {
+                    "sent": "It outperforms sort of very good language models like interpolated concern I smoothing.",
+                    "label": 1
+                },
+                {
+                    "sent": "There are efficient inference algorithms.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to use the exact same information out algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "The sharing is such that there is only sharing between contexts different.",
+                    "label": 1
+                },
+                {
+                    "sent": "The most distant symbols.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only the big big limitation of the hierarchical Pitman or process though, is that you have to pick a depth.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the order of the Markov model, so it's a finite depth.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We know about this kind of sharing architecture.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no reason really to limit ourselves to this finite depth tree safe shape structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me let's think about a sequence and it's slightly different way.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a little bit nonintuitive for people who do Markov modeling or treat treat sequences, Markov chains.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea here is that a sequence can be characterized by set of single observations and unique contexts of growing length.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you look at, uh, a CAC, oh, you can think of oh is occurring with no in a situation where there's no context.",
+                    "label": 0
+                },
+                {
+                    "sent": "A in the context of OC in the context of AOA in the context of C. Oh so on and so forth.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now we have increasing context length but only a single observation ever.",
+                    "label": 0
+                },
+                {
+                    "sent": "In each of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to we're going to estimate a bunch of conditional distributions, but we only see a single observation in each one of them, so we have to do regularization.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to do sharing this.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the only way we can possibly get.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get good estimates of these distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "A bit of foreshadowing we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can sort of identify which of these distributions we need to estimate by looking at all the suffixes in this in this string or the reverse of oasi.",
+                    "label": 0
+                },
+                {
+                    "sent": "So CAC AO all of these contexts are suffixes of that string.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We are somewhat shamefully call a non Markov model in the in the paper is in fact the sequence memoizer, so the distribution of a sequence here we're not going to do any truncation approximation here, we're just going to write write out the conditional probabilities.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, the probability of this sequence, oh acac, is just a product of all of these conditional probabilities where there's no truncation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I already said smoothing is essential and the solution that we're going to take is hierarchical sharing all of the hierarchical Pitman or process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the same kind of sharing that we that happens in the House.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Put more processes are going to happen in the sequence memorizer, except that we make one small change which has relatively profound impact on what the model can do, which is no longer.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is there a limit on the depth of the tree is unbounded, and now the question is, can we identify which parts of the tree we care about and assuring still work so.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the point though, the take homes are that the sequence memoizer eliminates this Markov order selection.",
+                    "label": 1
+                },
+                {
+                    "sent": "You always use full context when making predictions.",
+                    "label": 1
+                },
+                {
+                    "sent": "There's a linear time linear space in the length of the observation sequence.",
+                    "label": 1
+                },
+                {
+                    "sent": "Way to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Identify the graphical model and the performance is limited and engram as it goes to Infinity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the here's the trick.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will remember back to our algorithms courses where we talk about suffix trees and suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tries an prefix trees and perfect prefix, tries and hazardous stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "But let me not belabor the point.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the sequence minimizer, we don't use a graphical model, try, but it's it's a starting off point because this is the graphical model, tries to sharing architecture that you would have in the higher.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Michael Pittman, your process if you instantiate it, all the nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a acac.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's look at the distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is each one of these circles is a latent conditional distribution.",
+                    "label": 1
+                },
+                {
+                    "sent": "So G empty is the probability of seeing something in the empty context.",
+                    "label": 0
+                },
+                {
+                    "sent": "So oh, occurs in the empty context, though, is an observation under G, not a is seen in the context.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, so it's an observation in the under the distribution of that follows, oh.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so on and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "C is an observation in the context, Geo A and so on and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "As you fill out this entire tree, what you get is the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sharing architecture is the graphical Pittman or process where you always drop 1 one letter of history or one one symbol of history.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so we've got observations and we have a big graphical model tree in the shape of the hierarchical bit more process, or in this sharing this Markov model sharing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Structure what's nice is that that is that this shape of this tree forget.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is a graphical model, and then they're sharing in this and so on and so forth the shape.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This tree can be identified using a suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "I keep saying tree instead of try.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm sorry that's terrible.",
+                    "label": 0
+                },
+                {
+                    "sent": "The shape of this graph graphical model can be identified by running a standard suffix trie data structure, constructing a standard suffix trie data structure for the input string.",
+                    "label": 0
+                },
+                {
+                    "sent": "CAC, AO.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, if you if you want to identify all the suffix strings of suffixes of the string CAC, AO, then then you can just take a suffix trie algorithm and consume.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This this try a suffix tried just remind you as a deterministic finite state automata recognizes all suffixes and input string requires N squared time and space to build in store, which makes it too intensive for many practical.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Sequence modeling applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, there's a transformation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Or another algorithm that can identify a similar kind of model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you take the suffix, try and you can represent the same kind of thing with a suffix tree which has which basically just makes a few of these groups makes it.",
+                    "label": 0
+                },
+                {
+                    "sent": "How did that hello?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which which essentially compresses these edges, so it's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a more efficient data structure for doing exactly the same thing, so we're going to lose some of these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Some of the intermediate nodes and arrive at a much more efficient data structure with a very nice.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Algorithm for constructing it so.",
+                    "label": 0
+                },
+                {
+                    "sent": "There should be a slide in here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry anyway, so a suffix tree can be constructed in linear time in linear space from from a single input sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem though is that that that in order to get a data structure like this, there's a graphical model transformation under the coverage.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these compressed paths require being able to analytically marginalized out nodes from the graphical model and the results of this marginalization can be thought of as providing.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Set a different set of rules for for a sequence memorizer and the marginalization step that we need is this this coagulations step which comes from some historical work, which is that if you have a higher commitment process where G2 given G1 is distributed according to opinion process with discount D1 concentration zero and based distribution G1 and G3 given G2 is distributed according to process with discount D2 concentration 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "And based distribution G2 then G3 given G1 is distributed according to opinion or process with discount D 1 * D Two concentration zero and based distribution G1.",
+                    "label": 0
+                },
+                {
+                    "sent": "So neat little trick which allows us to take a graphical model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Try like this and remove.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This should also be colored blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "A graphical model try which implements hierarchical Pitman Yor process sharing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or ngram smoothing, ngram, smoothing, model and collapse the graphical model down to something that looks like this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Has a number of nodes that's linear in the length of the observation sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way we get this is we take a single.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Input sequence we run a linear time suffix tree construction algorithm to identify the graphical model.",
+                    "label": 1
+                },
+                {
+                    "sent": "The tree is traversed.",
+                    "label": 0
+                },
+                {
+                    "sent": "We set the parameters and then we can go.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What we get is the number of nodes in the graphical model is indeed linear, which is kind of cool.",
+                    "label": 1
+                },
+                {
+                    "sent": "So when we run this up to 14 million observations, we have perfectly linear growth by another aspect of the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't ever actually have to sample any of the leaf nodes, so the number of nodes that we actually have to sample grows linearly as well, but at a much lower rate.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that's pretty cool.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that maybe the neatest thing that comes out of this work is that there's that provides evidence that you should never actually build anything greater than the 5 gram Model S, or just use the sequence memorizer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the point is, this is a bit of a confusing figure for each symbol, so here's the plus symbol.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's take this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the number of nodes, i.e.",
+                    "label": 0
+                },
+                {
+                    "sent": "The computation, computational complexity of the sequence memoizer, and this corresponds to something with looks like 13 million.",
+                    "label": 0
+                },
+                {
+                    "sent": "Observations here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a number of nodes in the sequence memorizer, and this is the number of nodes in the corresponding hierarchal Pitman yor process where the number of nodes grows quadratically instead, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you look here at N = 5, so this is the depth of the hierarchical Pitman ARM processor.",
+                    "label": 0
+                },
+                {
+                    "sent": "The order of the Markov model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once you get to 5, the number of nodes meets or exceeds the number of nodes in the sequence memoizer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I should say again.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The the the sequence memorizer bounds in grand performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the test test perplexity is a measure of predictive performance of the sequence memorizer is constant across all end, because in is the limit as N goes to Infinity.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you take just the standard smoothing, Markov model is the hierarchical Pitman or process and you increase in, well, you see that it comes the sequence minimizer is the limit of this of this of this particular model, but the computational complexity.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of this blue line far exceeds the orange line once you once you pass five.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if there's really if there's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there's really a take home is.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you ever build a discrete Markov model of order greater than five, don't do it this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's really the way to go.",
+                    "label": 0
+                },
+                {
+                    "sent": "My apologies to Andrea C is in here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is there is actually one better performer now.",
+                    "label": 0
+                },
+                {
+                    "sent": "As it turns out, but if you apply this",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Language model language isn't that is not a short order Markov kind of structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "It benefits a great deal from having being able to take into account longer contexts.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we when we apply this to the AP News corpus and we look at Test perplexity, if you compare this to sort of the best, the best published perplexity results for this corpus.",
+                    "label": 1
+                },
+                {
+                    "sent": "The sequence MEMORIZER does quite well as a function of the unbounded depth, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The sequence numbers that deep unbounded smoothing Markov model and can be learned to it can be used to learn a joint distribution over discrete sequences in time and space in linear in the length of a single observation sequence, and it's equivalent to a smoothing incident gram, which is another way of thinking about this, but costs more to know more to compute than the 5 gram, and I think that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Questions please.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

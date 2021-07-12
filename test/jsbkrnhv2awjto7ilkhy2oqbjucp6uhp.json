@@ -1,0 +1,1953 @@
+{
+    "id": "jsbkrnhv2awjto7ilkhy2oqbjucp6uhp",
+    "title": "Scaling Latent Variable Models",
+    "info": {
+        "author": [
+            "Alex Smola, Amazon"
+        ],
+        "published": "Jan. 24, 2012",
+        "recorded": "December 2011",
+        "category": [
+            "Top->Computer Science->Machine Learning->Bayesian Learning"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2011_smola_models/",
+    "segmentation": [
+        [
+            "This talk is going to be, well, very much on the applied side, and it's simply, I think, some things in here might be a little bit controversial, or at least surprising in terms of you know how you would usually approach some of these problems.",
+            "And the.",
+            "The reason why we had to and so basically this talk is going to explain a little bit the design choices that we had to make in order to get these results.",
+            "So basically when I.",
+            "Started working at Yahoo about three years ago.",
+            "We had a lot of you know, supervised, convex optimization people and, well, they.",
+            "I figured I should probably do something that actually contributes some diversity to our tool portfolio and I looked at, you know, a lot of these latent variable models, parametric base and so on.",
+            "To some extent I realized, well, actually the results are absolutely amazing.",
+            "You know, you can make very nice models and then you look at the experimental statements in there on like 2 three 5000 objects.",
+            "And then you look at, you know the data sets that you have.",
+            "And well, basically you realize that you know you're probably 56 orders of magnitude above what's published in a lot of academic, and a lot of papers.",
+            "And so you start thinking, well, OK, can we actually scale them up to a size where it's useful?",
+            "And which approximations do we have to make?",
+            "And also you know which things are going to break if you scale stuff up.",
+            "Anne."
+        ],
+        [
+            "So I have to thank a lot of people to make this happen, and probably those are the three people who help the most.",
+            "Ammar Ahmed, Mohammed Ali and shove in Iran Murty, so most of the code was actually written by Xraven.",
+            "Anne.",
+            "This is I really have to thank the them a lot for making this work, so I'm going to specialize my discussion a lot on."
+        ],
+        [
+            "Essentially like there's reallocation.",
+            "So the reason why I'm going to do this is because I suppose by now everybody here in the room knows the basic model.",
+            "And it's therefore also quite useful.",
+            "You know to think about, you know which design constraints, which limitations will you run into if you try to scale them up.",
+            "A lot of these conclusions apply to a lot of other models.",
+            "It's just that you know this is sort of our Patriot issue where we can try out new methods reasonably efficiently and then extend it to other problems.",
+            "So therefore it will be essentially a lot of variations on a theme.",
+            "Basically how to collapse or not, and how to optimize and sample.",
+            "And there will be some.",
+            "Let's just say surprising conclusions in terms of what you would do.",
+            "On large problems, then I'll talk a little bit about you know issues of scaling a sample directly, how you distribute variables, and there's some interesting questions where I would really be happy if somebody could help us with establishing at least approximate convergence properties for various Gibbs samplers, and then in the end, I'll.",
+            "Time permitting, might mentioned a little bit about, you know some tricks on how to speed up those samples and those tricks, while in hindsight completely obvious make huge difference, in practice, you know that can give you like a 50 fold 100 fold speedup.",
+            "In other words, they make all the difference between this being a beautiful model and you were actually being able to use it in practice."
+        ],
+        [
+            "So few variations on the theme, so before I see."
+        ],
+        [
+            "Definitely, and we've seen it mainly as a theoretical tool, but it actually has some very immediate consequences.",
+            "So what I'm going to do is I'm going to use a bastardized version of a plate, namely those dashed lines too.",
+            "Represent something that is exchangeable or more or less exchangeable, so I'm going to take a little bit of Liberty with that, because I want to convey more intuition than just you know the formal definitions, but if I have an exchangeable random variable, then by definitely I know well there has to be some dependency in their corresponding latent variables such that everything becomes conditionally independent, so sounds great if we want to therefore draw from that distribution well.",
+            "It's not too hard, right.",
+            "After all, you know we know this, so if we can come up with a model while we draw from theater, given all the excised, and we draw from the Exile.",
+            "Draw the exercise given Theta and you know.",
+            "If we wait for long enough, we'll get something useful.",
+            "OK, so that's what you would think.",
+            "We'll see that this has interesting."
+        ],
+        [
+            "Consequences the other small context a little bit, because it's actually a very useful tool, is just, you know, the notion of you know exponential family conjugates, posteriors, and collapsing these parameters, and that can be all made very nice and nonparametric.",
+            "So for instance, patterns has done very nice work on that context, so we probably all know, OK, we have sufficient statistics look partition function.",
+            "Then the conjugate has to have the forms such that you know the posterior is the same for mass.",
+            "My prior, so we basically do that backwards reasoning in order to get a functional form that satisfies this and well, this is the normalization.",
+            "This will actually become extremely handy because if we now take our posterior, so here's sort of cell.",
+            "Fake data sitting somewhere in the politic marginal polytope.",
+            "Face example size.",
+            "OK, with the natural parameter.",
+            "Then, well, what happens is that basically we combine the sufficient statistics of the data with, you know, are essentially fantasy data.",
+            "An well this gives us a nice posterior and it happens to be convex most of the time.",
+            "OK, so now the good thing is, since we already went through the big pain of actually integrate computing this normalization, we can actually integrate out this parameter Theta and we can just ask you know what's the likelihood of the data given all these parameters and they get a nice difference between two of those normalizations.",
+            "So for instance, in Bayesian sets, so that is actually used in order to find out you know which points go.",
+            "Which observations go well with what?",
+            "And this is a connection that is exploited actually quite a lot in how to obtain fast samplers.",
+            "Or you know, too.",
+            "The couple things in a suitable way.",
+            "So this is all really just background so."
+        ],
+        [
+            "If you and me for a little bit longer, so essentially what we have is we have collapsed representation with, you know our hyperparameters and.",
+            "Use the data or.",
+            "Basically here, if we expand without natural parameter and so this would be more definitely light expansion."
+        ],
+        [
+            "You see a similar thing here for clustering, so you know just to put them a little bit side-by-side what you get so an."
+        ],
+        [
+            "Was here the matrix factor."
+        ],
+        [
+            "Station version and this is really just a game background.",
+            "Now the entire goal is, well, you want to find those membership matrices and then you know here.",
+            "Essentially it's the emissions model of whatever generates your data for the specific object that you pick.",
+            "And you know there are a lot of just pure optimization approaches that give you something very similar, or at least in some cases you can generate very similar data services.",
+            "Non negative matrix factorization will give you something that sometimes behaves quite LDA topic clustering like, so let's."
+        ],
+        [
+            "To the chase.",
+            "So what could you do if you had a model of this form?",
+            "You could just actually go and you know brute force optimize.",
+            "So let's say, well, we integrate out our natural parameters here.",
+            "So we're left with, you know, some discrete oscient variables, and I could just brute force optimize.",
+            "And if I do that well, it'll overfit.",
+            "Actually quite a bit, because the mode after posterior is, you know, actually often quite far away from what you would expect.",
+            "You know the mean to be, and several people have tried things like that and well, got an interesting.",
+            "It results for that.",
+            "So it turns out to be actually rather nasty to implement because it's a discrete maximization problem.",
+            "It can actually over fits a lot.",
+            "And if you want to paralyze that.",
+            "Well, you don't."
+        ],
+        [
+            "He's a different way, so I could go and integrate out the discrete assignment variables and then I'm left with.",
+            "You know, the natural parameters for the documents and here for the entire emissions model, and that has actually recently gotten a lot of popularity.",
+            "So for instance, that's the LDA version, invaluable rabbit, and essentially what you can now do is you take your posterior and you maximize.",
+            "And since it's a little bit less richly parameterized in just the discrete assignment variables.",
+            "Well, I suppose finding the mode isn't such a horrible thing.",
+            "And it's fairly easy to implement.",
+            "So what you basically do is for each new document you come up with, you know a decent estimate for Theta.",
+            "Take get the corresponding subgradient in those size.",
+            "You need to an update step and then you basically run stochastic gradient descent on it.",
+            "This is fairly straightforward to implement.",
+            "Doesn't actually overfit so much and it works really well for small datasets.",
+            "So this actually gets a little bit to the beef that I have with this method.",
+            "Namely, it's actually twofold.",
+            "First of all, it's highly nontrivial to paralyze this procedure.",
+            "Why's it highly nontrivial?",
+            "Because, unlike you know, a standard Gaussian process classification regression setting where the posterior is log concave.",
+            "This actually is highly multimodal, so if I distribute my optimization problem among many machines, I have absolutely no guarantee.",
+            "That each machine will give me something that is, you know, going to converge to a comperable.",
+            "You know mode, so therefore combination of the estimates is, well, difficult and doesn't work amazingly well.",
+            "It's just, you know, a general nonconvex Max optimization problem.",
+            "The bigger issue, even if you could solve this and this is really the killer, is that you run out of memory now for small academic data sets, you're not going to run into this problem, But let's just do a very simple back of the envelope calculation.",
+            "So we take maybe a million words and we take 1000 topics.",
+            "And we already are at 4 gigabytes, so if you use a little bit of auxiliary data structures and so on, you basically very quickly going to push the memory limit.",
+            "Now that is still a small number of tokens that you would have in any realistic model, so the even worse thing is that you basically end up having to do dense updates, because for each word for each document.",
+            "Now you will need to update essentially the topic word distribution parameters for all the topics.",
+            "You're most likely going to get non zero gradients throughout, so this is a bad idea.",
+            "Why?"
+        ],
+        [
+            "What else could you do is you could use a variational approximation.",
+            "And well, that's basically the very first inference algorithm suggested by applying and Jordan in 2003.",
+            "And well again, you have an alternating convex optimization problem.",
+            "This is actually in terms of parameters, little bit worse than what I showed you before.",
+            "It's really again very straightforward to implement.",
+            "Again, works beautifully for small data set sizes, but the memory requirements are going to kill you.",
+            "We can nicely paralyze it.",
+            "This is good because basically now at least at each E&M step you you know aggregate more or less sufficient statistics, and so then it's.",
+            "Reasonably well controlled and you will at least jointly converge to, you know, a mode global mode, but it's changed.",
+            "It turns out not to be always quite as good as sampling, I mean.",
+            "Now here's something else."
+        ],
+        [
+            "I could do.",
+            "So you could just use uncollapse sampling, and this is like the most obvious thing you could do right, and again you will have problems with actually storing your parameters.",
+            "And the bigger problem is that it will actually not converge very fast.",
+            "This is something that people realized very quickly."
+        ],
+        [
+            "Which is why there's this beautiful paper by Tom Griffiths and Stivers in 2005, where they essentially do nothing else but collapse out these variables.",
+            "You then have a sampling problem in the discrete set of parameters and you can design A reasonably rapidly mixing Gibbs sampler.",
+            "And it worked beautifully, and here essentially the sampling equation.",
+            "So you can actually remove the denominator here, because the number of words per documents doesn't really change and this is, you know, proportional to the you know.",
+            "But you know, posterior probability of a particular topic being assigned to a particular word given everything else.",
+            "This is essentially the big set of variables that is going to mess up things."
+        ],
+        [
+            "So the problem is if I want to so this is beautiful and fast and the best thing you can do if you have a single core single threaded implementation.",
+            "It's beautiful if you have multicore or multi machine, you're going to get problems because each time I update this variable, one of the let's say 1 core updates this, everybody else is going to actually have a collision and so they will be on hold.",
+            "So if you for instance where to implement something like that directly in graph Lab with a chromatic sampler, most of your machines would white most of the time to do anything.",
+            "So how do we work around that?",
+            "So we'll have to make some approach."
+        ],
+        [
+            "Summations.",
+            "So if you actually look at this term here.",
+            "There are, you know, a couple of interesting factors happening, so this is.",
+            "This is basically the number of topics in a given document, while the minus I just I remove the account for the IJS Trump.",
+            "So now this is something that I can keep entirely local so I don't have to actually do any approximations.",
+            "If I assign one document to each processing element, no problem.",
+            "The number of topics you know, number of tokens assigned to a particular topic overall isn't really going to change very rapidly, so I can essentially approximate that as more or less being constant.",
+            "But this is a big deal that the number of you know.",
+            "Topics for given word.",
+            "That number will actually change reasonably swiftly.",
+            "So.",
+            "In that paper, by absentee on smart and willing.",
+            "And there was kind of a breakthrough that was basically the 1st paper which you know try to build topic models on a highly nontrivial scale so they reported results on up to 8 million documents.",
+            "Which was just really fantastic at the time and there was actually, I think, probably pretty much the reason why I actually started working with this because I thought OK, maybe there's something we can really do.",
+            "The problem with that approach still is that you essentially partition your documents it into thousand chunks.",
+            "If I have 1000 machines, each machine performs an entire sampling path during which things can diverge as much as as can be, and then only in the end you aggregate.",
+            "This is bad for a number of reasons.",
+            "First of all, you actually not really in terms of systems design using all the resources that you have, so you're not using the network while things are happening.",
+            "The second thing is that actually makes mixing much slower and at some point involuntarily we essentially ended up running this version in the converged much slower than what I'm going to show you in the next slide, namely a much more aggressive synchronization setup.",
+            "But this was really the first pointer and this was.",
+            "This was a great paper to, you know, get people actually to believe that it could."
+        ],
+        [
+            "Done so.",
+            "Here's something that we essentially do, and basically we make local copies of the state table as far as we actually need it now.",
+            "The good thing is these are actually counts.",
+            "Now if I have counts and that's a really nice thing.",
+            "Let's say have 1000 topics.",
+            "I only really need to do discrete updates whenever I reassign a word.",
+            "So in other words, I don't really have to update 1000 numbers, they only need to update to.",
+            "Namely, I need to down date the old topic that where the word was assigned to an update, the new one so you know I have a 500 fold speedup.",
+            "This matters in practice.",
+            "Secondly, it also means that for the rare words, I will usually not even have all topics instantiate it.",
+            "So I have a sparse vector and that sparse vector will be small enough that I can actually fit large vocabularies into memory.",
+            "Thirdly, I can do clever things in terms of partitioning my documents between different machines.",
+            "Now it's an obvious thing that suppose I had, you know, some English and some French documents, and maybe something tying them together.",
+            "It's probably a good idea to put all the English documents on one machine and all the French ones on another machine, because in this case the machine holding the English documents doesn't actually need to know much about the state of the French ones, and vice versa.",
+            "That saves a lot of memory.",
+            "And these tricks are essentially what allows you to deal with very large models and fit them into memory into that efficiently.",
+            "Now what we do is we make local copies and we have a synchronization protocol running in the background which basically updates the sufficient statistics between different machines and time permitting I'll talk a little bit about it.",
+            "The key question is, well, you know how much approximation we're actually getting.",
+            "Basically how much versus then you know fully coupled sampler.",
+            "One thing that I."
+        ],
+        [
+            "Probably mention and this is actually a very nice paper by clinician Griffith is you can actually do sequential Monte Carlo now.",
+            "Sequential Monte Carlo sounds like you know the cure all and end all to all those problems because you know you go sequentially through the set of documents and you know you have a bunch of particles and then you move on and basically for each new document you know you basically reassign you, assign the topics to the words and maybe do a few sampling steps within a document, but.",
+            "That's a very straightforward procedure.",
+            "This sounds very similar to you know online learning.",
+            "Now what's the problem?",
+            "The problem is that he cannot actually be paralyzed terribly well.",
+            "Now this sounds like a complete contradiction to what you would assume from a particle filter.",
+            "After all, you have different particles and they all you know can run on different cores.",
+            "The problem is that it started sequential.",
+            "So in other words, as long as you don't have more data than what you can sequentially process in a massively multicore machine, you're good.",
+            "If you have more data than that at the moment, this is a completely unsolved problem, and I would dearly love if somebody could figure out ideas on how to fix this.",
+            "There are some tricks that you basically paralyze the heartbeat of, you know, doing actually the sampling and then only in the end you aggregate things and but it's still essentially the artist sequentially in the sense that each machine at some point needs to touch all the data.",
+            "And yes, you can easily construct pathological cases for it, but.",
+            "OK, this is."
+        ],
+        [
+            "This is probably the one problem that would be really nice if we could solve it, so let me just."
+        ],
+        [
+            "Sum up a little bit what we have and this is an incomplete slide, and for instance, I've completely omitted all the clever tricks you could do in terms of stick breaking.",
+            "But basically you could look at Uncle apps representations.",
+            "You could look at variational ones you can collapse at the natural parameter.",
+            "You can collapse out the topic assignments and you get this interesting dichotomy.",
+            "So if you keep your Uncle apps representation, most things are usually quite bad.",
+            "If you use a variational approximation, things are reasonably easy, but you have a huge memory footprint, but you can actually parallelize.",
+            "Now if I collapse at the natural parameters, direct optimization is just, you know, discrete maximization problem and things get really bad, but you can actually do A at least in the sampling context you get actually a very fast mixing sampler and it paralyzes nicely.",
+            "The converse is true if you collapse out the topic assignments, then you know that gives me a nice optimization problem for moderate problem sizes, But the sampling is difficult.",
+            "Now let me show you a little bit the scaling problem."
+        ],
+        [
+            "That you run into.",
+            "So."
+        ],
+        [
+            "So a lot of latent variable models, and I've just simplified the model that I'm talking about.",
+            "Even further, just you know to clustering.",
+            "So we have like mean.",
+            "Variance this is the data.",
+            "These are maybe the local variables."
+        ],
+        [
+            "And so this global state is usually big, as we've seen this kind of fit on disk, and this can only be local."
+        ],
+        [
+            "And that."
+        ],
+        [
+            "Course doesn't only apply to clustering, but also like vanilla LDA or."
+        ],
+        [
+            "Something that's a bit closer to what we use for user profiling."
+        ],
+        [
+            "Essentially raises 3 problems.",
+            "The first thing is that the local state is too large basically and I have a lot of documents, a lot of user actions.",
+            "You know you might have two billion user activities.",
+            "So it doesn't fit into memory and you can fix that very easily, I mean."
+        ],
+        [
+            "Stream it from disk.",
+            "The next problem is that the global state is too large and that causes actually two issues.",
+            "First of all, I need to keep it synchronized.",
+            "And Secondly, I need to partition it.",
+            "And to keep it synchronized, which."
+        ],
+        [
+            "Just use an asynchronous synchronizer and to fit into memory which."
+        ],
+        [
+            "Just keep the partial view that contains only the data that we really need.",
+            "So this is exactly what I mentioned before.",
+            "Now how do you?"
+        ],
+        [
+            "History with this.",
+            "So in the simplest case, an we've actually seen such models before.",
+            "So for instance, after Cynthia Maxwell and Co. Actually looked at a hierarchical LDA type model where they just said well by some magic device, each machine you know has its own topic modeling there hierarchically coupled, which is a great thing to do if you can actually do partitioning along some reasonable hierarchical structure in your data.",
+            "If you can do that, well, this is.",
+            "Just a nice story.",
+            "So what I did there for is I just made this double edged error here which tells me that this doesn't actually mean you know dependency in the graphical model sense, but just it's a copy of it, but what it really means is that I now have those global variables which are replicated on each computational node."
+        ],
+        [
+            "Or actually, if I have a service center with racks and within the racks that have high bandwidth outside the racks, I have much lower bandwidth where basically I now map the communications tree that my hardware imposes onto the synchronization over the machines and then you get something that looks off."
+        ],
+        [
+            "Really similar to just, you know, standard message passing, except that we made it a symmetric and that's just the computational reason, because what we need to make sure is that any local changes which are comparably small are transmitted as deltas upstream, and then any global changes I can just transmit the entire state so it has it follows more or less the same semantics as message passing, except that we made it asymmetric for computational reasons.",
+            "This works for anything whenever the statistics that I'm transmitting our foreman abelian group, I need the Abelian group in order to have the differentials.",
+            "So basically two such that they can have an inverse element so I can subtract things and I need the abelian property in order to make sure that the order in which the updates arrive at least do not affect things.",
+            "Whether I will leave my state of consistent parameters or not.",
+            "Anne."
+        ],
+        [
+            "And then you just have reasonably simple synchronization."
+        ],
+        [
+            "Just the last bit in this context, you need to worry a little bit about, you know not creating hotspots, because if I have what suppose I had one machine that you know kept all the variables and then they synchronize everything against that one machine, I will immediately have a hotspot.",
+            "I might have, you know, 40 machines trying to synchronize with a single state keeper, So what you do is you partition your global state onto several machines you know basically, for instance with a topic word table you would charge things.",
+            "Diverts or you might partition things by users or you know any other natural partitioning for which individual updates may not immediately take you to an inconsistent state.",
+            "And then you pick the machines that you're going to choose to be the master through something like consistent hashing.",
+            "So there's an argument hash.",
+            "So what it does is it basically for a given key like a bird ID, it computes a hash of that key in the machine ID, and it fixed the machine with the smallest hash value that gives me uniform distribution.",
+            "And then."
+        ],
+        [
+            "Actually get to other nice properties because now my global state partitions in order 1 / K per machine, so the more machines I have, the smaller the global state is that that machine needs to keep its not entirely true because with more machines I will usually want to process more data.",
+            "So may state grows a little bit, but it might grows probably more logarithmically, so it'll be probably more like log K / K, so it's still good.",
+            "The communication is order one for machine, which is a good thing.",
+            "'cause what I basically have is I need to communicate that order 1 / K after state to K machines.",
+            "So 1 / K * K is 1.",
+            "And I can do very fast snapshots which we have to do because if you run on 1000 machines, which are not necessarily very reliable, you need to occasionally snapshot such that you can restart from that checkpoint, and so things actually."
+        ],
+        [
+            "Workout reasonably nicely, so we thought we thought so."
+        ],
+        [
+            "Till we ran our experiments on more than 100 machines and all of a sudden our system started slowing down rather drastically.",
+            "An initially we didn't quite know what was going on.",
+            "And if you think about, it's actually very obvious in hindsight.",
+            "So basically, if you have K machines that you're talking to, you're going to have connections open at the same time, which is not good because the data rate goes like one over number of machines, so you need to essentially figure out a nice randomized schedule to connect to them.",
+            "An without."
+        ],
+        [
+            "Going into too many details, you basically partition the messages that you sent to different machines according to essentially a random permutation proper connection.",
+            "So what you get is essentially a BI party."
+        ],
+        [
+            "Graph where the degree of 1 set of nodes is essentially fixed in this case mean for R equals so busy.",
+            "For one you can see that this is not necessarily very small."
+        ],
+        [
+            "The idea, because you will meet a lot of machines is exactly the same thing as what you get with the bootstrap.",
+            "If you're sampling out of thin, you will miss one of three of the vertices and you will create hotspots if."
+        ],
+        [
+            "Pick two, it gets better and you can very cool."
+        ],
+        [
+            "With the back of the envelope calculation gets a good upper and lower bound, so about four to five machines is a good thing.",
+            "If you do this and a few other tricks in terms of you know how to aggregate messages, you get stuff that actually scales."
+        ],
+        [
+            "And so this is the type of scaling graph that I like.",
+            "I'm saying it's the type of scaling graph that I like because what you actually want to do is you.",
+            "The only time you want to use more machines.",
+            "If you get more data, so you need to be able to show that as you as you throw more machines at it.",
+            "You really are not increasing your runtime too much.",
+            "And this is basically what happens if we specially one keep sampler pass an.",
+            "If we keep the number of machines fixed at 100, we can see that as we move from 200 million to two billion documents, well, you know, goes up to about half an hour.",
+            "Now if we increase the number of machines accordingly, things don't increase too much.",
+            "I mean stuff is still happening here.",
+            "That's quite possible because we didn't do a very good job at implementing that communications tree so far.",
+            "But it's a lot better than what you would have expected.",
+            "Now that's pretty much the end of my talk."
+        ],
+        [
+            "Few very simple things about."
+        ],
+        [
+            "Amplus"
+        ],
+        [
+            "I'll just show you that one slide because it's actually very, very beautiful.",
+            "It's a terrific idea of David Milner and Anna McCallum so.",
+            "I mean, I found out about that actually by essentially reverse engineering their mallet code, and then I found their published paper.",
+            "So what they do is if you look at the topic probability for a given word, then you can decompose it into three terms.",
+            "You can decompose it into a dense term.",
+            "And for that amount is not much you can do, but the good thing is it doesn't actually really depend on.",
+            "You know the document or the word except for an upfront factor.",
+            "So you can basically precompute this.",
+            "It doesn't really change very much this term.",
+            "I mean, I could fix that, but there's not a big deal.",
+            "And then I have a sparse term here, which is sparse in the number of the topics that occur in a particular document and this term, which is sparse in the number of topics that occur for a particular word.",
+            "So at least 4 words that occur don't occur too frequently.",
+            "This is actually a very nice sparse expression where the only thing that really changes is in these two parameters.",
+            "Now what this means in practice and you can extend."
+        ],
+        [
+            "And that with you know, basically Schwartz whenever."
+        ],
+        [
+            "Doesn't work exactly like this.",
+            "Let me just conclude with this figure 'cause it's.",
+            "A working example of that idea.",
+            "So this is the speedup relative to the.",
+            "Vanilla Sampler, which wouldn't actually use sparsity.",
+            "And as you know, the number of iterations increases.",
+            "So basically, as your sampler burns in up to 1000 iterations, and so you can see actually very nicely how you know this sampler speeds up is basically the sparser my you know, model gates, the beta actually for computation.",
+            "And this is actually a really, really nice idea that you can use in many places.",
+            "Here's one way."
+        ],
+        [
+            "OK, it's maybe not quite that obvious, so you would probably need the need to read the paper by Amarok mid and on storylines.",
+            "Basically, if you go through it, it seems to be one of the tricks on how to make the sampler faster.",
+            "Again, is exploiting sparsity, and I think that brings me to the."
+        ],
+        [
+            "End of my slides.",
+            "So.",
+            "Probably one of the counter intuitive things is that sampling can actually be a much faster and cheaper and actually more scalable thing than a brute force optimization.",
+            "The other thing is you should really look at the computer architecture that you have when you build large scale systems.",
+            "If you ignore it.",
+            "I mean you will pay for it in terms of slow algorithms.",
+            "And the other thing is, it really pays off to think a little bit about, you know sparse representations for your samplers, and that can make a huge difference in terms of convergence speed.",
+            "OK, that's all I want to say."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This talk is going to be, well, very much on the applied side, and it's simply, I think, some things in here might be a little bit controversial, or at least surprising in terms of you know how you would usually approach some of these problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason why we had to and so basically this talk is going to explain a little bit the design choices that we had to make in order to get these results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically when I.",
+                    "label": 0
+                },
+                {
+                    "sent": "Started working at Yahoo about three years ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "We had a lot of you know, supervised, convex optimization people and, well, they.",
+                    "label": 0
+                },
+                {
+                    "sent": "I figured I should probably do something that actually contributes some diversity to our tool portfolio and I looked at, you know, a lot of these latent variable models, parametric base and so on.",
+                    "label": 1
+                },
+                {
+                    "sent": "To some extent I realized, well, actually the results are absolutely amazing.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, you can make very nice models and then you look at the experimental statements in there on like 2 three 5000 objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you look at, you know the data sets that you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "And well, basically you realize that you know you're probably 56 orders of magnitude above what's published in a lot of academic, and a lot of papers.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so you start thinking, well, OK, can we actually scale them up to a size where it's useful?",
+                    "label": 0
+                },
+                {
+                    "sent": "And which approximations do we have to make?",
+                    "label": 0
+                },
+                {
+                    "sent": "And also you know which things are going to break if you scale stuff up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I have to thank a lot of people to make this happen, and probably those are the three people who help the most.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ammar Ahmed, Mohammed Ali and shove in Iran Murty, so most of the code was actually written by Xraven.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is I really have to thank the them a lot for making this work, so I'm going to specialize my discussion a lot on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Essentially like there's reallocation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the reason why I'm going to do this is because I suppose by now everybody here in the room knows the basic model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's therefore also quite useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know to think about, you know which design constraints, which limitations will you run into if you try to scale them up.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of these conclusions apply to a lot of other models.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just that you know this is sort of our Patriot issue where we can try out new methods reasonably efficiently and then extend it to other problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So therefore it will be essentially a lot of variations on a theme.",
+                    "label": 1
+                },
+                {
+                    "sent": "Basically how to collapse or not, and how to optimize and sample.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there will be some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's just say surprising conclusions in terms of what you would do.",
+                    "label": 0
+                },
+                {
+                    "sent": "On large problems, then I'll talk a little bit about you know issues of scaling a sample directly, how you distribute variables, and there's some interesting questions where I would really be happy if somebody could help us with establishing at least approximate convergence properties for various Gibbs samplers, and then in the end, I'll.",
+                    "label": 0
+                },
+                {
+                    "sent": "Time permitting, might mentioned a little bit about, you know some tricks on how to speed up those samples and those tricks, while in hindsight completely obvious make huge difference, in practice, you know that can give you like a 50 fold 100 fold speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, they make all the difference between this being a beautiful model and you were actually being able to use it in practice.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So few variations on the theme, so before I see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Definitely, and we've seen it mainly as a theoretical tool, but it actually has some very immediate consequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I'm going to do is I'm going to use a bastardized version of a plate, namely those dashed lines too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Represent something that is exchangeable or more or less exchangeable, so I'm going to take a little bit of Liberty with that, because I want to convey more intuition than just you know the formal definitions, but if I have an exchangeable random variable, then by definitely I know well there has to be some dependency in their corresponding latent variables such that everything becomes conditionally independent, so sounds great if we want to therefore draw from that distribution well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not too hard, right.",
+                    "label": 0
+                },
+                {
+                    "sent": "After all, you know we know this, so if we can come up with a model while we draw from theater, given all the excised, and we draw from the Exile.",
+                    "label": 0
+                },
+                {
+                    "sent": "Draw the exercise given Theta and you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we wait for long enough, we'll get something useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's what you would think.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'll see that this has interesting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Consequences the other small context a little bit, because it's actually a very useful tool, is just, you know, the notion of you know exponential family conjugates, posteriors, and collapsing these parameters, and that can be all made very nice and nonparametric.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for instance, patterns has done very nice work on that context, so we probably all know, OK, we have sufficient statistics look partition function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the conjugate has to have the forms such that you know the posterior is the same for mass.",
+                    "label": 0
+                },
+                {
+                    "sent": "My prior, so we basically do that backwards reasoning in order to get a functional form that satisfies this and well, this is the normalization.",
+                    "label": 0
+                },
+                {
+                    "sent": "This will actually become extremely handy because if we now take our posterior, so here's sort of cell.",
+                    "label": 0
+                },
+                {
+                    "sent": "Fake data sitting somewhere in the politic marginal polytope.",
+                    "label": 0
+                },
+                {
+                    "sent": "Face example size.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, with the natural parameter.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then, well, what happens is that basically we combine the sufficient statistics of the data with, you know, are essentially fantasy data.",
+                    "label": 0
+                },
+                {
+                    "sent": "An well this gives us a nice posterior and it happens to be convex most of the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now the good thing is, since we already went through the big pain of actually integrate computing this normalization, we can actually integrate out this parameter Theta and we can just ask you know what's the likelihood of the data given all these parameters and they get a nice difference between two of those normalizations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, in Bayesian sets, so that is actually used in order to find out you know which points go.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which observations go well with what?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is a connection that is exploited actually quite a lot in how to obtain fast samplers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you know, too.",
+                    "label": 0
+                },
+                {
+                    "sent": "The couple things in a suitable way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is all really just background so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "If you and me for a little bit longer, so essentially what we have is we have collapsed representation with, you know our hyperparameters and.",
+                    "label": 1
+                },
+                {
+                    "sent": "Use the data or.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically here, if we expand without natural parameter and so this would be more definitely light expansion.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You see a similar thing here for clustering, so you know just to put them a little bit side-by-side what you get so an.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Was here the matrix factor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Station version and this is really just a game background.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the entire goal is, well, you want to find those membership matrices and then you know here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially it's the emissions model of whatever generates your data for the specific object that you pick.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you know there are a lot of just pure optimization approaches that give you something very similar, or at least in some cases you can generate very similar data services.",
+                    "label": 0
+                },
+                {
+                    "sent": "Non negative matrix factorization will give you something that sometimes behaves quite LDA topic clustering like, so let's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To the chase.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what could you do if you had a model of this form?",
+                    "label": 0
+                },
+                {
+                    "sent": "You could just actually go and you know brute force optimize.",
+                    "label": 1
+                },
+                {
+                    "sent": "So let's say, well, we integrate out our natural parameters here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're left with, you know, some discrete oscient variables, and I could just brute force optimize.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I do that well, it'll overfit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually quite a bit, because the mode after posterior is, you know, actually often quite far away from what you would expect.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the mean to be, and several people have tried things like that and well, got an interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "It results for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it turns out to be actually rather nasty to implement because it's a discrete maximization problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "It can actually over fits a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you want to paralyze that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you don't.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "He's a different way, so I could go and integrate out the discrete assignment variables and then I'm left with.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, the natural parameters for the documents and here for the entire emissions model, and that has actually recently gotten a lot of popularity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, that's the LDA version, invaluable rabbit, and essentially what you can now do is you take your posterior and you maximize.",
+                    "label": 0
+                },
+                {
+                    "sent": "And since it's a little bit less richly parameterized in just the discrete assignment variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I suppose finding the mode isn't such a horrible thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's fairly easy to implement.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what you basically do is for each new document you come up with, you know a decent estimate for Theta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take get the corresponding subgradient in those size.",
+                    "label": 1
+                },
+                {
+                    "sent": "You need to an update step and then you basically run stochastic gradient descent on it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is fairly straightforward to implement.",
+                    "label": 1
+                },
+                {
+                    "sent": "Doesn't actually overfit so much and it works really well for small datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this actually gets a little bit to the beef that I have with this method.",
+                    "label": 0
+                },
+                {
+                    "sent": "Namely, it's actually twofold.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, it's highly nontrivial to paralyze this procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why's it highly nontrivial?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because, unlike you know, a standard Gaussian process classification regression setting where the posterior is log concave.",
+                    "label": 0
+                },
+                {
+                    "sent": "This actually is highly multimodal, so if I distribute my optimization problem among many machines, I have absolutely no guarantee.",
+                    "label": 1
+                },
+                {
+                    "sent": "That each machine will give me something that is, you know, going to converge to a comperable.",
+                    "label": 1
+                },
+                {
+                    "sent": "You know mode, so therefore combination of the estimates is, well, difficult and doesn't work amazingly well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just, you know, a general nonconvex Max optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The bigger issue, even if you could solve this and this is really the killer, is that you run out of memory now for small academic data sets, you're not going to run into this problem, But let's just do a very simple back of the envelope calculation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we take maybe a million words and we take 1000 topics.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we already are at 4 gigabytes, so if you use a little bit of auxiliary data structures and so on, you basically very quickly going to push the memory limit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that is still a small number of tokens that you would have in any realistic model, so the even worse thing is that you basically end up having to do dense updates, because for each word for each document.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you will need to update essentially the topic word distribution parameters for all the topics.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're most likely going to get non zero gradients throughout, so this is a bad idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What else could you do is you could use a variational approximation.",
+                    "label": 1
+                },
+                {
+                    "sent": "And well, that's basically the very first inference algorithm suggested by applying and Jordan in 2003.",
+                    "label": 0
+                },
+                {
+                    "sent": "And well again, you have an alternating convex optimization problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is actually in terms of parameters, little bit worse than what I showed you before.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's really again very straightforward to implement.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, works beautifully for small data set sizes, but the memory requirements are going to kill you.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can nicely paralyze it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is good because basically now at least at each E&M step you you know aggregate more or less sufficient statistics, and so then it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Reasonably well controlled and you will at least jointly converge to, you know, a mode global mode, but it's changed.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out not to be always quite as good as sampling, I mean.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now here's something else.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I could do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you could just use uncollapse sampling, and this is like the most obvious thing you could do right, and again you will have problems with actually storing your parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the bigger problem is that it will actually not converge very fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is something that people realized very quickly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Which is why there's this beautiful paper by Tom Griffiths and Stivers in 2005, where they essentially do nothing else but collapse out these variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "You then have a sampling problem in the discrete set of parameters and you can design A reasonably rapidly mixing Gibbs sampler.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it worked beautifully, and here essentially the sampling equation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can actually remove the denominator here, because the number of words per documents doesn't really change and this is, you know, proportional to the you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you know, posterior probability of a particular topic being assigned to a particular word given everything else.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is essentially the big set of variables that is going to mess up things.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the problem is if I want to so this is beautiful and fast and the best thing you can do if you have a single core single threaded implementation.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's beautiful if you have multicore or multi machine, you're going to get problems because each time I update this variable, one of the let's say 1 core updates this, everybody else is going to actually have a collision and so they will be on hold.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you for instance where to implement something like that directly in graph Lab with a chromatic sampler, most of your machines would white most of the time to do anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do we work around that?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we'll have to make some approach.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Summations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you actually look at this term here.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are, you know, a couple of interesting factors happening, so this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is basically the number of topics in a given document, while the minus I just I remove the account for the IJS Trump.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now this is something that I can keep entirely local so I don't have to actually do any approximations.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I assign one document to each processing element, no problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of topics you know, number of tokens assigned to a particular topic overall isn't really going to change very rapidly, so I can essentially approximate that as more or less being constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is a big deal that the number of you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "Topics for given word.",
+                    "label": 0
+                },
+                {
+                    "sent": "That number will actually change reasonably swiftly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that paper, by absentee on smart and willing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there was kind of a breakthrough that was basically the 1st paper which you know try to build topic models on a highly nontrivial scale so they reported results on up to 8 million documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which was just really fantastic at the time and there was actually, I think, probably pretty much the reason why I actually started working with this because I thought OK, maybe there's something we can really do.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem with that approach still is that you essentially partition your documents it into thousand chunks.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I have 1000 machines, each machine performs an entire sampling path during which things can diverge as much as as can be, and then only in the end you aggregate.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is bad for a number of reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, you actually not really in terms of systems design using all the resources that you have, so you're not using the network while things are happening.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second thing is that actually makes mixing much slower and at some point involuntarily we essentially ended up running this version in the converged much slower than what I'm going to show you in the next slide, namely a much more aggressive synchronization setup.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this was really the first pointer and this was.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was a great paper to, you know, get people actually to believe that it could.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Done so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's something that we essentially do, and basically we make local copies of the state table as far as we actually need it now.",
+                    "label": 1
+                },
+                {
+                    "sent": "The good thing is these are actually counts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if I have counts and that's a really nice thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say have 1000 topics.",
+                    "label": 0
+                },
+                {
+                    "sent": "I only really need to do discrete updates whenever I reassign a word.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in other words, I don't really have to update 1000 numbers, they only need to update to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Namely, I need to down date the old topic that where the word was assigned to an update, the new one so you know I have a 500 fold speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "This matters in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "Secondly, it also means that for the rare words, I will usually not even have all topics instantiate it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I have a sparse vector and that sparse vector will be small enough that I can actually fit large vocabularies into memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thirdly, I can do clever things in terms of partitioning my documents between different machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now it's an obvious thing that suppose I had, you know, some English and some French documents, and maybe something tying them together.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's probably a good idea to put all the English documents on one machine and all the French ones on another machine, because in this case the machine holding the English documents doesn't actually need to know much about the state of the French ones, and vice versa.",
+                    "label": 0
+                },
+                {
+                    "sent": "That saves a lot of memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these tricks are essentially what allows you to deal with very large models and fit them into memory into that efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what we do is we make local copies and we have a synchronization protocol running in the background which basically updates the sufficient statistics between different machines and time permitting I'll talk a little bit about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The key question is, well, you know how much approximation we're actually getting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically how much versus then you know fully coupled sampler.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing that I.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Probably mention and this is actually a very nice paper by clinician Griffith is you can actually do sequential Monte Carlo now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sequential Monte Carlo sounds like you know the cure all and end all to all those problems because you know you go sequentially through the set of documents and you know you have a bunch of particles and then you move on and basically for each new document you know you basically reassign you, assign the topics to the words and maybe do a few sampling steps within a document, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a very straightforward procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "This sounds very similar to you know online learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what's the problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that he cannot actually be paralyzed terribly well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this sounds like a complete contradiction to what you would assume from a particle filter.",
+                    "label": 0
+                },
+                {
+                    "sent": "After all, you have different particles and they all you know can run on different cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that it started sequential.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in other words, as long as you don't have more data than what you can sequentially process in a massively multicore machine, you're good.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have more data than that at the moment, this is a completely unsolved problem, and I would dearly love if somebody could figure out ideas on how to fix this.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are some tricks that you basically paralyze the heartbeat of, you know, doing actually the sampling and then only in the end you aggregate things and but it's still essentially the artist sequentially in the sense that each machine at some point needs to touch all the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yes, you can easily construct pathological cases for it, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, this is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is probably the one problem that would be really nice if we could solve it, so let me just.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Sum up a little bit what we have and this is an incomplete slide, and for instance, I've completely omitted all the clever tricks you could do in terms of stick breaking.",
+                    "label": 0
+                },
+                {
+                    "sent": "But basically you could look at Uncle apps representations.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could look at variational ones you can collapse at the natural parameter.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can collapse out the topic assignments and you get this interesting dichotomy.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you keep your Uncle apps representation, most things are usually quite bad.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you use a variational approximation, things are reasonably easy, but you have a huge memory footprint, but you can actually parallelize.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now if I collapse at the natural parameters, direct optimization is just, you know, discrete maximization problem and things get really bad, but you can actually do A at least in the sampling context you get actually a very fast mixing sampler and it paralyzes nicely.",
+                    "label": 0
+                },
+                {
+                    "sent": "The converse is true if you collapse out the topic assignments, then you know that gives me a nice optimization problem for moderate problem sizes, But the sampling is difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now let me show you a little bit the scaling problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That you run into.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So a lot of latent variable models, and I've just simplified the model that I'm talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even further, just you know to clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have like mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "Variance this is the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are maybe the local variables.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And so this global state is usually big, as we've seen this kind of fit on disk, and this can only be local.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Course doesn't only apply to clustering, but also like vanilla LDA or.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Something that's a bit closer to what we use for user profiling.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Essentially raises 3 problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first thing is that the local state is too large basically and I have a lot of documents, a lot of user actions.",
+                    "label": 1
+                },
+                {
+                    "sent": "You know you might have two billion user activities.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it doesn't fit into memory and you can fix that very easily, I mean.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Stream it from disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next problem is that the global state is too large and that causes actually two issues.",
+                    "label": 1
+                },
+                {
+                    "sent": "First of all, I need to keep it synchronized.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Secondly, I need to partition it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to keep it synchronized, which.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Just use an asynchronous synchronizer and to fit into memory which.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Just keep the partial view that contains only the data that we really need.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is exactly what I mentioned before.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now how do you?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "History with this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the simplest case, an we've actually seen such models before.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, after Cynthia Maxwell and Co. Actually looked at a hierarchical LDA type model where they just said well by some magic device, each machine you know has its own topic modeling there hierarchically coupled, which is a great thing to do if you can actually do partitioning along some reasonable hierarchical structure in your data.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you can do that, well, this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just a nice story.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I did there for is I just made this double edged error here which tells me that this doesn't actually mean you know dependency in the graphical model sense, but just it's a copy of it, but what it really means is that I now have those global variables which are replicated on each computational node.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Or actually, if I have a service center with racks and within the racks that have high bandwidth outside the racks, I have much lower bandwidth where basically I now map the communications tree that my hardware imposes onto the synchronization over the machines and then you get something that looks off.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Really similar to just, you know, standard message passing, except that we made it a symmetric and that's just the computational reason, because what we need to make sure is that any local changes which are comparably small are transmitted as deltas upstream, and then any global changes I can just transmit the entire state so it has it follows more or less the same semantics as message passing, except that we made it asymmetric for computational reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "This works for anything whenever the statistics that I'm transmitting our foreman abelian group, I need the Abelian group in order to have the differentials.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically two such that they can have an inverse element so I can subtract things and I need the abelian property in order to make sure that the order in which the updates arrive at least do not affect things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whether I will leave my state of consistent parameters or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then you just have reasonably simple synchronization.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Just the last bit in this context, you need to worry a little bit about, you know not creating hotspots, because if I have what suppose I had one machine that you know kept all the variables and then they synchronize everything against that one machine, I will immediately have a hotspot.",
+                    "label": 0
+                },
+                {
+                    "sent": "I might have, you know, 40 machines trying to synchronize with a single state keeper, So what you do is you partition your global state onto several machines you know basically, for instance with a topic word table you would charge things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Diverts or you might partition things by users or you know any other natural partitioning for which individual updates may not immediately take you to an inconsistent state.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you pick the machines that you're going to choose to be the master through something like consistent hashing.",
+                    "label": 1
+                },
+                {
+                    "sent": "So there's an argument hash.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what it does is it basically for a given key like a bird ID, it computes a hash of that key in the machine ID, and it fixed the machine with the smallest hash value that gives me uniform distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Actually get to other nice properties because now my global state partitions in order 1 / K per machine, so the more machines I have, the smaller the global state is that that machine needs to keep its not entirely true because with more machines I will usually want to process more data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So may state grows a little bit, but it might grows probably more logarithmically, so it'll be probably more like log K / K, so it's still good.",
+                    "label": 0
+                },
+                {
+                    "sent": "The communication is order one for machine, which is a good thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause what I basically have is I need to communicate that order 1 / K after state to K machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So 1 / K * K is 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I can do very fast snapshots which we have to do because if you run on 1000 machines, which are not necessarily very reliable, you need to occasionally snapshot such that you can restart from that checkpoint, and so things actually.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Workout reasonably nicely, so we thought we thought so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Till we ran our experiments on more than 100 machines and all of a sudden our system started slowing down rather drastically.",
+                    "label": 0
+                },
+                {
+                    "sent": "An initially we didn't quite know what was going on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you think about, it's actually very obvious in hindsight.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically, if you have K machines that you're talking to, you're going to have connections open at the same time, which is not good because the data rate goes like one over number of machines, so you need to essentially figure out a nice randomized schedule to connect to them.",
+                    "label": 0
+                },
+                {
+                    "sent": "An without.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Going into too many details, you basically partition the messages that you sent to different machines according to essentially a random permutation proper connection.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you get is essentially a BI party.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Graph where the degree of 1 set of nodes is essentially fixed in this case mean for R equals so busy.",
+                    "label": 0
+                },
+                {
+                    "sent": "For one you can see that this is not necessarily very small.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The idea, because you will meet a lot of machines is exactly the same thing as what you get with the bootstrap.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're sampling out of thin, you will miss one of three of the vertices and you will create hotspots if.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Pick two, it gets better and you can very cool.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "With the back of the envelope calculation gets a good upper and lower bound, so about four to five machines is a good thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do this and a few other tricks in terms of you know how to aggregate messages, you get stuff that actually scales.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And so this is the type of scaling graph that I like.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm saying it's the type of scaling graph that I like because what you actually want to do is you.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only time you want to use more machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you get more data, so you need to be able to show that as you as you throw more machines at it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You really are not increasing your runtime too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is basically what happens if we specially one keep sampler pass an.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we keep the number of machines fixed at 100, we can see that as we move from 200 million to two billion documents, well, you know, goes up to about half an hour.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if we increase the number of machines accordingly, things don't increase too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean stuff is still happening here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's quite possible because we didn't do a very good job at implementing that communications tree so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's a lot better than what you would have expected.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that's pretty much the end of my talk.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Few very simple things about.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Amplus",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'll just show you that one slide because it's actually very, very beautiful.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a terrific idea of David Milner and Anna McCallum so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, I found out about that actually by essentially reverse engineering their mallet code, and then I found their published paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what they do is if you look at the topic probability for a given word, then you can decompose it into three terms.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can decompose it into a dense term.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for that amount is not much you can do, but the good thing is it doesn't actually really depend on.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the document or the word except for an upfront factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can basically precompute this.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't really change very much this term.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, I could fix that, but there's not a big deal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I have a sparse term here, which is sparse in the number of the topics that occur in a particular document and this term, which is sparse in the number of topics that occur for a particular word.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at least 4 words that occur don't occur too frequently.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually a very nice sparse expression where the only thing that really changes is in these two parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what this means in practice and you can extend.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And that with you know, basically Schwartz whenever.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Doesn't work exactly like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me just conclude with this figure 'cause it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "A working example of that idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the speedup relative to the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Vanilla Sampler, which wouldn't actually use sparsity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as you know, the number of iterations increases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically, as your sampler burns in up to 1000 iterations, and so you can see actually very nicely how you know this sampler speeds up is basically the sparser my you know, model gates, the beta actually for computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is actually a really, really nice idea that you can use in many places.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's one way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, it's maybe not quite that obvious, so you would probably need the need to read the paper by Amarok mid and on storylines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, if you go through it, it seems to be one of the tricks on how to make the sampler faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, is exploiting sparsity, and I think that brings me to the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_51": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "End of my slides.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably one of the counter intuitive things is that sampling can actually be a much faster and cheaper and actually more scalable thing than a brute force optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing is you should really look at the computer architecture that you have when you build large scale systems.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you ignore it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean you will pay for it in terms of slow algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the other thing is, it really pays off to think a little bit about, you know sparse representations for your samplers, and that can make a huge difference in terms of convergence speed.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that's all I want to say.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

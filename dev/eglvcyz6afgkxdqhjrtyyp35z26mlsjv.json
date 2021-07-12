@@ -1,0 +1,1480 @@
+{
+    "id": "eglvcyz6afgkxdqhjrtyyp35z26mlsjv",
+    "title": "Distributed MAP Inference for Undirected Graphical Models",
+    "info": {
+        "author": [
+            "Sameer Singh, University of Massachusetts Amherst"
+        ],
+        "published": "Jan. 13, 2011",
+        "recorded": "December 2010",
+        "category": [
+            "Top->Computer Science->Machine Learning->Bayesian Learning"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2010_singh_dmapi/",
+    "segmentation": [
+        [
+            "So I'm Samir Singh and this is joint work with Amar Fernando an Andrew, and this was while I was at Google Research this summer.",
+            "So let's start with the."
+        ],
+        [
+            "Motivation?",
+            "Graphical models are being used in all kinds of applications nowadays, and especially our lab sort of works with information extraction tasks.",
+            "And recently these models are getting larger and denser, and by larger I mean we're talking about a large number of variables and by tensor we mean the dependencies within the graph and some examples of these sort of graphs are coreference resolution, relation extraction and joint inference of these tasks or other tasks.",
+            "And the problem with these models is that they are really, really loopy and they have a lot of dependencies and then exact inference is definitely out of the question, and so there's been work on doing some approximate inference like the LP relaxation stuff, dual decomposition and this sort of stuff.",
+            "Our lab does on MCMC based approaches."
+        ],
+        [
+            "But the problem is that without parallelism, these approaches have restricted scalability when."
+        ],
+        [
+            "You're talking about a large number of variables.",
+            "So in this talk we're going.",
+            "I'm going to sort of describe a method which distributes map inference in large dense factor graph, and this particular one happens to be about million variables.",
+            "An 250 machines, and I'm going to incorporate sharding of this graph as variables within the model and it will become clear later on.",
+            "What I mean by."
+        ],
+        [
+            "So let's start."
+        ],
+        [
+            "So this is a particular notation for undirected graphical models called factor graphs, and here we have a set of random variables represented by capital Y.",
+            "Here an every assignment of Capital Y has a probability which is proportional to this, some exponentiated some and these are the set of factors which are instantiated for that particular assignment.",
+            "Why?",
+            "And that's the thing to note here that."
+        ],
+        [
+            "Different from normal notation, here we're talking about a set of factors that are instantiated for a particular assignment of Y.",
+            "And I'll give you an example of this.",
+            "So suppose that these four variables where 01 are the labels and we have factors between consecutive variables and we have factors between random variables which have the same value and which are not consecutive.",
+            "So here since the 1st and the last Y1 and Y4 have the same assignment."
+        ],
+        [
+            "Zero, they get a factor there, but in a different configuration such as this where we've just changed the last variable from a zero to one, we have a different set of factors that are instantiated, so based on each configuration we can calculate the summation there and then."
+        ],
+        [
+            "That's proportional to the probability.",
+            "So usually we want to do inference and the sort of stuff we want to do is to find the best configuration according to the model, which is an argmax over your probability space, which happens to be the same as argmax over this exponential term.",
+            "Now, for the sort of."
+        ],
+        [
+            "Models we're talking about.",
+            "This is very difficult to do simply because firstly the space of Y, which is what we're doing in our banks over is pretty big, and more importantly, even when we're trying to evaluate this summation term inside.",
+            "The number of factors instantiate it for that way can be pretty large and we probably want to avoid doing this summation as much as possible.",
+            "So, So what we really want to do here is get to this high.",
+            "Score region of the configuration space.",
+            "So what we used to do that is this."
+        ],
+        [
+            "MCMC based map inference, where MCMC gets us to the high density regions of the space and by tuning the temperature parameter we can make that more Peaky and get it to the map configuration an this is the Metropolis Hastings version where it looks fairly straightforward.",
+            "You start off with an initial configuration Y 0.",
+            "Ann, you propose a change to Y, which is usually a small change to get a new configuration, why prime?",
+            "And you calculate the acceptance probability.",
+            "Where it has the model ratio of Y, prime and Y in it.",
+            "And finally, you toss a coin with that probability, and if it is accepted, you update your current configuration and you keep doing that for a long time and you lower this temperature and finally you get to a good state."
+        ],
+        [
+            "The main computation in this whole process is to calculate this acceptance probability, which is the model ratio score which just happens to be the difference of the set of factors that are instantiating in each of those configurations.",
+            "So if the change between Y&Y prime is pretty small, then the set of factors which are instantiated between them will also be small, and this computation can be pretty efficient."
+        ],
+        [
+            "So let's take an example.",
+            "So let's let this Phi be.",
+            "The set of factors that are instantiated to evaluate a proposal.",
+            "Why goes to Y prime?",
+            "And this will just be the set of factors which are not common between these two states.",
+            "If we have two proposals, why it goes to YA&Y goes to YB such that the set of factors that are instantiated for those proposals are disjoint.",
+            "We can evaluate each of these proposals simultaneously without affecting each other.",
+            "What this means is that we can sort of parallelize these two proposals evaluated at the same."
+        ],
+        [
+            "Time and then accept it at the same time.",
+            "And that's what I'm seeing here.",
+            "So this gives us an idea on how to distribute this map inference.",
+            "This MCMC based map inference on."
+        ],
+        [
+            "Do some parallel setting.",
+            "What we do is we use something like.",
+            "We use MapReduce to do this.",
+            "So what we have here is we have a current configuration Y with our set of factors and we have a distributor here which sort of divides these variables up into.",
+            "Here I've shown three different sets.",
+            "There's some factors here which appear between these variables and there's some factors here."
+        ],
+        [
+            "Which appear across the edges of this partition, but that's fine.",
+            "Then we do our regular MCMC inference on each of these sets of variables.",
+            "The main thing to note here is that the proposals that we propose within these inference chains just the ones which require the factors which are within the variables to be to evaluate the acceptance probability that when none of these Gray factors are computed and we only compute the factors which are between the variables.",
+            "This obviously means that we are only looking at a subset of the factors, which is not good."
+        ],
+        [
+            "So there is a combined step which combines all the results of this inference and then redistributes the variables so that factors which were in Gray earlier now are part of the black and inference continues this way.",
+            "So this is a sort of generic approach to distribute."
+        ],
+        [
+            "In France, which we are proposing.",
+            "So I'm going to talk about this domain of cross document coreference to which we applied this inference technique."
+        ],
+        [
+            "So of course the coreference problem.",
+            "So what you're given is a set of noun phrases from some document corpus.",
+            "Here I happen to have one switch refer to Kevin Smith in some way, and you're also given the context of each of these noun traces.",
+            "This is the input to the coreference problem.",
+            "The output of this coreference problem is a clustering of these mentions, where mentions in the same set are talking about that entity.",
+            "So for example.",
+            "These two happen to be talking about the same Kevin Smith entity.",
+            "These these two happened to be talking about the same Kevin Smith entity.",
+            "Usually you know this is part of a set of information extra."
+        ],
+        [
+            "And tasks, and usually later on you can put labels onto this sets describing what those entities actually are.",
+            "But as far as we are concerned."
+        ],
+        [
+            "What is the set of mentions and the output is the best clustering of those mentions?",
+            "So as an input instead of just talking about mentions, I'm going to represent the input as features where we have a similarity defined between these mentions, which is our feature.",
+            "So it's a function from any pair of mentions to a real number.",
+            "If it's positive and high, it means those mentions are similar and are probably talking about the same person, and if it's low then those mentions are dissimilar, and in particular what we use is we use the context bag of words.",
+            "We do the cosine similarity between those two bag of words and that is our similarity metric."
+        ],
+        [
+            "So let's talk about what the graphical model actually looks like.",
+            "So we have our random variables, which is which are the set of entities.",
+            "It's a predicted set of random variables where each entity is a set of mentions and we have our mentions which sort of index into which entity."
+        ],
+        [
+            "Belong to.",
+            "So for any assignment to these entities, which is like a clustering of your mentions, we define the model score.",
+            "The model score here consists of two parts, some of them two sets of factors.",
+            "The affinity effect factors and repulsion factors.",
+            "The affinity factors are between mentions.",
+            "These are pairwise factors between mentions in the same entity in the same predicted entity.",
+            "An these repulsion factors are between mentions in different entities.",
+            "And this sort of is trying to represent cohesiveness of each of these entities while these sort of make sure that different entities are actually different.",
+            "And the site actually take the form of some weight vector, some weight multiplied by our similarity function an for repulsion factor.",
+            "It's negative because you want them to be dis."
+        ],
+        [
+            "Mother.",
+            "So this is an instantiation of autograph could look like for only 5 mentions which are shown here in talk blue M1M2M three are in the same predicted entity, an M4 and M5, and the same predicted entity.",
+            "And for this set of entities these two entities.",
+            "These are the factors which are instantiate it so you can see the dock lines between mentions which are in the same entity and dotted lines between mentions which are in different entities.",
+            "And you can just write out the whole model score this way.",
+            "The."
+        ],
+        [
+            "Problem with doing inference for this problem is that the space of East is Bell number in the number of mentions because it's all possible partitions of your set of mentions, so you can't search that space and also evaluating each model score requires possibly N square different factors.",
+            "So what we do is we propose an MCMC based map inference technique where we take one variable and propose the move of that particular variable.",
+            "Here it happens to be mentioned M3 moving out from this end."
+        ],
+        [
+            "T and joining the other entity and the set of factors which are required to calculate the acceptance score of this proposal are shown here in red.",
+            "And so you can see that not all factors are taken into account.",
+            "And also if there were thousand other entities in this configuration space, it doesn't matter only."
+        ],
+        [
+            "These eight factors would be required to calculate this acceptance score.",
+            "So let's look at all of the examples where these three were in the same entity earlier, and then this proposal jump just moves.",
+            "This mention out, and in this case there only these four factors which are required to calculate the acceptance score so."
+        ],
+        [
+            "Surely if we start again with this configuration and we move one of we split this entity up, then only these two factors are required to."
+        ],
+        [
+            "Calculate the acceptance score an as you can see, these set of factors are completely disjoint and we could have just calculated these factors in parallel an accepted them.",
+            "So the way we distribute for this problem is to make sure all the mentions of the same entity are assigned to the same machine and then just propose moves of mention within the entities that."
+        ],
+        [
+            "Long to the same machine.",
+            "So let's talk about some experimental results.",
+            "This is about this is for 25,000 mentions.",
+            "I'm just showing the single machine implementation right now, where on the Y axis you have the F and accuracy an on the X axis."
+        ],
+        [
+            "Have the wall Clock running time.",
+            "And as we go from one to two, we see there's a pretty nice speedup in terms of.",
+            "In terms of how much accuracy we're getting for."
+        ],
+        [
+            "Given time and then we can keep increasing our number of machines to five and we still see there is an improvement."
+        ],
+        [
+            "And 2:10 an all the way to 50."
+        ],
+        [
+            "And even though the speedup is sort of diminishing, we still see a speedup."
+        ],
+        [
+            "So now I'm going to talk about some additions extensions to these models which make."
+        ],
+        [
+            "Sharding an better proposal distributions, so take an example of 1 particular move which moves the mention from one entity to the other entity, and also assume that this proposal was actually accepted, which means the model thought it was a good thing to do.",
+            "Ideally what you want is you want similar mentions to also go to the same entity, because obviously if this one doesn't belong in this entity may be similar ones also don't belong here."
+        ],
+        [
+            "But the proposal function is pretty naive.",
+            "It just picks a random mention, proposes a move to a random entity, and in this case it could take a long time before it actually finds proposes the right moves, and you can imagine if the more entities and more mentions than these sort of good proposals become."
+        ],
+        [
+            "Much rarer, So what we do is we augment our model by including these latent subentity variables, which sort of represent clusters of similar mentions.",
+            "When we are proposing moves, we propose to move mentions of the sub entity together.",
+            "One thing to note here is that these some entities are defined also by the model score, so we have to sample the model to figure out."
+        ],
+        [
+            "The sub entities are.",
+            "Another example is the distribution part of things, which can lead to inefficiencies.",
+            "For example, we have these four entities and we're working with two machines.",
+            "If we do a random distribution, than these entities can be paired with other entities, which may not be similar.",
+            "And then when we're proposing jumps within each worker, it can lead to a lot of wasted proposals which are not very good.",
+            "Ideally, what we want is we want similar entities to.",
+            "End up together and this is in some sense similar to the earlier problem where we wanted similar mentions to end up together."
+        ],
+        [
+            "So same as before, we sort of augment our model with these super entity variables which represent sets of entities which are similar.",
+            "These are also latent variables which we sample while we're doing inference an our distribution is now model based, where it picks super entities and make sure that all the entities that belong to one super entity go to the same machine.",
+            "What this results in is that entities which are similar end up in the same worker.",
+            "And then inference is much more fruitful."
+        ],
+        [
+            "So we can also combine these super entities and subentities and put them all together in the same model and this is sort of what it would look like where there are seven mentions here in dark blue.",
+            "There are dotted black circles represent sub entities which are clusters of these mentions.",
+            "Then the light blue entities and then you have super entities and the set of factors is sort of symmetric across these three levels where you have affinity factors between mentions within the same sub entity, an affinity factors between sub entities which are in the same entity and so on, and the repulsion factors also similarly symmetric across levels where they are.",
+            "Reversion factors are between mentions in different sub entities."
+        ],
+        [
+            "And the way sampling does is we fix the variables of two levels and we sample the remaining level and we sort of cycle through these three sets of variables and this sampling is done in a distributed fashion, just like we were doing it for the earlier model.",
+            "So we ran this on the same."
+        ],
+        [
+            "Evaluation as before, where here I'm just showing you the earlier pairwise model without any of the hierarchical stuff.",
+            "This is on 50 machines and you can see."
+        ],
+        [
+            "Accuracy versus time.",
+            "And when we added super entities, which does better distribution, we see a huge gain in performance here where we get pretty high accuracy really."
+        ],
+        [
+            "Really quickly when we add sub entities we get a further boost, but this one does not actually includes."
+        ],
+        [
+            "Super entities and then we have our combined model in yellow here, which actually does better than both of these and much better than pairwise distribution.",
+            "What this sort of suggests is that doing a random distribution gets you distributes well, but if you actually use any kind of model based distribution."
+        ],
+        [
+            "You can get a pretty good accuracy pretty quickly.",
+            "So finally, I'm going to talk briefly about some preliminary large scale experiments."
+        ],
+        [
+            "The data here was the New York Times Corpus, which basically contains 20 years of articles.",
+            "I took all the names from that set of articles and sort of pruned out the rare ones.",
+            "This resulted in about million person name mentions and now we want to do inference on top of these to figure out what the entities are."
+        ],
+        [
+            "Unfortunately, we didn't really have a very good evaluation for this.",
+            "Getting automated labels is too noisy for evaluations, So what we want to do here is we want to see how fast we are doing our inference.",
+            "We are trusting the model here to accept good proposals and all we are evaluating is how long does it take for the model to get to a good."
+        ],
+        [
+            "State.",
+            "So this is what I have for that.",
+            "the Y axis here is the number of predicted entities.",
+            "We start with a million entities and X axis.",
+            "Here is running time an the red line.",
+            "Here is 250 machines, Green is 100 and blue is 50 and we can see 250 machines.",
+            "Version seems to be faster and getting to a."
+        ],
+        [
+            "Lower number of predicted entities much sooner than the other two.",
+            "Some related work I'm going to talk about now.",
+            "There is graph lab which we just saw.",
+            "There are a couple of questions here.",
+            "How do we represent dynamic graphs in graph lab and more importantly, how do we represent these hierarchical models where you have graphs in some sense, hyper graphs and stuff like that?",
+            "There are some."
+        ],
+        [
+            "Work also by joy here on graph splashing, but the problem is here.",
+            "The graph structure sort of changing with every configuration, so it's kind of difficult to calculate what the partitions would be of such a graph.",
+            "And also the BP messages are pretty enormous here because we have exponential domain variables an.",
+            "So maybe BP is not the best."
+        ],
+        [
+            "Solution.",
+            "Finally, there's work with smaller and some Arthur skin on topic distributing topic models.",
+            "They have certain restrictions because they're calculating probabilities an by.",
+            "Since we're doing map inference, we can get away with doing nonrandom distribution and customizing our proposals so that we can."
+        ],
+        [
+            "George foster so.",
+            "In conclusion, I propose a distributed inference method for graphical models.",
+            "We've enabled distributed cross document coreference.",
+            "We improve our sharding method by actually including latent hierarchical variables and we demonstrate this on fair."
+        ],
+        [
+            "Large data set for some future work we're going to do some more scalability experiments.",
+            "We're going to study mixing and convergence properties of these MCMC based approaches.",
+            "An if we going to add more expressive features and finally look into supervision and what that would look like for such a distributed system.",
+            "Thank you."
+        ],
+        [
+            "High order status of conferences tend to be pretty useful for this task model attack.",
+            "See how you could probably type actors.",
+            "They take that into account.",
+            "Or you could have a graph which actually has the documents as notes.",
+            "Any thoughts on how you would have distribution similarities better than that?",
+            "Ah, so I guess The thing is you can you you want to create some sort of arbitrary features between these mentions that you have?",
+            "Right?",
+            "Includes the document says first order.",
+            "So when we're talking about a million variables here, creating a graph on top of these is also fairly tricky.",
+            "An in literature there have been studies where the supervised forms of Coreference have performed a lot better than just creating a graph unsupervised way and then try to some sort of clustering on top of that.",
+            "Any other questions?",
+            "I'm typing so when you're on your part on the coreference you had this slide showing sort of improved performance.",
+            "As you increase the amount of computational power you were giving yourself away, do you have a sense of this?",
+            "Scaling someone close to what does this scaling?",
+            "If you were deployed as a function of the number of computers, say or rather than the accuracy so it starts falling off pretty quickly.",
+            "Actually, after 10 or something actually, maybe even before that.",
+            "The reason is that this is.",
+            "25,000 mentions and we're talking about 50 machines here, which is like 500 mentions per machine.",
+            "And that's yeah that has a problem.",
+            "And also it's yeah, that's.",
+            "It's like this week."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I'm Samir Singh and this is joint work with Amar Fernando an Andrew, and this was while I was at Google Research this summer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's start with the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Motivation?",
+                    "label": 0
+                },
+                {
+                    "sent": "Graphical models are being used in all kinds of applications nowadays, and especially our lab sort of works with information extraction tasks.",
+                    "label": 1
+                },
+                {
+                    "sent": "And recently these models are getting larger and denser, and by larger I mean we're talking about a large number of variables and by tensor we mean the dependencies within the graph and some examples of these sort of graphs are coreference resolution, relation extraction and joint inference of these tasks or other tasks.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the problem with these models is that they are really, really loopy and they have a lot of dependencies and then exact inference is definitely out of the question, and so there's been work on doing some approximate inference like the LP relaxation stuff, dual decomposition and this sort of stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our lab does on MCMC based approaches.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But the problem is that without parallelism, these approaches have restricted scalability when.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "You're talking about a large number of variables.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in this talk we're going.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to sort of describe a method which distributes map inference in large dense factor graph, and this particular one happens to be about million variables.",
+                    "label": 1
+                },
+                {
+                    "sent": "An 250 machines, and I'm going to incorporate sharding of this graph as variables within the model and it will become clear later on.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I mean by.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's start.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this is a particular notation for undirected graphical models called factor graphs, and here we have a set of random variables represented by capital Y.",
+                    "label": 1
+                },
+                {
+                    "sent": "Here an every assignment of Capital Y has a probability which is proportional to this, some exponentiated some and these are the set of factors which are instantiated for that particular assignment.",
+                    "label": 1
+                },
+                {
+                    "sent": "Why?",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's the thing to note here that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Different from normal notation, here we're talking about a set of factors that are instantiated for a particular assignment of Y.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll give you an example of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose that these four variables where 01 are the labels and we have factors between consecutive variables and we have factors between random variables which have the same value and which are not consecutive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here since the 1st and the last Y1 and Y4 have the same assignment.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Zero, they get a factor there, but in a different configuration such as this where we've just changed the last variable from a zero to one, we have a different set of factors that are instantiated, so based on each configuration we can calculate the summation there and then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That's proportional to the probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So usually we want to do inference and the sort of stuff we want to do is to find the best configuration according to the model, which is an argmax over your probability space, which happens to be the same as argmax over this exponential term.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now, for the sort of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Models we're talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is very difficult to do simply because firstly the space of Y, which is what we're doing in our banks over is pretty big, and more importantly, even when we're trying to evaluate this summation term inside.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of factors instantiate it for that way can be pretty large and we probably want to avoid doing this summation as much as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, So what we really want to do here is get to this high.",
+                    "label": 0
+                },
+                {
+                    "sent": "Score region of the configuration space.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we used to do that is this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "MCMC based map inference, where MCMC gets us to the high density regions of the space and by tuning the temperature parameter we can make that more Peaky and get it to the map configuration an this is the Metropolis Hastings version where it looks fairly straightforward.",
+                    "label": 0
+                },
+                {
+                    "sent": "You start off with an initial configuration Y 0.",
+                    "label": 1
+                },
+                {
+                    "sent": "Ann, you propose a change to Y, which is usually a small change to get a new configuration, why prime?",
+                    "label": 1
+                },
+                {
+                    "sent": "And you calculate the acceptance probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where it has the model ratio of Y, prime and Y in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, you toss a coin with that probability, and if it is accepted, you update your current configuration and you keep doing that for a long time and you lower this temperature and finally you get to a good state.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The main computation in this whole process is to calculate this acceptance probability, which is the model ratio score which just happens to be the difference of the set of factors that are instantiating in each of those configurations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if the change between Y&Y prime is pretty small, then the set of factors which are instantiated between them will also be small, and this computation can be pretty efficient.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's take an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's let this Phi be.",
+                    "label": 0
+                },
+                {
+                    "sent": "The set of factors that are instantiated to evaluate a proposal.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why goes to Y prime?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this will just be the set of factors which are not common between these two states.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have two proposals, why it goes to YA&Y goes to YB such that the set of factors that are instantiated for those proposals are disjoint.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can evaluate each of these proposals simultaneously without affecting each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this means is that we can sort of parallelize these two proposals evaluated at the same.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Time and then accept it at the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's what I'm seeing here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this gives us an idea on how to distribute this map inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "This MCMC based map inference on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Do some parallel setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we do is we use something like.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use MapReduce to do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we have here is we have a current configuration Y with our set of factors and we have a distributor here which sort of divides these variables up into.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I've shown three different sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some factors here which appear between these variables and there's some factors here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Which appear across the edges of this partition, but that's fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we do our regular MCMC inference on each of these sets of variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "The main thing to note here is that the proposals that we propose within these inference chains just the ones which require the factors which are within the variables to be to evaluate the acceptance probability that when none of these Gray factors are computed and we only compute the factors which are between the variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "This obviously means that we are only looking at a subset of the factors, which is not good.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So there is a combined step which combines all the results of this inference and then redistributes the variables so that factors which were in Gray earlier now are part of the black and inference continues this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a sort of generic approach to distribute.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In France, which we are proposing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to talk about this domain of cross document coreference to which we applied this inference technique.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So of course the coreference problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you're given is a set of noun phrases from some document corpus.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I happen to have one switch refer to Kevin Smith in some way, and you're also given the context of each of these noun traces.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the input to the coreference problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The output of this coreference problem is a clustering of these mentions, where mentions in the same set are talking about that entity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "These two happen to be talking about the same Kevin Smith entity.",
+                    "label": 0
+                },
+                {
+                    "sent": "These these two happened to be talking about the same Kevin Smith entity.",
+                    "label": 0
+                },
+                {
+                    "sent": "Usually you know this is part of a set of information extra.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And tasks, and usually later on you can put labels onto this sets describing what those entities actually are.",
+                    "label": 0
+                },
+                {
+                    "sent": "But as far as we are concerned.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What is the set of mentions and the output is the best clustering of those mentions?",
+                    "label": 0
+                },
+                {
+                    "sent": "So as an input instead of just talking about mentions, I'm going to represent the input as features where we have a similarity defined between these mentions, which is our feature.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a function from any pair of mentions to a real number.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's positive and high, it means those mentions are similar and are probably talking about the same person, and if it's low then those mentions are dissimilar, and in particular what we use is we use the context bag of words.",
+                    "label": 1
+                },
+                {
+                    "sent": "We do the cosine similarity between those two bag of words and that is our similarity metric.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's talk about what the graphical model actually looks like.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we have our random variables, which is which are the set of entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a predicted set of random variables where each entity is a set of mentions and we have our mentions which sort of index into which entity.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Belong to.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for any assignment to these entities, which is like a clustering of your mentions, we define the model score.",
+                    "label": 1
+                },
+                {
+                    "sent": "The model score here consists of two parts, some of them two sets of factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "The affinity effect factors and repulsion factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "The affinity factors are between mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are pairwise factors between mentions in the same entity in the same predicted entity.",
+                    "label": 0
+                },
+                {
+                    "sent": "An these repulsion factors are between mentions in different entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this sort of is trying to represent cohesiveness of each of these entities while these sort of make sure that different entities are actually different.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the site actually take the form of some weight vector, some weight multiplied by our similarity function an for repulsion factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's negative because you want them to be dis.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Mother.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is an instantiation of autograph could look like for only 5 mentions which are shown here in talk blue M1M2M three are in the same predicted entity, an M4 and M5, and the same predicted entity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for this set of entities these two entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are the factors which are instantiate it so you can see the dock lines between mentions which are in the same entity and dotted lines between mentions which are in different entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can just write out the whole model score this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Problem with doing inference for this problem is that the space of East is Bell number in the number of mentions because it's all possible partitions of your set of mentions, so you can't search that space and also evaluating each model score requires possibly N square different factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do is we propose an MCMC based map inference technique where we take one variable and propose the move of that particular variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here it happens to be mentioned M3 moving out from this end.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "T and joining the other entity and the set of factors which are required to calculate the acceptance score of this proposal are shown here in red.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so you can see that not all factors are taken into account.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also if there were thousand other entities in this configuration space, it doesn't matter only.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "These eight factors would be required to calculate this acceptance score.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look at all of the examples where these three were in the same entity earlier, and then this proposal jump just moves.",
+                    "label": 0
+                },
+                {
+                    "sent": "This mention out, and in this case there only these four factors which are required to calculate the acceptance score so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Surely if we start again with this configuration and we move one of we split this entity up, then only these two factors are required to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Calculate the acceptance score an as you can see, these set of factors are completely disjoint and we could have just calculated these factors in parallel an accepted them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way we distribute for this problem is to make sure all the mentions of the same entity are assigned to the same machine and then just propose moves of mention within the entities that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Long to the same machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's talk about some experimental results.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is about this is for 25,000 mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm just showing the single machine implementation right now, where on the Y axis you have the F and accuracy an on the X axis.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Have the wall Clock running time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as we go from one to two, we see there's a pretty nice speedup in terms of.",
+                    "label": 0
+                },
+                {
+                    "sent": "In terms of how much accuracy we're getting for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Given time and then we can keep increasing our number of machines to five and we still see there is an improvement.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And 2:10 an all the way to 50.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And even though the speedup is sort of diminishing, we still see a speedup.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now I'm going to talk about some additions extensions to these models which make.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Sharding an better proposal distributions, so take an example of 1 particular move which moves the mention from one entity to the other entity, and also assume that this proposal was actually accepted, which means the model thought it was a good thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ideally what you want is you want similar mentions to also go to the same entity, because obviously if this one doesn't belong in this entity may be similar ones also don't belong here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But the proposal function is pretty naive.",
+                    "label": 0
+                },
+                {
+                    "sent": "It just picks a random mention, proposes a move to a random entity, and in this case it could take a long time before it actually finds proposes the right moves, and you can imagine if the more entities and more mentions than these sort of good proposals become.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Much rarer, So what we do is we augment our model by including these latent subentity variables, which sort of represent clusters of similar mentions.",
+                    "label": 1
+                },
+                {
+                    "sent": "When we are proposing moves, we propose to move mentions of the sub entity together.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing to note here is that these some entities are defined also by the model score, so we have to sample the model to figure out.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The sub entities are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another example is the distribution part of things, which can lead to inefficiencies.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, we have these four entities and we're working with two machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we do a random distribution, than these entities can be paired with other entities, which may not be similar.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then when we're proposing jumps within each worker, it can lead to a lot of wasted proposals which are not very good.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ideally, what we want is we want similar entities to.",
+                    "label": 1
+                },
+                {
+                    "sent": "End up together and this is in some sense similar to the earlier problem where we wanted similar mentions to end up together.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So same as before, we sort of augment our model with these super entity variables which represent sets of entities which are similar.",
+                    "label": 1
+                },
+                {
+                    "sent": "These are also latent variables which we sample while we're doing inference an our distribution is now model based, where it picks super entities and make sure that all the entities that belong to one super entity go to the same machine.",
+                    "label": 1
+                },
+                {
+                    "sent": "What this results in is that entities which are similar end up in the same worker.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then inference is much more fruitful.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we can also combine these super entities and subentities and put them all together in the same model and this is sort of what it would look like where there are seven mentions here in dark blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are dotted black circles represent sub entities which are clusters of these mentions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the light blue entities and then you have super entities and the set of factors is sort of symmetric across these three levels where you have affinity factors between mentions within the same sub entity, an affinity factors between sub entities which are in the same entity and so on, and the repulsion factors also similarly symmetric across levels where they are.",
+                    "label": 1
+                },
+                {
+                    "sent": "Reversion factors are between mentions in different sub entities.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the way sampling does is we fix the variables of two levels and we sample the remaining level and we sort of cycle through these three sets of variables and this sampling is done in a distributed fashion, just like we were doing it for the earlier model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we ran this on the same.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Evaluation as before, where here I'm just showing you the earlier pairwise model without any of the hierarchical stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is on 50 machines and you can see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Accuracy versus time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when we added super entities, which does better distribution, we see a huge gain in performance here where we get pretty high accuracy really.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Really quickly when we add sub entities we get a further boost, but this one does not actually includes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Super entities and then we have our combined model in yellow here, which actually does better than both of these and much better than pairwise distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this sort of suggests is that doing a random distribution gets you distributes well, but if you actually use any kind of model based distribution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You can get a pretty good accuracy pretty quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So finally, I'm going to talk briefly about some preliminary large scale experiments.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The data here was the New York Times Corpus, which basically contains 20 years of articles.",
+                    "label": 1
+                },
+                {
+                    "sent": "I took all the names from that set of articles and sort of pruned out the rare ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "This resulted in about million person name mentions and now we want to do inference on top of these to figure out what the entities are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Unfortunately, we didn't really have a very good evaluation for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Getting automated labels is too noisy for evaluations, So what we want to do here is we want to see how fast we are doing our inference.",
+                    "label": 1
+                },
+                {
+                    "sent": "We are trusting the model here to accept good proposals and all we are evaluating is how long does it take for the model to get to a good.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "State.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is what I have for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "the Y axis here is the number of predicted entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "We start with a million entities and X axis.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is running time an the red line.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is 250 machines, Green is 100 and blue is 50 and we can see 250 machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Version seems to be faster and getting to a.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_51": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Lower number of predicted entities much sooner than the other two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some related work I'm going to talk about now.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is graph lab which we just saw.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are a couple of questions here.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we represent dynamic graphs in graph lab and more importantly, how do we represent these hierarchical models where you have graphs in some sense, hyper graphs and stuff like that?",
+                    "label": 1
+                },
+                {
+                    "sent": "There are some.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Work also by joy here on graph splashing, but the problem is here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The graph structure sort of changing with every configuration, so it's kind of difficult to calculate what the partitions would be of such a graph.",
+                    "label": 1
+                },
+                {
+                    "sent": "And also the BP messages are pretty enormous here because we have exponential domain variables an.",
+                    "label": 0
+                },
+                {
+                    "sent": "So maybe BP is not the best.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finally, there's work with smaller and some Arthur skin on topic distributing topic models.",
+                    "label": 1
+                },
+                {
+                    "sent": "They have certain restrictions because they're calculating probabilities an by.",
+                    "label": 1
+                },
+                {
+                    "sent": "Since we're doing map inference, we can get away with doing nonrandom distribution and customizing our proposals so that we can.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_54": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "George foster so.",
+                    "label": 0
+                },
+                {
+                    "sent": "In conclusion, I propose a distributed inference method for graphical models.",
+                    "label": 1
+                },
+                {
+                    "sent": "We've enabled distributed cross document coreference.",
+                    "label": 1
+                },
+                {
+                    "sent": "We improve our sharding method by actually including latent hierarchical variables and we demonstrate this on fair.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_55": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Large data set for some future work we're going to do some more scalability experiments.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to study mixing and convergence properties of these MCMC based approaches.",
+                    "label": 1
+                },
+                {
+                    "sent": "An if we going to add more expressive features and finally look into supervision and what that would look like for such a distributed system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "High order status of conferences tend to be pretty useful for this task model attack.",
+                    "label": 0
+                },
+                {
+                    "sent": "See how you could probably type actors.",
+                    "label": 0
+                },
+                {
+                    "sent": "They take that into account.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you could have a graph which actually has the documents as notes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any thoughts on how you would have distribution similarities better than that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Ah, so I guess The thing is you can you you want to create some sort of arbitrary features between these mentions that you have?",
+                    "label": 0
+                },
+                {
+                    "sent": "Right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Includes the document says first order.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when we're talking about a million variables here, creating a graph on top of these is also fairly tricky.",
+                    "label": 0
+                },
+                {
+                    "sent": "An in literature there have been studies where the supervised forms of Coreference have performed a lot better than just creating a graph unsupervised way and then try to some sort of clustering on top of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any other questions?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm typing so when you're on your part on the coreference you had this slide showing sort of improved performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "As you increase the amount of computational power you were giving yourself away, do you have a sense of this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Scaling someone close to what does this scaling?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you were deployed as a function of the number of computers, say or rather than the accuracy so it starts falling off pretty quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, after 10 or something actually, maybe even before that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason is that this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "25,000 mentions and we're talking about 50 machines here, which is like 500 mentions per machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's yeah that has a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also it's yeah, that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like this week.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

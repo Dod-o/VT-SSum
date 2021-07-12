@@ -1,0 +1,1898 @@
+{
+    "id": "gzfejxlkng3rjdgdtwafs4xcs2h3qj2x",
+    "title": "On Compressing Social Networks",
+    "info": {
+        "author": [
+            "Ravi Kumar, Yahoo! Research"
+        ],
+        "published": "Sept. 14, 2009",
+        "recorded": "June 2009",
+        "category": [
+            "Top->Computer Science->Network Analysis->Social Networks"
+        ]
+    },
+    "url": "http://videolectures.net/kdd09_kumar_ocsn/",
+    "segmentation": [
+        [
+            "So my name is Robbie.",
+            "I work at Yahoo Research in Sunnyvale.",
+            "I'll be talking about some work on compressing social networks."
+        ],
+        [
+            "So can you.",
+            "Can you hear me?",
+            "OK.",
+            "So this is actually joint work with folks from Yahoo and outside.",
+            "It's Flavio and Sylvia from University of Rome and Michael from Howard and Alice and also from University of Rome and Prabhakar from Yahoo."
+        ],
+        [
+            "So.",
+            "We go by the term behavioral graphs to describe all sorts of graphs that people have been analyzing.",
+            "So such graphs range from web graphs.",
+            "The typical graph where the nodes are the web pages and the edges are the hyperlinks.",
+            "Our host graph, where nodes are the hosts and it just represent a hyperlink between hosts.",
+            "Whenever there is some edge from one page on one host to another page, another host.",
+            "Or social networks.",
+            "They're everywhere.",
+            "Every pretty much every online social application has a network component to that.",
+            "Or collaboration network where you have people and you have edges.",
+            "If both of them have worked on the same project or same paper together.",
+            "And various other things in sensor networks and biological networks.",
+            "And the typical research trend so far has been one of two types.",
+            "Either perform a empirical analysis in the sense that take some property of these graphs and study them across various graphs, or study them in depth to see if these properties hold at various scales or at various times, and so on.",
+            "Another school of thought has been on modeling where the goal is to find a good, realistic model to explain the creation and evolution of such networks.",
+            "In both of these.",
+            "Schools of thought.",
+            "There has been a tendency to lump together various graphs.",
+            "All these behavioral graphs into a single family, even though they arise from various contexts.",
+            "Will Will will examine whether this is actually the right thing to do in this talk."
+        ],
+        [
+            "So let me brief a few properties of such behavior and networks that have been studied so far in the literature.",
+            "First of all, degree distributions.",
+            "So everybody knows this sort of plots.",
+            "So you have the degree and the number of nodes with a degree and we all know that when you plot such things on a log log scale, you get a straight line.",
+            "So that's no surprise.",
+            "And what about clustering?",
+            "We know that all these networks satisfy local clustering property, so they have high clustering coefficients.",
+            "And likewise for communities, and then subgraphs all these networks.",
+            "Exhibit A lot of communities and usually they have this property of being locally dense but globally sparse, so the average degree is small.",
+            "But if you take any local neighborhood, the graph will appear dense.",
+            "And people have looked at the spectrum and the eigenvalues of such graphs.",
+            "And if you compare connectivity, people have looked at the bow tie structure, or they've examined the diameter of such graphs or looked at more small world properties, or two people connected to each other by a short link."
+        ],
+        [
+            "So here is a remarkable and surprising empirical fact.",
+            "This is from the work of Bodian Vigna from World Wide Web 2004.",
+            "Bing took a snapshot of web graph of about getting 18.5 million pagesfrom.uk domain.",
+            "And obtained a way to compress this graph, such that representing each link or each edge in this graph takes only about 3 bits.",
+            "It's really remarkable because if you take a look at the number of edges here, talking about 300 million edges, but still on average only need about 3 bits per edge.",
+            "So here is the actual table from their paper.",
+            "And this is actually a robust result, because this was subsequently improved to around 2 bits.",
+            "I think the current record is just under 2 bits.",
+            "Using data mining inspired technique by Buren Chellapilla last years wisdom.",
+            "And there are further improvements to this result still published this year as well.",
+            "So the key insights that lets us obtain such results are.",
+            "Many web pages have similar set of neighbors.",
+            "So if you take a page, there's some other page that has a large overlap with.",
+            "This page is neighborhood.",
+            "And second feature that helps us is that they just tend to be local, so it just within a site often go to the same site.",
+            "They don't go across sites that offer.",
+            "So these two facts together help in obtaining this remarkable bit of compression.",
+            "We'll go into more details as we as we progress."
+        ],
+        [
+            "So the question we addressed in this talk is.",
+            "How about social networks?",
+            "Given that the web graph is so big, yet highly compressible, what can we say about social networks?",
+            "They're not as big as a web, but the compressibility results still hold.",
+            "So here is the outline of the talk.",
+            "Will first review.",
+            "Bolding your compression is sort of crucial to our analysis as well.",
+            "And we'll propose a slightly different compression mechanism that works that we show works better for social networks, and we propose a heuristic too.",
+            "Is this aspect and analyze its performance empirically?",
+            "And finally we obtain a formalization that let us study this problem in a more formal setting."
+        ],
+        [
+            "So a brief interlude.",
+            "Why study this question?",
+            "Who cares about compression?",
+            "Of course, these graphs are growing in size on a daily basis and we would like to store this graphs in memory in order to answer adjacency queries, you want to, given a node V, we only obtain all its neighbors and we want to do that by storing the graph in memory.",
+            "We don't access disk because this has to be real time.",
+            "Such compressed graphs let us store not only single graph, but perhaps even multiple snapshots of this graph in memory, and let us handle these understand SQL queries very efficiently.",
+            "And of course, if you have a large graph in the web and if you want to archive it, say on a yearly basis, then we don't want to the graph explicitly.",
+            "We won't actually compress it.",
+            "So those are from practical point of view.",
+            "Of course, from a more insightful point of view.",
+            "Any scheme that works that compresses a graph well really has to understand how the graph actually looks.",
+            "So obtaining a better algorithm for compression will lead us into new insights about the graph or about behavioral graphs in general and about social networks in particular.",
+            "In fact, the study of compression can be thought of as answering the question of how does randomness play a role in such networks?",
+            "How random are these networks?"
+        ],
+        [
+            "So here is a naive way to store the adjacency list of a graph.",
+            "So this is what we call the adjacency table representation.",
+            "So you have a table.",
+            "Each row in the table corresponds to node in the graph.",
+            "And each entries entries in a single row or sorted integers that represent the neighborhood of this node.",
+            "You that means all the edges you come away.",
+            "So here is a simple example.",
+            "You have a node U node one and it has neighbors 1248 and so on.",
+            "And similarly, the 2nd order prizes know two and all its neighbors and so on.",
+            "Of course, this is the most naive representation, but already it's an improvement over storing the explicit set of edges like you, V for every UV.",
+            "It's like a 50% improvement.",
+            "And the nice thing about this representation is we can answer adjacency queries fast.",
+            "All you need to do is look up, go to throw and pick up the interest in Nitro.",
+            "Thermal."
+        ],
+        [
+            "Let's look at Bolivia.",
+            "What are the main ideas that let Boldi and Vigna achieve this three bit compression?",
+            "As he remarked before, the important insight is that the neighborhood of a web page can be expressed in terms of other web pages with similar neighborhoods.",
+            "So if you look at the representation representation from the previous slide, so here's the.",
+            "Here's the adjacency table.",
+            "If you look at row one, it's very similar to four.",
+            "So to represent row four, if you can somehow utilize this fact that one and four are very similar, then we save a lot of bits.",
+            "In other words, we don't need to represent all the all the neighborhoods, all the nodes that are neighbors of four.",
+            "We can just say that four is a copy of 1 plus some extra things.",
+            "That's the main idea.",
+            "And therefore if you look at row four, we need to be able to choose a prototype row that says how similar row photos to this prototype Rd.",
+            "And if you're careful about using this prototype, we can actually get better compression.",
+            "I'll go into more detail later.",
+            "And the second idea in Bolivia is that most edges on the web are intra host.",
+            "They don't go across coast.",
+            "They all sit within the same host, and that's what they're very local.",
+            "And if you sample order the web pages in a nice way, then you can make sure that for a given edge the source and the destination of the edge are close to each other in this numerically, that will help us a lot.",
+            "And the third idea in Bolivia is not to store integers explicitly, but to do what is called gap encoding.",
+            "So I'll come to what gap encoding means.",
+            "So gap encoding is very simple.",
+            "Instead of storing the destination for each edge, instead store the gaps between adjacent destinations."
+        ],
+        [
+            "The first point, how do you find similar neighborhoods?",
+            "So we have a notion of Canonical ordering, which is a good ordering for set of web pages, and the ordering would even your choose, is to treat URL strings and do a lexicographic sorting on them.",
+            "So here is an example.",
+            "Here is a bunch of URLs and if you sort them treating them as strings, you'll get this ordering.",
+            "And this ordering implicitly gives you an identifier or a number for each URL, so you have a number associated with each URL.",
+            "And by the locality property, we also know that the source and destination of a webpage of an edge or likely to have nearby numbers.",
+            "That means that if you take the difference between the source and destination, it's likely to be a small number."
+        ],
+        [
+            "So what do you mean by gap in coding?",
+            "So, given a sorted list of integers XY and Z, instead of replacing representing them as XYZ and so on, do this instead X like my y -- X, Z, minus Y and so on is stored the gaps or the differences between adjacent numbers.",
+            "See, these numbers themselves could be very big, but by the locality property the differences are tend to be very small.",
+            "That's a crucial property as well.",
+            "And once you have this small numbers still, you can save a lot more by encoding each integer in a clever way.",
+            "So here is a way to encode is called the gamma code.",
+            "To represent an integer X, remember these are variable includes, so the present an integer eggs just concatenate the length of X, which takes logx bits followed by a binary representation of the remainder, X minus the log of X.",
+            "We can see that this representation takes only 1 + 2 log X bits.",
+            "The information theoretic bound is 1 plus log log X bits under uniform distribution.",
+            "So in fact, we could do even much better if you use the fact that these integers could come from a known distribution, say power law.",
+            "Baldivia have developed a set of course called zip codes that let you do that."
+        ],
+        [
+            "So here is actual compression algorithm of multimedia.",
+            "We already saw that you can obtain a Canonical ordering within their cases.",
+            "Alexio graphic ordering of the URLs, so each node ends up with an ID and there is a copying window parameter, let's call it W. So to encode and OW that means you have to encode a node V. That means you have V and a list of its neighbors.",
+            "First check if the out neighbors of we are similar to any of W minus one previous notes in the ordering.",
+            "So if you take a node V here we keep checking out neighbors of V are very similar to you and this is at most W -- 1, so we looks very similar to you.",
+            "And therefore to represent the neighborhood of B, all I need to do is say that it looks very similar to you plus some small differences.",
+            "So in this case we doesn't have this edge to this node, but has an edge to this node.",
+            "So from this point of view you is its prototype an you use log W bits to encode the gap here, and this extra 2 differences here, this node understood.",
+            "So you see that already obtained some savings.",
+            "Of course, that can be a case where there is no prototype available, in which case you just write log double zeros and encode things explicitly.",
+            "And on top of everything used gap encoding, that's that's the main idea of believe in you."
+        ],
+        [
+            "So what are the advantages of such a scheme?",
+            "First thing to notice is that this actually doesn't really use the web in a very strong sense.",
+            "All it cares about is there has to be a good Canonical ordering.",
+            "That brings about the locality and similarity properties.",
+            "And 2nd is that we are doesn't see queries can be answered very efficiently.",
+            "Even though it's a compressed scheme, all you need to do is to get the out neighbors of a node, raise the chain back all the way till you hit a node that is encoded in a naive format.",
+            "And in practice, this change tend to be very small, so even in terms of serving adjacency queries in real time an inefficient manner, this is this is a good scheme.",
+            "Really practical.",
+            "And of course, if the chain becomes large, you can explicitly say that I don't want to change to be too large so that that can be made part of the encoding scheme.",
+            "And it's very easy to implement."
+        ],
+        [
+            "So no, we are inspired by the scheme.",
+            "We propose a slightly different scheme that takes the properties that are specific to social networks into account.",
+            "The first property is that the social networks are highly reciprocal.",
+            "So despite them being directed so we all know that social interaction directed at a can be friend of B, but we need not be afraid of a.",
+            "But despite this fact, many social networks are highly reciprocal.",
+            "You're talking about 60 to 70% of edges occurring in both directions.",
+            "So we called an edge UV to be reciprocal.",
+            "If the edge view also exist in the network.",
+            "And reciprocal of you is a set of all V such that UV is reciprocal.",
+            "And the question that was wholly exploit reciprocity in compression.",
+            "How do use the fact that most edges go both ways?",
+            "A simple observation is that.",
+            "Given this, we can avoid storing the reciprocal edges twice.",
+            "I just need to store it once and just need to remember whether the other side exists or not.",
+            "That's the only thing I need to remember for that.",
+            "A single bit is sufficient."
+        ],
+        [
+            "So here is the algorithm to do the compression.",
+            "So again, we assume that economical ordering is available will come to that later.",
+            "How such an ordering can be obtained and be given a copying window parameter as before.",
+            "To encode a node V, we encode the out degree of.",
+            "We first encode all the non reciprocal edges of VI.",
+            "So we encode the out degree of V -- 1.",
+            "If there is also present minus the number of reciprocal edges.",
+            "So first we focus on the non reciprocal part.",
+            "And we do pretty much same as Bolivia.",
+            "And then for the reciprocal part, we take each reciprocal neighbor and if the neighbor has an ID more than the current node in the given ordering, then we store it as a bit saying that this edge exists.",
+            "Otherwise we just discard.",
+            "Otherwise we store a 0.",
+            "So notice that we'd only once, because we do this check here so we don't store is produced twice."
+        ],
+        [
+            "OK, so now that we've seen the compression scheme, the crucial piece that's missing still is the presence of Canonical ordering.",
+            "So as we saw before, both believe in ear and backlinks assumes just on the presence or availability of a Canonical ordering of nodes.",
+            "And this Canonical ordering should exploit neighborhood similarity and age locality.",
+            "And the question now is, how do you obtain such a good Canonical ordering?",
+            "And unlike the web case, it is not clear if social networks have such a natural ordering.",
+            "Remember the natural ordering for the web was to take the URLs and Dual X ordering on them.",
+            "But what do you do for social networks?",
+            "What is the right ordering to work with?",
+            "There is a big caveat here.",
+            "Whatever results, the compressibility or the cyning incompressibility of networks are specific to the bold neon backing scheme we are talking about.",
+            "It doesn't mean that these networks are not compressible.",
+            "Maybe there is another magical scheme that will let you compress networks."
+        ],
+        [
+            "So here are some simple Canonical orderings that one can come up with in a couple of minutes.",
+            "Of course, first is a random order, just take all the nodes in the network and permute them randomly.",
+            "That's the Canonical order.",
+            "And you should work also as a natural order.",
+            "Seeing a social network natural order could be the time at which each person joined the network.",
+            "Or the time or the order in which the social network was crawled using standard crawling policy.",
+            "On for a web browser host graph, it could be the next order of URLs.",
+            "And we can also look at graph traversal orders, BFS or DFS on this graph.",
+            "And if the social network has a geographic location, we can of course sort the network by zip zip code order, assuming that people who who are friends live next to each other.",
+            "So we assume that people exhibit some sort of geographic locality in their friendships and use that to obtain a Canonical order.",
+            "Of course, many of these orderings can produce ties, and you can always break ties by using some other ordering, so you can compose orderings in more than one way."
+        ],
+        [
+            "So here is a performance numbers for a simple ordering, so we so the numbers are in the paper, so I just give you a brief overview.",
+            "So we're looking at three graphs here.",
+            "Flickr, which is a social network that's about 25 million nodes and 70 million edges, and it's about 65% receive program.",
+            "And we have UK host graph.",
+            "So one note for each host and a link if a page exists on one host funding another another page, another host that's about half a million nodes, 12 million edges and low reciprocity, and the web graph from Indore, India and China has similarly a low reciprocity.",
+            "And if you take a look at Bolivia, this is this sort of like the baseline.",
+            "This is the entropy under a random ordering of the nodes.",
+            "So you need 24 bits if there is no ordering with no structure inputs in the network, you know 24 bits per link.",
+            "These numbers are number of bits you need per link.",
+            "But if you employ a natural ordering, the number of bits goes down by little bit, but not too much.",
+            "And similarly in this case as well.",
+            "But if you know the web graph.",
+            "Random ordering is 21 bits, but if using natural ordering, which is the Lex ordering in this case, it's order of magnitude smaller, which is what I believe in you obtained.",
+            "So the question is, how do you improve this number?",
+            "And similar numbers can be obtained for backlinks as well, and as you can see, the improvement is not significant here cause you don't have much reciprocity.",
+            "It's mostly you know direction."
+        ],
+        [
+            "So here is a heuristic to obtain a Canonical ordering.",
+            "We call it the shingle ordering heuristic.",
+            "And the goal here is to obtain a Canonical ordering by bringing nodes with same similar neighborhoods together.",
+            "So we would like to take notes that have similar neighborhoods and apply a fingerprint on the neighborhood such that if two nodes have lot of overlap in the neighborhoods then they are likely to have same fingerprints.",
+            "And that's exactly captured by an ocean called Jaccard Jaccard similarity, which is which computes a similarity between pair of sets.",
+            "So you have two sets A&B Jaccard coefficient measures the size of intersection over the size of the Union of sets."
+        ],
+        [
+            "This is how it looks, so it measures this portion.",
+            "And the nice news is that there is a fingerprint to estimate the car similarity efficiently, and that's called minimize independent permutations.",
+            "So it's basically take a random permutation like take a random ordering and compute the smallest element in each set under this ordering.",
+            "2MM supply of A is the smallest element in this set under pie.",
+            "And the probability that two sets A&B collide on the small smallest item is precisely equal to the Jaccard coefficient between these two sets.",
+            "So that's a theorem.",
+            "And that's like that's an old theorem.",
+            "What in reality don't need to use random permutation?",
+            "In fact, simple hash functions work well in practice."
+        ],
+        [
+            "So for us, what we'll do is we'll take the fingerprint of a node to be the smallest element of all the out neighbors of this node under a random hash function or random permutation \u03c0.",
+            "Text to shingle.",
+            "And this naturally gives an ordering of all the nodes, so choose this ordering.",
+            "And the intuition behind why this works is 2 nodes with lot of overlapping neighbors are likely to have the same single, so they'll be brought together closer together in the ordering.",
+            "Of course, you can always break ties in shingle.",
+            "Ordering will produce a lot of ties.",
+            "You can always break ties with doing multiple shingles.",
+            "Maybe take a second shingle and then break ties."
+        ],
+        [
+            "So you get the performance number for single ordering.",
+            "For the same graphs, just I put the natural order, repeated the numbers for natural ordering.",
+            "You can see that if you single ordering the compressibility, the compression numbers go down significantly.",
+            "So this single ordering is actually independent of the graph you don't.",
+            "I'm not using any properties known properties of the graph, I'm just using the topology of the graph.",
+            "So even for the web, of course it's not as good as the next ordering, but still is not bad.",
+            "So this is a reasonable heuristic to do.",
+            "Compression."
+        ],
+        [
+            "OK, I just wanted to catch up on how does compression say behave overtime.",
+            "So here is a snapshot from Flickr, so you have time on X axis and you have compressibility on the Y axis, cutting the various schemes.",
+            "So better to do two things.",
+            "One is the size of the network.",
+            "Network actually grows almost exponentially.",
+            "But if you take the best compression which is back links with single, the number of which is pretty much constant.",
+            "It's pretty much a flat line, even though the network actually grew significantly.",
+            "So there is something more going on than than than what this graph show."
+        ],
+        [
+            "So you can show something more formal with single ordering, not significant, But something interesting.",
+            "You can show that using single ordering, a constant fraction of edges will be copied in graphs that are synthetic.",
+            "There are very stylized, say if you have graph generated by a preferential attachment model control, single ordering does the right thing.",
+            "And you cannot analyze."
+        ],
+        [
+            "Gap distribution."
+        ],
+        [
+            "Skip.",
+            "So next question is who's the culprit?",
+            "What causes social networks to be not as compressible as the web, for example?",
+            "If it turns out that low degree nodes in social networks are the ones that are very hard to compress, and the way we found out is that we took the cake or of the graph, OK, code is sub graph where every node has degree at least K, so it's a uniquely defined subgraph induced degree.",
+            "So if you take the sub, if you take the cake code of course has increased K. The K-Cup size will go down, but this compressibility also becomes much much more efficient because it looks more like a click.",
+            "On the other hand, if you try to compress the remaining portion, that becomes much harder.",
+            "So the blue line shows that as increased K compressor cake over and try to complete the remaining portion, the remaining portion gets harder and harder to compress as increase K. So in some sense even here it becomes very hard.",
+            "So as a low degree nodes that actually cause a lot of trouble."
+        ],
+        [
+            "OK, now that we have seen some experiments, can we try to formalize a theoretical problem out of this?",
+            "So here is a problem.",
+            "Given a graph, find the Canonical ordering that will produce the best compression.",
+            "If you apply, say, believe in your backlink scheme.",
+            "As far as before, the ordering should capture both locality and similarity, and it should help also this compression."
+        ],
+        [
+            "Times.",
+            "So."
+        ],
+        [
+            "I just there are two formulations.",
+            "I just go through the 2nd formulation.",
+            "We call this the Hemlock M log app, a formulation.",
+            "It stands for minimum minimum log, rhythmic gap arrangement.",
+            "So for an ordering pipe, let if Pi of you be the cost of compressing the out neighbors of you under this permutation \u03c0.",
+            "And if you want the UK are out neighbors order disrespected by, then this causes exactly this.",
+            "If by of you with the summer we're all out neighbors of the log of the gap between UI and UI minus one, that's the number of bits it takes to encode this gap.",
+            "And the goal now is to find an ordering pipe to minimize the sum of all this gap.",
+            "All this out neighbor cost over all the nodes.",
+            "That's the commentary problem.",
+            "So it turns out that this is actually a new problem.",
+            "To our knowledge, it's not being studied in the literature.",
+            "You can show that it's.",
+            "A variant of that is NP hard, but we conjectured this.",
+            "This problem is actually hard."
+        ],
+        [
+            "So let me just summarize.",
+            "There are two messages.",
+            "One is that social networks appear to be very challenging to compress.",
+            "So we don't know of good schemes to get them to the level of web graphs an from a compressibility POV.",
+            "These two graphs, web graphs, and social networks are very different, and in fact the host graphs are closer to social networks than to the web graph."
+        ],
+        [
+            "And that for some future questions to consider are can we actually improve the numbers we have in our paper?",
+            "Can be compressed version.",
+            "It works better.",
+            "And is there a lower bound and compressibility?",
+            "Can we say that given a graph you can't do better than say 5 bits per edge?",
+            "Can you?",
+            "Can you come up with structure in the graph that will give you this lower bound?",
+            "And what about the algorithm questions?",
+            "Can you get good approximation algorithms for the combinatorial problems?",
+            "And what about modeling?",
+            "Is it possible to come up with a better and no one's model for the fact that the web is compressible, so we have some preliminary results in this area?"
+        ],
+        [
+            "To talk about it, thank you.",
+            "I think we'll have time for maybe 2 questions.",
+            "Couple of questions.",
+            "The first part of your what you describe, the shingling based approach resembles very much the approach that you're intelligent for the first part of it.",
+            "Of course, the compression technique they use is that it's quite different than the other, so so could you comment on what the differences are in the second part is they have a follow up work in this year's wisdom where they present algorithms that directly operate on the compressed graph.",
+            "So do you see such kinds of things showing up as part of future work here?",
+            "So if I remember right Buren Chellapilla's work, they find dense subgraphs in the graph, they peel them and then they compress arrest.",
+            "Right exactly distinct shingling strategies inspired by some work which I was involved, like four or five years ago in VLDB right?",
+            "So there the shingling was used to find dense subgraphs in graph so the team is very similar, but the application is different.",
+            "Regarding your second question, we didn't look at any algorithms for that directly operated compressed graphs, but that I think is interesting direction.",
+            "One more question you have.",
+            "So did you consider?",
+            "Logical order.",
+            "Well, we're talking about 75 million it just in 20 minutes is very hard.",
+            "These things take a long time, so even if one comes up with very complicated algorithms to examine all orderings or null potential orderings, we didn't try that.",
+            "It's it's an interesting person.",
+            "Thank you again."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So my name is Robbie.",
+                    "label": 0
+                },
+                {
+                    "sent": "I work at Yahoo Research in Sunnyvale.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll be talking about some work on compressing social networks.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So can you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you hear me?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is actually joint work with folks from Yahoo and outside.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's Flavio and Sylvia from University of Rome and Michael from Howard and Alice and also from University of Rome and Prabhakar from Yahoo.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "We go by the term behavioral graphs to describe all sorts of graphs that people have been analyzing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So such graphs range from web graphs.",
+                    "label": 1
+                },
+                {
+                    "sent": "The typical graph where the nodes are the web pages and the edges are the hyperlinks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our host graph, where nodes are the hosts and it just represent a hyperlink between hosts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whenever there is some edge from one page on one host to another page, another host.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or social networks.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're everywhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every pretty much every online social application has a network component to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or collaboration network where you have people and you have edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "If both of them have worked on the same project or same paper together.",
+                    "label": 1
+                },
+                {
+                    "sent": "And various other things in sensor networks and biological networks.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the typical research trend so far has been one of two types.",
+                    "label": 0
+                },
+                {
+                    "sent": "Either perform a empirical analysis in the sense that take some property of these graphs and study them across various graphs, or study them in depth to see if these properties hold at various scales or at various times, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another school of thought has been on modeling where the goal is to find a good, realistic model to explain the creation and evolution of such networks.",
+                    "label": 0
+                },
+                {
+                    "sent": "In both of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Schools of thought.",
+                    "label": 0
+                },
+                {
+                    "sent": "There has been a tendency to lump together various graphs.",
+                    "label": 1
+                },
+                {
+                    "sent": "All these behavioral graphs into a single family, even though they arise from various contexts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will Will will examine whether this is actually the right thing to do in this talk.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let me brief a few properties of such behavior and networks that have been studied so far in the literature.",
+                    "label": 1
+                },
+                {
+                    "sent": "First of all, degree distributions.",
+                    "label": 1
+                },
+                {
+                    "sent": "So everybody knows this sort of plots.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you have the degree and the number of nodes with a degree and we all know that when you plot such things on a log log scale, you get a straight line.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's no surprise.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what about clustering?",
+                    "label": 1
+                },
+                {
+                    "sent": "We know that all these networks satisfy local clustering property, so they have high clustering coefficients.",
+                    "label": 1
+                },
+                {
+                    "sent": "And likewise for communities, and then subgraphs all these networks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exhibit A lot of communities and usually they have this property of being locally dense but globally sparse, so the average degree is small.",
+                    "label": 1
+                },
+                {
+                    "sent": "But if you take any local neighborhood, the graph will appear dense.",
+                    "label": 0
+                },
+                {
+                    "sent": "And people have looked at the spectrum and the eigenvalues of such graphs.",
+                    "label": 1
+                },
+                {
+                    "sent": "And if you compare connectivity, people have looked at the bow tie structure, or they've examined the diameter of such graphs or looked at more small world properties, or two people connected to each other by a short link.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here is a remarkable and surprising empirical fact.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is from the work of Bodian Vigna from World Wide Web 2004.",
+                    "label": 1
+                },
+                {
+                    "sent": "Bing took a snapshot of web graph of about getting 18.5 million pagesfrom.uk domain.",
+                    "label": 0
+                },
+                {
+                    "sent": "And obtained a way to compress this graph, such that representing each link or each edge in this graph takes only about 3 bits.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's really remarkable because if you take a look at the number of edges here, talking about 300 million edges, but still on average only need about 3 bits per edge.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here is the actual table from their paper.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this is actually a robust result, because this was subsequently improved to around 2 bits.",
+                    "label": 1
+                },
+                {
+                    "sent": "I think the current record is just under 2 bits.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using data mining inspired technique by Buren Chellapilla last years wisdom.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are further improvements to this result still published this year as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the key insights that lets us obtain such results are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many web pages have similar set of neighbors.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you take a page, there's some other page that has a large overlap with.",
+                    "label": 0
+                },
+                {
+                    "sent": "This page is neighborhood.",
+                    "label": 1
+                },
+                {
+                    "sent": "And second feature that helps us is that they just tend to be local, so it just within a site often go to the same site.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't go across sites that offer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these two facts together help in obtaining this remarkable bit of compression.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'll go into more details as we as we progress.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the question we addressed in this talk is.",
+                    "label": 0
+                },
+                {
+                    "sent": "How about social networks?",
+                    "label": 0
+                },
+                {
+                    "sent": "Given that the web graph is so big, yet highly compressible, what can we say about social networks?",
+                    "label": 0
+                },
+                {
+                    "sent": "They're not as big as a web, but the compressibility results still hold.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is the outline of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will first review.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bolding your compression is sort of crucial to our analysis as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we'll propose a slightly different compression mechanism that works that we show works better for social networks, and we propose a heuristic too.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is this aspect and analyze its performance empirically?",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally we obtain a formalization that let us study this problem in a more formal setting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So a brief interlude.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why study this question?",
+                    "label": 0
+                },
+                {
+                    "sent": "Who cares about compression?",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, these graphs are growing in size on a daily basis and we would like to store this graphs in memory in order to answer adjacency queries, you want to, given a node V, we only obtain all its neighbors and we want to do that by storing the graph in memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't access disk because this has to be real time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Such compressed graphs let us store not only single graph, but perhaps even multiple snapshots of this graph in memory, and let us handle these understand SQL queries very efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, if you have a large graph in the web and if you want to archive it, say on a yearly basis, then we don't want to the graph explicitly.",
+                    "label": 0
+                },
+                {
+                    "sent": "We won't actually compress it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those are from practical point of view.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, from a more insightful point of view.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any scheme that works that compresses a graph well really has to understand how the graph actually looks.",
+                    "label": 0
+                },
+                {
+                    "sent": "So obtaining a better algorithm for compression will lead us into new insights about the graph or about behavioral graphs in general and about social networks in particular.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, the study of compression can be thought of as answering the question of how does randomness play a role in such networks?",
+                    "label": 0
+                },
+                {
+                    "sent": "How random are these networks?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here is a naive way to store the adjacency list of a graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is what we call the adjacency table representation.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you have a table.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each row in the table corresponds to node in the graph.",
+                    "label": 1
+                },
+                {
+                    "sent": "And each entries entries in a single row or sorted integers that represent the neighborhood of this node.",
+                    "label": 1
+                },
+                {
+                    "sent": "You that means all the edges you come away.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is a simple example.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a node U node one and it has neighbors 1248 and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And similarly, the 2nd order prizes know two and all its neighbors and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, this is the most naive representation, but already it's an improvement over storing the explicit set of edges like you, V for every UV.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's like a 50% improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the nice thing about this representation is we can answer adjacency queries fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "All you need to do is look up, go to throw and pick up the interest in Nitro.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thermal.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Let's look at Bolivia.",
+                    "label": 0
+                },
+                {
+                    "sent": "What are the main ideas that let Boldi and Vigna achieve this three bit compression?",
+                    "label": 0
+                },
+                {
+                    "sent": "As he remarked before, the important insight is that the neighborhood of a web page can be expressed in terms of other web pages with similar neighborhoods.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you look at the representation representation from the previous slide, so here's the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the adjacency table.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at row one, it's very similar to four.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to represent row four, if you can somehow utilize this fact that one and four are very similar, then we save a lot of bits.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, we don't need to represent all the all the neighborhoods, all the nodes that are neighbors of four.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can just say that four is a copy of 1 plus some extra things.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's the main idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "And therefore if you look at row four, we need to be able to choose a prototype row that says how similar row photos to this prototype Rd.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you're careful about using this prototype, we can actually get better compression.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll go into more detail later.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the second idea in Bolivia is that most edges on the web are intra host.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't go across coast.",
+                    "label": 1
+                },
+                {
+                    "sent": "They all sit within the same host, and that's what they're very local.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you sample order the web pages in a nice way, then you can make sure that for a given edge the source and the destination of the edge are close to each other in this numerically, that will help us a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the third idea in Bolivia is not to store integers explicitly, but to do what is called gap encoding.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll come to what gap encoding means.",
+                    "label": 0
+                },
+                {
+                    "sent": "So gap encoding is very simple.",
+                    "label": 1
+                },
+                {
+                    "sent": "Instead of storing the destination for each edge, instead store the gaps between adjacent destinations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The first point, how do you find similar neighborhoods?",
+                    "label": 1
+                },
+                {
+                    "sent": "So we have a notion of Canonical ordering, which is a good ordering for set of web pages, and the ordering would even your choose, is to treat URL strings and do a lexicographic sorting on them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is a bunch of URLs and if you sort them treating them as strings, you'll get this ordering.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this ordering implicitly gives you an identifier or a number for each URL, so you have a number associated with each URL.",
+                    "label": 1
+                },
+                {
+                    "sent": "And by the locality property, we also know that the source and destination of a webpage of an edge or likely to have nearby numbers.",
+                    "label": 0
+                },
+                {
+                    "sent": "That means that if you take the difference between the source and destination, it's likely to be a small number.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what do you mean by gap in coding?",
+                    "label": 0
+                },
+                {
+                    "sent": "So, given a sorted list of integers XY and Z, instead of replacing representing them as XYZ and so on, do this instead X like my y -- X, Z, minus Y and so on is stored the gaps or the differences between adjacent numbers.",
+                    "label": 1
+                },
+                {
+                    "sent": "See, these numbers themselves could be very big, but by the locality property the differences are tend to be very small.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a crucial property as well.",
+                    "label": 1
+                },
+                {
+                    "sent": "And once you have this small numbers still, you can save a lot more by encoding each integer in a clever way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is a way to encode is called the gamma code.",
+                    "label": 1
+                },
+                {
+                    "sent": "To represent an integer X, remember these are variable includes, so the present an integer eggs just concatenate the length of X, which takes logx bits followed by a binary representation of the remainder, X minus the log of X.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can see that this representation takes only 1 + 2 log X bits.",
+                    "label": 0
+                },
+                {
+                    "sent": "The information theoretic bound is 1 plus log log X bits under uniform distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in fact, we could do even much better if you use the fact that these integers could come from a known distribution, say power law.",
+                    "label": 0
+                },
+                {
+                    "sent": "Baldivia have developed a set of course called zip codes that let you do that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here is actual compression algorithm of multimedia.",
+                    "label": 0
+                },
+                {
+                    "sent": "We already saw that you can obtain a Canonical ordering within their cases.",
+                    "label": 1
+                },
+                {
+                    "sent": "Alexio graphic ordering of the URLs, so each node ends up with an ID and there is a copying window parameter, let's call it W. So to encode and OW that means you have to encode a node V. That means you have V and a list of its neighbors.",
+                    "label": 1
+                },
+                {
+                    "sent": "First check if the out neighbors of we are similar to any of W minus one previous notes in the ordering.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you take a node V here we keep checking out neighbors of V are very similar to you and this is at most W -- 1, so we looks very similar to you.",
+                    "label": 1
+                },
+                {
+                    "sent": "And therefore to represent the neighborhood of B, all I need to do is say that it looks very similar to you plus some small differences.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in this case we doesn't have this edge to this node, but has an edge to this node.",
+                    "label": 1
+                },
+                {
+                    "sent": "So from this point of view you is its prototype an you use log W bits to encode the gap here, and this extra 2 differences here, this node understood.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you see that already obtained some savings.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, that can be a case where there is no prototype available, in which case you just write log double zeros and encode things explicitly.",
+                    "label": 0
+                },
+                {
+                    "sent": "And on top of everything used gap encoding, that's that's the main idea of believe in you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what are the advantages of such a scheme?",
+                    "label": 1
+                },
+                {
+                    "sent": "First thing to notice is that this actually doesn't really use the web in a very strong sense.",
+                    "label": 1
+                },
+                {
+                    "sent": "All it cares about is there has to be a good Canonical ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "That brings about the locality and similarity properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "And 2nd is that we are doesn't see queries can be answered very efficiently.",
+                    "label": 1
+                },
+                {
+                    "sent": "Even though it's a compressed scheme, all you need to do is to get the out neighbors of a node, raise the chain back all the way till you hit a node that is encoded in a naive format.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in practice, this change tend to be very small, so even in terms of serving adjacency queries in real time an inefficient manner, this is this is a good scheme.",
+                    "label": 1
+                },
+                {
+                    "sent": "Really practical.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, if the chain becomes large, you can explicitly say that I don't want to change to be too large so that that can be made part of the encoding scheme.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's very easy to implement.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So no, we are inspired by the scheme.",
+                    "label": 0
+                },
+                {
+                    "sent": "We propose a slightly different scheme that takes the properties that are specific to social networks into account.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first property is that the social networks are highly reciprocal.",
+                    "label": 1
+                },
+                {
+                    "sent": "So despite them being directed so we all know that social interaction directed at a can be friend of B, but we need not be afraid of a.",
+                    "label": 0
+                },
+                {
+                    "sent": "But despite this fact, many social networks are highly reciprocal.",
+                    "label": 1
+                },
+                {
+                    "sent": "You're talking about 60 to 70% of edges occurring in both directions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we called an edge UV to be reciprocal.",
+                    "label": 1
+                },
+                {
+                    "sent": "If the edge view also exist in the network.",
+                    "label": 0
+                },
+                {
+                    "sent": "And reciprocal of you is a set of all V such that UV is reciprocal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the question that was wholly exploit reciprocity in compression.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do use the fact that most edges go both ways?",
+                    "label": 1
+                },
+                {
+                    "sent": "A simple observation is that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Given this, we can avoid storing the reciprocal edges twice.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just need to store it once and just need to remember whether the other side exists or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the only thing I need to remember for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "A single bit is sufficient.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here is the algorithm to do the compression.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, we assume that economical ordering is available will come to that later.",
+                    "label": 0
+                },
+                {
+                    "sent": "How such an ordering can be obtained and be given a copying window parameter as before.",
+                    "label": 0
+                },
+                {
+                    "sent": "To encode a node V, we encode the out degree of.",
+                    "label": 0
+                },
+                {
+                    "sent": "We first encode all the non reciprocal edges of VI.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we encode the out degree of V -- 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there is also present minus the number of reciprocal edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first we focus on the non reciprocal part.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we do pretty much same as Bolivia.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then for the reciprocal part, we take each reciprocal neighbor and if the neighbor has an ID more than the current node in the given ordering, then we store it as a bit saying that this edge exists.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise we just discard.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise we store a 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "So notice that we'd only once, because we do this check here so we don't store is produced twice.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so now that we've seen the compression scheme, the crucial piece that's missing still is the presence of Canonical ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as we saw before, both believe in ear and backlinks assumes just on the presence or availability of a Canonical ordering of nodes.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this Canonical ordering should exploit neighborhood similarity and age locality.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the question now is, how do you obtain such a good Canonical ordering?",
+                    "label": 0
+                },
+                {
+                    "sent": "And unlike the web case, it is not clear if social networks have such a natural ordering.",
+                    "label": 1
+                },
+                {
+                    "sent": "Remember the natural ordering for the web was to take the URLs and Dual X ordering on them.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what do you do for social networks?",
+                    "label": 0
+                },
+                {
+                    "sent": "What is the right ordering to work with?",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a big caveat here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whatever results, the compressibility or the cyning incompressibility of networks are specific to the bold neon backing scheme we are talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't mean that these networks are not compressible.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe there is another magical scheme that will let you compress networks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here are some simple Canonical orderings that one can come up with in a couple of minutes.",
+                    "label": 1
+                },
+                {
+                    "sent": "Of course, first is a random order, just take all the nodes in the network and permute them randomly.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the Canonical order.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you should work also as a natural order.",
+                    "label": 0
+                },
+                {
+                    "sent": "Seeing a social network natural order could be the time at which each person joined the network.",
+                    "label": 1
+                },
+                {
+                    "sent": "Or the time or the order in which the social network was crawled using standard crawling policy.",
+                    "label": 1
+                },
+                {
+                    "sent": "On for a web browser host graph, it could be the next order of URLs.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we can also look at graph traversal orders, BFS or DFS on this graph.",
+                    "label": 1
+                },
+                {
+                    "sent": "And if the social network has a geographic location, we can of course sort the network by zip zip code order, assuming that people who who are friends live next to each other.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we assume that people exhibit some sort of geographic locality in their friendships and use that to obtain a Canonical order.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, many of these orderings can produce ties, and you can always break ties by using some other ordering, so you can compose orderings in more than one way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here is a performance numbers for a simple ordering, so we so the numbers are in the paper, so I just give you a brief overview.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're looking at three graphs here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Flickr, which is a social network that's about 25 million nodes and 70 million edges, and it's about 65% receive program.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we have UK host graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one note for each host and a link if a page exists on one host funding another another page, another host that's about half a million nodes, 12 million edges and low reciprocity, and the web graph from Indore, India and China has similarly a low reciprocity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you take a look at Bolivia, this is this sort of like the baseline.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the entropy under a random ordering of the nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you need 24 bits if there is no ordering with no structure inputs in the network, you know 24 bits per link.",
+                    "label": 0
+                },
+                {
+                    "sent": "These numbers are number of bits you need per link.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you employ a natural ordering, the number of bits goes down by little bit, but not too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "And similarly in this case as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you know the web graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "Random ordering is 21 bits, but if using natural ordering, which is the Lex ordering in this case, it's order of magnitude smaller, which is what I believe in you obtained.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question is, how do you improve this number?",
+                    "label": 0
+                },
+                {
+                    "sent": "And similar numbers can be obtained for backlinks as well, and as you can see, the improvement is not significant here cause you don't have much reciprocity.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's mostly you know direction.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here is a heuristic to obtain a Canonical ordering.",
+                    "label": 1
+                },
+                {
+                    "sent": "We call it the shingle ordering heuristic.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the goal here is to obtain a Canonical ordering by bringing nodes with same similar neighborhoods together.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we would like to take notes that have similar neighborhoods and apply a fingerprint on the neighborhood such that if two nodes have lot of overlap in the neighborhoods then they are likely to have same fingerprints.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's exactly captured by an ocean called Jaccard Jaccard similarity, which is which computes a similarity between pair of sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you have two sets A&B Jaccard coefficient measures the size of intersection over the size of the Union of sets.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This is how it looks, so it measures this portion.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the nice news is that there is a fingerprint to estimate the car similarity efficiently, and that's called minimize independent permutations.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it's basically take a random permutation like take a random ordering and compute the smallest element in each set under this ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "2MM supply of A is the smallest element in this set under pie.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the probability that two sets A&B collide on the small smallest item is precisely equal to the Jaccard coefficient between these two sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's a theorem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's like that's an old theorem.",
+                    "label": 0
+                },
+                {
+                    "sent": "What in reality don't need to use random permutation?",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, simple hash functions work well in practice.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So for us, what we'll do is we'll take the fingerprint of a node to be the smallest element of all the out neighbors of this node under a random hash function or random permutation \u03c0.",
+                    "label": 1
+                },
+                {
+                    "sent": "Text to shingle.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this naturally gives an ordering of all the nodes, so choose this ordering.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the intuition behind why this works is 2 nodes with lot of overlapping neighbors are likely to have the same single, so they'll be brought together closer together in the ordering.",
+                    "label": 1
+                },
+                {
+                    "sent": "Of course, you can always break ties in shingle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ordering will produce a lot of ties.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can always break ties with doing multiple shingles.",
+                    "label": 1
+                },
+                {
+                    "sent": "Maybe take a second shingle and then break ties.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So you get the performance number for single ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the same graphs, just I put the natural order, repeated the numbers for natural ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see that if you single ordering the compressibility, the compression numbers go down significantly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this single ordering is actually independent of the graph you don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not using any properties known properties of the graph, I'm just using the topology of the graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So even for the web, of course it's not as good as the next ordering, but still is not bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a reasonable heuristic to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Compression.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, I just wanted to catch up on how does compression say behave overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is a snapshot from Flickr, so you have time on X axis and you have compressibility on the Y axis, cutting the various schemes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So better to do two things.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is the size of the network.",
+                    "label": 0
+                },
+                {
+                    "sent": "Network actually grows almost exponentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you take the best compression which is back links with single, the number of which is pretty much constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's pretty much a flat line, even though the network actually grew significantly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there is something more going on than than than what this graph show.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So you can show something more formal with single ordering, not significant, But something interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can show that using single ordering, a constant fraction of edges will be copied in graphs that are synthetic.",
+                    "label": 1
+                },
+                {
+                    "sent": "There are very stylized, say if you have graph generated by a preferential attachment model control, single ordering does the right thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you cannot analyze.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Gap distribution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Skip.",
+                    "label": 0
+                },
+                {
+                    "sent": "So next question is who's the culprit?",
+                    "label": 1
+                },
+                {
+                    "sent": "What causes social networks to be not as compressible as the web, for example?",
+                    "label": 0
+                },
+                {
+                    "sent": "If it turns out that low degree nodes in social networks are the ones that are very hard to compress, and the way we found out is that we took the cake or of the graph, OK, code is sub graph where every node has degree at least K, so it's a uniquely defined subgraph induced degree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you take the sub, if you take the cake code of course has increased K. The K-Cup size will go down, but this compressibility also becomes much much more efficient because it looks more like a click.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, if you try to compress the remaining portion, that becomes much harder.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the blue line shows that as increased K compressor cake over and try to complete the remaining portion, the remaining portion gets harder and harder to compress as increase K. So in some sense even here it becomes very hard.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as a low degree nodes that actually cause a lot of trouble.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, now that we have seen some experiments, can we try to formalize a theoretical problem out of this?",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given a graph, find the Canonical ordering that will produce the best compression.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you apply, say, believe in your backlink scheme.",
+                    "label": 1
+                },
+                {
+                    "sent": "As far as before, the ordering should capture both locality and similarity, and it should help also this compression.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Times.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I just there are two formulations.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just go through the 2nd formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We call this the Hemlock M log app, a formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "It stands for minimum minimum log, rhythmic gap arrangement.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for an ordering pipe, let if Pi of you be the cost of compressing the out neighbors of you under this permutation \u03c0.",
+                    "label": 1
+                },
+                {
+                    "sent": "And if you want the UK are out neighbors order disrespected by, then this causes exactly this.",
+                    "label": 0
+                },
+                {
+                    "sent": "If by of you with the summer we're all out neighbors of the log of the gap between UI and UI minus one, that's the number of bits it takes to encode this gap.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the goal now is to find an ordering pipe to minimize the sum of all this gap.",
+                    "label": 0
+                },
+                {
+                    "sent": "All this out neighbor cost over all the nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the commentary problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it turns out that this is actually a new problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "To our knowledge, it's not being studied in the literature.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can show that it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "A variant of that is NP hard, but we conjectured this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This problem is actually hard.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let me just summarize.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are two messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is that social networks appear to be very challenging to compress.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we don't know of good schemes to get them to the level of web graphs an from a compressibility POV.",
+                    "label": 0
+                },
+                {
+                    "sent": "These two graphs, web graphs, and social networks are very different, and in fact the host graphs are closer to social networks than to the web graph.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And that for some future questions to consider are can we actually improve the numbers we have in our paper?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can be compressed version.",
+                    "label": 0
+                },
+                {
+                    "sent": "It works better.",
+                    "label": 0
+                },
+                {
+                    "sent": "And is there a lower bound and compressibility?",
+                    "label": 1
+                },
+                {
+                    "sent": "Can we say that given a graph you can't do better than say 5 bits per edge?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you?",
+                    "label": 1
+                },
+                {
+                    "sent": "Can you come up with structure in the graph that will give you this lower bound?",
+                    "label": 0
+                },
+                {
+                    "sent": "And what about the algorithm questions?",
+                    "label": 1
+                },
+                {
+                    "sent": "Can you get good approximation algorithms for the combinatorial problems?",
+                    "label": 0
+                },
+                {
+                    "sent": "And what about modeling?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it possible to come up with a better and no one's model for the fact that the web is compressible, so we have some preliminary results in this area?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To talk about it, thank you.",
+                    "label": 1
+                },
+                {
+                    "sent": "I think we'll have time for maybe 2 questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Couple of questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first part of your what you describe, the shingling based approach resembles very much the approach that you're intelligent for the first part of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, the compression technique they use is that it's quite different than the other, so so could you comment on what the differences are in the second part is they have a follow up work in this year's wisdom where they present algorithms that directly operate on the compressed graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So do you see such kinds of things showing up as part of future work here?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I remember right Buren Chellapilla's work, they find dense subgraphs in the graph, they peel them and then they compress arrest.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right exactly distinct shingling strategies inspired by some work which I was involved, like four or five years ago in VLDB right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there the shingling was used to find dense subgraphs in graph so the team is very similar, but the application is different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Regarding your second question, we didn't look at any algorithms for that directly operated compressed graphs, but that I think is interesting direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "One more question you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "So did you consider?",
+                    "label": 0
+                },
+                {
+                    "sent": "Logical order.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we're talking about 75 million it just in 20 minutes is very hard.",
+                    "label": 0
+                },
+                {
+                    "sent": "These things take a long time, so even if one comes up with very complicated algorithms to examine all orderings or null potential orderings, we didn't try that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's an interesting person.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you again.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

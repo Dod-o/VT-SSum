@@ -1,0 +1,3768 @@
+{
+    "id": "5bpx4rjevngod3upnjncfrjzvvniempd",
+    "title": "Making centralized (graph) computation faster, distributed and (at times) better",
+    "info": {
+        "author": [
+            "Devavrat Shah, Department of Electrical Engineering and Computer Science, Massachusetts Institute of Technology, MIT"
+        ],
+        "published": "Oct. 16, 2012",
+        "recorded": "September 2012",
+        "category": [
+            "Top->Physics->Statistical Physics",
+            "Top->Mathematics->Control Theory"
+        ]
+    },
+    "url": "http://videolectures.net/cyberstat2012_shah_centralized_computation/",
+    "segmentation": [
+        [
+            "This is a dark which is based on joint work with my former student cure Minjung, who is now at Computer science Department, Geist and Vincent Blondel, who is at University College London, now the work of this talk at some point started with the thesis of Kumon, which got over in 2910 and then when Vincent came around to visit MIT's last year, got the next portion.",
+            "Now there's really interesting things happening, so thought there would be perfect topic to discuss.",
+            "I don't know about.",
+            "Control or statistical physics, but it's an interesting question, OK?",
+            "What is the talk about?",
+            "Talk is about kind of a method to take existing centralized algorithm for graph optimization problems and try to convert them into distributed computation.",
+            "While we're doing that, it'll be fast and sometimes better.",
+            "It's too good to be true.",
+            "Of course, this has to be true under certain conditions, and I'm going to explain when it is true, and hopefully that might also give us an idea when it's unlikely to be true.",
+            "OK, so with that in mind, let's try with."
+        ],
+        [
+            "With just a broader setting of, where are these graph problems coming?",
+            "Some level graphs have become the Canonical representation choice for us in this decade, right?",
+            "I mean there is a few decades back.",
+            "Different formalism was of great interest.",
+            "Now this one is becoming of interest.",
+            "People are trying to use all sorts of all sorts of graph to represent all sorts of things.",
+            "For example, a static graph would tell us about their nodes are people and links between them are their communication patterns.",
+            "Rated weights on the links would tell how often they communicate and so on.",
+            "Dynamics over graph would tell us about how different types of information is flowing over graphs.",
+            "Some of the examples we've already seen in bunch of talks before here, or a more generic graphical model would be a probabilistic graphical model or Marco Random field.",
+            "For example, we saw in last talk, at least in some sense, which would capture the dependence structure between random variables.",
+            "OK, now what sorts of optimization arises?"
+        ],
+        [
+            "Because of these kind of things.",
+            "OK, sorry about that.",
+            "I need that to keep myself.",
+            "So here is.",
+            "Is the kind of data actually that one of my former student collected?",
+            "So at MIT we had.",
+            "We have, like most universities, annual sculptural programs, so students would organize cultural program is a part of which there will be acts acts like music, music, event where is a singer and this is sort of a player or there will be a play where there are three or more people are acting together or there will be something else like a comedy show.",
+            "Very few people acting, and these are a bunch of undergrads who are participating in this program, and then these two guys are connected with each other because they participate together in one event.",
+            "And so on.",
+            "So this would be kind of ground truth.",
+            "And then what you would observe is that these are these five students who never interacted with each other through one or more plays or shows.",
+            "OK, so this is the kind of communication pattern that you observe and what you would really like to recover is this kind of clusters of humans right?",
+            "And question is that.",
+            "How would you recover this ground truth from those observations is type of question you would like to.",
+            "Unsay it's a basic clustering problem where you see.",
+            "Graph which is just nodes and edges from that.",
+            "It is a non directed graph.",
+            "Nothing.",
+            "Just a very static form, and this is the type of question people already look at and.",
+            "So we'll look at one of the examples which is of this type."
+        ],
+        [
+            "Another example is related to communication closed related to.",
+            "That's an example that Mark presented in this talk.",
+            "Let's have one to communicate over a noisy channel, and when I'm going to communicate bits by bits, my some of my bits might get flipped.",
+            "So of course through a combat noise I need to introduce redundancy.",
+            "One way to introduce redundancies to say that what sorts of bit sequences I'm going to allow, and one way to build a structure is the graphical code or parity check code.",
+            "Here, what I'm saying is that this is a valid code word because.",
+            "It satisfies these graph constraints.",
+            "In particular, it says that these two bits must have XOR equals to 0.",
+            "These three bits must haves or equals to zero and so on.",
+            "OK, of course this is in communication language.",
+            "This is rate 2 / 5 because I'm effectively able to transmit four different codewords using 5 bits.",
+            "So flog four is 2 /, 5.",
+            "Right now when I transmit this I will get noisy bits.",
+            "Some of them will have an error and the question is, how do I?",
+            "Correct error effectively given these observations, I want to find a code word that is satisfying that it's related to some of the questions that you have seen in Ricardo stock, for example.",
+            "OK, so at the end of it, what's happened?"
+        ],
+        [
+            "Really, your ground truth.",
+            "Ground truth is some kind of graphical setting.",
+            "You put the appropriate probabilistic model over top of it, and then you that gives you connection between observations and the ground truth.",
+            "Allows you to do compute posterior and then you can do inference and at the end of the day, if one looks at in this kind of schematic diagram, really.",
+            "Inference of some form is like a graph optimization problem.",
+            "So the question is that how to solve this graph optimization problem very fast very quickly?",
+            "And if especially if you can do it in distributed manner, then whether it's a data center that's operating in Google is trying to solve it where they're actually controlling all physical machines.",
+            "Or if you're trying to solve it on a big cloud facility, if you want to optimize your resources, that's what you would like to do.",
+            "OK, so that's basic question that I have in mind it which I want to solve and towards that this stock is proposed solution alright."
+        ],
+        [
+            "OK, so let's start with the clustering question.",
+            "I give you a rough idea of what type of question I want to solve.",
+            "Now I'll give you one concrete concrete solution.",
+            "Now what is clustering?",
+            "I give you a graph of nodes and edges.",
+            "How would you cluster how you define clustering?",
+            "Well, depending on whom you ask, there will be different definitions that will come out.",
+            "I mean, effectively everything goes.",
+            "So I'll give you one definition.",
+            "I'm not saying that this is the definition, but is 1 definition.",
+            "So this is definition that was proposed by Newman in 2006 and the hypothesis from which he came around this definition is the following.",
+            "He said.",
+            "Well, look if there is a cluster, a cluster should look least like random connections.",
+            "In addition, it should, if it's a cluster, people should be more connected inside clusters than otherwise.",
+            "OK, so those are the basic 2 building blocks of the hypothesis.",
+            "Now how do one?",
+            "How does one formalize this?",
+            "So let's just think of formalism.",
+            "I've got graph with advertisers.",
+            "I've got edges.",
+            "OK, and let's say D is the degree of node I am thinking of undirected setting.",
+            "Now subject to these kind of constraint.",
+            "If I want to draw there is, I'm going to tell you that nodes have degrees dies subject to that.",
+            "I want to figure out whether there is a likelihood of an edge between node and node JS for some model.",
+            "Probability of having an edge turns out to be proportional to die times DJ.",
+            "So what I would like to do is I would like to based on that, I would like to define this as a kind of modularity metric.",
+            "What it says is that, well, this is roughly the likelihood of having a random edge.",
+            "AIG, which is an agency matrix which is 1 effect, present zero if not.",
+            "If this is present, that means there is a contrast from random edge an A subset of nodes will be called clusters with this much of value of their being cluster is how much contrast cumulatively I'm getting.",
+            "OK, any questions about this is the definition that Newman introduced.",
+            "OK, let's say I want to call a subset of nodes as a part of a cluster.",
+            "How much value do I think that that cluster have as per this hypothesis or interpretation of this hypothesis, Newman says that it should be this modularity which is defined as look at all subset of nodes that are part of their cluster.",
+            "Assign this much value which is 1 minus the probability of random edge.",
+            "And this one, if they're connected, 0 otherwise.",
+            "So if they're not connected you you're penalizing them.",
+            "If they're connected, you're giving them some boost.",
+            "Alright, so this is the modularity.",
+            "So now I've got one subset and I say here is a subset which is a cluster.",
+            "This is the metric it will get.",
+            "Higher it is better, it is smaller.",
+            "It is ver cities.",
+            "Now what I want to do is I want to cluster entire graph."
+        ],
+        [
+            "So I'm going to choose subsets of vertices, let's call it C1C2C K some disjoint partition of vertice is and then for each one of them I'm going to compute their modularity, some demo.",
+            "Now I could.",
+            "Come up with partition of my vertices in many different ways.",
+            "For each one of the partition, I could assign compute.",
+            "Overall score of that clustering.",
+            "And what I would like to do is for all such possible choices, I would like to maximize this.",
+            "Escape no.",
+            "OK. Can you function of Assam?",
+            "Sure.",
+            "Not advocating the definition.",
+            "How is it?",
+            "OK, so so for example, this is spectral clustering and then which is the most popular one?",
+            "OK so spectral clustering is you take the graph adjacency matrix.",
+            "You take the top eigenvector.",
+            "That's that's correct exactly.",
+            "So it's a two step process, and it's good when you have matrix which is almost like block structure, correct?",
+            "So that one has its own properties.",
+            "When it works, this one has certain of its properties where people have shown certain class of.",
+            "Certain class of datasets were spectral.",
+            "Clustering does not do as well.",
+            "But then this algorithm does well.",
+            "There's a feature that this algorithm has is you don't need to know how well based on this measure.",
+            "No, no.",
+            "Well, this is sort of again, this is all.",
+            "This is all subjective, right subject?",
+            "No so actually Vincent.",
+            "Alright, let me look OK. Alright, so.",
+            "No, you know you're right, so I'm first I'm not going to.",
+            "I'm not locating any clustering definition.",
+            "I'm going to use this because Vincent use this for a specific class type of data, which is a mobile communication data in Belgium.",
+            "Beautiful clusters arise an for that they needed to solve the problem fast.",
+            "They could not solve it fast and I'm algorithm that solves it fast tomorrow you have different problem which you can't solve fast.",
+            "Come to me, I'll solve it fast.",
+            "That's it, went down to make.",
+            "External measure of performance with Intel is correct.",
+            "I think this is a perfect lunchtime conversation where I would love to debate with you or actually agree with you that clustering everything goes.",
+            "Yeah.",
+            "Mark question of fixing caves in in most clustering algorithm.",
+            "At some point you need a device to tell what is a bias that you put towards small K or large K or something like that.",
+            "So here implicitly if you tell me I don't want to put any weight on K, it means that you are putting a special weight which comes from this specific measure.",
+            "The area that you have.",
+            "I mean this one as a special.",
+            "I'm not defending the algorithm.",
+            "Yeah.",
+            "The point of the talk is I'm going.",
+            "I'm going to give you a tool.",
+            "You come with a problem.",
+            "I'll solve it faster and better possibly.",
+            "Domestic.",
+            "You'll have to be difficult for this problem, but it will probably extend at least until the logical way to some functions.",
+            "And why did you wait for some time, alright?",
+            "Criticize it first.",
+            "Yeah, I'm setting myself up for a good good good things.",
+            "These are simple things.",
+            "Let's not."
+        ],
+        [
+            "Alright, OK so different way that I would like to think of it is effectively and nodes.",
+            "I want to color them possibly at most I need an colors and this is just rewriting of that objective.",
+            "And just to make a point, that sort of really the dimension of things here.",
+            "If you think of it in more generality, Santa Bar N or that order, it's really.",
+            "It's a complicated, complicated combinatorial problem, an hence it's not surprising that it's computationally hard and very hard to approximate.",
+            "And before I will give you an algorithm, there is no approximation.",
+            "Algorithm was not.",
+            "Now again, is this a good thing to solve?",
+            "I'm not defending it, but I want to tell you a method and not just through one example.",
+            "I'll tell you through multiple examples.",
+            "It's so life is not as good as it sort of sounds like, right?",
+            "So I'll tell you when it works.",
+            "And as I started to tell you in the beginning, right?",
+            "This is this is too good to be true.",
+            "It can't be true always.",
+            "It will be true in certain cases, and those certain cases are reasonably many alright."
+        ],
+        [
+            "OK so second one which is coming to pairwise graphical model.",
+            "Again.",
+            "One way to represent pairwise graphical model.",
+            "Let's think of binary valued random variables.",
+            "So joint distribution on all of them and one way to in exponential form represent is there's pairwise node wise potentials and then there are edgewise potentials.",
+            "One example that I like a lot is."
+        ],
+        [
+            "Set model.",
+            "So here I've got N nodes that are edges between them.",
+            "I think in physics language will be hardcore model.",
+            "I've got N nodes.",
+            "Each node can have one or zero.",
+            "No two nodes can have value one simultaneously if their neighbors of each other.",
+            "And there's a distribution over on top of them.",
+            "An distribution is weighted inode.",
+            "I gets weight WI times whether it's zero or one.",
+            "The WI Times 1 double time.",
+            "So this is an independent set model.",
+            "Our distribution over it physicist.",
+            "How reasons why it is interesting?",
+            "I might."
+        ],
+        [
+            "This is why it's interesting, so I want to think of an example of communication network.",
+            "Think of wireless network like laptops communicating with our base stations here, and depending on different layers of abstraction at which communication layer operates.",
+            "If you think yourself as a layer of medium access where it's called effectively, what's happening is that each one of the laptops is trying to communicate with base station in slotted time setting by transmitting packets if more than.",
+            "One laptop simultaneously transmit, then they will collide.",
+            "This is rough abstraction of the problem.",
+            "So let's think of these three laptops trying to transmit.",
+            "If this one transmits on its own, it will be successful.",
+            "But if two of them simultaneously try to transmit because their neighbors with each other, they're interfering with each other.",
+            "They won't be able to transmit.",
+            "OK, now if I design A distribution over the space of all.",
+            "Transmissions which assigns the node potential as per a function of the backlogs of data that you have at each of the laptops.",
+            "And let's think of let's think of this probabilistic graphical model that describes let's say, every time I'm sampling.",
+            "What transmission schedule happens as per this distribution then actually it turns out that this would be as good as you can do, that is.",
+            "You're utilizing the network's capacity to the fullest possibility, and this is this view was very useful for us few years back where we could design fully distributed algorithm and this world and this question had been unresolved for a long time, so this is a good view.",
+            "And this where where am I defend?",
+            "Actually that this is a good view, unlike clustering, right?",
+            "OK, so."
+        ],
+        [
+            "Here again, an inference problem would look something like maximizing this graph problem.",
+            "And what we would like to find is an assignment that maximizes this value.",
+            "And in the case of independent set again we go back.",
+            "This is like Max weight independent set and effectively it looks something like this I've got.",
+            "And Boolean variables.",
+            "The note variables which are neighbor of each other in the graph can take value one simultaneously and subject to that.",
+            "I want to maximize this linear objective and again so very well studied problem.",
+            "It's very hard hard to approximate and so on.",
+            "So really we are in a setting where we have at the end of the day we have a graph problems which are usually very hard.",
+            "We want to.",
+            "It's an optimization problem we want to solve it efficiently."
+        ],
+        [
+            "This is a long list of extremely useful methods like linear programming based semidefinite programming, bills that are higher order methods is an another branch of things they call approximate dynamic programming, and the list goes on.",
+            "All of them."
+        ],
+        [
+            "Very useful, there's if you restrict yourself to just graphical models and there are these variational techniques like belief propagation, which does have interesting properties.",
+            "Of course there are randomized algorithms based on sampling methods and so on.",
+            "So let's say all of these are great methods.",
+            "They will give you some approximations, and that's good, so I would like to use any one of these methods, But this might be centralized.",
+            "This might be distributed.",
+            "Let's say their centralized.",
+            "Many of them I'm going to convert them into distributed method.",
+            "I want to make that faster.",
+            "Without possibly losing performance, that's the goal, after which I am.",
+            "So that's."
+        ],
+        [
+            "The dog, so how am I going to do it?",
+            "Well, we're going to utilize a new graph partitioning methods, randomized graph partitioning method is very simple.",
+            "I'll describe that algorithm an if that algorithm I've described successfully, I think I'm.",
+            "Achieve the goal of my talk.",
+            "The idea of graph partitioning or utilizing graph partitioning for optimization is quite old, at least to my mind.",
+            "It's as old as work of Lipton and Tarjan, where the design this partitioning scheme for planar graphs.",
+            "We work by Baker which was trying to look at outer planar graphs.",
+            "Then there is work by alone similar Ann Thomas which was trying to look for minor excluded graphs and then the list goes on.",
+            "Uh.",
+            "And again, this is sort of lots of nice surveys in distributed computation in computer science language which are trying to utilize this partitioning scheme.",
+            "All of these partitioning schema for homogeneous optimization problem, and I'll explain that in a second.",
+            "For example independent set case you want Max size independent set, not Max weight independent set case.",
+            "That's where many of these fail.",
+            "The algorithm these types of algorithms are very fast, essentially linear time.",
+            "What I will do is I will show that this algorithm, in particular the one I would describe, you can utilize it to make centralized algorithm distributed.",
+            "And then which graph it works.",
+            "This is related to some of the questions.",
+            "This will work for a large class of graphs.",
+            "In particular this graphs which have some form of geometric structure or minor excluded graphs like planar and so on.",
+            "OK, and in many cases it works pretty well right?",
+            "In general, it's a nice heuristic.",
+            "You can use it and see how well does it do so.",
+            "I'll show you one example at the end, which is example that Vincent Blondel was looking at and that sells through some experiment.",
+            "The experiment that I could run.",
+            "OK. Why your intention?",
+            "So see examples that first one is not a graphical model yet, right?",
+            "Disconnect so.",
+            "OK, so now it's a graph optimization problem.",
+            "The first one, not necessarily a mark of random field.",
+            "Your focus is graphical models.",
+            "Especially I want to.",
+            "I want to think of both examples.",
+            "If I want to solve both of those examples, I want to solve the modularity optimization.",
+            "I want to solve the Marco random field problem.",
+            "Or yeah.",
+            "OK, I'll talk about that work for what other things it extends.",
+            "Also, I will tell you about that, so it for example, it does nice things for lock partition functions and maybe intern.",
+            "You could turn it around to learn graphical models possibly.",
+            "OK."
+        ],
+        [
+            "Alright, so now I'm going to describe your partitioning scheme.",
+            "The partitioning scheme has two things, 12 parameters, K and Delta.",
+            "OK, this is type, but there should be a Delta.",
+            "Based on Delta here random variable which we all know, it's a truncated geometric random variable.",
+            "Effectively you have a coin with bias Delta of coming up head 1 minus Delta comes up tail.",
+            "You toss it.",
+            "Up two K times if you get head before that, that's the number you you want.",
+            "If you already tossed K times and you haven't seen head so far, you will truncate that there so it's a random variable over integers and the distribution is as given by as I described.",
+            "So this is the random variable I'm going to use.",
+            "For my partitioning algorithm.",
+            "OK, so here's what I'm imagine."
+        ],
+        [
+            "King let's sort of think of partitioning algorithm applied for independent set case 1st and then sort of will naturally see how it works.",
+            "OK, so let's assume that I got graph large graph.",
+            "I want to find out what is the maximum weight independent set in this thing.",
+            "So just remind us.",
+            "So only assign 01 values to each one of them so that this summation is maximized.",
+            "And initially I'm going to start with an assignment which is all zeros for all all excise.",
+            "Now here's my graph.",
+            "What I'll do is I'll choose a node at random.",
+            "OK, and I will draw a random radius that is drawn as per the truncated geometric that I described few minutes back.",
+            "OK, so all the nodes which are within distance R1 will be part of this circle and everything else I'll ignore now.",
+            "I'll ignore what's outside and inside this partition.",
+            "I will solve the optimization problem exactly.",
+            "OK.",
+            "So I might have let's say 10 nodes.",
+            "I might have 20 nodes.",
+            "I will ignore everything else from outside, and while I'm doing this, outside assignments might provide constraints.",
+            "So for example if note here that I just ignored had value one, it would impose a constraint on node here that it can't be taking value one.",
+            "It has to take value 0.",
+            "So I'll just incorporate those things.",
+            "And I will solve it.",
+            "Once I was solid, I'll forget this radius and everything.",
+            "I've got new assignments where everything outside is what it was before inside how updated assignments.",
+            "No, I will look for.",
+            "Now I'm going to look for another note.",
+            "And I'm going to do the same thing again.",
+            "So random notes random radius is random, no random radius is actually.",
+            "You can.",
+            "Random node selection is not necessarily.",
+            "You can have arbitrary node selection choose nodes in arbitrary order you like.",
+            "And random radiuses, which are important?",
+            "So the set of nodes that is in that radius that is in the graph defined by adjacency, that's correct.",
+            "Thank you, sorry about that.",
+            "By distance I mean here is I'm going to look at.",
+            "A shortest path, unweighted shortest path distance in the graph.",
+            "So if you so if let's say in the graph structure mark is my neighbor and your marks neighbor, then your distance to me is to assuming that there is no other path, which is.",
+            "I don't have a direct link to you.",
+            "OK.",
+            "Right so again, very simple algorithm you have.",
+            "Of a number of the best assignments at that point, or just find the best one and just keep yes.",
+            "So right now, let's just think of I'm going to just solve it using set dynamic programming.",
+            "OK.",
+            "Right, so it's essentially a Markovian algorithm.",
+            "I'm just going to keep doing this.",
+            "Let's say at some point I'm going to choose a node here, which is going to have some notes that I had reset in previous time.",
+            "It's fine, I'm going to forget.",
+            "Forget that this exists, I don't know.",
+            "I'm just going to take these nodes again.",
+            "Optimize here.",
+            "And that's it.",
+            "OK, so that's algorithm, sorry, except on the boundary, which are effectively telling me that you know, don't do this and everything outside is also fixed.",
+            "Things and boundaries are also fixed.",
+            "Only things changing our insight.",
+            "OK. Alright, that's the algorithm, any questions?",
+            "Which numbers?",
+            "So I started with the initial assignment in case of independent set zeros and overtime I'm changing the assignments right and effectively it's it's.",
+            "It's a, it's an algorithm in which I'm improving my weights right of independent set so the weight of my assignment at any point of time has its weight increasing.",
+            "So initially I started with all zero assignments, so way towards Esper.",
+            "That optimization objective was zero.",
+            "As I keep optimizing in small small patches like this, my weight is improving of assignment.",
+            "Question is that does it get?",
+            "Does it get as good as the best answer quickly enough?",
+            "And the overlaps is it eliminate the previous ones.",
+            "Yeah, yeah it will.",
+            "So for example here there was one.",
+            "Vertex lights are here.",
+            "Previously I had set it to 0 because that's what suited as per my this ring right now.",
+            "As for this ring, it requires me to be one.",
+            "I'll set it to one.",
+            "Yeah, so I'll just.",
+            "Sorry it's yeah, thank you.",
+            "It's a simple iterative improvement algorithm like this.",
+            "The only parameter is gamma.",
+            "You mean KN Delta.",
+            "Get key key and Delta exactly."
+        ],
+        [
+            "So what one questions, yes?",
+            "Actions, or maybe let's say."
+        ],
+        [
+            "Ising model yeah.",
+            "Is it really sore speeds outside of this country?",
+            "Yes, yeah.",
+            "Yes, that's correct, so.",
+            "That's correct, so in in case of independent set case the way I want to think of it is there are things on the boundaries.",
+            "OK, for all those boundaries I'm fixing their assignments.",
+            "Those assignments are inducing fields inside as you say.",
+            "So for example, there is a node here which is 1.",
+            "All of its neighbor inside.",
+            "How to take value?",
+            "0 because I cannot violate the constraint.",
+            "Thank you.",
+            "Yes, I mean at the natural.",
+            "This is as simple as it gets, right?"
+        ],
+        [
+            "Alright.",
+            "And here is a theorem.",
+            "So in whichever order doesn't matter at the end of selecting N vertice is at least once.",
+            "The algorithm will find 1 minus epsilon approximation.",
+            "As long as.",
+            "No, so I've chosen Delta and epsilon have relation to linear relation.",
+            "But just to keep things clean.",
+            "So epsilon depends on Delta.",
+            "As long as there are two things, one is graph history of some structure and 2nd is my choice of parameter appropriately done.",
+            "OK, So what are those things?",
+            "So first I want to tell you the graph is a structure in second is a parameter.",
+            "So first let's go through the graph structure where is what is doubling dimension."
+        ],
+        [
+            "What is polynomial growth as people call it?",
+            "Well, OK, so if you have.",
+            "If you're standing in, let's say this space and I asked you what is the dimension of this space?",
+            "One way to find out is I'm standing here.",
+            "I'm going to blow a ball around me of radius R and ask how the volume scales.",
+            "There will be our cube, so there will be 3.",
+            "For graphs, of course, I don't want to have that exact because it's too regular.",
+            "As long As for any vertex or any node in the graph, look at any distance R, this is shortest path graph distance.",
+            "The number of nodes in that neighborhood scale no faster than our two power oh.",
+            "Then I would call it.",
+            "A graphic dimension drawing.",
+            "OK, so if I were grid which is extremely nice, structure between finite grid then I've got number of neighbors within my distance are scaling like are square.",
+            "But I could have subset of greater.",
+            "I could have any some structure where there's a line and then there's a great and all sorts of other things.",
+            "All of these things would have reasonable some finite dimension.",
+            "In particular, if you have node which is formed because of these kind of geometric setting, like for example if you have a graphical model coming out of image without having long distance correlations or dependencies, then definitely it would have some finite dimension.",
+            "Yes.",
+            "Pointed graph, would you always be able to see large enough that you could choose growing pools zero?",
+            "I mean exact."
+        ],
+        [
+            "And then your computation would scale as, let's say effectively row.",
+            "OK or over epsilon and you will have exponential amount of computation in there.",
+            "So what will happen is that if you have really really large number, for example N nodes within a year, distance K would be an and you will be doing exponential amount of computation.",
+            "No, but I'm what I'm saying just I'm just looking at the condition that's correct.",
+            "OK so OK so."
+        ],
+        [
+            "Whenever such results are proved, you have a family of graphs in mind.",
+            "There is for every N there is a set of graphs and you're looking for a family of graphs and then with respect to that family you want see to be constant, not scaling with N and RO again also to be constant you could choose roto scale as N in which case."
+        ],
+        [
+            "Effectively, what I'm saying is trivial there is.",
+            "Yeah, perfect.",
+            "It is not easy to see how size of your region, yes.",
+            "Revelation County clarifies that, and also if you make it random, yeah.",
+            "Once those events for regions area, yeah.",
+            "When you hit those, yeah, do right.",
+            "You kind of invitations.",
+            "Oh my understanding is they feel that it will lessen the ability to compute.",
+            "Exactly those regions this case so right now the result I'm providing you requires exact computation and will will slowly start relaxing that too.",
+            "OK, but if you think about at least independent settecase what is happening is that if you have."
+        ],
+        [
+            "If you have, let's say.",
+            "A finite dimensional graph.",
+            "Let's think of grid.",
+            "If you think of nodes within distance R, how many nodes are there are square.",
+            "So really you are doing computation, which is exponentially.",
+            "In R-squared nodes not N nodes.",
+            "So the question is that how small can you keep this will help you do faster computation.",
+            "How large you need this to get small approximation, good approximation.",
+            "So there's a tradeoff here.",
+            "Can you translate this serial number for this typical for largest art?",
+            "So largest I need is because it's a truncated geometric.",
+            "Are will never be larger than my parameters of choice K. Remember, So what is my radius selection algorithm?"
+        ],
+        [
+            "I toss a coin with bias Delta.",
+            "Up two K times.",
+            "If two Ki don't see ahead, I'm going to truncate it.",
+            "I'd say that's a key is an answer if anytime before that I see.",
+            "Head coming up, that's when I'm going to truncate so my radius is never larger than my parameter K. Anne's theorem says."
+        ],
+        [
+            "Mikey is no larger then effectively bro.",
+            "Each other over epsilon log roll to the epsilon.",
+            "Thank you."
+        ],
+        [
+            "OK."
+        ],
+        [
+            "So now why?",
+            "Why should this work?"
+        ],
+        [
+            "Roughly speaking, here is an intuition, right?",
+            "I mean, if you have if you are in, let's say three dimension, you got volume is our cube, but your boundaries are square.",
+            "So if you look at the number of nodes which are in the boundary or order 1 / R, right?",
+            "Of the total number of total number of nodes inside the ball.",
+            "And effectively the error losses.",
+            "For this algorithm.",
+            "You can show that comes because of how much error you have in terms of the cut of the each ball.",
+            "Said, that's in a nutshell, is where?",
+            "The performance or theorem comes around.",
+            "And because it has a nice dimension and use of this geometric is very important.",
+            "We did not use geometric random variable.",
+            "Don't think any of such proof will go through unless you are very special.",
+            "Regular structure like grid or.",
+            "A tourist or something like this is the same reason why?",
+            "If you have a if you have a graph of constraints like case out or something like that, and you have this Poly polynomial growth that this would satisfy it to accuracy.",
+            "Epsilon fixed epsilon with a polynomial algorithm disconnect.",
+            "It would do that, yeah?",
+            "Siri variables.",
+            "Arbitrary, as long as it's it's a valid assignment.",
+            "If it's not valid assignment, you can still sort of get.",
+            "Get two validity by having all anything, so you will have two, and so I think for Theorem to hold you will have two and passes.",
+            "OK, so I think I told you algorithm the theorem, now let's."
+        ],
+        [
+            "Of C. Effectively, at the end of it.",
+            "This is this randomized decomposition scheme that we have which which works where it says that if by using this geometric.",
+            "The probability that any edges in the cut.",
+            "How do I define cut?",
+            "So let's say I run the algorithm for some number of time steps, by which time I've covered all nodes at least once.",
+            "Now let me sort of unraveling the reverse time.",
+            "Ann, let me assign the nodes color as per timestep, so nodes that are part of my ring or circle at the last most time will get the highest color, then the second highest color and so on.",
+            "An an order may have multiple colors.",
+            "A color from time 10 color from time 20 and so on.",
+            "That is, assign it to the color of the latest time.",
+            "OK, now let's look at these coloring of this graph and let's look at the boundary of the colors coloring region.",
+            "Those would be the cuts and look at those edges that are crossing those boundaries.",
+            "The probability that an edge is in that cut scales like epsilon, and that's where everything works out.",
+            "OK. And again he had jumped use of geometric distribution is essentially take a memoryless property that generic distributions have, yes.",
+            "Most of the volume of a sphere in high dimensions is concentrated near the boundary guys.",
+            "So in some in a graph sense it would be expanders rather than graphs like geometry.",
+            "So without being very mathematical, this gives me the feeling that this wouldn't be robust, but I must be missing something, no?",
+            "It depends on what application you are looking at.",
+            "If you're looking at.",
+            "Graphical codes which are designed using, let's say, random graphs.",
+            "Then this would not work, but if you are thinking of looking at a graphical models that are used for image processing, this would do extremely well.",
+            "For example, clustering approach that clustering algorithm that Brondell wanted to use in his setting where the connections were based on physical communication in a geometric setting.",
+            "This would do extremely well."
+        ],
+        [
+            "Alright, then, questions that why would this type of thing word for optimization?",
+            "There's some amount of work you need to show.",
+            "Is that modularity optimization does fit some kind of it is reasonably well approximated by some kind of possibility structure.",
+            "Independent set is nice decomposability objective there, like just vertice is based.",
+            "That's not necessarily true for modularity optimization problem, but that's the work.",
+            "Once you do that same theorem holds now."
+        ],
+        [
+            "Question is that is it a good result?",
+            "Looks like it got good approximation, reasonable algorithm.",
+            "Michelle, you want to ask me a question now or?",
+            "OK, thank you.",
+            "We're less legislative really.",
+            "Can we use it?",
+            "So first I tried to use it for modularity optimization.",
+            "That unbundles case after we got a theorem and then really realized.",
+            "Well, you know, it's this is the order.",
+            "Solve the problem to get good approximation.",
+            "In his case 400 nodes.",
+            "So something like this is what I will have to do for solving for modularity optimization.",
+            "That doesn't sound good.",
+            "It's like this is a perfect example of all those fantastic algorithm results, right?",
+            "And so then the question is that what is the problem really?",
+            "The problem is that inside each cluster the clusters are small and the algorithm for sampling clusters is our circles is nice inside.",
+            "I'm using dynamic programming that's too much.",
+            "What I would really like to do is I would like to use some simple algorithm.",
+            "Maybe an approximation algorithm?",
+            "So."
+        ],
+        [
+            "Suppose you give me a centralized or distributed richer an approximation algorithm for the original problem, which is, let's say, often approximates.",
+            "I've got N nodes, let us log in approximation algorithm.",
+            "If I use that inside my.",
+            "Circles instead of dynamic programming it would become a constant factor approximation.",
+            "OK, so.",
+            "You give me any other which is not necessarily constant factor.",
+            "I use it with my composition decomposition scheme for this class of graph.",
+            "It will become a constant factor.",
+            "That's because the error is dominated by these still dominant by these patches.",
+            "That and second thing is, instead of effectively, the algorithm is operating over small number of nodes."
+        ],
+        [
+            "And again, same holds for modularity optimization, so really you.",
+            "Two seemingly sometimes, maybe even bad algorithm got much better answers because the graph has great structure that you can use it through this decomposition.",
+            "OK, and."
+        ],
+        [
+            "I thought I'll just show you some eggs, some examples that I could run onto.",
+            "So here is 1 example where I want to do clustering.",
+            "It's a ring with 30 clicks on them.",
+            "Each week has five nodes.",
+            "It's OK in this kind of case.",
+            "Maybe it's obvious that what are the clusters?",
+            "K and."
+        ],
+        [
+            "There's a very nice heuristic that Blundell ET al have for modularity optimization.",
+            "It finds reasonably large modularity.",
+            "This is a large modularity.",
+            "And.",
+            "In that case, it leads to 16 clusters.",
+            "OK, so you lost something in terms of cluster identification.",
+            "I've just colored things appropriately.",
+            "OK, and then we use that algorithm along with put along with my algorithm."
+        ],
+        [
+            "And then it finds pretty close, so it does lose bit on modularity optimization."
+        ],
+        [
+            "Gay."
+        ],
+        [
+            "It's 10 times faster on my laptop.",
+            "Hopefully I didn't temper.",
+            "I'm not that good.",
+            "And that's fine.",
+            "Better number of clusters.",
+            "Doesn't say much about whether this is better than the other one, but whatever that means.",
+            "At least we've got optimal modularity that to compare with.",
+            "OK, so is pretty good."
+        ],
+        [
+            "There are some other variations that this provides is a notion of local property testing.",
+            "This came out of complexity theory with this theorem, called probabilistically checkable proofs, and the idea was that you have.",
+            "NP languages and that you can check if you encode them properly.",
+            "Then you can check through local verification.",
+            "That led to notion of local property testing that was introduced by Suzanne and Wilkerson.",
+            "And the idea is that, well, I got a graph.",
+            "I've got some graphics, some property, let's say does graph have maximum size independent set larger than N by three.",
+            "It's a problem.",
+            "It's a question.",
+            "Can I answer that question quickly by maybe just sampling a constant number of nodes?",
+            "With Pro Accuracy, 1 minus epsilon, both in probability and actual answer.",
+            "And this is a hard question.",
+            "Is a beautiful result that was by alone and Shapiro where they say that every monotone graph properties locally testable.",
+            "So for.",
+            "In particular, maximum size independent set is monotone property.",
+            "Modern properties are closed under edge and vertex removal, so if you have a graph which has.",
+            "And byte so independent set of size and by three.",
+            "If I remove some edges it will still have.",
+            "Independence of size and by three because removal of edges only reduces the constraint which is better for size of the graph.",
+            "The problem with their algorithm was that they have constants.",
+            "Which show that there is some existence of towering exponential that is.",
+            "You can answer this question correctly by sampling see of epsilon nodes, where sea of epsilon has to power to power to power dot power one over epsilon, and that length of the tower is finite.",
+            "Let's put that prove it.",
+            "It's independent of N."
+        ],
+        [
+            "Right, so that led to all sorts of really interesting results.",
+            "In particular, this is a paper by city metal.",
+            "They showed that they could use.",
+            "A different class of partitioning scheme classical partitioning scheme, which I mentioned earlier on to remove this traveling dependencies for homogeneous graph properties.",
+            "Now with this partitioning, actually you can.",
+            "Use it for this class of graphs.",
+            "For example, for all the non homogeneous properties.",
+            "As I say, it is reasonably useful scheme."
+        ],
+        [
+            "Coming to other problems, well, you could estimate log partition function reasonably well or if you had a very symmetric setting, you might be able to look at the limits of existence of normalized partition function.",
+            "Alright, so I think I'm close to completion.",
+            "Oh alright, I as soon as you stop so we need."
+        ],
+        [
+            "Alright.",
+            "OK, alright so.",
+            "One point I wanted to convey is that there is this nice clean algorithm you can take the graph.",
+            "You can partition it.",
+            "Partition is easy inside partition.",
+            "You can use your favorite algorithm that would at least speed up your computation.",
+            "In many cases it would be a great answer.",
+            "In all other cases it will give you.",
+            "And uncertain, which is not that bad, so might be worth considering.",
+            "Alright, thank you.",
+            "So this is a form of iterative improvement.",
+            "You can take a local neighborhood.",
+            "You look at the neighborhood.",
+            "You optimizing the local neighborhoods at the subset of variables and you move on.",
+            "Yes no, it is very well known that if you have a small neighborhood, you converge faster with that solution, if you increase your neighborhood, you converge slower to a better solution.",
+            "Now I know that in the context of France is traveling salesman problem.",
+            "Yes, you can do this, and this is also observed.",
+            "It's true, but in a sense irrelevant because there is particular neighborhoods she's exploiting.",
+            "The structure of the problem.",
+            "In that case you have non locality because you know we have to have a have to be a single single single cycle.",
+            "Yeah global, so you have particular neighborhood structures particular moves, yes, that.",
+            "Are very particular to the problem that actually solve this DSP in the sense that you get very efficient algorithms, and even these particular moves are in.",
+            "These efficiencies are very unrelated to this general observation that you say.",
+            "Well, if I make a bigger, bigger neighborhood, I get a better result in faster slow convergence.",
+            "So my question is, is is the relevance of this for speeding up?",
+            "I mean, how competitive are these verses?",
+            "OK, so let's start from traveling salesman example that you said.",
+            "Your point was that OK.",
+            "So let me sort of parser question first.",
+            "Because longer questions.",
+            "So there are few points you made.",
+            "One is in this class of algorithms that are natural tradeoff between how large you make the local step and the computation cost.",
+            "OK, that's true.",
+            "I mean just generically second is in what you just mentioned is that in.",
+            "DSP problem it's only one part where really this kind of thing matters.",
+            "Well, I mean I don't know if that's proven to be true or observed to be true, but at least here I'm trying to prove something, and for that it's like it's like an adversary adversary could put things anywhere.",
+            "And if I'm trying to prove something about my algorithm, I better have a reasonable grasp over the entire problem, right?",
+            "Yeah, but I mean so.",
+            "So in any optimization problem, you know they're making a larger neighborhood.",
+            "You'll get better results, yes, but in that ESP.",
+            "The inside was that instead of changing 2 cities, actually should take 3 cities.",
+            "OK, sort of change that.",
+            "Now there's a very particular kind of move to allow.",
+            "Very good performance improvement OK. You're so so this is my worry then how?",
+            "What is this name notion that you know you get better if you make larger?",
+            "Yeah yeah.",
+            "Little good algorithm service.",
+            "But I mean, maybe I'm not.",
+            "So getting the point.",
+            "For example, let's just think of sort of a matching question because I can sort of think of it little more concretely.",
+            "In this case, setting.",
+            "What would this say?",
+            "Well, this would say that if I got very small neighborhood in matching usually, which is nice structure, of course you would do augmenting paths.",
+            "This would say that you would you are allowed to do augmenting paths of size.",
+            "Let's say something which is dependent on the radius.",
+            "We do know in matching case very well that depending on how large the augmenting paths are.",
+            "Better and better results you get in terms of approximation.",
+            "So really this is in harmony with those kind of results.",
+            "What this is saying is that for that kind of results to hold actually don't need simple structures like matchings which are extremely well interested.",
+            "You can do it for even things like independent set case so.",
+            "But for that all I need is I need the sort of overall global structure has to have some property.",
+            "Yeah.",
+            "OK.",
+            "Centralized heuristics.",
+            "Yeah.",
+            "Through your heart.",
+            "That's exactly right.",
+            "Yeah, thank you.",
+            "Yes, yeah, I've been waiting.",
+            "So this is select regions and then you you do it and then yeah Markov chain breaker.",
+            "But it's also well known fact that you're using regions kind of things available generalizability.",
+            "Propagation right sure?",
+            "You have a special treatment for those overlaps.",
+            "In this case, yes.",
+            "Will it be useful in your context?",
+            "Yeah, so so for example, yeah, so if somebody went ahead and proved that generalized belief propagation is some kind of reasonable approximation, let's say square root of N approximation for the problem, I'll put it inside in my circles an I would prove that it is a constant factor approximation.",
+            "So I mean, this might be a way to go around sort of, start proving some properties of for algorithms like belief propagation for much larger class of graph graphical models that we could do before.",
+            "Right, I mean there's overlap sure so so.",
+            "And yeah, so sort of yeah we spent so in some sense this randomized iterative nature actually came from that kind of thought or view of generalized belief propagation.",
+            "The problem is that if you generalized belief propagation, you allow yourself to have constant or fixed decomposition innocence.",
+            "Because that's where you interact with each other and to kill in some sense adversary, you need some kind of randomization.",
+            "So that's why we needed to keep changing.",
+            "But it's so it may be dynamic.",
+            "Yeah, yeah, you could think of dynamic generalized belief propagation.",
+            "Sure, I think, yeah, that might be a better way to think.",
+            "So you don't have any issues.",
+            "Well, so here's what will happen right at the end of this NN iterations when you covered all nodes at least once.",
+            "If you made sure that every part was consistent.",
+            "And the problem had constraints which were decomposable in the graph sense.",
+            "Then you would reach consistency right at least.",
+            "Now, from that point onward, you start and apply this up.",
+            "Both are no more questions.",
+            "Let's think about all the speakers this morning."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This is a dark which is based on joint work with my former student cure Minjung, who is now at Computer science Department, Geist and Vincent Blondel, who is at University College London, now the work of this talk at some point started with the thesis of Kumon, which got over in 2910 and then when Vincent came around to visit MIT's last year, got the next portion.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now there's really interesting things happening, so thought there would be perfect topic to discuss.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Control or statistical physics, but it's an interesting question, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "What is the talk about?",
+                    "label": 0
+                },
+                {
+                    "sent": "Talk is about kind of a method to take existing centralized algorithm for graph optimization problems and try to convert them into distributed computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "While we're doing that, it'll be fast and sometimes better.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's too good to be true.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, this has to be true under certain conditions, and I'm going to explain when it is true, and hopefully that might also give us an idea when it's unlikely to be true.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so with that in mind, let's try with.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "With just a broader setting of, where are these graph problems coming?",
+                    "label": 0
+                },
+                {
+                    "sent": "Some level graphs have become the Canonical representation choice for us in this decade, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "I mean there is a few decades back.",
+                    "label": 0
+                },
+                {
+                    "sent": "Different formalism was of great interest.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this one is becoming of interest.",
+                    "label": 0
+                },
+                {
+                    "sent": "People are trying to use all sorts of all sorts of graph to represent all sorts of things.",
+                    "label": 1
+                },
+                {
+                    "sent": "For example, a static graph would tell us about their nodes are people and links between them are their communication patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rated weights on the links would tell how often they communicate and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dynamics over graph would tell us about how different types of information is flowing over graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of the examples we've already seen in bunch of talks before here, or a more generic graphical model would be a probabilistic graphical model or Marco Random field.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, we saw in last talk, at least in some sense, which would capture the dependence structure between random variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now what sorts of optimization arises?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Because of these kind of things.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, sorry about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I need that to keep myself.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the kind of data actually that one of my former student collected?",
+                    "label": 0
+                },
+                {
+                    "sent": "So at MIT we had.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have, like most universities, annual sculptural programs, so students would organize cultural program is a part of which there will be acts acts like music, music, event where is a singer and this is sort of a player or there will be a play where there are three or more people are acting together or there will be something else like a comedy show.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very few people acting, and these are a bunch of undergrads who are participating in this program, and then these two guys are connected with each other because they participate together in one event.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this would be kind of ground truth.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then what you would observe is that these are these five students who never interacted with each other through one or more plays or shows.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is the kind of communication pattern that you observe and what you would really like to recover is this kind of clusters of humans right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And question is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "How would you recover this ground truth from those observations is type of question you would like to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unsay it's a basic clustering problem where you see.",
+                    "label": 0
+                },
+                {
+                    "sent": "Graph which is just nodes and edges from that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is a non directed graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nothing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just a very static form, and this is the type of question people already look at and.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we'll look at one of the examples which is of this type.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Another example is related to communication closed related to.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's an example that Mark presented in this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's have one to communicate over a noisy channel, and when I'm going to communicate bits by bits, my some of my bits might get flipped.",
+                    "label": 0
+                },
+                {
+                    "sent": "So of course through a combat noise I need to introduce redundancy.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way to introduce redundancies to say that what sorts of bit sequences I'm going to allow, and one way to build a structure is the graphical code or parity check code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here, what I'm saying is that this is a valid code word because.",
+                    "label": 0
+                },
+                {
+                    "sent": "It satisfies these graph constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, it says that these two bits must have XOR equals to 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "These three bits must haves or equals to zero and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, of course this is in communication language.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is rate 2 / 5 because I'm effectively able to transmit four different codewords using 5 bits.",
+                    "label": 0
+                },
+                {
+                    "sent": "So flog four is 2 /, 5.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right now when I transmit this I will get noisy bits.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of them will have an error and the question is, how do I?",
+                    "label": 0
+                },
+                {
+                    "sent": "Correct error effectively given these observations, I want to find a code word that is satisfying that it's related to some of the questions that you have seen in Ricardo stock, for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so at the end of it, what's happened?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Really, your ground truth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ground truth is some kind of graphical setting.",
+                    "label": 1
+                },
+                {
+                    "sent": "You put the appropriate probabilistic model over top of it, and then you that gives you connection between observations and the ground truth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Allows you to do compute posterior and then you can do inference and at the end of the day, if one looks at in this kind of schematic diagram, really.",
+                    "label": 0
+                },
+                {
+                    "sent": "Inference of some form is like a graph optimization problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the question is that how to solve this graph optimization problem very fast very quickly?",
+                    "label": 0
+                },
+                {
+                    "sent": "And if especially if you can do it in distributed manner, then whether it's a data center that's operating in Google is trying to solve it where they're actually controlling all physical machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or if you're trying to solve it on a big cloud facility, if you want to optimize your resources, that's what you would like to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's basic question that I have in mind it which I want to solve and towards that this stock is proposed solution alright.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so let's start with the clustering question.",
+                    "label": 0
+                },
+                {
+                    "sent": "I give you a rough idea of what type of question I want to solve.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I'll give you one concrete concrete solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what is clustering?",
+                    "label": 0
+                },
+                {
+                    "sent": "I give you a graph of nodes and edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "How would you cluster how you define clustering?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, depending on whom you ask, there will be different definitions that will come out.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, effectively everything goes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll give you one definition.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not saying that this is the definition, but is 1 definition.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is definition that was proposed by Newman in 2006 and the hypothesis from which he came around this definition is the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "He said.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, look if there is a cluster, a cluster should look least like random connections.",
+                    "label": 0
+                },
+                {
+                    "sent": "In addition, it should, if it's a cluster, people should be more connected inside clusters than otherwise.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so those are the basic 2 building blocks of the hypothesis.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now how do one?",
+                    "label": 0
+                },
+                {
+                    "sent": "How does one formalize this?",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's just think of formalism.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've got graph with advertisers.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've got edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and let's say D is the degree of node I am thinking of undirected setting.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now subject to these kind of constraint.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I want to draw there is, I'm going to tell you that nodes have degrees dies subject to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to figure out whether there is a likelihood of an edge between node and node JS for some model.",
+                    "label": 1
+                },
+                {
+                    "sent": "Probability of having an edge turns out to be proportional to die times DJ.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I would like to do is I would like to based on that, I would like to define this as a kind of modularity metric.",
+                    "label": 1
+                },
+                {
+                    "sent": "What it says is that, well, this is roughly the likelihood of having a random edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "AIG, which is an agency matrix which is 1 effect, present zero if not.",
+                    "label": 0
+                },
+                {
+                    "sent": "If this is present, that means there is a contrast from random edge an A subset of nodes will be called clusters with this much of value of their being cluster is how much contrast cumulatively I'm getting.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, any questions about this is the definition that Newman introduced.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, let's say I want to call a subset of nodes as a part of a cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "How much value do I think that that cluster have as per this hypothesis or interpretation of this hypothesis, Newman says that it should be this modularity which is defined as look at all subset of nodes that are part of their cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Assign this much value which is 1 minus the probability of random edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this one, if they're connected, 0 otherwise.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if they're not connected you you're penalizing them.",
+                    "label": 0
+                },
+                {
+                    "sent": "If they're connected, you're giving them some boost.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so this is the modularity.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now I've got one subset and I say here is a subset which is a cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the metric it will get.",
+                    "label": 0
+                },
+                {
+                    "sent": "Higher it is better, it is smaller.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is ver cities.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what I want to do is I want to cluster entire graph.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I'm going to choose subsets of vertices, let's call it C1C2C K some disjoint partition of vertice is and then for each one of them I'm going to compute their modularity, some demo.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I could.",
+                    "label": 0
+                },
+                {
+                    "sent": "Come up with partition of my vertices in many different ways.",
+                    "label": 0
+                },
+                {
+                    "sent": "For each one of the partition, I could assign compute.",
+                    "label": 0
+                },
+                {
+                    "sent": "Overall score of that clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I would like to do is for all such possible choices, I would like to maximize this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Escape no.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Can you function of Assam?",
+                    "label": 0
+                },
+                {
+                    "sent": "Sure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not advocating the definition.",
+                    "label": 0
+                },
+                {
+                    "sent": "How is it?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so so for example, this is spectral clustering and then which is the most popular one?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so spectral clustering is you take the graph adjacency matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "You take the top eigenvector.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's correct exactly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a two step process, and it's good when you have matrix which is almost like block structure, correct?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that one has its own properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "When it works, this one has certain of its properties where people have shown certain class of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Certain class of datasets were spectral.",
+                    "label": 0
+                },
+                {
+                    "sent": "Clustering does not do as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then this algorithm does well.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a feature that this algorithm has is you don't need to know how well based on this measure.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, no.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, this is sort of again, this is all.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is all subjective, right subject?",
+                    "label": 0
+                },
+                {
+                    "sent": "No so actually Vincent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, let me look OK. Alright, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, you know you're right, so I'm first I'm not going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not locating any clustering definition.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to use this because Vincent use this for a specific class type of data, which is a mobile communication data in Belgium.",
+                    "label": 0
+                },
+                {
+                    "sent": "Beautiful clusters arise an for that they needed to solve the problem fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "They could not solve it fast and I'm algorithm that solves it fast tomorrow you have different problem which you can't solve fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "Come to me, I'll solve it fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's it, went down to make.",
+                    "label": 0
+                },
+                {
+                    "sent": "External measure of performance with Intel is correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think this is a perfect lunchtime conversation where I would love to debate with you or actually agree with you that clustering everything goes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mark question of fixing caves in in most clustering algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "At some point you need a device to tell what is a bias that you put towards small K or large K or something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here implicitly if you tell me I don't want to put any weight on K, it means that you are putting a special weight which comes from this specific measure.",
+                    "label": 0
+                },
+                {
+                    "sent": "The area that you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean this one as a special.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not defending the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "The point of the talk is I'm going.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to give you a tool.",
+                    "label": 0
+                },
+                {
+                    "sent": "You come with a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll solve it faster and better possibly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Domestic.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll have to be difficult for this problem, but it will probably extend at least until the logical way to some functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And why did you wait for some time, alright?",
+                    "label": 0
+                },
+                {
+                    "sent": "Criticize it first.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, I'm setting myself up for a good good good things.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are simple things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's not.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, OK so different way that I would like to think of it is effectively and nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to color them possibly at most I need an colors and this is just rewriting of that objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "And just to make a point, that sort of really the dimension of things here.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think of it in more generality, Santa Bar N or that order, it's really.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a complicated, complicated combinatorial problem, an hence it's not surprising that it's computationally hard and very hard to approximate.",
+                    "label": 1
+                },
+                {
+                    "sent": "And before I will give you an algorithm, there is no approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Algorithm was not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now again, is this a good thing to solve?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not defending it, but I want to tell you a method and not just through one example.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll tell you through multiple examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's so life is not as good as it sort of sounds like, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll tell you when it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as I started to tell you in the beginning, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is this is too good to be true.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can't be true always.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will be true in certain cases, and those certain cases are reasonably many alright.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK so second one which is coming to pairwise graphical model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way to represent pairwise graphical model.",
+                    "label": 1
+                },
+                {
+                    "sent": "Let's think of binary valued random variables.",
+                    "label": 1
+                },
+                {
+                    "sent": "So joint distribution on all of them and one way to in exponential form represent is there's pairwise node wise potentials and then there are edgewise potentials.",
+                    "label": 0
+                },
+                {
+                    "sent": "One example that I like a lot is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Set model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here I've got N nodes that are edges between them.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think in physics language will be hardcore model.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've got N nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each node can have one or zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "No two nodes can have value one simultaneously if their neighbors of each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's a distribution over on top of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "An distribution is weighted inode.",
+                    "label": 0
+                },
+                {
+                    "sent": "I gets weight WI times whether it's zero or one.",
+                    "label": 0
+                },
+                {
+                    "sent": "The WI Times 1 double time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is an independent set model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our distribution over it physicist.",
+                    "label": 0
+                },
+                {
+                    "sent": "How reasons why it is interesting?",
+                    "label": 0
+                },
+                {
+                    "sent": "I might.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This is why it's interesting, so I want to think of an example of communication network.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think of wireless network like laptops communicating with our base stations here, and depending on different layers of abstraction at which communication layer operates.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think yourself as a layer of medium access where it's called effectively, what's happening is that each one of the laptops is trying to communicate with base station in slotted time setting by transmitting packets if more than.",
+                    "label": 0
+                },
+                {
+                    "sent": "One laptop simultaneously transmit, then they will collide.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is rough abstraction of the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's think of these three laptops trying to transmit.",
+                    "label": 0
+                },
+                {
+                    "sent": "If this one transmits on its own, it will be successful.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if two of them simultaneously try to transmit because their neighbors with each other, they're interfering with each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "They won't be able to transmit.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now if I design A distribution over the space of all.",
+                    "label": 0
+                },
+                {
+                    "sent": "Transmissions which assigns the node potential as per a function of the backlogs of data that you have at each of the laptops.",
+                    "label": 0
+                },
+                {
+                    "sent": "And let's think of let's think of this probabilistic graphical model that describes let's say, every time I'm sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "What transmission schedule happens as per this distribution then actually it turns out that this would be as good as you can do, that is.",
+                    "label": 1
+                },
+                {
+                    "sent": "You're utilizing the network's capacity to the fullest possibility, and this is this view was very useful for us few years back where we could design fully distributed algorithm and this world and this question had been unresolved for a long time, so this is a good view.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this where where am I defend?",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually that this is a good view, unlike clustering, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Here again, an inference problem would look something like maximizing this graph problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we would like to find is an assignment that maximizes this value.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in the case of independent set again we go back.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is like Max weight independent set and effectively it looks something like this I've got.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Boolean variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "The note variables which are neighbor of each other in the graph can take value one simultaneously and subject to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to maximize this linear objective and again so very well studied problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's very hard hard to approximate and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So really we are in a setting where we have at the end of the day we have a graph problems which are usually very hard.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an optimization problem we want to solve it efficiently.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is a long list of extremely useful methods like linear programming based semidefinite programming, bills that are higher order methods is an another branch of things they call approximate dynamic programming, and the list goes on.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of them.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Very useful, there's if you restrict yourself to just graphical models and there are these variational techniques like belief propagation, which does have interesting properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course there are randomized algorithms based on sampling methods and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say all of these are great methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "They will give you some approximations, and that's good, so I would like to use any one of these methods, But this might be centralized.",
+                    "label": 0
+                },
+                {
+                    "sent": "This might be distributed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say their centralized.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many of them I'm going to convert them into distributed method.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to make that faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Without possibly losing performance, that's the goal, after which I am.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The dog, so how am I going to do it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we're going to utilize a new graph partitioning methods, randomized graph partitioning method is very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll describe that algorithm an if that algorithm I've described successfully, I think I'm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Achieve the goal of my talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea of graph partitioning or utilizing graph partitioning for optimization is quite old, at least to my mind.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's as old as work of Lipton and Tarjan, where the design this partitioning scheme for planar graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "We work by Baker which was trying to look at outer planar graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then there is work by alone similar Ann Thomas which was trying to look for minor excluded graphs and then the list goes on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uh.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, this is sort of lots of nice surveys in distributed computation in computer science language which are trying to utilize this partitioning scheme.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these partitioning schema for homogeneous optimization problem, and I'll explain that in a second.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example independent set case you want Max size independent set, not Max weight independent set case.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's where many of these fail.",
+                    "label": 0
+                },
+                {
+                    "sent": "The algorithm these types of algorithms are very fast, essentially linear time.",
+                    "label": 1
+                },
+                {
+                    "sent": "What I will do is I will show that this algorithm, in particular the one I would describe, you can utilize it to make centralized algorithm distributed.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then which graph it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is related to some of the questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "This will work for a large class of graphs.",
+                    "label": 1
+                },
+                {
+                    "sent": "In particular this graphs which have some form of geometric structure or minor excluded graphs like planar and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and in many cases it works pretty well right?",
+                    "label": 0
+                },
+                {
+                    "sent": "In general, it's a nice heuristic.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can use it and see how well does it do so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll show you one example at the end, which is example that Vincent Blondel was looking at and that sells through some experiment.",
+                    "label": 0
+                },
+                {
+                    "sent": "The experiment that I could run.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Why your intention?",
+                    "label": 0
+                },
+                {
+                    "sent": "So see examples that first one is not a graphical model yet, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Disconnect so.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so now it's a graph optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first one, not necessarily a mark of random field.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your focus is graphical models.",
+                    "label": 0
+                },
+                {
+                    "sent": "Especially I want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to think of both examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I want to solve both of those examples, I want to solve the modularity optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to solve the Marco random field problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I'll talk about that work for what other things it extends.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, I will tell you about that, so it for example, it does nice things for lock partition functions and maybe intern.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could turn it around to learn graphical models possibly.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so now I'm going to describe your partitioning scheme.",
+                    "label": 0
+                },
+                {
+                    "sent": "The partitioning scheme has two things, 12 parameters, K and Delta.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, this is type, but there should be a Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Based on Delta here random variable which we all know, it's a truncated geometric random variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Effectively you have a coin with bias Delta of coming up head 1 minus Delta comes up tail.",
+                    "label": 0
+                },
+                {
+                    "sent": "You toss it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Up two K times if you get head before that, that's the number you you want.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you already tossed K times and you haven't seen head so far, you will truncate that there so it's a random variable over integers and the distribution is as given by as I described.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the random variable I'm going to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "For my partitioning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so here's what I'm imagine.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "King let's sort of think of partitioning algorithm applied for independent set case 1st and then sort of will naturally see how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let's assume that I got graph large graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to find out what is the maximum weight independent set in this thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just remind us.",
+                    "label": 0
+                },
+                {
+                    "sent": "So only assign 01 values to each one of them so that this summation is maximized.",
+                    "label": 0
+                },
+                {
+                    "sent": "And initially I'm going to start with an assignment which is all zeros for all all excise.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now here's my graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I'll do is I'll choose a node at random.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and I will draw a random radius that is drawn as per the truncated geometric that I described few minutes back.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so all the nodes which are within distance R1 will be part of this circle and everything else I'll ignore now.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll ignore what's outside and inside this partition.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will solve the optimization problem exactly.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I might have let's say 10 nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "I might have 20 nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will ignore everything else from outside, and while I'm doing this, outside assignments might provide constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example if note here that I just ignored had value one, it would impose a constraint on node here that it can't be taking value one.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has to take value 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll just incorporate those things.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I will solve it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once I was solid, I'll forget this radius and everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've got new assignments where everything outside is what it was before inside how updated assignments.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, I will look for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I'm going to look for another note.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm going to do the same thing again.",
+                    "label": 0
+                },
+                {
+                    "sent": "So random notes random radius is random, no random radius is actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Random node selection is not necessarily.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can have arbitrary node selection choose nodes in arbitrary order you like.",
+                    "label": 0
+                },
+                {
+                    "sent": "And random radiuses, which are important?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the set of nodes that is in that radius that is in the graph defined by adjacency, that's correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you, sorry about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "By distance I mean here is I'm going to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "A shortest path, unweighted shortest path distance in the graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you so if let's say in the graph structure mark is my neighbor and your marks neighbor, then your distance to me is to assuming that there is no other path, which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have a direct link to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right so again, very simple algorithm you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of a number of the best assignments at that point, or just find the best one and just keep yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So right now, let's just think of I'm going to just solve it using set dynamic programming.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so it's essentially a Markovian algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm just going to keep doing this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say at some point I'm going to choose a node here, which is going to have some notes that I had reset in previous time.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's fine, I'm going to forget.",
+                    "label": 0
+                },
+                {
+                    "sent": "Forget that this exists, I don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm just going to take these nodes again.",
+                    "label": 0
+                },
+                {
+                    "sent": "Optimize here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's algorithm, sorry, except on the boundary, which are effectively telling me that you know, don't do this and everything outside is also fixed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things and boundaries are also fixed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only things changing our insight.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Alright, that's the algorithm, any questions?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which numbers?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I started with the initial assignment in case of independent set zeros and overtime I'm changing the assignments right and effectively it's it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a, it's an algorithm in which I'm improving my weights right of independent set so the weight of my assignment at any point of time has its weight increasing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So initially I started with all zero assignments, so way towards Esper.",
+                    "label": 0
+                },
+                {
+                    "sent": "That optimization objective was zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I keep optimizing in small small patches like this, my weight is improving of assignment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Question is that does it get?",
+                    "label": 0
+                },
+                {
+                    "sent": "Does it get as good as the best answer quickly enough?",
+                    "label": 0
+                },
+                {
+                    "sent": "And the overlaps is it eliminate the previous ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah it will.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example here there was one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Vertex lights are here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Previously I had set it to 0 because that's what suited as per my this ring right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "As for this ring, it requires me to be one.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll set it to one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so I'll just.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry it's yeah, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a simple iterative improvement algorithm like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only parameter is gamma.",
+                    "label": 0
+                },
+                {
+                    "sent": "You mean KN Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get key key and Delta exactly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what one questions, yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "Actions, or maybe let's say.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Ising model yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it really sore speeds outside of this country?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, that's correct, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's correct, so in in case of independent set case the way I want to think of it is there are things on the boundaries.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, for all those boundaries I'm fixing their assignments.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those assignments are inducing fields inside as you say.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, there is a node here which is 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of its neighbor inside.",
+                    "label": 0
+                },
+                {
+                    "sent": "How to take value?",
+                    "label": 0
+                },
+                {
+                    "sent": "0 because I cannot violate the constraint.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, I mean at the natural.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is as simple as it gets, right?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here is a theorem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in whichever order doesn't matter at the end of selecting N vertice is at least once.",
+                    "label": 0
+                },
+                {
+                    "sent": "The algorithm will find 1 minus epsilon approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "As long as.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, so I've chosen Delta and epsilon have relation to linear relation.",
+                    "label": 0
+                },
+                {
+                    "sent": "But just to keep things clean.",
+                    "label": 0
+                },
+                {
+                    "sent": "So epsilon depends on Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "As long as there are two things, one is graph history of some structure and 2nd is my choice of parameter appropriately done.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, So what are those things?",
+                    "label": 0
+                },
+                {
+                    "sent": "So first I want to tell you the graph is a structure in second is a parameter.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first let's go through the graph structure where is what is doubling dimension.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What is polynomial growth as people call it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, OK, so if you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're standing in, let's say this space and I asked you what is the dimension of this space?",
+                    "label": 0
+                },
+                {
+                    "sent": "One way to find out is I'm standing here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to blow a ball around me of radius R and ask how the volume scales.",
+                    "label": 0
+                },
+                {
+                    "sent": "There will be our cube, so there will be 3.",
+                    "label": 0
+                },
+                {
+                    "sent": "For graphs, of course, I don't want to have that exact because it's too regular.",
+                    "label": 0
+                },
+                {
+                    "sent": "As long As for any vertex or any node in the graph, look at any distance R, this is shortest path graph distance.",
+                    "label": 1
+                },
+                {
+                    "sent": "The number of nodes in that neighborhood scale no faster than our two power oh.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I would call it.",
+                    "label": 0
+                },
+                {
+                    "sent": "A graphic dimension drawing.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so if I were grid which is extremely nice, structure between finite grid then I've got number of neighbors within my distance are scaling like are square.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I could have subset of greater.",
+                    "label": 0
+                },
+                {
+                    "sent": "I could have any some structure where there's a line and then there's a great and all sorts of other things.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these things would have reasonable some finite dimension.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, if you have node which is formed because of these kind of geometric setting, like for example if you have a graphical model coming out of image without having long distance correlations or dependencies, then definitely it would have some finite dimension.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Pointed graph, would you always be able to see large enough that you could choose growing pools zero?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean exact.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then your computation would scale as, let's say effectively row.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK or over epsilon and you will have exponential amount of computation in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what will happen is that if you have really really large number, for example N nodes within a year, distance K would be an and you will be doing exponential amount of computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, but I'm what I'm saying just I'm just looking at the condition that's correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so OK so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Whenever such results are proved, you have a family of graphs in mind.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is for every N there is a set of graphs and you're looking for a family of graphs and then with respect to that family you want see to be constant, not scaling with N and RO again also to be constant you could choose roto scale as N in which case.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Effectively, what I'm saying is trivial there is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, perfect.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is not easy to see how size of your region, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Revelation County clarifies that, and also if you make it random, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once those events for regions area, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you hit those, yeah, do right.",
+                    "label": 0
+                },
+                {
+                    "sent": "You kind of invitations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh my understanding is they feel that it will lessen the ability to compute.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly those regions this case so right now the result I'm providing you requires exact computation and will will slowly start relaxing that too.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, but if you think about at least independent settecase what is happening is that if you have.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "If you have, let's say.",
+                    "label": 0
+                },
+                {
+                    "sent": "A finite dimensional graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's think of grid.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think of nodes within distance R, how many nodes are there are square.",
+                    "label": 1
+                },
+                {
+                    "sent": "So really you are doing computation, which is exponentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "In R-squared nodes not N nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question is that how small can you keep this will help you do faster computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "How large you need this to get small approximation, good approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a tradeoff here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you translate this serial number for this typical for largest art?",
+                    "label": 0
+                },
+                {
+                    "sent": "So largest I need is because it's a truncated geometric.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are will never be larger than my parameters of choice K. Remember, So what is my radius selection algorithm?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I toss a coin with bias Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Up two K times.",
+                    "label": 0
+                },
+                {
+                    "sent": "If two Ki don't see ahead, I'm going to truncate it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd say that's a key is an answer if anytime before that I see.",
+                    "label": 0
+                },
+                {
+                    "sent": "Head coming up, that's when I'm going to truncate so my radius is never larger than my parameter K. Anne's theorem says.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Mikey is no larger then effectively bro.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each other over epsilon log roll to the epsilon.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now why?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why should this work?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Roughly speaking, here is an intuition, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, if you have if you are in, let's say three dimension, you got volume is our cube, but your boundaries are square.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you look at the number of nodes which are in the boundary or order 1 / R, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Of the total number of total number of nodes inside the ball.",
+                    "label": 0
+                },
+                {
+                    "sent": "And effectively the error losses.",
+                    "label": 0
+                },
+                {
+                    "sent": "For this algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can show that comes because of how much error you have in terms of the cut of the each ball.",
+                    "label": 0
+                },
+                {
+                    "sent": "Said, that's in a nutshell, is where?",
+                    "label": 0
+                },
+                {
+                    "sent": "The performance or theorem comes around.",
+                    "label": 0
+                },
+                {
+                    "sent": "And because it has a nice dimension and use of this geometric is very important.",
+                    "label": 0
+                },
+                {
+                    "sent": "We did not use geometric random variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't think any of such proof will go through unless you are very special.",
+                    "label": 0
+                },
+                {
+                    "sent": "Regular structure like grid or.",
+                    "label": 0
+                },
+                {
+                    "sent": "A tourist or something like this is the same reason why?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a if you have a graph of constraints like case out or something like that, and you have this Poly polynomial growth that this would satisfy it to accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Epsilon fixed epsilon with a polynomial algorithm disconnect.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would do that, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "Siri variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "Arbitrary, as long as it's it's a valid assignment.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's not valid assignment, you can still sort of get.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get two validity by having all anything, so you will have two, and so I think for Theorem to hold you will have two and passes.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so I think I told you algorithm the theorem, now let's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Of C. Effectively, at the end of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is this randomized decomposition scheme that we have which which works where it says that if by using this geometric.",
+                    "label": 1
+                },
+                {
+                    "sent": "The probability that any edges in the cut.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do I define cut?",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say I run the algorithm for some number of time steps, by which time I've covered all nodes at least once.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now let me sort of unraveling the reverse time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ann, let me assign the nodes color as per timestep, so nodes that are part of my ring or circle at the last most time will get the highest color, then the second highest color and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "An an order may have multiple colors.",
+                    "label": 0
+                },
+                {
+                    "sent": "A color from time 10 color from time 20 and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, assign it to the color of the latest time.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, now let's look at these coloring of this graph and let's look at the boundary of the colors coloring region.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those would be the cuts and look at those edges that are crossing those boundaries.",
+                    "label": 0
+                },
+                {
+                    "sent": "The probability that an edge is in that cut scales like epsilon, and that's where everything works out.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. And again he had jumped use of geometric distribution is essentially take a memoryless property that generic distributions have, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of the volume of a sphere in high dimensions is concentrated near the boundary guys.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in some in a graph sense it would be expanders rather than graphs like geometry.",
+                    "label": 0
+                },
+                {
+                    "sent": "So without being very mathematical, this gives me the feeling that this wouldn't be robust, but I must be missing something, no?",
+                    "label": 0
+                },
+                {
+                    "sent": "It depends on what application you are looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "Graphical codes which are designed using, let's say, random graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then this would not work, but if you are thinking of looking at a graphical models that are used for image processing, this would do extremely well.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, clustering approach that clustering algorithm that Brondell wanted to use in his setting where the connections were based on physical communication in a geometric setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "This would do extremely well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, then, questions that why would this type of thing word for optimization?",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some amount of work you need to show.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that modularity optimization does fit some kind of it is reasonably well approximated by some kind of possibility structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Independent set is nice decomposability objective there, like just vertice is based.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not necessarily true for modularity optimization problem, but that's the work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once you do that same theorem holds now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Question is that is it a good result?",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks like it got good approximation, reasonable algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "Michelle, you want to ask me a question now or?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're less legislative really.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can we use it?",
+                    "label": 0
+                },
+                {
+                    "sent": "So first I tried to use it for modularity optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "That unbundles case after we got a theorem and then really realized.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you know, it's this is the order.",
+                    "label": 0
+                },
+                {
+                    "sent": "Solve the problem to get good approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "In his case 400 nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So something like this is what I will have to do for solving for modularity optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "That doesn't sound good.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like this is a perfect example of all those fantastic algorithm results, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so then the question is that what is the problem really?",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that inside each cluster the clusters are small and the algorithm for sampling clusters is our circles is nice inside.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm using dynamic programming that's too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I would really like to do is I would like to use some simple algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe an approximation algorithm?",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Suppose you give me a centralized or distributed richer an approximation algorithm for the original problem, which is, let's say, often approximates.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've got N nodes, let us log in approximation algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I use that inside my.",
+                    "label": 0
+                },
+                {
+                    "sent": "Circles instead of dynamic programming it would become a constant factor approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You give me any other which is not necessarily constant factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "I use it with my composition decomposition scheme for this class of graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will become a constant factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's because the error is dominated by these still dominant by these patches.",
+                    "label": 0
+                },
+                {
+                    "sent": "That and second thing is, instead of effectively, the algorithm is operating over small number of nodes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And again, same holds for modularity optimization, so really you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two seemingly sometimes, maybe even bad algorithm got much better answers because the graph has great structure that you can use it through this decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I thought I'll just show you some eggs, some examples that I could run onto.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here is 1 example where I want to do clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a ring with 30 clicks on them.",
+                    "label": 1
+                },
+                {
+                    "sent": "Each week has five nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's OK in this kind of case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe it's obvious that what are the clusters?",
+                    "label": 0
+                },
+                {
+                    "sent": "K and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "There's a very nice heuristic that Blundell ET al have for modularity optimization.",
+                    "label": 1
+                },
+                {
+                    "sent": "It finds reasonably large modularity.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a large modularity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that case, it leads to 16 clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so you lost something in terms of cluster identification.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've just colored things appropriately.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and then we use that algorithm along with put along with my algorithm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then it finds pretty close, so it does lose bit on modularity optimization.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Gay.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's 10 times faster on my laptop.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully I didn't temper.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not that good.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Better number of clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Doesn't say much about whether this is better than the other one, but whatever that means.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least we've got optimal modularity that to compare with.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so is pretty good.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "There are some other variations that this provides is a notion of local property testing.",
+                    "label": 1
+                },
+                {
+                    "sent": "This came out of complexity theory with this theorem, called probabilistically checkable proofs, and the idea was that you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "NP languages and that you can check if you encode them properly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you can check through local verification.",
+                    "label": 0
+                },
+                {
+                    "sent": "That led to notion of local property testing that was introduced by Suzanne and Wilkerson.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the idea is that, well, I got a graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've got some graphics, some property, let's say does graph have maximum size independent set larger than N by three.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I answer that question quickly by maybe just sampling a constant number of nodes?",
+                    "label": 0
+                },
+                {
+                    "sent": "With Pro Accuracy, 1 minus epsilon, both in probability and actual answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is a hard question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a beautiful result that was by alone and Shapiro where they say that every monotone graph properties locally testable.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, maximum size independent set is monotone property.",
+                    "label": 0
+                },
+                {
+                    "sent": "Modern properties are closed under edge and vertex removal, so if you have a graph which has.",
+                    "label": 0
+                },
+                {
+                    "sent": "And byte so independent set of size and by three.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I remove some edges it will still have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Independence of size and by three because removal of edges only reduces the constraint which is better for size of the graph.",
+                    "label": 1
+                },
+                {
+                    "sent": "The problem with their algorithm was that they have constants.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which show that there is some existence of towering exponential that is.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can answer this question correctly by sampling see of epsilon nodes, where sea of epsilon has to power to power to power dot power one over epsilon, and that length of the tower is finite.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's put that prove it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's independent of N.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Right, so that led to all sorts of really interesting results.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, this is a paper by city metal.",
+                    "label": 0
+                },
+                {
+                    "sent": "They showed that they could use.",
+                    "label": 0
+                },
+                {
+                    "sent": "A different class of partitioning scheme classical partitioning scheme, which I mentioned earlier on to remove this traveling dependencies for homogeneous graph properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now with this partitioning, actually you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Use it for this class of graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, for all the non homogeneous properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I say, it is reasonably useful scheme.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Coming to other problems, well, you could estimate log partition function reasonably well or if you had a very symmetric setting, you might be able to look at the limits of existence of normalized partition function.",
+                    "label": 1
+                },
+                {
+                    "sent": "Alright, so I think I'm close to completion.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh alright, I as soon as you stop so we need.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, alright so.",
+                    "label": 0
+                },
+                {
+                    "sent": "One point I wanted to convey is that there is this nice clean algorithm you can take the graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can partition it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Partition is easy inside partition.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can use your favorite algorithm that would at least speed up your computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "In many cases it would be a great answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "In all other cases it will give you.",
+                    "label": 0
+                },
+                {
+                    "sent": "And uncertain, which is not that bad, so might be worth considering.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a form of iterative improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can take a local neighborhood.",
+                    "label": 0
+                },
+                {
+                    "sent": "You look at the neighborhood.",
+                    "label": 0
+                },
+                {
+                    "sent": "You optimizing the local neighborhoods at the subset of variables and you move on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes no, it is very well known that if you have a small neighborhood, you converge faster with that solution, if you increase your neighborhood, you converge slower to a better solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I know that in the context of France is traveling salesman problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, you can do this, and this is also observed.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's true, but in a sense irrelevant because there is particular neighborhoods she's exploiting.",
+                    "label": 0
+                },
+                {
+                    "sent": "The structure of the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that case you have non locality because you know we have to have a have to be a single single single cycle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah global, so you have particular neighborhood structures particular moves, yes, that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are very particular to the problem that actually solve this DSP in the sense that you get very efficient algorithms, and even these particular moves are in.",
+                    "label": 0
+                },
+                {
+                    "sent": "These efficiencies are very unrelated to this general observation that you say.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if I make a bigger, bigger neighborhood, I get a better result in faster slow convergence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So my question is, is is the relevance of this for speeding up?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, how competitive are these verses?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let's start from traveling salesman example that you said.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your point was that OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me sort of parser question first.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because longer questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there are few points you made.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is in this class of algorithms that are natural tradeoff between how large you make the local step and the computation cost.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that's true.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean just generically second is in what you just mentioned is that in.",
+                    "label": 0
+                },
+                {
+                    "sent": "DSP problem it's only one part where really this kind of thing matters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I mean I don't know if that's proven to be true or observed to be true, but at least here I'm trying to prove something, and for that it's like it's like an adversary adversary could put things anywhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I'm trying to prove something about my algorithm, I better have a reasonable grasp over the entire problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, but I mean so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in any optimization problem, you know they're making a larger neighborhood.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll get better results, yes, but in that ESP.",
+                    "label": 0
+                },
+                {
+                    "sent": "The inside was that instead of changing 2 cities, actually should take 3 cities.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, sort of change that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there's a very particular kind of move to allow.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very good performance improvement OK. You're so so this is my worry then how?",
+                    "label": 0
+                },
+                {
+                    "sent": "What is this name notion that you know you get better if you make larger?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Little good algorithm service.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I mean, maybe I'm not.",
+                    "label": 0
+                },
+                {
+                    "sent": "So getting the point.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, let's just think of sort of a matching question because I can sort of think of it little more concretely.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "What would this say?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, this would say that if I got very small neighborhood in matching usually, which is nice structure, of course you would do augmenting paths.",
+                    "label": 0
+                },
+                {
+                    "sent": "This would say that you would you are allowed to do augmenting paths of size.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say something which is dependent on the radius.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do know in matching case very well that depending on how large the augmenting paths are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Better and better results you get in terms of approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So really this is in harmony with those kind of results.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this is saying is that for that kind of results to hold actually don't need simple structures like matchings which are extremely well interested.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can do it for even things like independent set case so.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for that all I need is I need the sort of overall global structure has to have some property.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Centralized heuristics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Through your heart.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's exactly right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yeah, I've been waiting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is select regions and then you you do it and then yeah Markov chain breaker.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's also well known fact that you're using regions kind of things available generalizability.",
+                    "label": 0
+                },
+                {
+                    "sent": "Propagation right sure?",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a special treatment for those overlaps.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will it be useful in your context?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so so for example, yeah, so if somebody went ahead and proved that generalized belief propagation is some kind of reasonable approximation, let's say square root of N approximation for the problem, I'll put it inside in my circles an I would prove that it is a constant factor approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I mean, this might be a way to go around sort of, start proving some properties of for algorithms like belief propagation for much larger class of graph graphical models that we could do before.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, I mean there's overlap sure so so.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, so sort of yeah we spent so in some sense this randomized iterative nature actually came from that kind of thought or view of generalized belief propagation.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that if you generalized belief propagation, you allow yourself to have constant or fixed decomposition innocence.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because that's where you interact with each other and to kill in some sense adversary, you need some kind of randomization.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's why we needed to keep changing.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's so it may be dynamic.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah, you could think of dynamic generalized belief propagation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sure, I think, yeah, that might be a better way to think.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you don't have any issues.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so here's what will happen right at the end of this NN iterations when you covered all nodes at least once.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you made sure that every part was consistent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the problem had constraints which were decomposable in the graph sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you would reach consistency right at least.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, from that point onward, you start and apply this up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Both are no more questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's think about all the speakers this morning.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

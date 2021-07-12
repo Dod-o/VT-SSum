@@ -1,0 +1,3661 @@
+{
+    "id": "n5qyzptseu2x3eblznmj3p7274wltwsz",
+    "title": "Probabilistic models for understanding images",
+    "info": {
+        "author": [
+            "John Winn, Microsoft Research, Cambridge, Microsoft Research"
+        ],
+        "published": "July 24, 2008",
+        "recorded": "July 2008",
+        "category": [
+            "Top->Computer Science->Image Analysis",
+            "Top->Computer Science->Computer Vision"
+        ]
+    },
+    "url": "http://videolectures.net/icml08_winn_pmui/",
+    "segmentation": [
+        [
+            "OK, well thank you very much for the introductions.",
+            "Even I think I just need to get miked up for the camera.",
+            "Which one it wasn't clear.",
+            "Is it currently on the correct one so it's fine?",
+            "OK, OK. OK, well I was very pleased to see that in the statistics for this year that vision is on the upper ACNL and that's great.",
+            "'cause I think that machine vision and using machine learning to understand the images is really interesting and fascinating problem.",
+            "I hope in the next hour or so to convince you of this also.",
+            "So I'll just give you a quick."
+        ],
+        [
+            "Overview of the talk.",
+            "I want to start by really sort of drilling down into why this is an interesting problem and why it's a hard problem.",
+            "Now.",
+            "Vision is a hard problem in that we can't solve it yet, but those are very nice problem for machine learning in that we can do it, and so we know the answer.",
+            "As this is an excellent sort of testbed for machine learning algorithms, because you can immediately assess how accurate your results are going to be.",
+            "Contrast this for example, to biology, where no one knows what the answers are, so this is a very nice domain for investigating the performance and really understanding the behavior of machine learning algorithms.",
+            "That's also very interesting and useful application area in itself, so having sort of looked at the domain and looked at the problem we're trying to solve here.",
+            "I want to investigate three different approaches for using or developing probabilistic models for analyzing understanding images, and these will be approaches familiar to you.",
+            "Generative, discriminative and hybrid methods and each case I'm going to look at an example I'm trying to illustrate the strengths and weaknesses of each approach and describe it with reference to some work that I've done has been done at Microsoft Research in Cambridge.",
+            "When I finish with some open challenges to try and sort of get you enthusia stick in where this area is going."
+        ],
+        [
+            "The image is a very very high dimensional measurement of the world, and it's very difficult to understand it because the very large number of sources of variability that lead to those measured pixels that you get from your digital camera or whatever.",
+            "So first I want to explore what the sources of variability are that lead to an image that you're going to be trying to understand."
+        ],
+        [
+            "So.",
+            "The first thing that influences those measurements, those pixel measurements is going to be broadly what type of scene are we looking at is an indoor scene as an outdoor scene, and was the geometry of the scene.",
+            "Where is the camera placed within that scene.",
+            "So, for example, we might be looking at a street scene and it might have a ground plane and horizon of this form, and this is going to set the highest level structure of our image.",
+            "Or everything the actual appearance of the scene is going to be dictated by the classes of objects that you see within the scene."
+        ],
+        [
+            "So again, within our streets in context, we would expect to see a a distribution of objects somewhat like this.",
+            "So we have an outdoor scene.",
+            "So expect the Sky building Road and the number of objects like trees and cars and people on top of that."
+        ],
+        [
+            "They notice determine which regions of the image these objects are going to affect in terms of our measurements.",
+            "We need to determine the position and orientation of these objects within our scene geometry."
+        ],
+        [
+            "But each each of these objects will influence the set of pixels that determine is determined by the shape of the objects.",
+            "This is another source of variability that we need to understand.",
+            "If we are going to interpret the measurements of these pixels.",
+            "So we bring in the shapes of the objects, then we get something that starts to look like there are real images, real scene.",
+            "Another important aspect of the imaging process, which is often overlooked in models of imaging, is that nearer objects occlude further objects, so this is a very simple statement for us to understand.",
+            "It's often a very tricky constraint to include in a probabilistic model.",
+            "Well, I'll look at later.",
+            "At some ways we can do this, but if we include."
+        ],
+        [
+            "And then the depth and occlusions into our representation.",
+            "Then we can see that there's no interaction between the objects present in the scene based on their debt."
+        ],
+        [
+            "So now we have something which dictates which of our pixel measurements are going to be influenced by which object.",
+            "Well, we need to say how we are going to be influenced by looking at the appearance of each of the objects.",
+            "And so we can bring in the appearance each object in turn.",
+            "And we're starting to get close now to a complete image, but we have some more subtle effects to take into account."
+        ],
+        [
+            "So objects aren't just a fixed appearance.",
+            "Their appearance is influenced by the illumination of the scene."
+        ],
+        [
+            "They also cast shadows on each other so they interact in that way as well.",
+            "So we also have shadows in the scene and different illumination and."
+        ],
+        [
+            "Only we get through to.",
+            "Very much more subtle effects like motion blur and camera effects.",
+            "For example, depth of field and focus issues, white balance, saturation, and indeed the resolution at which we're capturing the image in the 1st place.",
+            "So all of these sources of variability and this is a large number are going to influence the actual pixels that are going to be put into pixel measurements.",
+            "They're going to put into your machine learning algorithm.",
+            "So the goal when of the machine learning algorithm will be to try and unpick the image into some of these sources of variability."
+        ],
+        [
+            "Just waiting for my idea.",
+            "So let's look at the first approach.",
+            "Then for doing this, which seems like a very very net."
+        ],
+        [
+            "To approach this is the generative modeling approach, and it says basically that we know how images are formed.",
+            "I just went through the process of image formation with you.",
+            "We can do computer graphics, so we know that we have 3D objects in a scene.",
+            "We know about light Rays.",
+            "We know how objects occlude each other, so we can build ourselves a forward model of the process of image generation.",
+            "So all we need to do that is to select some sources of variability that we're interested in modeling.",
+            "And design A generative forward model of the image from those latent variables.",
+            "That's going to be a joint distribution over the image and the latent variables.",
+            "And then even better, we can now apply this to completely unlabeled data to learn the latent variables and to understand the images in this data set.",
+            "The challenge is going to be that we would need this generative model to be tractable to our inference techniques.",
+            "And that's going to typically lead us to restrict the number of sources of variability that we can actually deal with when we're looking at the images, and this is something that's often skipped over, but I want to really look at what will happen if you do not address a particular source of variability.",
+            "Or if we want explicitly representing something such as shadows or reflections in our model, then we either need to make sure that we've chosen our data set, or restricted our imaging environment such that this source of variability is gone, for example by fixing that.",
+            "Or we have to hope that some noise or outlier process in our model is going to absorb this variability, because if it doesn't, the inference of other variables in our model is going to be distorted.",
+            "I will see some examples of this during the during the talk.",
+            "So if we're going to pick out of this massive possible a latent variables if we need to pick a few to start modeling, which ones are we going to pick so?"
+        ],
+        [
+            "If you're interested, supposing launched in object recognition.",
+            "When you might be wondering which keys do I tend to use for object recognition, and if you want to run for Fergus is tutorial ESD, I'm sure you have lots of ideas about this, but.",
+            "It's 1 two to go through.",
+            "A few examples here, so here we have a motorbike and what I can do is just look at different cues.",
+            "So for example we can just look at the color or distribution of the motorbikes.",
+            "Here all I've done is pull random pixels with replacement from the motorbike to get Patch with the same color distribution as the motorbike.",
+            "The other thing we can look at is texture.",
+            "So here I take another and single pixels.",
+            "I've taken small patches which are representative of the texture of the object and again place them in a square and this is actually the representation that bag of words methods see, so they just see a bag of textures as representing the object.",
+            "And the other Q that we could look at is to ignore current texture completely and just look at the shape of the object.",
+            "And so we might think ourselves which of these hears is going to be most important for recognition.",
+            "And, well, this is the interactive part of the talk.",
+            "So this is where you get to join in."
+        ],
+        [
+            "And.",
+            "So.",
+            "This is a way of the human experiment, so you can see which of these cues is important.",
+            "So I have an object.",
+            "And I'm going to give you each Q in turn.",
+            "I want you to shout out when you recognize what the object is.",
+            "There is.",
+            "It's already on a Sunday morning, but you know this is to wake you up.",
+            "OK, that's the kind of distribution, any guesses?",
+            "Fire.",
+            "Worlds right yet have it now.",
+            "A car OK car OK. Maybe you can get in there.",
+            "Alright, yeah, that's that's my car.",
+            "I wish."
+        ],
+        [
+            "Let's try another one.",
+            "How about now?",
+            "That's lame.",
+            "What?",
+            "OK, one more."
+        ],
+        [
+            "Yep.",
+            "Office cleaner.",
+            "Winner.",
+            "Different bed.",
+            "OK, so hopefully this exercise was to say that yeah bag of bag of textures is good but shape is better.",
+            "And we really do very strongly associate."
+        ],
+        [
+            "Objectclass I don't see."
+        ],
+        [
+            "With with shape and so to start off with, I'd like to then look at a generative model which tries to learn the shape of a particular class of objects.",
+            "So following the procedure I laid out earlier, we pull out our list of potential latent variables for our generative model, and we're going to pick some that we're going to include."
+        ],
+        [
+            "So these are the ones that we're going to include in this model with a particular emphasis on the shape, as you'll see in a moment.",
+            "But that means I either have to fix or ignore the remaining ones.",
+            "So OK, so we'll fix.",
+            "These variables are going to say we're going to restrict the seems to be a scene of single object in it with a fixed geometry will fix the object class, so there is choosing a particular class of objects when they fix the orientation of the object.",
+            "And because there's only one object, there's going to be no equations.",
+            "And then we're going to say I'm going to ignore shadows, motion blur in camera effects.",
+            "And these are relatively small effects, so you might think, well, I'm going to get away with this.",
+            "Keep my fingers crossed.",
+            "So what data set then does this allow us to work on?",
+            "This kind of data set so this data set where you have an object we don't think from the position, but we are fixing the viewpoint, so we're seeing all of the cars from the from the rear.",
+            "I'm a things all have very similar structure."
+        ],
+        [
+            "So this is the model we're going to use.",
+            "It's called locus for learning object classes with unsupervised segmentation.",
+            "This is work with Napoleonic ICC V 05.",
+            "And I'll just go through and explain what's going on here.",
+            "So what we're what the images show here, what the various pictures show is a learned result.",
+            "But I'll explain how each of these variables influences the image, and we can then look at the inference procedure.",
+            "So there's nothing in the main thing that we're aiming to learn in this model is a class shape.",
+            "Model is going to represent the shape and the variability in shape within a particular class of objects, such as faces here.",
+            "And this is just a an image of probabilities, Pi, which says that if I place the object in the center of this image, what's the probability that each pixel will belong to the object?",
+            "And this is going to be shared amongst the set of images that we're going to train the model on.",
+            "Then for each of the images in our set, we need to estimate the position of the object in that scene and we're just going to discretize this.",
+            "So we're going to have a set of positions that were going to search over.",
+            "I want to be learning a binary mask which says for each image and for each pixel if it belongs to the object.",
+            "This is going to segment out the object in each of our images.",
+            "An interesting Lee.",
+            "Rather than running with some sort of global class model class appearance model, we're going to actually just forget about letting any sort of appearance model at the class level and just let him at the image level so we can say that for each image, the object and background appearance, again remodeled by printable color histograms in this case.",
+            "And this is going to ask to represent both the appearance and the illumination of the foreground and background in each image.",
+            "So we're not making any assumptions of the object having a similar appearance or the background having a similar appearance from one image to the next.",
+            "So let's look and see how this model behaves when we apply it to a set of real images."
+        ],
+        [
+            "So here we have.",
+            "Image set along the bottom.",
+            "Here and all the other variables are initialized to some sensible initialization, so the masks for machine the mean of the masks and the mean of the posterior over the the shape.",
+            "And explain what this great box is in a minute.",
+            "So we're going to initialize these things in sensible ways, but this is just saying that I have priority.",
+            "Or rather, I will initialize my.",
+            "Distribution to have a slightly higher preference for foreground in the middle and for background of the edges.",
+            "I'm going to apply a variational form of expectation maximization.",
+            "So we're going to be iterating between updating our posteriors over each of the variables in our model, so we start off updating the color histograms for the foreground and background, and then."
+        ],
+        [
+            "The masks the shape masks for the very first thing we do is update the shape mask and here I'm giving an indication of the posterior belief for the shape masks after half an iteration because we haven't yet updated all of the variables, so a brighter white indicates greater confidence of object.",
+            "So this stage we're still segmenting, as it were, each of the images separately, but this is happening through a standard inference algorithm applied to our model."
+        ],
+        [
+            "Then based on the blobby class shape prior within a distribution over the positions that we expect, the object appear indicating that distribution by placing the class shape prior at that position or the expected position.",
+            "Phone and you can imagine that we then sort of averaging together these segmentations.",
+            "To get our overall class prior shape prior, which is this not vaguely blobby thing, but you can start to see that the shape of the car is emerging as we do this code segmentation."
+        ],
+        [
+            "So we can we repeat the exercise, but now we're one iteration further on, and because we are sharing this, this class shape representation amongst all the images, what we're trying to do is segment each of the images in turn to make it look more like this shape.",
+            "Very simple, it's just probability of being programmed at each pixel in the image, so it's very, very simple.",
+            "So thinking of it as the average of all of these is not far.",
+            "We actually put a prior over each pixel and then a posterior distribution, 'cause we're doing a full variational Bayes approximation.",
+            "But I'm just showing the expected value under that distribution."
+        ],
+        [
+            "So we continue to."
+        ],
+        [
+            "The further iterations."
+        ],
+        [
+            "About variational."
+        ],
+        [
+            "PM they were after about 12 iterations and so we converge.",
+            "And what we've converged to is a fairly tight distribution over the shape, position and overall class shape for this class of objects.",
+            "And this is a very nice result because.",
+            "Despite the fact that there's no.",
+            "Very unsupervised exercise.",
+            "We have segmented out each of the cars with a high degree of accuracy and we've learned a sort of car from the rear shape model.",
+            "What's interesting here?",
+            "Just say that here the shape is distorted somewhat by the shadow.",
+            "The segmentations being pulled out of place by the shadow.",
+            "This is an example of what I was talking about earlier which is if you have an effect and you're not modeling it, it's going to distort your inference of other aspects of the imaging process."
+        ],
+        [
+            "So we can extend this model slightly and are not just the position of the each object to be learned, but also opposed by incorporating a deformation into the model.",
+            "And now we can also cope with nonrigid objects like horses.",
+            "So we can take this."
+        ],
+        [
+            "Hello Anna plant 2.",
+            "A large number of horse images and we get this kind of segmentation and this kind of model of what a horse looks like up here.",
+            "So people have looked at this data, set this device and horse data set.",
+            "And I've trained supervised methods which have been given access to 10s of hand segmented horses.",
+            "And train the supervised methods to segment out horses, and one surprising is with this fairly simple unsupervised model we can get accuracies which are very, very close.",
+            "These supervised methods again accuracy of 93% compared to 94 and 95% of supervised methods.",
+            "To give you some idea, if you just say background you get 70%, so this is on a scale of 7200.",
+            "The big mistakes come from where our modeling assumptions are violated.",
+            "So if we look for example at this image here."
+        ],
+        [
+            "You'll see that the original image the saddle was including the horse, and we're not modeling that occlusion, and so it distorts our assumptions of the position and shape of the horse.",
+            "Similarly, in this image, the horses viewpoint is not fixed up to be sideways.",
+            "It's some 45 degrees."
+        ],
+        [
+            "And again, that leads to failure in terms of.",
+            "Accurate segmentation."
+        ],
+        [
+            "So we can apply exactly the same method too.",
+            "Bunches of images of different classes, and this is really quick to do because it doesn't require any hand segmentation, and so we can just apply it in this case to 20 images of faces, cars, motorbikes, planes, cows and trees.",
+            "And in each case, the shape that you get out is very characteristic and very representative of that class of objects, and some of them you get some quite accurate segmentation for this sort of typical segmentations was perhaps surprising is that trees will show a very large variability in shape.",
+            "And yet we don't have somewhat convincing shape model, and they're able to cope with even quite big.",
+            "Deviations from that mean shape.",
+            "So this is very exciting.",
+            "I have just taken 20 images given them, no labels throwing them.",
+            "This algorithm applied a standard variational Bayes technique and we've emerged learning about the shapes of objects and we've segmented the objects.",
+            "So you understood the shape of the object in the image.",
+            "Can I just keep going?",
+            "Can I build a more complex, more realistic generative model of images apply to bigger and bigger sets of images and you know everything will just magically work and the sad answer is.",
+            "That it doesn't.",
+            "This is because the techniques the inference techniques such as variationally EM or variational Bayes.",
+            "Breakdown 'cause they rely on a good initialization as you increase the size of your latent space as you increase the number of latent variables that you're trying to represent.",
+            "Then the chances of getting caught in a local minimum go up and up and up and up.",
+            "So if we have multiple objects, multiple classes, they get small.",
+            "You have a cluttered background in the scene and so forth.",
+            "It becomes much, much more difficult to infer and decompose the scene into these latent variables.",
+            "So this brings me to describe another approach and this is 1, which is really the dominant approach.",
+            "I would say in the machine vision community at the moment, which is to try and look at the image and design features of the image which are likely to be either invariant to latent variables that we're not interested in, or strongly indicative of latent variables that we are interested in."
+        ],
+        [
+            "And this is therefore going to be a discriminative approach."
+        ],
+        [
+            "So in a discriminative approach we again select some sources of variability, but this time they're going to be target variables.",
+            "And we are trying to discriminative model a classifier to predict these target variables given the image.",
+            "So we no longer have to model the density of images.",
+            "And we can include all sorts of fancy and hand coded in hand designed features of the image that we think will be really useful for predicting these target variables.",
+            "But the downside is that we now have to annotate these variables on a data set in order to learn this model.",
+            "Once again, we have to be really careful for all the source availability that we're not explicitly representing our model.",
+            "Again, we can fix them, but we don't really want to do that 'cause we won't be able to deal with this larger class of images as possible.",
+            "But we have another choice, which is we're able to train our classifier to be invariant to certain things.",
+            "If we have a training set that thoroughly explores all of these other sources of variability, however.",
+            "If there's a lot of them in, if there's a lot of things that were not explicitly modeling occlusion, illumination and so forth, then this training set is going to start to be combinatorially big in order to explore the interaction of all of these unexplained variables.",
+            "And in fact, that's likely to very quickly grow in size beyond what you can reasonably handle."
+        ],
+        [
+            "So let's take an example of this discriminative approach.",
+            "So we will take the same variables as we had before, but now we're going to extend to multiple objects."
+        ],
+        [
+            "And crucially, we're going to be looking at another.",
+            "We can handle both in showing the depth, ordering, and exclusion of objects within a scene.",
+            "So that means we now handling multiple objects in the scene and everything else is going to be fixed.",
+            "We're going to our couple of orientations this time.",
+            "And sort of images that were going to apply a discriminative Model 2 if that is open that UIUC car date set, which is a standard data set used to assess how good you are at detecting car emit cars in images or objects and images in general."
+        ],
+        [
+            "So we need to annotate our images somehow.",
+            "And how is that going to happen?",
+            "So this is a car in the training set and what I'm going to do, and then it's going to take the bounding box for that car and divide it into a regular grid of a spare hand specified size.",
+            "And so that any side, each square of that grid is something I'm going to call apart.",
+            "So this isn't a semantic part, like a wheel.",
+            "This is a part defined by its coordinate position on the Canonical car.",
+            "And so we're going to give each of the pixels in each cell apart label, which is going to be different period to sell.",
+            "So color coded them like this.",
+            "So you have to be a little bit careful 'cause neighboring parts have similar colors, but you'll see that actually is quite useful for visualizing.",
+            "As you go.",
+            "We also need a label for pixels that don't belong to."
+        ],
+        [
+            "Ours, and so we have a background label."
+        ],
+        [
+            "So here is a.",
+            "Here is our appearance model.",
+            "And.",
+            "Because it's a discriminative model, the arrows are pointing upwards from the image.",
+            "So we are going to try and join training.",
+            "We're going to present an image.",
+            "And the labels and or meant to learn some sort of classifier which is going to capture the appearance of each part.",
+            "In the image and the part map is going to represent the shape and position of the car.",
+            "Well, the way we're going to train our classifier is we're going to look at a Patch that we're interested in classifying this pixel.",
+            "Here, we're going to Patch around the Pixel.",
+            "When will China classifier to predict the part labeled corresponding to that pixel?",
+            "So distribution over our part map is independent for each pixel that is the product of the classifier's prediction.",
+            "For each individual part, given the image and the classifier parameters.",
+            "So we have a choice of what classifier we're going to use."
+        ],
+        [
+            "And one classifier that is particularly nice to use for images.",
+            "Is the decision tree or if you have multiple of them, the random forest classifier?",
+            "Well, just explain it's very simple classifier, explain how it works.",
+            "So you take your image Patch.",
+            "He placed it at the top of the tree.",
+            "And each tree is a test of binary test and this application we're just going to look at two pixels in the Patch and compare them.",
+            "And if one of them is great, we're going to get on the left hand side, and if the other one is great, so we're going to get on the right hand side, but it is all the way down till we get to the leaf of the tree.",
+            "And then the leaves will record just the proportions.",
+            "Of patches of each part label that reached that leaf.",
+            "Then at tax time we can do exactly the same thing and then these become our predictions for the Part label.",
+            "The rainforest classifiers are very nice 'cause they're extremely fast."
+        ],
+        [
+            "So here's a couple of bits of work that we've done at Microsoft Cambridge with Antonio Community, Thomas, Danny and anchor anchor Val just showing what sort of fun you can have if you have a really, really fast classifier, so this can things can frame rate so the left hand side.",
+            "We have real time object recognition, so we have objects being placed under the camera.",
+            "That being segmented out in a fairly simple way.",
+            "And then using a random forest and nearest neighbor approach.",
+            "We're able to recognize them with a reasonably high degree of accuracy, around 95% accuracy on about 15 object classes.",
+            "And these things are a lot of fun to play with because we can then train them rather than on office objects like staplers and pens.",
+            "You can also train them on hand gestures, so over here I'm controlling.",
+            "Windows, Needless to say.",
+            "The variety of hand gestures and the behavior of the application is going to vary depending on which gesture I use so I can bring up the keyboard like it so or if we just wait for the video to come around again.",
+            "I can also bring an object for the camera, pull the pictures off the camera.",
+            "Move the window around.",
+            "Select an image selection.",
+            "Other image.",
+            "And my personal favorite is that you just bash them to get rid of them.",
+            "So this is just to show that a big part of the tackling vision is that you also have a million variables to deal with and we need to be able to process them very quickly."
+        ],
+        [
+            "So let's suppose that we take a test image.",
+            "And we apply our random forest classifier to the test image.",
+            "Are we magically going to see the cars leap out at a well?",
+            "Sadly, the answer is no.",
+            "You see, is something more like this, so I've tried to represent the posterior over all these parts by averaging together the colors in the weights that they were assigned in the posterior.",
+            "And so you can see you just get something that's very noisy.",
+            "There's clearly something useful going on here.",
+            "We can start to see the rainbow color of a car appearing, but we also get a lot of stereo mass over car parts placed in the background and places where the cars actually aren't.",
+            "This is because if you just look at a Patch, it's often very ambiguous as to whether you're looking at a car or not.",
+            "There are parts of the car which are untextured, typically in the middle.",
+            "Here the back wheel looks kind of like the front wheel, and there are lots of things in a cluttered background that look like bits of cars.",
+            "And the problem is that we've zoomed in too close and we must really want to have found apart.",
+            "We wanted to be in the right configuration with respect to.",
+            "All the other parts.",
+            "Again, if you add Rob Fergus is tutorial in solution to this, which is the constellation model which says, OK, well I need to have my part laid out exactly as they should be.",
+            "If there was a car there, so I'm just going to find this kind of template over my partner until I get a strong response, and I have all the parts in roughly the right positions.",
+            "And then you can do that in ways that allows the variability in in the shape of cars.",
+            "The problem with that is that I said we wanted to handle occlusion."
+        ],
+        [
+            "Here is an included car and many of the parts are not even visible.",
+            "And you can also have worse situations.",
+            "We have cars half parked in garages or part behind other cars, and so there's any half of the car or left visible.",
+            "And it's not going to meet the criterion that all the parts nicely set where you expect them to be, because there's going to be other things in the way.",
+            "So how can we apply some sort of part layout constraint?",
+            "Without requiring that we can see the whole car.",
+            "And this is where the concept of lower consistency comes in.",
+            "And this is joint work with Jamie Shotton.",
+            "And the idea is that even if I can't see all the car, I can at least say that the parts appear next to each other in the right order.",
+            "In that grid that we initially as."
+        ],
+        [
+            "So if I take for example, this part of the car and zoom in, and I've added the cell coordinates of each of the labels so that you can see where they came from in the original grid.",
+            "Well, supposing I say I'm looking at a particular pixel, and I know that it has labeled PQ.",
+            "I cannot find out what are the valid labels for the neighboring pixel.",
+            "So parts are bigger than one pixel wide, so the most likely thing is that it's just going to be the same label."
+        ],
+        [
+            "But occasionally will get to the boundary of part and will go to the next Labour long.",
+            "So P + 1 Q.",
+            "And we also want to have a little bit of flexibility in the system to cope with if the car is parked on a slope or to cope with intraclass variability in appearance.",
+            "And then we're going to also allow.",
+            "To make to the label below or label above.",
+            "The miracle this set of neighboring part labels layout consistent, consistent with the global layout, but without making any constraints that are global."
+        ],
+        [
+            "And we can provide a similar set of layout consistent labels for a vertical pair of pixel."
+        ],
+        [
+            "So how can I incorporate this layout consistency into my model?",
+            "Well, now, rather than treating each of the part labels as independent, I meant to use a very common structure, envision an introduce grid.",
+            "The dependency structure onto the part labels and extend my set of individual classifiers into a conditional random field.",
+            "By adding an interaction terms.",
+            "Between each of the neighboring edges.",
+            "I mean to set up this.",
+            "Now consistency interaction term to encourage labelings that are consistent.",
+            "So we're going to have a penalty of 0 if they're consistent.",
+            "Layout consistent.",
+            "A high penalty for inconsistent.",
+            "We also need to have a apparently for a cost.",
+            "For background they bring to background.",
+            "The other thing this model can do it.",
+            "I don't really have time to go into into much detail is it can detect whether there's an occluding edge in front of or behind the object.",
+            "And that is encouraged to be at edges in the image.",
+            "So if you want to read more about that, you have to look at the."
+        ],
+        [
+            "Paper.",
+            "But what we can do is just look at some results.",
+            "So this was the output of the raw classifier.",
+            "But then if we apply the layout consistency constraint, what we get is this.",
+            "So by requiring that all parts are have appropriate neighbors, suddenly the cars are being pulled out of the noise.",
+            "And we can just look at layout consistent regions within this labeling.",
+            "And we've.",
+            "Now identified separate cars.",
+            "So even if these were touching or Inter occluding cars would be able to identify them as separate because we're looking for regions which are layout consistent.",
+            "And then it has given us the segmentation of the cars in the original."
+        ],
+        [
+            "Image.",
+            "So if we look, then at some a wider set of results.",
+            "These are then results across the UAC car database.",
+            "We got some very competitive detection accuracies.",
+            "96 point recoil 90% precision.",
+            "One of the things that we do suffer from a little bit is that we can detect included cars, and if you start seeing included cars you see a lot more cars than this data set was designed for that was designed to take are included cars, and so we have to automatically remove when we were doing these results.",
+            "Some of the included cars that we found based on how much was visible, but it's a shame that we can sort of see when there's an occlusion of the car that it exists and we can produce the right segmentation.",
+            "And here is the example of an error where we found something that we said was a car.",
+            "In fact, this would involve the car being included by this car and by the edge of the image, and it's kind of convincing.",
+            "You could imagine that thing.",
+            "A car, even though it isn't."
+        ],
+        [
+            "The segmentation accuracy is also reasonably high as well so that they'd set.",
+            "Unfortunately doesn't have lots of equations 'cause people don't normally deal so much with heavy equations, so we created an artificial data set by taking a standardized settings account.",
+            "Tech made such a faces.",
+            "And introducing artificial equations and learning allows the ref.",
+            "This time trains on faces and you can see that we're able to detect images even under really high levels of occlusions of almost 2/3 of the object occlusion, and not only are we detecting these faces, we can actually say which part that we're looking at.",
+            "They can say this is the top of the face, the side of the face, and so on.",
+            "So we really understood the object that we're recognizing in a reasonable amount of detail.",
+            "The few similar results on genuine equation."
+        ],
+        [
+            "So now we can scale this up.",
+            "We can add multiple classes, we can give them different numbers of parts as needed so we can cope with things like Sky, which we need one Part 4 buildings.",
+            "Cars throw it all in together and we can many decompose images into all their different component classes even when their Inter occluding.",
+            "So this is great.",
+            "We've now some of the problem that we had with the unsupervised approach.",
+            "We can cope with multiple interacting objects.",
+            "Surely we're done right.",
+            "We just.",
+            "They train this thing on 10,000 classes.",
+            "Let it go.",
+            "Maybe?",
+            "The big problem is that in an image annotation is a real issue.",
+            "So I've spent a lot of time annotating images in various ways, but I can say that it's really boring and it takes a really long time.",
+            "And if you want to train on 10,000 classes, you're going to need first of all to decide what they are and then to find the image set.",
+            "And then you're going to have to label them.",
+            "But there are some amazing efforts going on and to label images on the web like label me or this.",
+            "the Lotus Hill work in China, which is.",
+            "Labeling in great detail.",
+            "Large number of images, but always seemed somehow like stopgaps because there's always anymore classes that you need to recognize and you have labels for.",
+            "For example, if you want to have an automatically driving car, it's no good if a new sort of type of vehicle comes on the road that it crashes into it 'cause it didn't recognize it.",
+            "So we need to be able to.",
+            "Allow for the situation where we don't have annotation."
+        ],
+        [
+            "And this is where we want to go back to the generative approach, which is able to cope with local data.",
+            "But in fact we can combine."
+        ],
+        [
+            "These two approaches in a hybrid method.",
+            "So here we're going to take.",
+            "We are going to Cherry pick the best part of the generative approach.",
+            "Another discriminative approach.",
+            "So we're going to keep the fact that we can apply to unlabeled.",
+            "Or if we want partially labeled data.",
+            "But we're going to keep our discounted model, which is going to allow us to use these handcrafted bottom up features or learn bottom up features.",
+            "I want to merge them together.",
+            "And we're going to have to introduce some sort of hybrid way of combining these models.",
+            "So this is the hybrid approach to understanding images, and there's been a lot of it was really exciting in recent years.",
+            "There's been a lot of work on these kinds of hybrid techniques.",
+            "So we have multi conditional learning which have appeared in in various forms from Andrew and from Bill Triggs where we have multiple conditional models being learned that.",
+            "Simultaneously and we sort of combined linearly, combining their cost functions.",
+            "And then we have is already been mentioned this morning.",
+            "Deep belief networks or to looking like auto encoders a little bit, which again ways of using both generative and discriminative training in one framework and the wake sleep algorithm is a an earlier piece of work by Hinton as well.",
+            "I'm trying to achieve this Fusion of these two types of approaches and also some work come out of the Microsoft Cambridge lab.",
+            "With Julian Assange, Chris Bishop and to make a while I looked at trying to tie together these models by coupling them via prior on the parameters.",
+            "So I think this is a really, really exciting area I would encourage.",
+            "I'd say this is a very very useful direction for for vision researchers coming for machine learning.",
+            "People work to help out vision researchers.",
+            "This is a really key area.",
+            "If we could get some general purpose methods coming out of of hybrid approaches, that's going to be a really poor."
+        ],
+        [
+            "Shuffle tool.",
+            "So I want to just look at a fairly simple hybrid approach that we've worked on.",
+            "And it was really as much to solve an efficiency problem with anything else, but it captures some of the main characteristics of these kinds of approaches, so we're going to take a similar set of variables as before.",
+            "And this time we're going to focus on the modeling, the appearance of objects, and the model in this case."
+        ],
+        [
+            "Is.",
+            "What I call the the jigsaw model and you'll see why in a second.",
+            "So this is joint work with Anita Cannon cost another.",
+            "I mean, idea is really to try and capture the appearance of reccuring things in images in an image set.",
+            "So if we have a set of images which I'm representing schematic Lee here, using my highly advanced artistic skills.",
+            "You'll see that we often have.",
+            "Painted structures in the image, so there's lots of parts of the image that looks similar, and what we'd like to do is learn a jigsaw, which is just going to be another image latent image which contains all the pieces you need to build your images.",
+            "That's jigsaw, so you're going to build your images out.",
+            "Objects or pieces are going to do that by finding all the repeated structures and placing them in one place in the jigsaw.",
+            "So if we continue to do this, we will have imaging so all the pieces you need to build up your training set.",
+            "And one thing about this is that those pieces will tend to have, you know, be somewhat semantically meaningful.",
+            "As we do this, we keep track of which pixel in the jigsaw.",
+            "Is explaining each pixel in the image will do that by storing an offset for each pixel which has the offset from the image into the jigsaw and we call that an offset map.",
+            "And then.",
+            "We will try and make it so that neighboring pixels come in the image come from neighboring pixels in the jigsaw, which means that they have the same offset as they will have regions of constant offset which correspond to entire pieces being pulled out.",
+            "The jigsaw and between those regions will have boundaries and these boundaries will then act as a segmentation of the image.",
+            "So just to."
+        ],
+        [
+            "Explain that again, but this time with some math.",
+            "Which is a probabilistic model, so we have the jigsaw which is capturing the parents of objects in the scene.",
+            "I'm going to offset map which is simultaneously capturing the position, shape and occlusion of the objects.",
+            "And so Jackson itself is just going to be an edge, which has a mean and inverse variance of precision for each jigsaw pixel.",
+            "And to generate the image.",
+            "We just take the jinx or pixel dictated by the offset.",
+            "For the image pixel.",
+            "And then we just sample from a Gaussian with that mean and that precision.",
+            "So it's a very simple method and then the only thing that certainly makes it interesting then is that we put a prior on the offsets.",
+            "As I said to encourage.",
+            "Neighboring offsets to be the same so that neighboring image pixels map to neighboring Jigsaw pixels.",
+            "Image is the cost of the boundary.",
+            "So it's actually quite simple model, but it doesn't very interesting things."
+        ],
+        [
+            "So here we have just a test example reasonably well known dog image.",
+            "And.",
+            "The jigsaw I'm showing you here I want to give you some intuition about how this thing learns.",
+            "So this is the initialization of the jigsaw.",
+            "So I just initialize it to random pixels from the image.",
+            "And then we're going to apply a variation of their methods, exactly the same as we did with the Locust model.",
+            "Except we're also going to apply belief propagation on the offset map.",
+            "And I'm going to show you is 100 iterations of this procedure, so watch carefully.",
+            "So what you can say is it's sort of harvesting out the textures.",
+            "Present in the image and you see examples like you see the pink flower red flower?",
+            "This is corresponding to the top of the dogs head and so on.",
+            "So over smaller iterations of harvested out, all the relevant textures in the image and identified sort of objects like the Flowers.",
+            "If you want it for a bit longer, you can get solutions like this one which have really identified a single red and pink flower, yellow flower and all the other textures necessary to reconstruct this image.",
+            "And we can show that by saying, supposing I actually want to show the reconstruction of the image."
+        ],
+        [
+            "This check, So what does it look like when it looks like that?",
+            "So things to note is now all of the bad and pink Flowers look a bit more like each other than they did in the original image.",
+            "And there's a few sort of artifacts at jigsaw boundaries, but other than that, this is a very reasonable reconstruction, and the segmentation looks like this is an individual.",
+            "Flowers are now sitting in individual jigsaw pieces so we can sort of detected and can count if we wanted to do these Flowers and also that the links or boundaries have tended to align with occlusion boundaries.",
+            "So this is nice.",
+            "We can learn about small objects.",
+            "That's just once again, take our big image that we had in mind and learn a really big jigsaw.",
+            "Love it.",
+            "Well, there's a slight technical problem, which is that we can't.",
+            "The belief propagation that we need to know magic so.",
+            "It's sending messages which are distributions over positions in the jigsaw.",
+            "So if you have 100 by 100, Jigsaw is a 10,000 long vectors and we have one of these for each pixel in our image.",
+            "So we have 10,000 times roughly 10,000, so we're starting to talk about sort of lots of memory being needed to solve these kinds of problems."
+        ],
+        [
+            "So what can we do about this?",
+            "So we can look at the messages being sent in the belief propagation algorithm.",
+            "And so these are messages over discrete checks or locations.",
+            "This is an example.",
+            "This is a likelihood message.",
+            "So suppose you were sending the message for a red pixel.",
+            "What it's going to do is going to have peaks for locations in the Jakes, well that are red or reddish.",
+            "And then it's going to have a small value for all other locations.",
+            "So can we.",
+            "Take advantage of the sparseness of these messages to improve the efficiency of the algorithm.",
+            "Yes, we can, so the technique called beam search where we just keep the largest few peaks of the message and ignore the rest we can."
+        ],
+        [
+            "We go one stage further, which is we can take the largest few peaks of the message and at a uniform distribution.",
+            "Everywhere else, there's actually leads to exactly the same cost of the algorithm, but much better approximation of the approximate message to the original message, particularly in this context where we have a lot of these very similar costs locations.",
+            "It allows you to represent.",
+            "I don't know much better than when you're dressed representing peaks.",
+            "And just this trickle in the simple trick alone allows us to save 60% in the memory and time of our belief propagation algorithm and us tackle and larger jigsaw.",
+            "But if we could somehow further specify our messages then we could achieve a much greater saving in memory and time."
+        ],
+        [
+            "And this is where the hybrid part comes in because.",
+            "If I look at a jigsaw at the image I'm trying to fit to it, if I look at a pixel, there's lots of information in the image about where this pixel will map to in the jigsaw.",
+            "In fact, if I use the familiar check of looking at the Patch around the pixel and it's very very informative to me as to which part of the jigsaw this pixel map too.",
+            "So perhaps we can pick up our decision tree classifier from before and train it to predict based on the Patch where it expects the Pixel will end up being mapped to in a jigsaw.",
+            "So it sounds what we're doing is we have a generative model, which is the check.",
+            "So we have a discriminative model, which is the decision tree which would asking to learn to invert that generative."
+        ],
+        [
+            "Model.",
+            "I'm going to incorporate this into the learning in a very simple way.",
+            "So we're just going to take the generative likelihood I was going to market by any location which has a nonzero prediction by the classifier.",
+            "This is joint work with Julie's Aaron Anita Cannon.",
+            "And so we end up with a hybrid likelihood that looks like this.",
+            "This is going to be much sparser than message than we had previously."
+        ],
+        [
+            "So does it work?",
+            "Going through the work surprisingly well.",
+            "If you look here so I'm pushing quite other things here.",
+            "So this is showing if you try and reduce the amount of memory or increase the speed of the algorithm, it's the same thing.",
+            "How the performance in terms of log prob over 10 test images?",
+            "Varies.",
+            "And this error here shows that how?",
+            "How the performance memory changes as we improve the training about classified by training on bigger training set.",
+            "Now what is that training set?",
+            "Or it's a training set of pre solved generative models?",
+            "So you got a sample from your generative model?",
+            "Or you can rent a supercomputer and find the solution.",
+            "Or you can do some bootstrap techniques which is what we used.",
+            "And so as we increase the size, we can get to the situation where we can get almost as accurate performance as sparse BP or the full method for just 1015% of the resource is."
+        ],
+        [
+            "So we can start to learn some really, really big jigsaws.",
+            "This jigsaws of building images that start to pull out much larger recognisable objects.",
+            "That we can repeatedly find in building images, and we can do some really quite."
+        ],
+        [
+            "Fun and exciting things.",
+            "If we can, then very large Jigsaw's, particularly one small change, which is to announce rather than pixels that neighboring pixels in the image to map neighboring pixels in the jigsaw.",
+            "To say they just have to be near each other in the jigsaw, which allows us to pull out patches and inform them in order to explain the image.",
+            "So we're just putting a truncated quadratic on the.",
+            "Neighboring costs so we can take a video.",
+            "And apply the jigsaw to the frames of the video as if they were independent images so we can permute the frames of the video that the ordering is lost.",
+            "And for this video we get a jigsaw which is sort of unwrapped.",
+            "The faith and this is quite difficult jigsaw.",
+            "There's a moving camera moving background all the rest.",
+            "That videos are moving, camera moving background and so all the appropriate elements of the background appear in the jigsaw and also have this unwrapped face.",
+            "And we still have the generative model.",
+            "One of the things that General Mills is that we can generate from them, and so we can re synthesize the video.",
+            "But we can mess with the jigsaw fare.",
+            "So let's give this guy some more paint.",
+            "And recent research the video.",
+            "So this is a little bit noisy and low resolution.",
+            "Luckily for me we have some fantastic vision and graphics people at Microsoft."
+        ],
+        [
+            "So they then took a very similar model, which they called the unmapped mosaic.",
+            "So this is the guy that taught right now had very well defined generative model and then use the set of discriminative tricks.",
+            "In this case just to find a map solution.",
+            "And I edited the Jason watch carefully.",
+            "Did you see that?",
+            "So you have no, it's just the ultimate you need to use a marker pen to draw mustaches on people anymore.",
+            "You can use this.",
+            "So just let you watch that one more time.",
+            "So we just added Rouge and bushy eyebrows and a mustache.",
+            "Very bad these to the the mosaic reconstructed the video.",
+            "And there we go.",
+            "I said one more of these."
+        ],
+        [
+            "I think it's fantastic.",
+            "This is just a boy walking.",
+            "The changes in 3D you have occlusion.",
+            "You have all these techniques, only effects happening.",
+            "The video makes it very hard video and yet this this model, which 'cause it allows for occlusion because it allows for changes in viewpoint.",
+            "Is able to understand the image and hence able to allow us to manipulate it in very realistic way."
+        ],
+        [
+            "So just to wrap up."
+        ],
+        [
+            "We've seen that as we add more sources of variability into our model, we understand the images more deeply.",
+            "We can manipulate them, we can regenerate them.",
+            "It gives a huge amounts of power to work with images into work with videos.",
+            "They're still open challenges and.",
+            "The obvious one is, well, can we build a model which captures all of these sources of variability?",
+            "If we could, we could do anything with it.",
+            "This would be a computer vision, visual system, not just a vision system.",
+            "Order to do that, I believe we're going to need some sort of hybrid method which is capable of performing accurate inference on this model.",
+            "And also when the age of big data.",
+            "They were really big datasets available for free out there on the web for training these.",
+            "Those train it on all the images we can get hold of the billion images that's only half the photos on Flickr, but let's start small.",
+            "So a billion images.",
+            "Then we can really learn about all the objects that there are to see in the world.",
+            "So I think if we could address all three of these challenges, we made a really big step towards automatic image understanding."
+        ],
+        [
+            "Thank you very much for your attention and thanks to.",
+            "So.",
+            "Yep.",
+            "The jigsaw model.",
+            "Hello, the jigsaw model is really some kind of compression model, isn't it?",
+            "And so I'm wondering what's relationship here and.",
+            "You know, it seems to me maybe this should have been done before, so.",
+            "Yeah, well, I mean any good generative model is also a good compressor.",
+            "If you look at arithmetic coding compression techniques, they work exactly as well as your generative model of an image.",
+            "So if you have a good day to model an image.",
+            "A good example of video compression.",
+            "The jigsaw is because that involves getting really quite deep into the engineering of compression algorithms.",
+            "But yes, any good generative model of an image is also a good compressor of the image.",
+            "100 there are many kinds of much more rich.",
+            "Sorry.",
+            "Open.",
+            "Comments about larger scale of 20.",
+            "OK, so just to repeat the question I just question was his comment.",
+            "Was that the sort of constraints we've seen in these models are still fairly local, low level constraints about neighboring pixels.",
+            "There's not a very high level longer range.",
+            "Constraints available capturing higher level knowledge in the world and where does that fit into this picture?",
+            "Is that fair?",
+            "Fair repeated paraphrasing of the question, and I agree completely.",
+            "I think that envision this concept of low level vision, where we're sort of messing around near the pixels, and there's all this stuff going on up high that we're still completely ignoring, and I think we just have to hold our way up so I almost all vision algorithms at the moment, for example in terms of hierarchy, maybe one or two level hierarchies, and we need to be looking at really deep hierarchies.",
+            "Web deep belief network type models fit in which can actually start to really look at some really subtle abstract, longer range interactions and you start moving from vision type knowledge.",
+            "You know that you have occlusion boundaries and particular appearance and texture into world knowledge that can't sit on roads and people go in cars and that people smile when they're happy or and I think.",
+            "That that's going to be a change in the machine vision community.",
+            "As we move over the next few decades was that we're going to move from the low level image Ng issues into the much higher level world issues in terms of modeling how scenes the setup and what kind of actions people do.",
+            "Because when we use our visions, visual systems, we rarely are interested in the shape of things or the color of things we're interested in.",
+            "What events are going on, what emotion is that person feeling?",
+            "What is happening in this?",
+            "In this situation, and so I think what's going to happen as vision drags itself up from the pixels.",
+            "Then those kinds of modeling those kinds of issues is going to come to the fore.",
+            "When?",
+            "Is this OK?",
+            "I was curious if some of the lower level features, for instance.",
+            "Filling in.",
+            "Only once did strike me the ones that people see triangle with her.",
+            "Around.",
+            "Going on in the shape people are thinking.",
+            "Yeah, so the optical illusion that you're talking about is this sort of false edges appearing for triangles.",
+            "I think they've done some experiments to show that actually you get neurons.",
+            "So you get for real edges.",
+            "I mean from all I can say is that from a generative modeling viewpoint.",
+            "It is much more likely that you would have had a white triangle on a white background then.",
+            "You happen to have, coincidentally, these three circles with with appropriate cuts in them that would line up, and so it's reasonable for your visual system to jump to the conclusion that the actual triangle there.",
+            "In fact, I think that illusion or the fact that that's called an illusion is more to do with the fact that we assume that the edges of objects are actually visible in the image, and the first thing you learn as a vision researchers.",
+            "If you actually look at something that you think you can see clear edges in, and you actually zoom in, they're not actually there, is just an extreme case of that.",
+            "Really, an edge is in an image is not an actual.",
+            "Step in the intensity, but it's a change in the statistics.",
+            "It's going from where you can predict reliably one pixel from the next to where you can't predict the lobby one pixel from the next, and that's kind of what the jigsaw model is.",
+            "Exploiting and why often, even though it has no concept of edges aligning with.",
+            "Intensity jump jumps in intensity.",
+            "It often learns boundaries that also are occlusion boundaries, so that's.",
+            "How I think that ties in.",
+            "OK, before we close the session, we would like to present John with a present from the organizing committee presented by."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, well thank you very much for the introductions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even I think I just need to get miked up for the camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which one it wasn't clear.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it currently on the correct one so it's fine?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, OK. OK, well I was very pleased to see that in the statistics for this year that vision is on the upper ACNL and that's great.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause I think that machine vision and using machine learning to understand the images is really interesting and fascinating problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "I hope in the next hour or so to convince you of this also.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll just give you a quick.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Overview of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to start by really sort of drilling down into why this is an interesting problem and why it's a hard problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Vision is a hard problem in that we can't solve it yet, but those are very nice problem for machine learning in that we can do it, and so we know the answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "As this is an excellent sort of testbed for machine learning algorithms, because you can immediately assess how accurate your results are going to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Contrast this for example, to biology, where no one knows what the answers are, so this is a very nice domain for investigating the performance and really understanding the behavior of machine learning algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's also very interesting and useful application area in itself, so having sort of looked at the domain and looked at the problem we're trying to solve here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to investigate three different approaches for using or developing probabilistic models for analyzing understanding images, and these will be approaches familiar to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Generative, discriminative and hybrid methods and each case I'm going to look at an example I'm trying to illustrate the strengths and weaknesses of each approach and describe it with reference to some work that I've done has been done at Microsoft Research in Cambridge.",
+                    "label": 0
+                },
+                {
+                    "sent": "When I finish with some open challenges to try and sort of get you enthusia stick in where this area is going.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The image is a very very high dimensional measurement of the world, and it's very difficult to understand it because the very large number of sources of variability that lead to those measured pixels that you get from your digital camera or whatever.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first I want to explore what the sources of variability are that lead to an image that you're going to be trying to understand.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first thing that influences those measurements, those pixel measurements is going to be broadly what type of scene are we looking at is an indoor scene as an outdoor scene, and was the geometry of the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where is the camera placed within that scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, we might be looking at a street scene and it might have a ground plane and horizon of this form, and this is going to set the highest level structure of our image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or everything the actual appearance of the scene is going to be dictated by the classes of objects that you see within the scene.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So again, within our streets in context, we would expect to see a a distribution of objects somewhat like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have an outdoor scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "So expect the Sky building Road and the number of objects like trees and cars and people on top of that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "They notice determine which regions of the image these objects are going to affect in terms of our measurements.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to determine the position and orientation of these objects within our scene geometry.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But each each of these objects will influence the set of pixels that determine is determined by the shape of the objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is another source of variability that we need to understand.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we are going to interpret the measurements of these pixels.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we bring in the shapes of the objects, then we get something that starts to look like there are real images, real scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another important aspect of the imaging process, which is often overlooked in models of imaging, is that nearer objects occlude further objects, so this is a very simple statement for us to understand.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's often a very tricky constraint to include in a probabilistic model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I'll look at later.",
+                    "label": 0
+                },
+                {
+                    "sent": "At some ways we can do this, but if we include.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then the depth and occlusions into our representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can see that there's no interaction between the objects present in the scene based on their debt.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now we have something which dictates which of our pixel measurements are going to be influenced by which object.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we need to say how we are going to be influenced by looking at the appearance of each of the objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we can bring in the appearance each object in turn.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're starting to get close now to a complete image, but we have some more subtle effects to take into account.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So objects aren't just a fixed appearance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Their appearance is influenced by the illumination of the scene.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "They also cast shadows on each other so they interact in that way as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we also have shadows in the scene and different illumination and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Only we get through to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very much more subtle effects like motion blur and camera effects.",
+                    "label": 1
+                },
+                {
+                    "sent": "For example, depth of field and focus issues, white balance, saturation, and indeed the resolution at which we're capturing the image in the 1st place.",
+                    "label": 0
+                },
+                {
+                    "sent": "So all of these sources of variability and this is a large number are going to influence the actual pixels that are going to be put into pixel measurements.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're going to put into your machine learning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the goal when of the machine learning algorithm will be to try and unpick the image into some of these sources of variability.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Just waiting for my idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look at the first approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then for doing this, which seems like a very very net.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To approach this is the generative modeling approach, and it says basically that we know how images are formed.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just went through the process of image formation with you.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can do computer graphics, so we know that we have 3D objects in a scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know about light Rays.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know how objects occlude each other, so we can build ourselves a forward model of the process of image generation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So all we need to do that is to select some sources of variability that we're interested in modeling.",
+                    "label": 0
+                },
+                {
+                    "sent": "And design A generative forward model of the image from those latent variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's going to be a joint distribution over the image and the latent variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then even better, we can now apply this to completely unlabeled data to learn the latent variables and to understand the images in this data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "The challenge is going to be that we would need this generative model to be tractable to our inference techniques.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's going to typically lead us to restrict the number of sources of variability that we can actually deal with when we're looking at the images, and this is something that's often skipped over, but I want to really look at what will happen if you do not address a particular source of variability.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or if we want explicitly representing something such as shadows or reflections in our model, then we either need to make sure that we've chosen our data set, or restricted our imaging environment such that this source of variability is gone, for example by fixing that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or we have to hope that some noise or outlier process in our model is going to absorb this variability, because if it doesn't, the inference of other variables in our model is going to be distorted.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will see some examples of this during the during the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we're going to pick out of this massive possible a latent variables if we need to pick a few to start modeling, which ones are we going to pick so?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If you're interested, supposing launched in object recognition.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you might be wondering which keys do I tend to use for object recognition, and if you want to run for Fergus is tutorial ESD, I'm sure you have lots of ideas about this, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's 1 two to go through.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few examples here, so here we have a motorbike and what I can do is just look at different cues.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example we can just look at the color or distribution of the motorbikes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here all I've done is pull random pixels with replacement from the motorbike to get Patch with the same color distribution as the motorbike.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing we can look at is texture.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here I take another and single pixels.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've taken small patches which are representative of the texture of the object and again place them in a square and this is actually the representation that bag of words methods see, so they just see a bag of textures as representing the object.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the other Q that we could look at is to ignore current texture completely and just look at the shape of the object.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we might think ourselves which of these hears is going to be most important for recognition.",
+                    "label": 0
+                },
+                {
+                    "sent": "And, well, this is the interactive part of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is where you get to join in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a way of the human experiment, so you can see which of these cues is important.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I have an object.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm going to give you each Q in turn.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want you to shout out when you recognize what the object is.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's already on a Sunday morning, but you know this is to wake you up.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that's the kind of distribution, any guesses?",
+                    "label": 0
+                },
+                {
+                    "sent": "Fire.",
+                    "label": 0
+                },
+                {
+                    "sent": "Worlds right yet have it now.",
+                    "label": 0
+                },
+                {
+                    "sent": "A car OK car OK. Maybe you can get in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, yeah, that's that's my car.",
+                    "label": 0
+                },
+                {
+                    "sent": "I wish.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let's try another one.",
+                    "label": 0
+                },
+                {
+                    "sent": "How about now?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's lame.",
+                    "label": 0
+                },
+                {
+                    "sent": "What?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, one more.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "Office cleaner.",
+                    "label": 0
+                },
+                {
+                    "sent": "Winner.",
+                    "label": 0
+                },
+                {
+                    "sent": "Different bed.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so hopefully this exercise was to say that yeah bag of bag of textures is good but shape is better.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we really do very strongly associate.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Objectclass I don't see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "With with shape and so to start off with, I'd like to then look at a generative model which tries to learn the shape of a particular class of objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "So following the procedure I laid out earlier, we pull out our list of potential latent variables for our generative model, and we're going to pick some that we're going to include.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So these are the ones that we're going to include in this model with a particular emphasis on the shape, as you'll see in a moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that means I either have to fix or ignore the remaining ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "So OK, so we'll fix.",
+                    "label": 0
+                },
+                {
+                    "sent": "These variables are going to say we're going to restrict the seems to be a scene of single object in it with a fixed geometry will fix the object class, so there is choosing a particular class of objects when they fix the orientation of the object.",
+                    "label": 0
+                },
+                {
+                    "sent": "And because there's only one object, there's going to be no equations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to say I'm going to ignore shadows, motion blur in camera effects.",
+                    "label": 1
+                },
+                {
+                    "sent": "And these are relatively small effects, so you might think, well, I'm going to get away with this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Keep my fingers crossed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what data set then does this allow us to work on?",
+                    "label": 0
+                },
+                {
+                    "sent": "This kind of data set so this data set where you have an object we don't think from the position, but we are fixing the viewpoint, so we're seeing all of the cars from the from the rear.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm a things all have very similar structure.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is the model we're going to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's called locus for learning object classes with unsupervised segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is work with Napoleonic ICC V 05.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll just go through and explain what's going on here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're what the images show here, what the various pictures show is a learned result.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I'll explain how each of these variables influences the image, and we can then look at the inference procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's nothing in the main thing that we're aiming to learn in this model is a class shape.",
+                    "label": 0
+                },
+                {
+                    "sent": "Model is going to represent the shape and the variability in shape within a particular class of objects, such as faces here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is just a an image of probabilities, Pi, which says that if I place the object in the center of this image, what's the probability that each pixel will belong to the object?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is going to be shared amongst the set of images that we're going to train the model on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then for each of the images in our set, we need to estimate the position of the object in that scene and we're just going to discretize this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to have a set of positions that were going to search over.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to be learning a binary mask which says for each image and for each pixel if it belongs to the object.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is going to segment out the object in each of our images.",
+                    "label": 0
+                },
+                {
+                    "sent": "An interesting Lee.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rather than running with some sort of global class model class appearance model, we're going to actually just forget about letting any sort of appearance model at the class level and just let him at the image level so we can say that for each image, the object and background appearance, again remodeled by printable color histograms in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is going to ask to represent both the appearance and the illumination of the foreground and background in each image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're not making any assumptions of the object having a similar appearance or the background having a similar appearance from one image to the next.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look and see how this model behaves when we apply it to a set of real images.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Image set along the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here and all the other variables are initialized to some sensible initialization, so the masks for machine the mean of the masks and the mean of the posterior over the the shape.",
+                    "label": 0
+                },
+                {
+                    "sent": "And explain what this great box is in a minute.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to initialize these things in sensible ways, but this is just saying that I have priority.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or rather, I will initialize my.",
+                    "label": 0
+                },
+                {
+                    "sent": "Distribution to have a slightly higher preference for foreground in the middle and for background of the edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to apply a variational form of expectation maximization.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to be iterating between updating our posteriors over each of the variables in our model, so we start off updating the color histograms for the foreground and background, and then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The masks the shape masks for the very first thing we do is update the shape mask and here I'm giving an indication of the posterior belief for the shape masks after half an iteration because we haven't yet updated all of the variables, so a brighter white indicates greater confidence of object.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this stage we're still segmenting, as it were, each of the images separately, but this is happening through a standard inference algorithm applied to our model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Then based on the blobby class shape prior within a distribution over the positions that we expect, the object appear indicating that distribution by placing the class shape prior at that position or the expected position.",
+                    "label": 0
+                },
+                {
+                    "sent": "Phone and you can imagine that we then sort of averaging together these segmentations.",
+                    "label": 0
+                },
+                {
+                    "sent": "To get our overall class prior shape prior, which is this not vaguely blobby thing, but you can start to see that the shape of the car is emerging as we do this code segmentation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can we repeat the exercise, but now we're one iteration further on, and because we are sharing this, this class shape representation amongst all the images, what we're trying to do is segment each of the images in turn to make it look more like this shape.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very simple, it's just probability of being programmed at each pixel in the image, so it's very, very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "So thinking of it as the average of all of these is not far.",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually put a prior over each pixel and then a posterior distribution, 'cause we're doing a full variational Bayes approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I'm just showing the expected value under that distribution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we continue to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The further iterations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "About variational.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "PM they were after about 12 iterations and so we converge.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we've converged to is a fairly tight distribution over the shape, position and overall class shape for this class of objects.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this is a very nice result because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Despite the fact that there's no.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very unsupervised exercise.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have segmented out each of the cars with a high degree of accuracy and we've learned a sort of car from the rear shape model.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's interesting here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Just say that here the shape is distorted somewhat by the shadow.",
+                    "label": 0
+                },
+                {
+                    "sent": "The segmentations being pulled out of place by the shadow.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an example of what I was talking about earlier which is if you have an effect and you're not modeling it, it's going to distort your inference of other aspects of the imaging process.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can extend this model slightly and are not just the position of the each object to be learned, but also opposed by incorporating a deformation into the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now we can also cope with nonrigid objects like horses.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we can take this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Hello Anna plant 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "A large number of horse images and we get this kind of segmentation and this kind of model of what a horse looks like up here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So people have looked at this data, set this device and horse data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I've trained supervised methods which have been given access to 10s of hand segmented horses.",
+                    "label": 0
+                },
+                {
+                    "sent": "And train the supervised methods to segment out horses, and one surprising is with this fairly simple unsupervised model we can get accuracies which are very, very close.",
+                    "label": 0
+                },
+                {
+                    "sent": "These supervised methods again accuracy of 93% compared to 94 and 95% of supervised methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "To give you some idea, if you just say background you get 70%, so this is on a scale of 7200.",
+                    "label": 0
+                },
+                {
+                    "sent": "The big mistakes come from where our modeling assumptions are violated.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we look for example at this image here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You'll see that the original image the saddle was including the horse, and we're not modeling that occlusion, and so it distorts our assumptions of the position and shape of the horse.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, in this image, the horses viewpoint is not fixed up to be sideways.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's some 45 degrees.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And again, that leads to failure in terms of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Accurate segmentation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can apply exactly the same method too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bunches of images of different classes, and this is really quick to do because it doesn't require any hand segmentation, and so we can just apply it in this case to 20 images of faces, cars, motorbikes, planes, cows and trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in each case, the shape that you get out is very characteristic and very representative of that class of objects, and some of them you get some quite accurate segmentation for this sort of typical segmentations was perhaps surprising is that trees will show a very large variability in shape.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yet we don't have somewhat convincing shape model, and they're able to cope with even quite big.",
+                    "label": 0
+                },
+                {
+                    "sent": "Deviations from that mean shape.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is very exciting.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have just taken 20 images given them, no labels throwing them.",
+                    "label": 0
+                },
+                {
+                    "sent": "This algorithm applied a standard variational Bayes technique and we've emerged learning about the shapes of objects and we've segmented the objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you understood the shape of the object in the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I just keep going?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I build a more complex, more realistic generative model of images apply to bigger and bigger sets of images and you know everything will just magically work and the sad answer is.",
+                    "label": 0
+                },
+                {
+                    "sent": "That it doesn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is because the techniques the inference techniques such as variationally EM or variational Bayes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Breakdown 'cause they rely on a good initialization as you increase the size of your latent space as you increase the number of latent variables that you're trying to represent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the chances of getting caught in a local minimum go up and up and up and up.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we have multiple objects, multiple classes, they get small.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a cluttered background in the scene and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "It becomes much, much more difficult to infer and decompose the scene into these latent variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this brings me to describe another approach and this is 1, which is really the dominant approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would say in the machine vision community at the moment, which is to try and look at the image and design features of the image which are likely to be either invariant to latent variables that we're not interested in, or strongly indicative of latent variables that we are interested in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this is therefore going to be a discriminative approach.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So in a discriminative approach we again select some sources of variability, but this time they're going to be target variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we are trying to discriminative model a classifier to predict these target variables given the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we no longer have to model the density of images.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can include all sorts of fancy and hand coded in hand designed features of the image that we think will be really useful for predicting these target variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the downside is that we now have to annotate these variables on a data set in order to learn this model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once again, we have to be really careful for all the source availability that we're not explicitly representing our model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, we can fix them, but we don't really want to do that 'cause we won't be able to deal with this larger class of images as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we have another choice, which is we're able to train our classifier to be invariant to certain things.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have a training set that thoroughly explores all of these other sources of variability, however.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there's a lot of them in, if there's a lot of things that were not explicitly modeling occlusion, illumination and so forth, then this training set is going to start to be combinatorially big in order to explore the interaction of all of these unexplained variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, that's likely to very quickly grow in size beyond what you can reasonably handle.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's take an example of this discriminative approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we will take the same variables as we had before, but now we're going to extend to multiple objects.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And crucially, we're going to be looking at another.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can handle both in showing the depth, ordering, and exclusion of objects within a scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that means we now handling multiple objects in the scene and everything else is going to be fixed.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to our couple of orientations this time.",
+                    "label": 1
+                },
+                {
+                    "sent": "And sort of images that were going to apply a discriminative Model 2 if that is open that UIUC car date set, which is a standard data set used to assess how good you are at detecting car emit cars in images or objects and images in general.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we need to annotate our images somehow.",
+                    "label": 0
+                },
+                {
+                    "sent": "And how is that going to happen?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a car in the training set and what I'm going to do, and then it's going to take the bounding box for that car and divide it into a regular grid of a spare hand specified size.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so that any side, each square of that grid is something I'm going to call apart.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this isn't a semantic part, like a wheel.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a part defined by its coordinate position on the Canonical car.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we're going to give each of the pixels in each cell apart label, which is going to be different period to sell.",
+                    "label": 0
+                },
+                {
+                    "sent": "So color coded them like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you have to be a little bit careful 'cause neighboring parts have similar colors, but you'll see that actually is quite useful for visualizing.",
+                    "label": 0
+                },
+                {
+                    "sent": "As you go.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also need a label for pixels that don't belong to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Ours, and so we have a background label.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is our appearance model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because it's a discriminative model, the arrows are pointing upwards from the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we are going to try and join training.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to present an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the labels and or meant to learn some sort of classifier which is going to capture the appearance of each part.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the image and the part map is going to represent the shape and position of the car.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the way we're going to train our classifier is we're going to look at a Patch that we're interested in classifying this pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here, we're going to Patch around the Pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "When will China classifier to predict the part labeled corresponding to that pixel?",
+                    "label": 0
+                },
+                {
+                    "sent": "So distribution over our part map is independent for each pixel that is the product of the classifier's prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "For each individual part, given the image and the classifier parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have a choice of what classifier we're going to use.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And one classifier that is particularly nice to use for images.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the decision tree or if you have multiple of them, the random forest classifier?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, just explain it's very simple classifier, explain how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you take your image Patch.",
+                    "label": 0
+                },
+                {
+                    "sent": "He placed it at the top of the tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And each tree is a test of binary test and this application we're just going to look at two pixels in the Patch and compare them.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if one of them is great, we're going to get on the left hand side, and if the other one is great, so we're going to get on the right hand side, but it is all the way down till we get to the leaf of the tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the leaves will record just the proportions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of patches of each part label that reached that leaf.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then at tax time we can do exactly the same thing and then these become our predictions for the Part label.",
+                    "label": 1
+                },
+                {
+                    "sent": "The rainforest classifiers are very nice 'cause they're extremely fast.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's a couple of bits of work that we've done at Microsoft Cambridge with Antonio Community, Thomas, Danny and anchor anchor Val just showing what sort of fun you can have if you have a really, really fast classifier, so this can things can frame rate so the left hand side.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have real time object recognition, so we have objects being placed under the camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "That being segmented out in a fairly simple way.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then using a random forest and nearest neighbor approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're able to recognize them with a reasonably high degree of accuracy, around 95% accuracy on about 15 object classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these things are a lot of fun to play with because we can then train them rather than on office objects like staplers and pens.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can also train them on hand gestures, so over here I'm controlling.",
+                    "label": 0
+                },
+                {
+                    "sent": "Windows, Needless to say.",
+                    "label": 0
+                },
+                {
+                    "sent": "The variety of hand gestures and the behavior of the application is going to vary depending on which gesture I use so I can bring up the keyboard like it so or if we just wait for the video to come around again.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can also bring an object for the camera, pull the pictures off the camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "Move the window around.",
+                    "label": 0
+                },
+                {
+                    "sent": "Select an image selection.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And my personal favorite is that you just bash them to get rid of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is just to show that a big part of the tackling vision is that you also have a million variables to deal with and we need to be able to process them very quickly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's suppose that we take a test image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we apply our random forest classifier to the test image.",
+                    "label": 1
+                },
+                {
+                    "sent": "Are we magically going to see the cars leap out at a well?",
+                    "label": 0
+                },
+                {
+                    "sent": "Sadly, the answer is no.",
+                    "label": 0
+                },
+                {
+                    "sent": "You see, is something more like this, so I've tried to represent the posterior over all these parts by averaging together the colors in the weights that they were assigned in the posterior.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so you can see you just get something that's very noisy.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's clearly something useful going on here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can start to see the rainbow color of a car appearing, but we also get a lot of stereo mass over car parts placed in the background and places where the cars actually aren't.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is because if you just look at a Patch, it's often very ambiguous as to whether you're looking at a car or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are parts of the car which are untextured, typically in the middle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here the back wheel looks kind of like the front wheel, and there are lots of things in a cluttered background that look like bits of cars.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the problem is that we've zoomed in too close and we must really want to have found apart.",
+                    "label": 0
+                },
+                {
+                    "sent": "We wanted to be in the right configuration with respect to.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the other parts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, if you add Rob Fergus is tutorial in solution to this, which is the constellation model which says, OK, well I need to have my part laid out exactly as they should be.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there was a car there, so I'm just going to find this kind of template over my partner until I get a strong response, and I have all the parts in roughly the right positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you can do that in ways that allows the variability in in the shape of cars.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem with that is that I said we wanted to handle occlusion.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here is an included car and many of the parts are not even visible.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can also have worse situations.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have cars half parked in garages or part behind other cars, and so there's any half of the car or left visible.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's not going to meet the criterion that all the parts nicely set where you expect them to be, because there's going to be other things in the way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how can we apply some sort of part layout constraint?",
+                    "label": 0
+                },
+                {
+                    "sent": "Without requiring that we can see the whole car.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is where the concept of lower consistency comes in.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is joint work with Jamie Shotton.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the idea is that even if I can't see all the car, I can at least say that the parts appear next to each other in the right order.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that grid that we initially as.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So if I take for example, this part of the car and zoom in, and I've added the cell coordinates of each of the labels so that you can see where they came from in the original grid.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, supposing I say I'm looking at a particular pixel, and I know that it has labeled PQ.",
+                    "label": 0
+                },
+                {
+                    "sent": "I cannot find out what are the valid labels for the neighboring pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "So parts are bigger than one pixel wide, so the most likely thing is that it's just going to be the same label.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But occasionally will get to the boundary of part and will go to the next Labour long.",
+                    "label": 0
+                },
+                {
+                    "sent": "So P + 1 Q.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we also want to have a little bit of flexibility in the system to cope with if the car is parked on a slope or to cope with intraclass variability in appearance.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to also allow.",
+                    "label": 0
+                },
+                {
+                    "sent": "To make to the label below or label above.",
+                    "label": 0
+                },
+                {
+                    "sent": "The miracle this set of neighboring part labels layout consistent, consistent with the global layout, but without making any constraints that are global.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And we can provide a similar set of layout consistent labels for a vertical pair of pixel.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So how can I incorporate this layout consistency into my model?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, now, rather than treating each of the part labels as independent, I meant to use a very common structure, envision an introduce grid.",
+                    "label": 0
+                },
+                {
+                    "sent": "The dependency structure onto the part labels and extend my set of individual classifiers into a conditional random field.",
+                    "label": 0
+                },
+                {
+                    "sent": "By adding an interaction terms.",
+                    "label": 0
+                },
+                {
+                    "sent": "Between each of the neighboring edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean to set up this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now consistency interaction term to encourage labelings that are consistent.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to have a penalty of 0 if they're consistent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Layout consistent.",
+                    "label": 0
+                },
+                {
+                    "sent": "A high penalty for inconsistent.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also need to have a apparently for a cost.",
+                    "label": 0
+                },
+                {
+                    "sent": "For background they bring to background.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing this model can do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't really have time to go into into much detail is it can detect whether there's an occluding edge in front of or behind the object.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that is encouraged to be at edges in the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you want to read more about that, you have to look at the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what we can do is just look at some results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this was the output of the raw classifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then if we apply the layout consistency constraint, what we get is this.",
+                    "label": 1
+                },
+                {
+                    "sent": "So by requiring that all parts are have appropriate neighbors, suddenly the cars are being pulled out of the noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can just look at layout consistent regions within this labeling.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we've.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now identified separate cars.",
+                    "label": 0
+                },
+                {
+                    "sent": "So even if these were touching or Inter occluding cars would be able to identify them as separate because we're looking for regions which are layout consistent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it has given us the segmentation of the cars in the original.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_51": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we look, then at some a wider set of results.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are then results across the UAC car database.",
+                    "label": 0
+                },
+                {
+                    "sent": "We got some very competitive detection accuracies.",
+                    "label": 0
+                },
+                {
+                    "sent": "96 point recoil 90% precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the things that we do suffer from a little bit is that we can detect included cars, and if you start seeing included cars you see a lot more cars than this data set was designed for that was designed to take are included cars, and so we have to automatically remove when we were doing these results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of the included cars that we found based on how much was visible, but it's a shame that we can sort of see when there's an occlusion of the car that it exists and we can produce the right segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here is the example of an error where we found something that we said was a car.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, this would involve the car being included by this car and by the edge of the image, and it's kind of convincing.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could imagine that thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "A car, even though it isn't.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The segmentation accuracy is also reasonably high as well so that they'd set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately doesn't have lots of equations 'cause people don't normally deal so much with heavy equations, so we created an artificial data set by taking a standardized settings account.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tech made such a faces.",
+                    "label": 0
+                },
+                {
+                    "sent": "And introducing artificial equations and learning allows the ref.",
+                    "label": 0
+                },
+                {
+                    "sent": "This time trains on faces and you can see that we're able to detect images even under really high levels of occlusions of almost 2/3 of the object occlusion, and not only are we detecting these faces, we can actually say which part that we're looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "They can say this is the top of the face, the side of the face, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we really understood the object that we're recognizing in a reasonable amount of detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "The few similar results on genuine equation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now we can scale this up.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can add multiple classes, we can give them different numbers of parts as needed so we can cope with things like Sky, which we need one Part 4 buildings.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cars throw it all in together and we can many decompose images into all their different component classes even when their Inter occluding.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is great.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've now some of the problem that we had with the unsupervised approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can cope with multiple interacting objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "Surely we're done right.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just.",
+                    "label": 0
+                },
+                {
+                    "sent": "They train this thing on 10,000 classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let it go.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe?",
+                    "label": 0
+                },
+                {
+                    "sent": "The big problem is that in an image annotation is a real issue.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I've spent a lot of time annotating images in various ways, but I can say that it's really boring and it takes a really long time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you want to train on 10,000 classes, you're going to need first of all to decide what they are and then to find the image set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you're going to have to label them.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there are some amazing efforts going on and to label images on the web like label me or this.",
+                    "label": 0
+                },
+                {
+                    "sent": "the Lotus Hill work in China, which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Labeling in great detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "Large number of images, but always seemed somehow like stopgaps because there's always anymore classes that you need to recognize and you have labels for.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, if you want to have an automatically driving car, it's no good if a new sort of type of vehicle comes on the road that it crashes into it 'cause it didn't recognize it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need to be able to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Allow for the situation where we don't have annotation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_54": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this is where we want to go back to the generative approach, which is able to cope with local data.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in fact we can combine.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_55": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "These two approaches in a hybrid method.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we're going to take.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are going to Cherry pick the best part of the generative approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another discriminative approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to keep the fact that we can apply to unlabeled.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or if we want partially labeled data.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're going to keep our discounted model, which is going to allow us to use these handcrafted bottom up features or learn bottom up features.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to merge them together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're going to have to introduce some sort of hybrid way of combining these models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the hybrid approach to understanding images, and there's been a lot of it was really exciting in recent years.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's been a lot of work on these kinds of hybrid techniques.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have multi conditional learning which have appeared in in various forms from Andrew and from Bill Triggs where we have multiple conditional models being learned that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Simultaneously and we sort of combined linearly, combining their cost functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have is already been mentioned this morning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Deep belief networks or to looking like auto encoders a little bit, which again ways of using both generative and discriminative training in one framework and the wake sleep algorithm is a an earlier piece of work by Hinton as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm trying to achieve this Fusion of these two types of approaches and also some work come out of the Microsoft Cambridge lab.",
+                    "label": 0
+                },
+                {
+                    "sent": "With Julian Assange, Chris Bishop and to make a while I looked at trying to tie together these models by coupling them via prior on the parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think this is a really, really exciting area I would encourage.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd say this is a very very useful direction for for vision researchers coming for machine learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "People work to help out vision researchers.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a really key area.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we could get some general purpose methods coming out of of hybrid approaches, that's going to be a really poor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Shuffle tool.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I want to just look at a fairly simple hybrid approach that we've worked on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it was really as much to solve an efficiency problem with anything else, but it captures some of the main characteristics of these kinds of approaches, so we're going to take a similar set of variables as before.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this time we're going to focus on the modeling, the appearance of objects, and the model in this case.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_57": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I call the the jigsaw model and you'll see why in a second.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is joint work with Anita Cannon cost another.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, idea is really to try and capture the appearance of reccuring things in images in an image set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we have a set of images which I'm representing schematic Lee here, using my highly advanced artistic skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll see that we often have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Painted structures in the image, so there's lots of parts of the image that looks similar, and what we'd like to do is learn a jigsaw, which is just going to be another image latent image which contains all the pieces you need to build your images.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's jigsaw, so you're going to build your images out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Objects or pieces are going to do that by finding all the repeated structures and placing them in one place in the jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we continue to do this, we will have imaging so all the pieces you need to build up your training set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And one thing about this is that those pieces will tend to have, you know, be somewhat semantically meaningful.",
+                    "label": 0
+                },
+                {
+                    "sent": "As we do this, we keep track of which pixel in the jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is explaining each pixel in the image will do that by storing an offset for each pixel which has the offset from the image into the jigsaw and we call that an offset map.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then.",
+                    "label": 0
+                },
+                {
+                    "sent": "We will try and make it so that neighboring pixels come in the image come from neighboring pixels in the jigsaw, which means that they have the same offset as they will have regions of constant offset which correspond to entire pieces being pulled out.",
+                    "label": 0
+                },
+                {
+                    "sent": "The jigsaw and between those regions will have boundaries and these boundaries will then act as a segmentation of the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_58": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Explain that again, but this time with some math.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is a probabilistic model, so we have the jigsaw which is capturing the parents of objects in the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to offset map which is simultaneously capturing the position, shape and occlusion of the objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so Jackson itself is just going to be an edge, which has a mean and inverse variance of precision for each jigsaw pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to generate the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just take the jinx or pixel dictated by the offset.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the image pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we just sample from a Gaussian with that mean and that precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a very simple method and then the only thing that certainly makes it interesting then is that we put a prior on the offsets.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said to encourage.",
+                    "label": 0
+                },
+                {
+                    "sent": "Neighboring offsets to be the same so that neighboring image pixels map to neighboring Jigsaw pixels.",
+                    "label": 0
+                },
+                {
+                    "sent": "Image is the cost of the boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's actually quite simple model, but it doesn't very interesting things.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_59": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here we have just a test example reasonably well known dog image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "The jigsaw I'm showing you here I want to give you some intuition about how this thing learns.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the initialization of the jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I just initialize it to random pixels from the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to apply a variation of their methods, exactly the same as we did with the Locust model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Except we're also going to apply belief propagation on the offset map.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm going to show you is 100 iterations of this procedure, so watch carefully.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you can say is it's sort of harvesting out the textures.",
+                    "label": 0
+                },
+                {
+                    "sent": "Present in the image and you see examples like you see the pink flower red flower?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is corresponding to the top of the dogs head and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So over smaller iterations of harvested out, all the relevant textures in the image and identified sort of objects like the Flowers.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want it for a bit longer, you can get solutions like this one which have really identified a single red and pink flower, yellow flower and all the other textures necessary to reconstruct this image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can show that by saying, supposing I actually want to show the reconstruction of the image.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_60": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This check, So what does it look like when it looks like that?",
+                    "label": 0
+                },
+                {
+                    "sent": "So things to note is now all of the bad and pink Flowers look a bit more like each other than they did in the original image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's a few sort of artifacts at jigsaw boundaries, but other than that, this is a very reasonable reconstruction, and the segmentation looks like this is an individual.",
+                    "label": 0
+                },
+                {
+                    "sent": "Flowers are now sitting in individual jigsaw pieces so we can sort of detected and can count if we wanted to do these Flowers and also that the links or boundaries have tended to align with occlusion boundaries.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can learn about small objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's just once again, take our big image that we had in mind and learn a really big jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "Love it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, there's a slight technical problem, which is that we can't.",
+                    "label": 0
+                },
+                {
+                    "sent": "The belief propagation that we need to know magic so.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's sending messages which are distributions over positions in the jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have 100 by 100, Jigsaw is a 10,000 long vectors and we have one of these for each pixel in our image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have 10,000 times roughly 10,000, so we're starting to talk about sort of lots of memory being needed to solve these kinds of problems.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_61": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what can we do about this?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we can look at the messages being sent in the belief propagation algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so these are messages over discrete checks or locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a likelihood message.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose you were sending the message for a red pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "What it's going to do is going to have peaks for locations in the Jakes, well that are red or reddish.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it's going to have a small value for all other locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So can we.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take advantage of the sparseness of these messages to improve the efficiency of the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, we can, so the technique called beam search where we just keep the largest few peaks of the message and ignore the rest we can.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_62": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We go one stage further, which is we can take the largest few peaks of the message and at a uniform distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everywhere else, there's actually leads to exactly the same cost of the algorithm, but much better approximation of the approximate message to the original message, particularly in this context where we have a lot of these very similar costs locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "It allows you to represent.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know much better than when you're dressed representing peaks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And just this trickle in the simple trick alone allows us to save 60% in the memory and time of our belief propagation algorithm and us tackle and larger jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if we could somehow further specify our messages then we could achieve a much greater saving in memory and time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_63": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this is where the hybrid part comes in because.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I look at a jigsaw at the image I'm trying to fit to it, if I look at a pixel, there's lots of information in the image about where this pixel will map to in the jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, if I use the familiar check of looking at the Patch around the pixel and it's very very informative to me as to which part of the jigsaw this pixel map too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So perhaps we can pick up our decision tree classifier from before and train it to predict based on the Patch where it expects the Pixel will end up being mapped to in a jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it sounds what we're doing is we have a generative model, which is the check.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have a discriminative model, which is the decision tree which would asking to learn to invert that generative.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_64": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Model.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to incorporate this into the learning in a very simple way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're just going to take the generative likelihood I was going to market by any location which has a nonzero prediction by the classifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is joint work with Julie's Aaron Anita Cannon.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we end up with a hybrid likelihood that looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is going to be much sparser than message than we had previously.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_65": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So does it work?",
+                    "label": 0
+                },
+                {
+                    "sent": "Going through the work surprisingly well.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look here so I'm pushing quite other things here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is showing if you try and reduce the amount of memory or increase the speed of the algorithm, it's the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "How the performance in terms of log prob over 10 test images?",
+                    "label": 0
+                },
+                {
+                    "sent": "Varies.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this error here shows that how?",
+                    "label": 0
+                },
+                {
+                    "sent": "How the performance memory changes as we improve the training about classified by training on bigger training set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what is that training set?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or it's a training set of pre solved generative models?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you got a sample from your generative model?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you can rent a supercomputer and find the solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you can do some bootstrap techniques which is what we used.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so as we increase the size, we can get to the situation where we can get almost as accurate performance as sparse BP or the full method for just 1015% of the resource is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_66": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can start to learn some really, really big jigsaws.",
+                    "label": 0
+                },
+                {
+                    "sent": "This jigsaws of building images that start to pull out much larger recognisable objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "That we can repeatedly find in building images, and we can do some really quite.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_67": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Fun and exciting things.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we can, then very large Jigsaw's, particularly one small change, which is to announce rather than pixels that neighboring pixels in the image to map neighboring pixels in the jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "To say they just have to be near each other in the jigsaw, which allows us to pull out patches and inform them in order to explain the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're just putting a truncated quadratic on the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Neighboring costs so we can take a video.",
+                    "label": 0
+                },
+                {
+                    "sent": "And apply the jigsaw to the frames of the video as if they were independent images so we can permute the frames of the video that the ordering is lost.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for this video we get a jigsaw which is sort of unwrapped.",
+                    "label": 0
+                },
+                {
+                    "sent": "The faith and this is quite difficult jigsaw.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a moving camera moving background all the rest.",
+                    "label": 0
+                },
+                {
+                    "sent": "That videos are moving, camera moving background and so all the appropriate elements of the background appear in the jigsaw and also have this unwrapped face.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we still have the generative model.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the things that General Mills is that we can generate from them, and so we can re synthesize the video.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we can mess with the jigsaw fare.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's give this guy some more paint.",
+                    "label": 0
+                },
+                {
+                    "sent": "And recent research the video.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a little bit noisy and low resolution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Luckily for me we have some fantastic vision and graphics people at Microsoft.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_68": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So they then took a very similar model, which they called the unmapped mosaic.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the guy that taught right now had very well defined generative model and then use the set of discriminative tricks.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case just to find a map solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I edited the Jason watch carefully.",
+                    "label": 0
+                },
+                {
+                    "sent": "Did you see that?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you have no, it's just the ultimate you need to use a marker pen to draw mustaches on people anymore.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can use this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just let you watch that one more time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we just added Rouge and bushy eyebrows and a mustache.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very bad these to the the mosaic reconstructed the video.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there we go.",
+                    "label": 0
+                },
+                {
+                    "sent": "I said one more of these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_69": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I think it's fantastic.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just a boy walking.",
+                    "label": 0
+                },
+                {
+                    "sent": "The changes in 3D you have occlusion.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have all these techniques, only effects happening.",
+                    "label": 0
+                },
+                {
+                    "sent": "The video makes it very hard video and yet this this model, which 'cause it allows for occlusion because it allows for changes in viewpoint.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is able to understand the image and hence able to allow us to manipulate it in very realistic way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_70": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So just to wrap up.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_71": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We've seen that as we add more sources of variability into our model, we understand the images more deeply.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can manipulate them, we can regenerate them.",
+                    "label": 0
+                },
+                {
+                    "sent": "It gives a huge amounts of power to work with images into work with videos.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're still open challenges and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The obvious one is, well, can we build a model which captures all of these sources of variability?",
+                    "label": 0
+                },
+                {
+                    "sent": "If we could, we could do anything with it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This would be a computer vision, visual system, not just a vision system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Order to do that, I believe we're going to need some sort of hybrid method which is capable of performing accurate inference on this model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also when the age of big data.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were really big datasets available for free out there on the web for training these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those train it on all the images we can get hold of the billion images that's only half the photos on Flickr, but let's start small.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a billion images.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can really learn about all the objects that there are to see in the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think if we could address all three of these challenges, we made a really big step towards automatic image understanding.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_72": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thank you very much for your attention and thanks to.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "The jigsaw model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hello, the jigsaw model is really some kind of compression model, isn't it?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so I'm wondering what's relationship here and.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, it seems to me maybe this should have been done before, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, well, I mean any good generative model is also a good compressor.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at arithmetic coding compression techniques, they work exactly as well as your generative model of an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have a good day to model an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "A good example of video compression.",
+                    "label": 0
+                },
+                {
+                    "sent": "The jigsaw is because that involves getting really quite deep into the engineering of compression algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yes, any good generative model of an image is also a good compressor of the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "100 there are many kinds of much more rich.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "Open.",
+                    "label": 0
+                },
+                {
+                    "sent": "Comments about larger scale of 20.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so just to repeat the question I just question was his comment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Was that the sort of constraints we've seen in these models are still fairly local, low level constraints about neighboring pixels.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's not a very high level longer range.",
+                    "label": 0
+                },
+                {
+                    "sent": "Constraints available capturing higher level knowledge in the world and where does that fit into this picture?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that fair?",
+                    "label": 0
+                },
+                {
+                    "sent": "Fair repeated paraphrasing of the question, and I agree completely.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that envision this concept of low level vision, where we're sort of messing around near the pixels, and there's all this stuff going on up high that we're still completely ignoring, and I think we just have to hold our way up so I almost all vision algorithms at the moment, for example in terms of hierarchy, maybe one or two level hierarchies, and we need to be looking at really deep hierarchies.",
+                    "label": 0
+                },
+                {
+                    "sent": "Web deep belief network type models fit in which can actually start to really look at some really subtle abstract, longer range interactions and you start moving from vision type knowledge.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know that you have occlusion boundaries and particular appearance and texture into world knowledge that can't sit on roads and people go in cars and that people smile when they're happy or and I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "That that's going to be a change in the machine vision community.",
+                    "label": 0
+                },
+                {
+                    "sent": "As we move over the next few decades was that we're going to move from the low level image Ng issues into the much higher level world issues in terms of modeling how scenes the setup and what kind of actions people do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because when we use our visions, visual systems, we rarely are interested in the shape of things or the color of things we're interested in.",
+                    "label": 0
+                },
+                {
+                    "sent": "What events are going on, what emotion is that person feeling?",
+                    "label": 0
+                },
+                {
+                    "sent": "What is happening in this?",
+                    "label": 0
+                },
+                {
+                    "sent": "In this situation, and so I think what's going to happen as vision drags itself up from the pixels.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then those kinds of modeling those kinds of issues is going to come to the fore.",
+                    "label": 0
+                },
+                {
+                    "sent": "When?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is this OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "I was curious if some of the lower level features, for instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Filling in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only once did strike me the ones that people see triangle with her.",
+                    "label": 0
+                },
+                {
+                    "sent": "Around.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going on in the shape people are thinking.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so the optical illusion that you're talking about is this sort of false edges appearing for triangles.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think they've done some experiments to show that actually you get neurons.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you get for real edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean from all I can say is that from a generative modeling viewpoint.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is much more likely that you would have had a white triangle on a white background then.",
+                    "label": 0
+                },
+                {
+                    "sent": "You happen to have, coincidentally, these three circles with with appropriate cuts in them that would line up, and so it's reasonable for your visual system to jump to the conclusion that the actual triangle there.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, I think that illusion or the fact that that's called an illusion is more to do with the fact that we assume that the edges of objects are actually visible in the image, and the first thing you learn as a vision researchers.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you actually look at something that you think you can see clear edges in, and you actually zoom in, they're not actually there, is just an extreme case of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really, an edge is in an image is not an actual.",
+                    "label": 0
+                },
+                {
+                    "sent": "Step in the intensity, but it's a change in the statistics.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going from where you can predict reliably one pixel from the next to where you can't predict the lobby one pixel from the next, and that's kind of what the jigsaw model is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exploiting and why often, even though it has no concept of edges aligning with.",
+                    "label": 0
+                },
+                {
+                    "sent": "Intensity jump jumps in intensity.",
+                    "label": 0
+                },
+                {
+                    "sent": "It often learns boundaries that also are occlusion boundaries, so that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "How I think that ties in.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, before we close the session, we would like to present John with a present from the organizing committee presented by.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

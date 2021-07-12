@@ -1,0 +1,1493 @@
+{
+    "id": "5fvwhthjttblmayk2nmm4eakaeswvpoo",
+    "title": "Fast Gaussian Process Methods for Point Process Intensity Estimation",
+    "info": {
+        "author": [
+            "John Cunningham, Department of Electrical Engineering, Stanford University"
+        ],
+        "published": "Aug. 7, 2008",
+        "recorded": "July 2008",
+        "category": [
+            "Top->Computer Science->Machine Learning->Gaussian Processes"
+        ]
+    },
+    "url": "http://videolectures.net/icml08_cunningham_fgpm/",
+    "segmentation": [
+        [
+            "Fashion.",
+            "We're going to get started with John Cunningham, who's going to tell us about fast Gaussian process methods for point process intensity estimation."
+        ],
+        [
+            "Great thanks.",
+            "Alright, so here's what I want to talk about today.",
+            "First, I want to introduce the problem domain we're working with.",
+            "That is point processes an intensity estimation.",
+            "Then I want to talk about the computational burden that that's going to introduce.",
+            "And I want to talk about the sort of the algorithmic steps we've designed to alleviate that burden.",
+            "I will show some results to show that actually works and then finally.",
+            "A lot of this is going to seem very specific to sort of this problem.",
+            "Instantiation that we've chosen, but I want to show that some of these really are to general bag of tricks for Gaussian processes."
+        ],
+        [
+            "Alright, So what do we think is going on here?",
+            "We have some noisy point process data, so for example in neuroscience this is a spike train of data.",
+            "This may be something else in finance, economics, ecology, what have you.",
+            "Point prostate is very difficult to deal with, So what people often do is they think in terms instead of an underlying rate function.",
+            "That is to say something that's that's smoothly time varying and that."
+        ],
+        [
+            "We're interested in finding.",
+            "So we want to come up with an estimator that will take just this point, process data an and will find an estimate of the of this underlying intent."
+        ],
+        [
+            "OK, so what's the approach we've taken to do this?",
+            "Take into doing this in the past as have others is to set a GP prior on the intensity function as parameterized by some hyperparameters."
+        ],
+        [
+            "Standard GP stuff.",
+            "Conditional point process distribution.",
+            "So you can think of this as given given a rate function.",
+            "This is something like in inhomogeneous cross on process or in the case we're going to talk about here and inhomogeneous gamma interval."
+        ],
+        [
+            "Process.",
+            "Find then just as in GP regression, what we want to do then is a couple of things we want to do.",
+            "Model selection.",
+            "We want to find this set of hyperparameters, the model that describes the data the best, and then we want to find our map estimate are sort of best estimate of this underlying fine.",
+            "Right now we did this for specific neuroscience implementation which you can see you can see in this NIPS paper here.",
+            "We're not going to talk about this specific application area in this paper.",
+            "This is about the computational and algorithmic methods that are required to."
+        ],
+        [
+            "To make this work."
+        ],
+        [
+            "OK, so what's the problem?",
+            "Well, in that in that GP regression problem, unlike in regular GP regression, we need to we need to do a regression on all the time points of that intensity function.",
+            "So say we have millisecond resolution of that intensity function.",
+            "We have a couple of seconds.",
+            "That's a couple thousand time points already and we all know that GPS have sort of cubic runtime complexity and quadratic memory requirements.",
+            "An end in these problems is really quite large, so it's impractical for problems of reasonable size.",
+            "And as things get large, it's downright infeasible.",
+            "So what we're going to do is we're going to use some large scale optimization techniques, and we're going to sort of pick apart the specific algorithm manipulated to show that we can get around a lot of that cubic runtime and the quadratic memory."
+        ],
+        [
+            "OK, so we're going to need to be able to talk about some equations, but I don't want.",
+            "I don't want to sweat those too much to start, just standard GP.",
+            "I'll denote Theta as this collection of hyperparameters, which is in this case the mean as well as sort of the length scale and the variance of of the kernel.",
+            "Now for the observation for the observation model, we're going to choose the class of log concave renewal processes, so you can remember renewal process is just conditioned on the rate you've got independent intervals.",
+            "So think about an inhomogeneous plus on process, right?",
+            "It's just got exponential interarrival times.",
+            "Here we're using something a little bit trickier than that, but not much.",
+            "This inhomogeneous GAM interval process, or instead of an exponential interarrival, we just have a gamma distribution."
+        ],
+        [
+            "OK, so how are we going to solve this problem?",
+            "We're going to use Laplace approximation for model selection now I'm not going to talk about EP here.",
+            "We talk about sort of why Laplace approximation in this problem is a better choice in the we talk about that in the paper, but just rest.",
+            "Rest assured, we have thought about EP but Laplace does work quite well in this case.",
+            "So we want to model selection.",
+            "We want to find data.",
+            "The model that describes this data best.",
+            "So Laplace approximation that's going to require a modal Gaussian approximation.",
+            "So at every query point Theta we're going to need to do a map estimation.",
+            "Now, should I just want to introduce this Lambda, which I'll use throughout, which is going to be the Hessian of the negative log observation model?",
+            "So and of course, the Hessian of the negative log prior in X is just the inverse covariance matrix.",
+            "So we're going to need to do this map estimation to find the Model X.",
+            "Now, because we've chosen log concave renewal processes our whole this map estimation can be done as a tractable convex program, and we're using Newton method to do that."
+        ],
+        [
+            "OK, so where are the computational bottlenecks come in?",
+            "Well, in the map estimation sort of everywhere, the objective and the gradient in both of those we're going to have to calculate things of that look like X, transpose, Sigma, Sigma, inverse X, right?",
+            "So that's order N ^3.",
+            "For the Newton step, we're going to have to invert the Hessian.",
+            "And that Hessian looks something like this, right?",
+            "So there's the Hessian of the prior.",
+            "Or the log prior and the Hessian of the observation model.",
+            "So that's the map estimation and will will show steps to deal with that, and then the model evidence and its gradients.",
+            "So in the Laplace approximation, this is the model evidence and we'll talk about ways to deal with that."
+        ],
+        [
+            "OK, so three slides on the steps we take sort of the manipulations and the large scale."
+        ],
+        [
+            "Azatian tricks that we use.",
+            "OK Newton step right.",
+            "So the new method boils down to calculate and step which is H. Inverse GH is the Hessian.",
+            "It has this form which is.",
+            "Quite ugly because we have we have two matrix inversions where we have to invert Sigma and then invert that some which is numerically unstable.",
+            "It's slow, it's order N cubed and of course we're talking about matrices that are so big that we don't even want to represent them in memory.",
+            "OK, so in the paper we show that because of this specific form of Lambda, there's a decomposition available R transpose that can be done in closed form.",
+            "An is linear, so that allows us to use the matrix inversion lemma.",
+            "The Woodbury formula to write the Hessian this way instead.",
+            "OK, so that's quite nice, because now we've gotten rid of that.",
+            "That inner matrix inversion, an in fact matrix inversions altogether, and all we really need to do is to calculate and step is to solve a system of the form I + R Sigma R inverse V. OK, great, So what does that help us at all?",
+            "Well, because we can solve that problem.",
+            "We can solve that set of linear that linear system with conjugate gradients right?",
+            "So conjugates allows you to solve things of the form a inverse B by a series of forward multiplications of the matrix, a right?",
+            "So concrete grains is really the is really the workhorse of large scale optimization, because now.",
+            "Not only do we not need to invert the matrix and do back substitution, all this stuff, but.",
+            "Oh, but we don't even need to represent the matrix itself if we can.",
+            "If we have fast multiplication methods for it.",
+            "So what we talk about?",
+            "What we can do here is that instead of, for example, let's talk about multiplying things with the covariance matrix Sigma.",
+            "Now remember our our data points are GP, points are evenly spaced in time, so we have a topless matrix, right?",
+            "So topless matrix is can be quickly multiplied using fast Fourier transforms.",
+            "Not only that, but you don't ever have to put the you don't ever have to put the Matrix Sigma in memory at all.",
+            "You can just take a row of it right and treat that as a convolution operation.",
+            "So we have the same situation with our.",
+            "It has a nice for man.",
+            "It can be multiplied in linear time, so the covariance matrix can be multiplied in log N time.",
+            "An R in linear time and then so now the complexity of foreign multiplications of.",
+            "This this matrix here is really only N log N. Now it turns out that our conjugate method will converge very, very quickly because of nice spectral properties of this matrix, and so we've taken something that is sort of naively up here is N cubed, and we've moved out this something here, which is, which is N log N * * A small number of conjugate gradient steps, and that should represent a huge savings.",
+            "OK, sorry one more thing I wanted to point out about this form of the Hessian in this manipulation we've done is.",
+            "Note that there are these sigmas out front whenever we want to multiply by the Hessian.",
+            "So sorry about that."
+        ],
+        [
+            "Inverse, So then what we can do is to look at the look at the Newton method self and look at.",
+            "Look at the recursion that exists in Newton method.",
+            "So remember any query point X throughout the course of your Newton method is just a sum of your previous Newton steps.",
+            "Right, and so when we want to calculate things like Sigma inverse X.",
+            "Really we're just calculating Sigma inverse times a bunch of sums of those Newton steps and all those new steps have that Sigma out in front of them so we can sort of collapse that Sigma inverse in with those signals and we see.",
+            "And we see that at any point.",
+            "We just we just have this.",
+            "So what have we done here?",
+            "I mean it's kind of ugly looking equation, but what we've done is we've removed any segment inverses throughout the problem.",
+            "So this both in the objective and in the gradient calculations we have no signal in versus anymore.",
+            "So this is really nice because now the slide before we dealt with not having to invert the Hessian right only having to do a small number of steps.",
+            "But with Konjac ratings to come up with a solution for the Newton step.",
+            "And now here we are showing that we not only would not have to invert the Hessian, but we don't have to invert.",
+            "Sigma ever so that's quite convenient.",
+            "That's quite fast."
+        ],
+        [
+            "OK, so map estimation should be taken care of now there's just one more small problem with model selection, so let's look at the model selection.",
+            "What do we need to do to tune our hyperparameters?",
+            "We need to calculate an approximation to the marginal likelihood, which we do under this approximation.",
+            "Anits gradients so that we can so that we can we can optimize.",
+            "We can optimize data fine.",
+            "So note that these terms these first 2 terms we actually calculate throughout the course of our Newton method.",
+            "And so we get those terms for free.",
+            "Really, the only time we have to deal with is this is this log determinant.",
+            "Now log determinants are sort of a well known problem and burdensome in any calculation you want to do.",
+            "And this again these are matrices N by N. So that's going to be an N cubed operation.",
+            "Now what we show where we show in the paper is that.",
+            "Remember, there's a special structure on Lambda that we talked about because it's the it's the negative location of the observation model.",
+            "We show that in addition to that closed form decomposition at RR transpose, you can decompose it into its use.",
+            "A singular value decomposition.",
+            "Where S is really quite low rank.",
+            "Because the matrix itself Lambda is quite low ranks, so instead of N meaning for eigenvalues, you really only have about M. In fact you have two M non zero eigenvalues, but really only M of the matter.",
+            "So what you can do is sort of the standard determinant rule.",
+            "Sylvester's determinant will trick right where you pull this out.",
+            "Here this guy is M by N. He wrapped that around and now you have along determinant not in.",
+            "Not an end by end space, but in M by M space, and that's quite a bit smaller.",
+            "So what we show here is that instead of instead of doing a huge N ^3.",
+            "Log determine you can do a very small M cubed log.",
+            "Determine and.",
+            "With high accuracy and that should that should alleviate the runtime burden as well."
+        ],
+        [
+            "OK, so we sort of went went fast and loose through those things.",
+            "No real complex."
+        ],
+        [
+            "Proofs, So what we're going to do is just show that we're going to pick a number of.",
+            "A number of example of example functions and and run this on the data and show that show three things.",
+            "One show that are we have a large runtime improvement, so Ncube goes to roughly super super linear and further that we've eliminated the memory burden and also that we've got essentially no no loss in accuracy.",
+            "OK, so we'll look at will look at these three things.",
+            "First, we're going to calculate the times in the accuracies of the map estimations, so we dealt with that map estimation problem alone.",
+            "We're going to calculate the times in accuracies of the evidence calculations.",
+            "The marginal likelihood calculation.",
+            "And then we will wrap those together in the full iterative method to show that that we haven't lost anything by doing both of those together."
+        ],
+        [
+            "OK, So what do we see here?",
+            "First of all, the data size.",
+            "Increasing 500,000 datapoints, 2004 thousand, 10,000 right?",
+            "So the idea here is that you're getting quite quickly into the regime of something where a standard implementation is going to breakdown.",
+            "So what do we see?",
+            "Well, the map estimation.",
+            "We've got you know, 1 minus four 1 -- 6 accuracy.",
+            "That's essentially numerical precision, because the signal that we're talking about estimating has a norm of 110 to the 5th.",
+            "Maybe, so we're talking about, you know, 910 orders of magnitude.",
+            "And the speedup we see is what we think it might be like 2 orders of magnitude, three orders of magnitude and increasing.",
+            "So we've taken something that takes, you know, day hours, and taking it down to sort of a fraction of a second or a few seconds.",
+            "Thank you.",
+            "Um?",
+            "OK then with the with the model selection we just look at this log determinant approximation, right?",
+            "Which is the bottleneck we had in in.",
+            "Calculating marginal likelihood.",
+            "And we see again we see high accuracy, usually over 99% accurate and we see again a couple hours of magnitude three orders of magnitude, even force magnitude speedup, right?",
+            "So this is telling us that these tricks these tricks in these manipulations really quite powerful and still preserve the accuracy of the algorithm.",
+            "OK then, when we wrap that all together in the full iterative method, we see essentially the same thing.",
+            "Very small errors, 2 to 3 four orders of magnitude speedup.",
+            "Great."
+        ],
+        [
+            "OK."
+        ],
+        [
+            "So just one quick note.",
+            "We've talked about this specific point process intensity estimation right, which is sort of a corner case, not something necessarily that a lot of people work on, but I guess I guess what I want to end this talk by saying is that this really is sort of a general optimization bag of tricks, right?",
+            "So the Hessian for example.",
+            "In GP problems is often going to look like this right?",
+            "'cause you've got a prior and you've got an observation model.",
+            "They are fast proximation, right?",
+            "You're often going to deal with things of this formula.",
+            "Have to deal with this long determine here.",
+            "So what are we talking about?",
+            "We talked about using conjugate gradients, which really is sort of the hammer that people use in optimization.",
+            "We talked about avoiding explicit representation of matrices in memory to to make all linear operations implicit.",
+            "We talked about fast multiplication methods a little bit with the one we used here was Fourier transforms, but there are others that work in the more general setting.",
+            "Decomposing matrices with special structure, exploiting recursions, etc."
+        ],
+        [
+            "OK, so finally what I hope I've convinced you of is that we can find orders of magnitude runtime improvement an we can eliminate the memory burden.",
+            "In this problem.",
+            "An Furthermore suggested that this bag of tricks that we're dealing with is sort of general and powerful.",
+            "Thank you.",
+            "Questions.",
+            "So while people are thinking of their questions I have.",
+            "Some to ask.",
+            "So you've used the word pre formula for.",
+            "Basically, the speedup inside the conjugate gradient, right?",
+            "Looks it, but yes, Eger is here 'cause he would sort of complain that the Woodbury can be a bit unstable, right?",
+            "You know it's positive definite, right?",
+            "Did you consider sort of rank updates to Cholesky decompositions as an alternate right, right?",
+            "So he know he and I have talked about that and?"
+        ],
+        [
+            "Yeah, we're talking about a domain here.",
+            "We don't even want to deal with where we don't even want to represent the size of these matrices, right?",
+            "So if we've got matrices that are that are 20,000 by 20,000 or something like that, we're not going to be doing Cholesky decompositions even, even though a Cholesky is more is a more parsimonious description, right?",
+            "Is a more numerically stable.",
+            "We still have to.",
+            "We would still have to do that decomposition.",
+            "We still have to be representing these huge matrices, so we're sort of dealing in a problem domain where that's off the table, we would say.",
+            "That makes sense, yeah?",
+            "But yes, ideally speaking, you would want to.",
+            "You would want to use a chill SPD composition and things are numerically more stable, but.",
+            "What form?",
+            "Laundra finance sure.",
+            "So the.",
+            "So the question was what?"
+        ],
+        [
+            "How is the land that allows you to do these tricks?",
+            "So what form does the Hessian right have to have the likelihood so?",
+            "Maybe it's maybe it's not quite easy to see here, but it's basically it's.",
+            "Block out of product so you've got.",
+            "You've got blocks of vector outer products of the form you know BB.",
+            "Transpose each in these in these little blocks, plus a diagonal matrix so.",
+            "It turns out, I mean that's a consequence of the fact that if you take the negative log of this right, you've got.",
+            "You've got this representing blocked.",
+            "This is just log linear, so this will go away in the Hessian.",
+            "Right, but this this.",
+            "This decomposition is allowed by the fact that this is this is block out of product.",
+            "Now for something like inhomogeneous Poisson process, that matrix Lambda will actually be diagonal.",
+            "So it's even easier to decompose.",
+            "And even if you can't decompose it, you can still use.",
+            "You can still use the.",
+            "The Woodbury formula where is it?"
+        ],
+        [
+            "Without, without this decomposition, it just looks like Lambda plus Lambda Sigma Lambda there, but that's not as numerically attractive.",
+            "So I had a question about something you said earlier in the talk.",
+            "You said that you've tried DP and the middle class approximations working better in this case, so just another first of all technical understanding thing.",
+            "I didn't quite catch how you are making the Gaussian process positive before you compute the rate you exponentiating it, no.",
+            "So so for the application domain that we were working on, what we found is that exponentiating, I mean 'cause when you exponentiate when you had that link function, you sort of warp.",
+            "You work the light in space an.",
+            "And that can be that can be considered introduced spurious effects in the intensities you infer.",
+            "So what we do here?",
+            "Yeah, sorry, I screwed it over that.",
+            "Is we just solve this problem over over over the non negative orthant?",
+            "So essentially what we're doing is.",
+            "This is effectively equivalent to, instead of saying that we have a full GP saying we have a truncated GP because that's just a normalizing constant right there, so we're essentially, and that's why we chose the non zero mean.",
+            "A nonzero mean GP, right?",
+            "Because very often these are pulled off to pull off 0.",
+            "So yeah, we solve this over the non negative worth.",
+            "OK, does that get problematic if the rate function is quite low?",
+            "So no, generally speaking, not because.",
+            "You mean problematic with the Laplace approximation problematic with this solution with quality approximation.",
+            "So the log barrier method is very robust.",
+            "That right?",
+            "I mean, that's that's that's an interior point method for solving for solving with these constraints so so not a problem.",
+            "If you know with Laplace versus EP, because very often people say in a loss.",
+            "Yeah, if things get close to 0 right, then dental floss approximation would be worse.",
+            "In RDP implementation, even with very low rates, when things get around zero, we don't notice that EPL performs Laplace significantly.",
+            "In fact very it's.",
+            "It's a toss up between between the two.",
+            "So no, we haven't found that to be a problem.",
+            "OK, there's no further questions you can get the next speaker up and just thank John.",
+            "Again, thank you."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Fashion.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to get started with John Cunningham, who's going to tell us about fast Gaussian process methods for point process intensity estimation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Great thanks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so here's what I want to talk about today.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, I want to introduce the problem domain we're working with.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is point processes an intensity estimation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I want to talk about the computational burden that that's going to introduce.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I want to talk about the sort of the algorithmic steps we've designed to alleviate that burden.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will show some results to show that actually works and then finally.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of this is going to seem very specific to sort of this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instantiation that we've chosen, but I want to show that some of these really are to general bag of tricks for Gaussian processes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, So what do we think is going on here?",
+                    "label": 0
+                },
+                {
+                    "sent": "We have some noisy point process data, so for example in neuroscience this is a spike train of data.",
+                    "label": 1
+                },
+                {
+                    "sent": "This may be something else in finance, economics, ecology, what have you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Point prostate is very difficult to deal with, So what people often do is they think in terms instead of an underlying rate function.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is to say something that's that's smoothly time varying and that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We're interested in finding.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we want to come up with an estimator that will take just this point, process data an and will find an estimate of the of this underlying intent.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so what's the approach we've taken to do this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Take into doing this in the past as have others is to set a GP prior on the intensity function as parameterized by some hyperparameters.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Standard GP stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "Conditional point process distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can think of this as given given a rate function.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is something like in inhomogeneous cross on process or in the case we're going to talk about here and inhomogeneous gamma interval.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Process.",
+                    "label": 0
+                },
+                {
+                    "sent": "Find then just as in GP regression, what we want to do then is a couple of things we want to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Model selection.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to find this set of hyperparameters, the model that describes the data the best, and then we want to find our map estimate are sort of best estimate of this underlying fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right now we did this for specific neuroscience implementation which you can see you can see in this NIPS paper here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not going to talk about this specific application area in this paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is about the computational and algorithmic methods that are required to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To make this work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so what's the problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, in that in that GP regression problem, unlike in regular GP regression, we need to we need to do a regression on all the time points of that intensity function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So say we have millisecond resolution of that intensity function.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a couple of seconds.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a couple thousand time points already and we all know that GPS have sort of cubic runtime complexity and quadratic memory requirements.",
+                    "label": 1
+                },
+                {
+                    "sent": "An end in these problems is really quite large, so it's impractical for problems of reasonable size.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as things get large, it's downright infeasible.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to do is we're going to use some large scale optimization techniques, and we're going to sort of pick apart the specific algorithm manipulated to show that we can get around a lot of that cubic runtime and the quadratic memory.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so we're going to need to be able to talk about some equations, but I don't want.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't want to sweat those too much to start, just standard GP.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll denote Theta as this collection of hyperparameters, which is in this case the mean as well as sort of the length scale and the variance of of the kernel.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now for the observation for the observation model, we're going to choose the class of log concave renewal processes, so you can remember renewal process is just conditioned on the rate you've got independent intervals.",
+                    "label": 1
+                },
+                {
+                    "sent": "So think about an inhomogeneous plus on process, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just got exponential interarrival times.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we're using something a little bit trickier than that, but not much.",
+                    "label": 0
+                },
+                {
+                    "sent": "This inhomogeneous GAM interval process, or instead of an exponential interarrival, we just have a gamma distribution.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so how are we going to solve this problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to use Laplace approximation for model selection now I'm not going to talk about EP here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We talk about sort of why Laplace approximation in this problem is a better choice in the we talk about that in the paper, but just rest.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rest assured, we have thought about EP but Laplace does work quite well in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we want to model selection.",
+                    "label": 1
+                },
+                {
+                    "sent": "We want to find data.",
+                    "label": 0
+                },
+                {
+                    "sent": "The model that describes this data best.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Laplace approximation that's going to require a modal Gaussian approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at every query point Theta we're going to need to do a map estimation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, should I just want to introduce this Lambda, which I'll use throughout, which is going to be the Hessian of the negative log observation model?",
+                    "label": 0
+                },
+                {
+                    "sent": "So and of course, the Hessian of the negative log prior in X is just the inverse covariance matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to need to do this map estimation to find the Model X.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now, because we've chosen log concave renewal processes our whole this map estimation can be done as a tractable convex program, and we're using Newton method to do that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so where are the computational bottlenecks come in?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, in the map estimation sort of everywhere, the objective and the gradient in both of those we're going to have to calculate things of that look like X, transpose, Sigma, Sigma, inverse X, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's order N ^3.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the Newton step, we're going to have to invert the Hessian.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that Hessian looks something like this, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's the Hessian of the prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or the log prior and the Hessian of the observation model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the map estimation and will will show steps to deal with that, and then the model evidence and its gradients.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in the Laplace approximation, this is the model evidence and we'll talk about ways to deal with that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so three slides on the steps we take sort of the manipulations and the large scale.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Azatian tricks that we use.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK Newton step right.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the new method boils down to calculate and step which is H. Inverse GH is the Hessian.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has this form which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quite ugly because we have we have two matrix inversions where we have to invert Sigma and then invert that some which is numerically unstable.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's slow, it's order N cubed and of course we're talking about matrices that are so big that we don't even want to represent them in memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so in the paper we show that because of this specific form of Lambda, there's a decomposition available R transpose that can be done in closed form.",
+                    "label": 1
+                },
+                {
+                    "sent": "An is linear, so that allows us to use the matrix inversion lemma.",
+                    "label": 1
+                },
+                {
+                    "sent": "The Woodbury formula to write the Hessian this way instead.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's quite nice, because now we've gotten rid of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That inner matrix inversion, an in fact matrix inversions altogether, and all we really need to do is to calculate and step is to solve a system of the form I + R Sigma R inverse V. OK, great, So what does that help us at all?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, because we can solve that problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can solve that set of linear that linear system with conjugate gradients right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So conjugates allows you to solve things of the form a inverse B by a series of forward multiplications of the matrix, a right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So concrete grains is really the is really the workhorse of large scale optimization, because now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not only do we not need to invert the matrix and do back substitution, all this stuff, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, but we don't even need to represent the matrix itself if we can.",
+                    "label": 1
+                },
+                {
+                    "sent": "If we have fast multiplication methods for it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we talk about?",
+                    "label": 0
+                },
+                {
+                    "sent": "What we can do here is that instead of, for example, let's talk about multiplying things with the covariance matrix Sigma.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now remember our our data points are GP, points are evenly spaced in time, so we have a topless matrix, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So topless matrix is can be quickly multiplied using fast Fourier transforms.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not only that, but you don't ever have to put the you don't ever have to put the Matrix Sigma in memory at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can just take a row of it right and treat that as a convolution operation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have the same situation with our.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has a nice for man.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can be multiplied in linear time, so the covariance matrix can be multiplied in log N time.",
+                    "label": 0
+                },
+                {
+                    "sent": "An R in linear time and then so now the complexity of foreign multiplications of.",
+                    "label": 0
+                },
+                {
+                    "sent": "This this matrix here is really only N log N. Now it turns out that our conjugate method will converge very, very quickly because of nice spectral properties of this matrix, and so we've taken something that is sort of naively up here is N cubed, and we've moved out this something here, which is, which is N log N * * A small number of conjugate gradient steps, and that should represent a huge savings.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, sorry one more thing I wanted to point out about this form of the Hessian in this manipulation we've done is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Note that there are these sigmas out front whenever we want to multiply by the Hessian.",
+                    "label": 0
+                },
+                {
+                    "sent": "So sorry about that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Inverse, So then what we can do is to look at the look at the Newton method self and look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look at the recursion that exists in Newton method.",
+                    "label": 0
+                },
+                {
+                    "sent": "So remember any query point X throughout the course of your Newton method is just a sum of your previous Newton steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, and so when we want to calculate things like Sigma inverse X.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really we're just calculating Sigma inverse times a bunch of sums of those Newton steps and all those new steps have that Sigma out in front of them so we can sort of collapse that Sigma inverse in with those signals and we see.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we see that at any point.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just we just have this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what have we done here?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean it's kind of ugly looking equation, but what we've done is we've removed any segment inverses throughout the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this both in the objective and in the gradient calculations we have no signal in versus anymore.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is really nice because now the slide before we dealt with not having to invert the Hessian right only having to do a small number of steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "But with Konjac ratings to come up with a solution for the Newton step.",
+                    "label": 1
+                },
+                {
+                    "sent": "And now here we are showing that we not only would not have to invert the Hessian, but we don't have to invert.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sigma ever so that's quite convenient.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's quite fast.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so map estimation should be taken care of now there's just one more small problem with model selection, so let's look at the model selection.",
+                    "label": 1
+                },
+                {
+                    "sent": "What do we need to do to tune our hyperparameters?",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to calculate an approximation to the marginal likelihood, which we do under this approximation.",
+                    "label": 1
+                },
+                {
+                    "sent": "Anits gradients so that we can so that we can we can optimize.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can optimize data fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "So note that these terms these first 2 terms we actually calculate throughout the course of our Newton method.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we get those terms for free.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really, the only time we have to deal with is this is this log determinant.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now log determinants are sort of a well known problem and burdensome in any calculation you want to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this again these are matrices N by N. So that's going to be an N cubed operation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what we show where we show in the paper is that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Remember, there's a special structure on Lambda that we talked about because it's the it's the negative location of the observation model.",
+                    "label": 0
+                },
+                {
+                    "sent": "We show that in addition to that closed form decomposition at RR transpose, you can decompose it into its use.",
+                    "label": 0
+                },
+                {
+                    "sent": "A singular value decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where S is really quite low rank.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because the matrix itself Lambda is quite low ranks, so instead of N meaning for eigenvalues, you really only have about M. In fact you have two M non zero eigenvalues, but really only M of the matter.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you can do is sort of the standard determinant rule.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sylvester's determinant will trick right where you pull this out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here this guy is M by N. He wrapped that around and now you have along determinant not in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not an end by end space, but in M by M space, and that's quite a bit smaller.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we show here is that instead of instead of doing a huge N ^3.",
+                    "label": 0
+                },
+                {
+                    "sent": "Log determine you can do a very small M cubed log.",
+                    "label": 0
+                },
+                {
+                    "sent": "Determine and.",
+                    "label": 0
+                },
+                {
+                    "sent": "With high accuracy and that should that should alleviate the runtime burden as well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so we sort of went went fast and loose through those things.",
+                    "label": 0
+                },
+                {
+                    "sent": "No real complex.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Proofs, So what we're going to do is just show that we're going to pick a number of.",
+                    "label": 0
+                },
+                {
+                    "sent": "A number of example of example functions and and run this on the data and show that show three things.",
+                    "label": 0
+                },
+                {
+                    "sent": "One show that are we have a large runtime improvement, so Ncube goes to roughly super super linear and further that we've eliminated the memory burden and also that we've got essentially no no loss in accuracy.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so we'll look at will look at these three things.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, we're going to calculate the times in the accuracies of the map estimations, so we dealt with that map estimation problem alone.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to calculate the times in accuracies of the evidence calculations.",
+                    "label": 1
+                },
+                {
+                    "sent": "The marginal likelihood calculation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we will wrap those together in the full iterative method to show that that we haven't lost anything by doing both of those together.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what do we see here?",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, the data size.",
+                    "label": 0
+                },
+                {
+                    "sent": "Increasing 500,000 datapoints, 2004 thousand, 10,000 right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the idea here is that you're getting quite quickly into the regime of something where a standard implementation is going to breakdown.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what do we see?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the map estimation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got you know, 1 minus four 1 -- 6 accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's essentially numerical precision, because the signal that we're talking about estimating has a norm of 110 to the 5th.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe, so we're talking about, you know, 910 orders of magnitude.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the speedup we see is what we think it might be like 2 orders of magnitude, three orders of magnitude and increasing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've taken something that takes, you know, day hours, and taking it down to sort of a fraction of a second or a few seconds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK then with the with the model selection we just look at this log determinant approximation, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is the bottleneck we had in in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Calculating marginal likelihood.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we see again we see high accuracy, usually over 99% accurate and we see again a couple hours of magnitude three orders of magnitude, even force magnitude speedup, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is telling us that these tricks these tricks in these manipulations really quite powerful and still preserve the accuracy of the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK then, when we wrap that all together in the full iterative method, we see essentially the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very small errors, 2 to 3 four orders of magnitude speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "Great.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So just one quick note.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've talked about this specific point process intensity estimation right, which is sort of a corner case, not something necessarily that a lot of people work on, but I guess I guess what I want to end this talk by saying is that this really is sort of a general optimization bag of tricks, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the Hessian for example.",
+                    "label": 1
+                },
+                {
+                    "sent": "In GP problems is often going to look like this right?",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause you've got a prior and you've got an observation model.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are fast proximation, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You're often going to deal with things of this formula.",
+                    "label": 0
+                },
+                {
+                    "sent": "Have to deal with this long determine here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what are we talking about?",
+                    "label": 0
+                },
+                {
+                    "sent": "We talked about using conjugate gradients, which really is sort of the hammer that people use in optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "We talked about avoiding explicit representation of matrices in memory to to make all linear operations implicit.",
+                    "label": 1
+                },
+                {
+                    "sent": "We talked about fast multiplication methods a little bit with the one we used here was Fourier transforms, but there are others that work in the more general setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Decomposing matrices with special structure, exploiting recursions, etc.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so finally what I hope I've convinced you of is that we can find orders of magnitude runtime improvement an we can eliminate the memory burden.",
+                    "label": 1
+                },
+                {
+                    "sent": "In this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "An Furthermore suggested that this bag of tricks that we're dealing with is sort of general and powerful.",
+                    "label": 1
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So while people are thinking of their questions I have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some to ask.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you've used the word pre formula for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, the speedup inside the conjugate gradient, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks it, but yes, Eger is here 'cause he would sort of complain that the Woodbury can be a bit unstable, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know it's positive definite, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Did you consider sort of rank updates to Cholesky decompositions as an alternate right, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So he know he and I have talked about that and?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, we're talking about a domain here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't even want to deal with where we don't even want to represent the size of these matrices, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we've got matrices that are that are 20,000 by 20,000 or something like that, we're not going to be doing Cholesky decompositions even, even though a Cholesky is more is a more parsimonious description, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a more numerically stable.",
+                    "label": 0
+                },
+                {
+                    "sent": "We still have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would still have to do that decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "We still have to be representing these huge matrices, so we're sort of dealing in a problem domain where that's off the table, we would say.",
+                    "label": 0
+                },
+                {
+                    "sent": "That makes sense, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "But yes, ideally speaking, you would want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You would want to use a chill SPD composition and things are numerically more stable, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "What form?",
+                    "label": 0
+                },
+                {
+                    "sent": "Laundra finance sure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question was what?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "How is the land that allows you to do these tricks?",
+                    "label": 0
+                },
+                {
+                    "sent": "So what form does the Hessian right have to have the likelihood so?",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe it's maybe it's not quite easy to see here, but it's basically it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Block out of product so you've got.",
+                    "label": 0
+                },
+                {
+                    "sent": "You've got blocks of vector outer products of the form you know BB.",
+                    "label": 0
+                },
+                {
+                    "sent": "Transpose each in these in these little blocks, plus a diagonal matrix so.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out, I mean that's a consequence of the fact that if you take the negative log of this right, you've got.",
+                    "label": 0
+                },
+                {
+                    "sent": "You've got this representing blocked.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just log linear, so this will go away in the Hessian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, but this this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This decomposition is allowed by the fact that this is this is block out of product.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now for something like inhomogeneous Poisson process, that matrix Lambda will actually be diagonal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's even easier to decompose.",
+                    "label": 0
+                },
+                {
+                    "sent": "And even if you can't decompose it, you can still use.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can still use the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Woodbury formula where is it?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Without, without this decomposition, it just looks like Lambda plus Lambda Sigma Lambda there, but that's not as numerically attractive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I had a question about something you said earlier in the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "You said that you've tried DP and the middle class approximations working better in this case, so just another first of all technical understanding thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "I didn't quite catch how you are making the Gaussian process positive before you compute the rate you exponentiating it, no.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so for the application domain that we were working on, what we found is that exponentiating, I mean 'cause when you exponentiate when you had that link function, you sort of warp.",
+                    "label": 0
+                },
+                {
+                    "sent": "You work the light in space an.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that can be that can be considered introduced spurious effects in the intensities you infer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, sorry, I screwed it over that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is we just solve this problem over over over the non negative orthant?",
+                    "label": 0
+                },
+                {
+                    "sent": "So essentially what we're doing is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is effectively equivalent to, instead of saying that we have a full GP saying we have a truncated GP because that's just a normalizing constant right there, so we're essentially, and that's why we chose the non zero mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "A nonzero mean GP, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because very often these are pulled off to pull off 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, we solve this over the non negative worth.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, does that get problematic if the rate function is quite low?",
+                    "label": 0
+                },
+                {
+                    "sent": "So no, generally speaking, not because.",
+                    "label": 0
+                },
+                {
+                    "sent": "You mean problematic with the Laplace approximation problematic with this solution with quality approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the log barrier method is very robust.",
+                    "label": 0
+                },
+                {
+                    "sent": "That right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, that's that's that's an interior point method for solving for solving with these constraints so so not a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you know with Laplace versus EP, because very often people say in a loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, if things get close to 0 right, then dental floss approximation would be worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "In RDP implementation, even with very low rates, when things get around zero, we don't notice that EPL performs Laplace significantly.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact very it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a toss up between between the two.",
+                    "label": 0
+                },
+                {
+                    "sent": "So no, we haven't found that to be a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, there's no further questions you can get the next speaker up and just thank John.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, thank you.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,3297 @@
+{
+    "id": "4rshkcorextqcox5vbw4xzqi37ltmtt4",
+    "title": "TrueSkill and AdPredictor: Large Scale Machine Learning in the Wild",
+    "info": {
+        "author": [
+            "Thore Graepel, Microsoft Research, Cambridge, Microsoft Research"
+        ],
+        "published": "Sept. 20, 2010",
+        "recorded": "September 2010",
+        "category": [
+            "Top->Computer Science->Machine Learning"
+        ]
+    },
+    "url": "http://videolectures.net/wapa2010_graepel_tals/",
+    "segmentation": [
+        [
+            "Thank you very much for the invitation letter to be here is.",
+            "I think it's one of the most beautiful places to have such workshops, so it's really nice to be here.",
+            "So at the online services and advertising research group at Microsoft Research, Cambridge, we look at very large scale machine learning problems and today I would like to take the opportunity to talk about two of them which were successfully put into Microsoft.",
+            "Services, one of them is called true skill.",
+            "The other ones called at Predictor and I called this machine learning in the wild because when you actually do machine learning applications as opposed to machine learning theory or machine learning algorithms, you quickly realize that the reality out there is pretty wild, and that while you may think that you have a beautiful abstraction of giving problem, reality will hit you from all kinds of angles and will will tell you that things need to be.",
+            "Different adjusted that there were effects that we had accounted for, that you need to make your system more robust, and so on.",
+            "And I'll talk about some of these challenges that arose in these two."
+        ],
+        [
+            "So start out with the saying if he works about the general rule of the applications in machine learning research and then I'll talk about true skill.",
+            "This, which is the ranking and matchmaking system for the Xbox Live Gaming Service.",
+            "And after that I'll talk about at predictor which is the click through rate estimation system for online advertising an in both of them are really motivated task tell you about the model and the inference, and I'll show you empirical results from the actual service running.",
+            "With millions of customers typically, and discuss some specific challenges that arise in these applications due to their nature as being out there in the wild with real users providing them."
+        ],
+        [
+            "So in general, just a few words about applications in machine learning.",
+            "Personally, I've started off with very theoretical work in learning theory, and then I moved on to more algorithmic work and now I'm doing a lot of application driven work and I think it's kind of the logical progression on post.",
+            "But of course the applications almost always pull me back into algorithmic and theoretical work, and that's what's so fascinating about them.",
+            "So the way I do it is that we can take.",
+            "Machine learning theory, machine learning algorithms and domain knowledge, and all of these need to go into it into a successful application of machine learning.",
+            "And the great thing is that we can put these insights and methods and experience we have in this area into the applications.",
+            "But we gotta get back from the application are new challenges that we may not even have thought about previously.",
+            "We get feedback about how the systems that we actually use work on real data and we can have an impact.",
+            "And if you think about it, although different people may be working on different parts of the spectrum of Thierry algorithms and applications, really, applications are the endpoint.",
+            "That's the way we make impact on the world.",
+            "And so in some sense, all of the research almost feeds one way or another into into successful applications that have that have an impact as at least my my view from being at that applications point at the moment, and all of these things of course are very useful.",
+            "In this context."
+        ],
+        [
+            "So let's start with the true skill through skill is joint work with Ralph Property and Tom Minka and a lot of people at Xbox Live, which is Microsoft's online gaming service.",
+            "To help us make this."
+        ],
+        [
+            "And so here's the general problem.",
+            "We're dealing with the phenomenon of competition and 1st competition drives many sports, and maybe in the first sport.",
+            "If you want to call it that which actually picked up on this idea of a formalized statistical skill measuring system was developed for chest by GEICO, DARPA, the Halo in 1960 and he needed to come up with a way of estimating the skills of chess players.",
+            "On the game outcomes because he wanted to see tournaments create fair matches, invite the right people for tournaments and put them into the right groups and so on.",
+            "Now, in some sense the either system is still the standard in chess today, but of course it is tailored to chest, so it is tailored to games that have two players playing against each other.",
+            "And that's of course very different in many online games, because in online gaming we have additional challenges.",
+            "So one thing is we need to learn from very few game outcomes in online games because it's a fast moving world.",
+            "People buying there, they try it out.",
+            "If we don't match them with players they enjoy playing with, they will move on to the next game.",
+            "So we need an efficient method that data efficient method if you like.",
+            "But we also need to support the scenario of multiple teams and multiple players per team because not all games online are just one on one like chess.",
+            "You know there are other types of games for different teams play against each other.",
+            "And we would like to design a system that can can handle all of these."
+        ],
+        [
+            "Situations, so let's look at this in a slightly more formal sense.",
+            "We would like to learn from match outcomes.",
+            "We consider them to be ordering some unk a Toulouse, each of which has a given number of players.",
+            "So in the two player case, quite clear two players, 1 one wins, the other loses.",
+            "But if you have more than two players, it would be a permutation.",
+            "That would be the outcome of the game.",
+            "So here's an example from my favorite game, Halo.",
+            "This is what characterizes a game.",
+            "There's two teams are Red Team and the Blue team.",
+            "The Red team won with a score of 50 points against the new team with a score of 40 points.",
+            "That's what he called the game outcome, but we would like to estimate is not the skills of the teams, but the skills of the players that make up the teams.",
+            "And so here you have these four players, characterized by what we call their gamertag.",
+            "Make up the red team in this case, and these four players make up the blue team and you can see here the individual.",
+            "Skills and at individual scores.",
+            "And here is another example of a different type.",
+            "This is called a free for all game, so you can imagine 8 heavily armed artificial characters battling it out in on some artificial battlefield, and the goal is to kill as many opponents as possible and then the ranking is who they had the most kills.",
+            "In this case Sniper Eye, which is my friend and colleague Rob perforated 25 kills.",
+            "He made this slide so no surprise.",
+            "I think one of the rare occasions where he came out on top.",
+            "And you see here these identities gamertags that characterize these one player teams and consider each player as forming their own team here and here.",
+            "Interestingly, we also have the case of draws, so there are two people in 3rd place, for example, and we'd like to be able to account for that as well below.",
+            "Does that for chess as well.",
+            "Because, of course, you can have a draw in chess, but it does it in a not very principled way, and we improve upon that.",
+            "OK, so the idea is basically that we want to estimate a or skill as I for each player such that for two players, if the skill of one player is greater than that of another, and the probability that in this pairing this first player win over the second would be greater than 1/2, right here the better player would have a higher probability of winning, and then we would like to get from them is a global ranking among all players and we would like to get fair matches between players and by fair.",
+            "That really means exciting matches because the outcome is open and the players will have an incentive to give their best to actually win the game.",
+            "We can view this as taking a lot of these game outcomes, and in some sense merging these partial orderings here into one global ordering of the players.",
+            "And that's what we call a leaderboard.",
+            "Players are actually very, very, very keen on being on top of the leaderboard, and this will.",
+            "This will play a role in."
+        ],
+        [
+            "Later.",
+            "So let's look at the model that we used to estimate these skills.",
+            "So although what we observe on the game outcomes that we want to infer the skills, or we do in the modeling approach, and we are using kind of base net here to to visualize.",
+            "That is, we imagine if we knew the skills of the participating players, what would we be?",
+            "The probability of a given game outcome?",
+            "And then we're basically only invert that we observe the game outcome and update our beliefs about the.",
+            "The skills of the players, so these are the skills of the players and in this example here we have three teams.",
+            "This one is that this guy has only one member of this team has two members.",
+            "This team has one member and we have.",
+            "If you like a generative model of team performances.",
+            "So while these guys are skills kind of in eternal thing that is part of associated with the player.",
+            "Performance is something that is shown in this particular game.",
+            "It's it's a noisy version of the skill, because your phone may be ringing, or you could be on LSD or whatever and you know it could change your performance.",
+            "So that's the idea.",
+            "Here is the problem, Sir.",
+            "They have different effects.",
+            "See, they keep ideas that we don't actually care.",
+            "What causes the disruption or improvement, and then once we have this key performance is we have a pretty easy rule that the team with the highest key performance wins and the one with the second hires coming second with third Eyes, 3rd and so on.",
+            "So we get a game outcome Y and this right here when you have many teams can become pretty complex beast 'cause it it would have to encode all the possible outcomes which would be K factorial.",
+            "The case of pay players that we disregard crossed so just to say a word about the team skills.",
+            "So what we use here is a negative team skill model, so we assume that this the the team performance is a noisy version of this.",
+            "Some of these two.",
+            "Skills that the players bring in now that is in many ways a dodgy assumption, but it works quite well in practice and it makes the inference tractable.",
+            "You could probably think of games where one player can be very decisive in if you have the best player in the world, then that would truly decide the game and not the sum, but you could equally think of games where if you have a really bad guy in the team, you lose.",
+            "For example, if you do this team running stuff where you pass on the stick.",
+            "Then surely, if you had a very slow there in your scene then that will dominate the outcome in there.",
+            "So they taking the sum is a bit of a compromise here, but turns out to work quite well in practice.",
+            "OK, so as I said, this is a generative model and now let's think about the case where we actually observe the Y."
+        ],
+        [
+            "'cause in that case we can set things up slightly differently because now we actually know the order of the teams and we know we can, for example know that this guy beat that guide and encode that here through a partial result and this team, this team, and we can encode that.",
+            "So once we know the ordering and the complexity of those many permutations of the result goes away, we can construct a new graphical model which takes that information into account.",
+            "It's quite crucial in the generative process we would have to define a probability distribution over permutations, but in the process where we actually observe the outcome, we can construct a fixed graphical model that overcomes this difficulty.",
+            "OK, so let's look at this then.",
+            "So so just to complete this, we have priors on these skills here and then we observe this result and then we'll update these skills to obtain posteriors.",
+            "That's the basic idea.",
+            "And then those posteriors will be the priors for the next game, right?",
+            "With just some kind of Bayesian online learning."
+        ],
+        [
+            "That we perform here.",
+            "So let's look at the inference process, and this is actually quite crucial if you have big games you would like this to work fast because the system has a lot of customers, millions of customers they play a lot of games.",
+            "So we encode the the graphical model.",
+            "Now for the purpose of inference in terms of the factor graph, you can think of the nodes as variables and these as functions that where this function takes these two arguments and the whole thing encodes the joint probability distribution over these variables here and the goal of inference now is to calculate the marginal distributions of their joint distribution for these skill variables, because they will be the posterior.",
+            "That take it takes into account the prior coming from here and the game outcome information coming from the bottom here, which is encoded in this ordering here.",
+            "And so you can think of this as a as the priors, and this is the likelihood you like in terms of Bayesian inference.",
+            "And now we use message passing to this inference and message passing.",
+            "Here really means that we do small partial calculations.",
+            "For example, we load these variables that prior and discussed passed on to obtain a distribution over the performances of the teams.",
+            "And then there's an iterative process is.",
+            "It's an expectation propagation algorithm that now recognize the information we have about these three team skills give enforcing basically that this the performance of team one must have been great at the net of team two because in one 1 /, Q Two and team two, 1 / 2 three in the similar way transitivity takes care of the rest.",
+            "We automatically include the team won, therefore must also have 143.",
+            "That's what makes the inference sufficient here.",
+            "Once this iterative process is finished, we pass up the messages to these notes into these skill nodes and can easily calculate the posterior over those.",
+            "That's basically how the."
+        ],
+        [
+            "Prince works.",
+            "And as a result, now we have the skill distributions for each player.",
+            "Now keep in mind this is a Bayesian methods, so we don't have a single skill number for each player.",
+            "But we have a distribution over skills.",
+            "Our belief about roughly scale of that player is and then in this example as I was trying with priors and also the posteriors were Gaussian.",
+            "So we have an independent Gaussians run for each player, now characterizing their skill in that game mode, and so the first question is how can can we now create a leader?",
+            "We need to order these numbers, but neither have different means they have different variances and what we decided to do is we rank the players conservatively according to you too mu I -- 3 Sigma I so we take a lower quantile of the of the belief distribution and that has the effect that only players who have a high mean and low variance will be very far on top.",
+            "So if someone ends up on top will be very certain that they actually are.",
+            "Very good now the question of matchmaking, which may even be more important in match making.",
+            "We would like to create fun exciting matches for our players right?",
+            "And you see already at the language.",
+            "Here they go in the service is not really an estimation goal, right?",
+            "It's not estimate the skills of the players correctly.",
+            "The the goal is to provide funding experience for the players.",
+            "So what does it mean?",
+            "Our interpretation is for?",
+            "Gamers that negate the most fun if the outcome is most uncertain.",
+            "If the inner 2 fair game they all come chances a priority or 5050.",
+            "Why is that the case?",
+            "Because then if they give that extra my if they go that extra mile and effort they can really make a difference to the game outcome.",
+            "If we had a situation where one player would dominate the other player, it would probably be boring for both of them because the outcome will be clear from the beginning and for neither player wouldn't make much sense.",
+            "With any extra effort into the game now from the inference perspective, you can also think of the ability for us to let players worldwide play against each other as our freedom to do experimental design, because we can now create the experiments that we would like to do in order to find out what the skills of these players are now as we prefer to pay out in order to find out their skills.",
+            "It's the same situation we want to create the maximum entropy pairings.",
+            "That's where the outcome is most uncertain, because they will be informative matches playing right because two players we might not quite sure which one is the better one.",
+            "We want to have them play so that we can figure out what the true ordering is.",
+            "So these two things having the most fun matches and getting the most informative metrics are ineffective quivalent.",
+            "And that's of course very useful for this service."
+        ],
+        [
+            "So let's look at an example of convergent speed we have here.",
+            "Two players that participated in a beta test of Halo two Shar was a developer and SQL Wild Man is actually the 13 year old kid of the sequel, divided over who got hold of the account or testing account with his father and plays pretty much 24 hours.",
+            "And then you can see that from the number of games played, because this thing here, so he claimed.",
+            "Games and here's the outcome at according to the ranking system that was used before in Hilo type system, you can see here that SQL Wildman ended up at a very high level and this other character Char ended up at the lower level.",
+            "But if you look at these skill evolution of these players you probably support, then there's something wrong here.",
+            "The Char guy is going at a much steeper right, so it's a bit suspicious.",
+            "What would have happened if we had had more time?",
+            "'cause there are more games or if we had had a better estimation algorithm so I can show you this is the result that true skill comes up with.",
+            "So in fact it turns out that charged the red guy is the better player and we could also confirm this from the data and the true skill is very fast and can within 20 games pretty much nailed the skills of these players.",
+            "There's also a dynamic component so players can actually improve overtime.",
+            "The model is.",
+            "Actually static, we think of this as a noisy time series, and so we add a little bit of variance to the skill estimates at each time step, and so players we do not make the assumption that there's a fixed skill, but they still can very slowly overtime.",
+            "Options on the learning curve.",
+            "I was learning pairs, might well have different shapes for different people.",
+            "Absolutely, we just picked one fixed one if we wanted to really drill down on the scale as quickly as possible, then we might want to do that per player differently per player.",
+            "But there's another dimension which actually ties in with the with the topic of the talk.",
+            "Because people don't view this purely as an estimation thing, they viewed as an achievement thing as well.",
+            "So if.",
+            "If you use the cleverest inference algorithm and they don't understand the outcome, they they probably think is intransparent.",
+            "I'm getting cheated because I have a different dynamics problem someone else?",
+            "So that's also an interesting aspect that people take these.",
+            "We think these are estimates.",
+            "They think these are heroes."
+        ],
+        [
+            "OK, so just to tell you a little bit about the launch of this service so Xbox 360 Live Microsoft Online service for the Xbox 360 launch in September 2005.",
+            "Together with the true skill and true skill, is the official ranking and matchmaking system.",
+            "And every game needs to report the outcomes of the matches and also use to still for matchmaking.",
+            "There are in fact then there were couple of years ago.",
+            "This 20,000,000.",
+            "Maybe there are 30,000,000 by now players on the service.",
+            "At least 2 million matches per day.",
+            "And I don't even want to think about the number of man hours wasted on this effort.",
+            "Is it's certainly in the billions of hours that people have in this in this game.",
+            "And only.",
+            "Maybe?",
+            "Yeah, that's the advantage for us.",
+            "It's all the experiments that we run with these people, right?",
+            "So Halo three specifically launched in 2007.",
+            "It was at the time the largest entertainment launch in history.",
+            "Since then, I guess Spiderman to another power and whatever have eaten it.",
+            "And you can think of this at the peak time.",
+            "There were up to a million players online at the same time.",
+            "Now it has gone down to two to 1000.",
+            "Maybe one problem depends on the time of the day and so on."
+        ],
+        [
+            "But it's still a pretty big thing.",
+            "Now I'd like to show you.",
+            "A little video of how this works in practice.",
+            "So this will demonstrate what the what the matchmaking looks like in Halo.",
+            "Adam.",
+            "So you'll see what a player sees when they want to actually join in match against other people involved, so they will do matchmaking here.",
+            "And this is the representation of the player together with their skill.",
+            "They know oy.",
+            "Lower power skilled in 733.",
+            "You see, it's pretty flat distribution across all the levels.",
+            "This is our level 33 here.",
+            "Now.",
+            "This system is looking for compatible players all over the planet that have roughly level 33 or similar skill level and tries to put them into one match.",
+            "It needs to find a players because that's how many people play this particular hopper.",
+            "You can see here better information about that.",
+            "They're just found and then the match starts.",
+            "This guy is a first person shooter, right?",
+            "So we used to your own web can see the world through your own weapon.",
+            "Battling it out.",
+            "Today you can see here 221 kills for Red 21.",
+            "Two at this time after, after three minutes or so, or not.",
+            "And that's already pretty types match, right?",
+            "So in this case we actually succeeded in putting 2 keys together and living with this for different, very very close.",
+            "And the players, as a consequence of that are very engaged and try to win the match.",
+            "I'm just.",
+            "Again.",
+            "And."
+        ],
+        [
+            "So.",
+            "As I was saying, while we approached the problem originally as an estimation problem, what really matters is the match quality to people that they get that they have a fair chance of winning their matches, and we tried to visualize this for our test data set here.",
+            "Still here.",
+            "Is.",
+            "The skill level of players.",
+            "And the winning probability that they that they currently have.",
+            "Empirically, through the games that they played and now I will show a little movie showing how this will.",
+            "This will be a scatter plot in a moment.",
+            "How this develops over the number of games players have played and what we would like to see here is.",
+            "That independent of the skill level that means for everyone in the population we would like to see that they have a winning percentage of roughly between 40 and 60%.",
+            "'cause that means that no matter how good or how bad you are, you will always find people such that you will have a 5050 chance.",
+            "Obviously it's impossible for the worst player in the world and all the best player that doesn't work, but that.",
+            "OK, let's look at how this develops as the number of games.",
+            "These people have played, you can see.",
+            "And the population rises in estimated skill level.",
+            "Here and you see, we get that vertical line that we we that was desirable here that pretty much independent of the skill level you are.",
+            "You get between 40 and 60% winning probability.",
+            "And so that was one of the tests we made in order to ensure that although we approached the problem's estimation problem, the matchmaking actually yielded the type of results that we wanted to see for the service."
+        ],
+        [
+            "OK, I would like to show you a few skill distributions for games that come out of the service.",
+            "So for example, there's there's a golf game and both as a player taking holds is a very skill based game and you see therefore that the two skills of people vary alot.",
+            "It's very broad distributions and doing all kinds of people very beginner astuta very good players.",
+            "Now here's a racing game with very relatively short left times and you see that the skill distribution is more.",
+            "Kick it here because there's more noise in the system, even a very good player can make a mistake.",
+            "Get out of the race, and so there's more noise.",
+            "It's more with they don't have as many different skill levels in this game.",
+            "Here's another one called.",
+            "You know it's a card game.",
+            "I don't know if there's anyone here know it.",
+            "It's it's quite a fun day, isn't it?",
+            "But.",
+            "Mostly random, what do we see?",
+            "Most people remain at their 25 skill level.",
+            "There's no way for at there's no notion of a good or a bad human really.",
+            "Random key and so we can see these things from the service.",
+            "As I just mentioned.",
+            "Earlier.",
+            "You saw in the little movie that the skill distribution for Halo appeared to be pretty flat, whereas what we see here is more like the Bell curve type of skills solution, which is also known from intelligence research, right?",
+            "I mean, they picked a they fit Gaussians.",
+            "Population."
+        ],
+        [
+            "Distribution are turns out that the Halo skin distribution is so flat because the people who were working with Bungie, the game studio that developed these games, asked us to make it meant you wouldn't believe it.",
+            "To which length you go if you think you have the best matchmaking algorithm in the world to make these people actually use it.",
+            "So they said we need a flat school district.",
+            "It's for reasons of matchmaking.",
+            "They want to match, make people within plus minus three skill levels, and if you have a very keep distribution on the edges, you will not find enough players.",
+            "So we divide the transformation of the skill Maps that made the distribution flat, then they then we were shocked even further.",
+            "Can you make this killer convergence lower?",
+            "We would like to have a Hill climbing experience for our players so we have spent a couple of months helping an algorithm pets.",
+            "Makes the convergence extremely fast as the number of data points and these guys wanted us to dumb it down to make it slower because they said, you know, our players actually enjoy seeing their rank growing up in the slow way and also the strong players want to have some fun kicking weak players.",
+            "Yeah, so OK, we made it slower.",
+            "No problem.",
+            "Take the likelihood a little less peak and then your updates will be less effective.",
+            "Then they also wanted us to reduce the strength of the updates when low quality matches or bad connections, or detected because if you have a bad connection to the game then obviously the result will be distorted and they really want to take that into account.",
+            "So much so we did and finally they wanted to factor in the time that player actually participates in the game, so their games were there comes in place for 10 minutes, then drops out and is only part of the game.",
+            "Results of this week for half of the time or something.",
+            "Again, we did, and so a lot of this stuff while we started out from a very purist and model, we had to make a lot of adaptations to it too."
+        ],
+        [
+            "Please, the game developers.",
+            "I'd like to tell you about another aspect which I also found quite interesting, which is the extra zariel behavior.",
+            "You wouldn't believe to what lengths people go in order to boost their skills.",
+            "So here's the two common strategies players conclude by choosing a common but the real language in the set up.",
+            "The language is also used as part of the matchmaking criteria, so if you speak very rare language, then you there will only be a very small set of players that the service will match you with.",
+            "As a consequence, you can you can set up a collusion scheme where everyone chooses strange language and then everyone will be sure to get match together and then they can arrange the game outcome and we can say OK, this guy always wins and we can boost his skill estimate.",
+            "Or if these things were detected then measures were taken to prevent them.",
+            "Here's another one, and I found this particularly clever because people began to understand how true skill works.",
+            "They realize that in order to boost the player that in a team game, you will need to derank your first account.",
+            "Do you want to get it to a very low rank with very low uncertainty?",
+            "And then if this guy goes into a match with another normal account and they win against someone, the system will be surprised.",
+            "Because they will be very they will if the sum of their skills will it be small yet they want so they will update the players.",
+            "But for the lower direct account the Sigma will be lower so they will think so.",
+            "We were pretty certain about this guy so he gets a small bit of the update and the other account gets a large part of the update so they boosted the system so they reverse engineer the Bayesian update equations in order to boost players.",
+            "And what I found most amazing is you can.",
+            "Before this can send someone a game, your account and they will use this for you and you paid and done via eBay and various Lisa.",
+            "Do you think they actually?",
+            "That that's my reading.",
+            "We did have a web page where we explained to select various levels of sophistication, so I think they definitely use that.",
+            "But these forums are also full of discussions about how to do this and the interesting thing is people also develop false hypothesis, so they say you know you need to make more kills or something like that.",
+            "Where is the number of kills per say?",
+            "Doesn't even enter into the system, but you know, like people doing, you look at the Sky at least patterns.",
+            "So yeah, yeah, yeah.",
+            "So in the end they converged and the Internet made it possible that everyone knew how to do it.",
+            "Yet do you know any words for certain skills?",
+            "Their reason for getting boosted?",
+            "If you have like.",
+            "Level of 2000 something.",
+            "Then you get a new weapon or something.",
+            "You don't get weapons, but you get recognition by ranks.",
+            "You can become a general if you were level 50 for example, but people generally just like the number is displayed next to their name.",
+            "They don't say I have a level 50.",
+            "They say I am a 50.",
+            "Through identification with number."
+        ],
+        [
+            "So one thing I wanted to mention in terms of the design of two skill, something that people for a long time user services and didn't understand, is truly only takes into account the final game over to come at the team level, so it doesn't effectively matter how well you do in a team or that matters.",
+            "Completed by the little bit because they may have done very well in the game and their team may have lost, but because they were weaker players and then they wouldn't get a boost to their skills because their team had lost and that will be attributed probably to them.",
+            "And that's a valid point.",
+            "That's a bit of a problem.",
+            "We also didn't use proxies for skills, so you could imagine that the number of kills someone did or the number of flags discovery to the goal or things like that would count towards the skill.",
+            "And intuitively that makes sense.",
+            "You know the reasons why we didn't go for this.",
+            "One thing is the way to school is it is very universal.",
+            "You can cost almost any game into the setting where you just as the outcome report a permutation of the players ranking of the players like.",
+            "And that means we can use it across the Xbox Live without much modification.",
+            "The other reason is that the rating system needs to be aligned with the objective of the game.",
+            "Suppose we have the following situation.",
+            "People play capture the flag and the goal is together with your team to capture as many flags of the opponent and carry them back to your home.",
+            "Now suppose we create a rating system where your individual number of flags carried counts towards your skill.",
+            "Now suddenly there's two conflicting objectives, and in other games it has been observed that people were waiting very close to their flexible point, and when their friend that he made came along carrying the flag, it would Amber them, kill them, grab the flag carrier to the code for the last three yards or so so.",
+            "Yeah, this really emphasizes the point that we're dealing with self interested agents here.",
+            "They they see value in their writing and therefore the writing is subject to manipulation.",
+            "And there's various ways in which people do this.",
+            "And there's of course a little arms race between Xbox Live and these people to kind of balance that out and prevent the worst."
+        ],
+        [
+            "Finally, I would like to mention an aspect which we also stumbled upon in this context.",
+            "So as I was emphasizing before we developed through school originally on the particular data set, more as a static estimation problem, right?",
+            "I have game outcomes.",
+            "What are the skills of the people?",
+            "But of course, if you use Trueskill estimates to then do matchmaking, you're actually using the estimates to create future trainings outputs right in the experimental design.",
+            "And so you create a loop and the effect of that loop is quite peculiar, because as you are system improves its kill estimates.",
+            "It will create more and more balanced matches and hence it will become more and more difficult to predict Who Will Win.",
+            "So your performance indicators if you define them in a naive way, actually go down your system performs better, but since you are successful in creating unpredictable matches, naive matters like this, the log likelihood will not tell you that direction."
+        ],
+        [
+            "OK.",
+            "The story continues.",
+            "I don't know if you know this guy is my former boss.",
+            "He does a lot of charitable stuff now.",
+            "Now we have we have these things called Bill Gates reviews where people would meet Bill Gates and tell them about their work and we told him about true skill which had just launched with Xbox Live and I think this situation must have been something like that.",
+            "I think in the back of his mind he was thinking why it.",
+            "Why are these people wasting their time with computer games?",
+            "Although I think he has wasted the share point of time with computer games as well, but he said of course was more polite.",
+            "Friendly and he said great stuff, but how about online advertising?",
+            "Isn't the situation where you show ads on the screen and they compete for the for the users attention?",
+            "Isn't it really similar to the situation where you have players trying to win a game?",
+            "Could you apply a similar system to online advertising?",
+            "And so we did?"
+        ],
+        [
+            "And that's going to be the second part of the talk about AD predictor, which is joint work with sucking air Opendaylight, supportive and write poetry, and a lot of people and Ed Center who helped us make this Work etc.",
+            "Is Microsoft's online advertising."
+        ],
+        [
+            "So this is about what people call sponsored or paid search and it works pretty much the same in Yahoo, Google and Microsoft.",
+            "And then here's how it works.",
+            "So when you type in, a search query will get a number of organic results.",
+            "These are the organic results and then here on top and on the side you will also see ends and these the the euphemism is.",
+            "Concert search, of course, and the question is how do we allocate these ads?",
+            "How do we decide where which adds it goes and how much we charge the advertiser for being displayed here?",
+            "And the way it works is that these advertisers who want to have their heads shown bid on keywords that appear in the query.",
+            "For example, they may have been on Flowers, or they may have made it on fast Flowers here and so there's a pool of advertisers that's eligible to be chosen for this particular keyword community here, and they indicate their interest by putting down it bid monetary bit.",
+            "Here's an example.",
+            "First guy may have it $1 of the second guy, $2.",
+            "Ask I $0.10.",
+            "And this is a per click bid, so this is the amount of money they indicate they would be willing to pay per click it click on.",
+            "That actually happens.",
+            "It's a nice advertising model because only if it click happens they actually get charged, so they're almost guaranteed to to benefit from this and that, of course, is 90% of Google's revenue stream, so that you can see here that we don't actually just order the ads.",
+            "Bye bye.",
+            "It's bit you could realize the 1st place here is the most valuable it gets the most clicks.",
+            "Second, Postfix third mostly for foremost links and so on.",
+            "So being on top is good, that's what people want.",
+            "Now what we do is we estimate the click through rate for each of these ads as if they were shown in position one, and we multiply their bid by the kicker, right?",
+            "So you can think of it as an expected monetization.",
+            "So if they're willing to pay $1 and they have a 10% probability of being clicked, is roughly worth $0.10 to show them right?",
+            "Because every time we generated dollar?",
+            "And they are actually shown in the order according to this expected monetization.",
+            "See, this guy has the highest expected monetization second tier, third hikes.",
+            "And in some sense that says that the search engine is maximizing its expected revenue from from this order.",
+            "Now, how much would they have to pay?",
+            "They actually have to pay, not their bids, but they pay less than that.",
+            "They only paid so much that they could maintain their position in their ranking.",
+            "It's called a generalized second price auction and the idea is that they have no incentive to lower their bit artificially because they will not actually be charged their head.",
+            "They will be charged something more akin to the second guys, and so this creates a situation where there are more likely to bid what they actually think is worth to them, and that stabilizes the system.",
+            "So just to recap.",
+            "We display the users by multiplying that is with their clickthrough rate at the first position, and we order them by by that and we calculate what we charge them by taking their their bid.",
+            "Times there the bit of the second guy displayed after them.",
+            "Types, the kicks right of that second guy, divided by their own kicks.",
+            "Alright, so if someone has a high pixel right they Payless.",
+            "That's kind of a discount if you like.",
+            "And the key thing here really is to see that both for deciding which adds to put where to put them and how much to charge them.",
+            "They click through rate these pieces.",
+            "Here are the key quantity and those are the ones that had predictor estimates.",
+            "Why is it important?",
+            "Well, we can increase the satisfaction of users because.",
+            "If we actually show as there are interested in, you know, then then they are more likely to pick them.",
+            "They are more likely to be satisfied.",
+            "We provide a fair due to the advertisers and the scheme of this.",
+            "We also increases the revenue of the search engine, possibly using the space that we have in the most efficient way in terms of allocation.",
+            "So the rest of the talk is going to be logged.",
+            "Estimating this quantity is probability that someone clicks on it."
+        ],
+        [
+            "Give me that it's show.",
+            "And the system that we built is relatively simple, but it may be aims at at simplicity and scale.",
+            "So what we have is typically a set of features, for example here.",
+            "Here we might use the client IP if we know it, or some other indication of who the client is if they are logged into the system, we might use their user ID.",
+            "We can use things like the match type, the keyword that the user bit on match, the theory exactly, or was it just.",
+            "Barry incited.",
+            "And also we use a feature that position in which that ad was shown.",
+            "Cause if you're showing in the first slot then it's a priority.",
+            "Just much more likely that someone will take adversity showing at the bottom of the right training for example.",
+            "And so again, we maintain belief distributions over the weights for these different features here.",
+            "And you can think of these features SP these feature values as being mutually exclusive for this lineup each other you have this one, or that one or that one.",
+            "But kind of more than one.",
+            "And these are similarly behind.",
+            "So then we have essentially a linear probit regression where we modify the feature vector by the way factor.",
+            "If you like, we had the relevant updates weights here, we push it through this.",
+            "Appropriate function here and we get the probability of click.",
+            "Now since we had a distribution on these weights, we also have a distribution on the probability of click, we'll see."
+        ],
+        [
+            "In a moment, if you want to take a look at how the learning algorithm works, you can think of weights for each of the feature values, and here these are now only the weights that are wanted for this particular feature, which we're learning from, and then you have the same thing As for true skill, we have a prior distribution on these weights.",
+            "And this is private information gets passed on.",
+            "Guests work through the probe it and gives us a probability of forming and no click down here.",
+            "But now what we actually observe is click or no click.",
+            "So we all deserve say click which is a bit of a surprise because the probability was no here and then the system updates.",
+            "It believes about these about these ways and so we get new way and you wait posterior is it?",
+            "Again, basing online updates that were using it."
+        ],
+        [
+            "OK so I would like to take a look at the equations because they're actually quite simple.",
+            "It's not a very complicated learning algorithm and so here it is.",
+            "Basically these are the closed form update plate equations that we use when click occurs.",
+            "And then that means you see their patented update equations for the means and the multiplicative update equation for the variances and the typical thing of course is that when we see more data, the variances will shrink.",
+            "That's what you see here.",
+            "1 minus this term, which is positive but less than one.",
+            "And the crucial quantity is normal variants that enters the system, which is the variance of the sum of the variances of the weights involved and the variance that from the noise process that we assume in generating the click.",
+            "And then here's an interesting feature you can think of this number here based PS.",
+            "This step size, with which this mean of weight I is updated and is proportional to its variance.",
+            "That's quite logically.",
+            "We have a lot of uncertainty about.",
+            "That way we would.",
+            "Want to move it quite a bit?",
+            "The meaning by the bit if we're already certain, is very tight, tightly constrained.",
+            "The only one with little bit right and it's actually something akin to the fraction of at various over the total variance.",
+            "So every weight gets a bit of the update according to the How much variance contributes to the total variable.",
+            "Now that's similarly for the variance from the various update here and can't quite do the color.",
+            "So this function H is depicted here and the key thing is that if the current prediction of this thing evaluates to negative number, then we are in this version of the function and the update will be big when the system is surprised by a click, it will do big updates if it's not surprised, which would be this case.",
+            "But this number is positive.",
+            "This argument of this function and the update will only be small.",
+            "The same holds for the variance, so this is the surprise inside.",
+            "This is the young surprising side so that the system is very intuitive.",
+            "It updates way switch with big variance and doesn't update so much weights with small variance.",
+            "It updates in total a lot when it is surprised by a click and it updates only a little if it expected to click already.",
+            "So these intuitions are."
+        ],
+        [
+            "Hold it.",
+            "Equations here.",
+            "I'd like to show you some some weight parameters from the correction system and what I've got here is for each weight iPhone as a dot in this coordinate system of mean and variance, because every weight is characterized again by the mean and variance.",
+            "And each one of these are displayed positions, so ML one is display position on top M L2 is the one low, and the three below, and then SPR the sidebar ones that are displayed to the side of the results and 1st higher means means a higher click probability.",
+            "So another one has the highest one who has a lower 1 / 301 and so on and have the variables is very much related to how many examples of that we have seen of course most.",
+            "Whenever an ad is displayed in the sidebar, there also adds displayed on the main line, so these are the most display ads as well.",
+            "That's why the variance is low.",
+            "We've seen a lot of data.",
+            "We're pretty certain about the value, but these we have seen less.",
+            "That's why the various it doesn't play a big role here because the variance is very small anyway, because we see billions of examples per week and these are just a few parameters testament, so that's relatively easy.",
+            "Here's another example of same.",
+            "Locking technique mean and variance each.",
+            "Each dot is a future value and in this case for the user ID feature.",
+            "And here you see some interesting things.",
+            "For example, there are these very high means.",
+            "These must be people who click every single ad they see.",
+            "Right box.",
+            "Probably take frog.",
+            "And so we reported these guys to the relevant parts of Microsoft to deal with this.",
+            "Now these are people will never click right.",
+            "Also interesting.",
+            "Also bots typically that just use the search engine strip out ahead of our search engine, put in their own ads and display the results.",
+            "And this is basically the starting point.",
+            "This is a user which is initialized variables, run, it means zero.",
+            "It hasn't where we haven't seen any training data.",
+            "The further we go down, the more training data we see for those.",
+            "Of course, these bots we see a lot of training data for them, that's why it variances or no 'cause they they can work there."
+        ],
+        [
+            "OK, so that's an example of that, and now I'd like to show you a comparison with Naive Bayes, which was basically the foundation of the system used previously, and one thing we do is we build a calibration plot.",
+            "So what we would like to figure out is if the click through rate that we estimate actually empirically corresponds to the fraction of times that we receive clicks on that.",
+            "That helps.",
+            "That would be a nice indication of the approach.",
+            "So what we do is we take say.",
+            "Billion ad impressions.",
+            "Those are kind of event of showing an ad to the user and we predict for each one of them the probability of click.",
+            "And we round them to say percent buckets, so we put all the impressions that get the predicted from zero to 1% into the first bucket, 1 to 2% in the 2nd, and so on.",
+            "So we have all of these buckets and now within these buckets we can just calculate the empirical probability of a click just a fraction of place in that bucket and you see the result of that here on the on the log scale so.",
+            "The system would be perfectly calibrated if all of these dots were on this line.",
+            "And you can see here that lie face actually.",
+            "The prefix in this regime, he ran over predicts here.",
+            "This is the measured one, and this is the one.",
+            "Showing by Ivy Predictor and so you see that that predict is much better calibrated because it's much closer to the line here.",
+            "That's not a big surprise is knowing that bit my face has this problem.",
+            "It's it's good in the ranking, but it's not very good at the absolute prediction of probability you can just see here quantity that we can.",
+            "We called courage of the of the predictor which shows here how many.",
+            "Percentage of of the predictions of the predictor actually fell into the various buckets.",
+            "You can see that my face, as most of them.",
+            "In in these very non exciting medium size predictions, whereas a predictor makes very low predictions and very high predictions as well.",
+            "So it is it is more informative in this sense and these combining these two then gives you something like a loss or our wealthy.",
+            "Still we had to two different quantities.",
+            "We looked at the area under the curve for both algorithms and predictor did better than 90 days and we also looked at something we call relative information gain.",
+            "Hey, which is basically the cross entropy plus the entropy of the default classifier that just always predicts the average click through rate for across the whole system divided by that entropy and it gives a number between zero, one and basically tells you how could you do versus how good you could have done.",
+            "Again.",
+            "Space actually is worse than the default classifier when you don't properly calibrated.",
+            "We use isotonic regression for that.",
+            "So we found that the system was really better than the previous well across the board, but I'm sure you could do much better if you put a lot of computational resources behind it and took all the time we wanted, but we need a very fast simple system here, which can deal with billions of training data."
+        ],
+        [
+            "So the web scale implementation was of course a bit of a challenge because at predictor now drives almost 100% of our search traffic and I mentioned to the 9 examples per week, we need parallel training.",
+            "We again have this effect that the systems predictions have an impact on which adds get shown which forms the future training samples for the system.",
+            "And it was also important to maintain the memory footprint of the model.",
+            "If you have a model that gets continuously trained.",
+            "And new IP addresses, or whatever other teachers come in.",
+            "There's a danger that your system grows out of hands from Emory Point of view, so you need to."
+        ],
+        [
+            "Prove that we cut it down.",
+            "You can formulate the distributed training beautifully in the factor graph framework.",
+            "I don't want to go into it in detail, but the trick is that you create replications of your models on your different compute nodes and you sync them with the master node, and so the master node sends in the prior to these compute nodes, the data gets distributed among the compute nodes.",
+            "They do their message passing internally and then send the results back for reconciliation.",
+            "To the master and the nice thing is that you can formally express it just as another factor graph using these identity nodes.",
+            "So this this factory just enforces that this way should be the same as that way, and so formally you can express."
+        ],
+        [
+            "Are you another interesting aspect?",
+            "We do exploration so there's think of of our pool of ads and off some of them.",
+            "We know how good or bad they are, but there are many non discovered ads that are out there in our pool and we must be careful not to neglect them.",
+            "We would like to check them out and see how users react to them.",
+            "So we need some some level of exploration for the system.",
+            "And what we use is the fact that we don't actually just estimate the point estimate for the for the click through rate, but that we get a distribution.",
+            "Much like Anita is Tribu shun over over the probability.",
+            "So we maintain the uncertainty about what the play is and you could have two different ads.",
+            "One may have a higher mean, say here the red one.",
+            "And the lower variance.",
+            "So we're pretty certain about it, and another one may have a lower mean by the higher barriers, and you can then, for example, just sample from these distributions and that will automatically give you a different degree of exploration, because those that have a higher mean you will get high samples, so they will often be shown that those that have a very broad distribution will also have a chance to sometimes have the highest have the high C R&B showing.",
+            "In the ads and then we learn about them and their rates will shrink, so it's an automatic exploration process, very natural."
+        ],
+        [
+            "Assist.",
+            "So just a few things about representation behavior.",
+            "This is click fraud cases I was talking about.",
+            "Advertisers may may also benefit from from our exploration policy if you can.",
+            "For example, as an advertiser, ensure that your crappy end is always knew to the system, then we will keep try and show it to figure out how bad it is and when it gets shown they get cheap.",
+            "Maybe get impressions and they get their heads showing, so that's that's just an effect that.",
+            "It's been analyzed, and then there's also possibly collusion scenarios that we're looking into.",
+            "I don't know if you know this story, but at some point.",
+            "Patrick is if you if you want to do.",
+            "If you want to collude in the market you can try and coordinate with your with your competitor and just say when you offer your service Mondays to Wednesdays you I'd offer my services first thing to Sunday or something and then you are not in direct competition.",
+            "If you can control your prices, that's something that people could also potentially do in these markets.",
+            "They could.",
+            "What we want them to do is to bid for the high value keywords like insurance, but if there were only two insurance companies, one could always fit in the first half of the month and the other one in the second half of the month, and then we both get there, get there clicks for much less money.",
+            "So we're looking out for these cases for where people could collude and exploit the system."
+        ],
+        [
+            "Um?",
+            "And again, I don't want to get into the details, but the again we have the same phenomenon that we have closed and that we need to be careful not to judge on this our system on static evaluation measures because again, if this system is successful, it will create, it will show more apps that get click more, which makes the prediction task more difficult because it increases the entropy of the face reading so speak.",
+            "And that's really the same effect As for true skill."
+        ],
+        [
+            "OK, let me conclude they have this closed loop phenomenon and I think this really merits further study.",
+            "And because it's somewhere a little closer to reinforcement learning, almost because you get these effects of exploration you ever close, new system is not likely enforcement learning, and I think they're very important online and you have these self interested agencies, gamers who are so keen on getting their names up there on the leader boards are prepared to do anything.",
+            "Or similarly in the advertising world people.",
+            "Peoples livelihood depend on this.",
+            "You know their their business.",
+            "So we need to design systems that take that into account.",
+            "And finally, the lesson is you may have a beautiful abstraction for a machine learning problem when you take it into practice, things will be different, exciting but different."
+        ],
+        [
+            "Quick question.",
+            "I'm really a true skill system.",
+            "You said that once the Internet connection is bad or you get disconnected and it only adjusts your value halfway or something.",
+            "Yeah, that's about just pull the plug and I'm fine.",
+            "Yeah, that also needs to be is here.",
+            "One of these vicious minds.",
+            "Alright then again, one of those problems.",
+            "So if someone disconnects, there is a real attribute problem with Attribution problem.",
+            "If they did it on purpose then we were going to punish them and if they didn't do it on purpose.",
+            "If we can't distinguish because I know that most games just beautiful penalty if you lose in the letter is disconnected now, which is yeah, because people will do it.",
+            "I think in that case you get the full penalty, but if this connection is shaky then it will just reduce the string power update.",
+            "Yeah, that is exactly the problem.",
+            "We cannot quite trust your data sources.",
+            "Maybe it just quick.",
+            "Same question was used for online matching as well.",
+            "Like if you know the problem outcome for again, you can just offer it.",
+            "Yeah, it's interesting.",
+            "We rent this over Premier League football.",
+            "And but when we found that the back end was only the player, the 100 best player in the League, we thought people would delicious if we.",
+            "So yeah, we did that.",
+            "The problem is in those sports, like football, there's not enough mixing in these online games.",
+            "People get matched together with all kinds of other people, and that allows us to pinpoint their individual skills.",
+            "Because if I see someone play together with different other players and I can see how they perform in these different contexts, then the system can extract what the individual skill is now over a season of Premier League, people don't actually change that much.",
+            "Between teams, and also sometimes the only mixing you get this really that different selections of 11 people from there from the overall team gets elected.",
+            "And So what we actually did was we split the games into 5 minutes.",
+            "I think blocks.",
+            "And looked at looked at those sub games so to speak as the unit of game and then if again if the goal was scored within those minutes we would then take the players who or where at that point in the game and attribute it partly together.",
+            "But it's very difficult because that makes things individual player scores are very difficult to get because the mixing is not so present.",
+            "Yeah yeah, Horse Racing is the natives.",
+            "Let's talk about that.",
+            "OK. Anymore questions.",
+            "Did you take any steps to try and discover the server?",
+            "Skill.",
+            "Yeah, so the the Xbox Live team has all the kinds of monitoring systems, but I mean at the end of the day you really see you.",
+            "You have very little information.",
+            "It could always be that these things just come about by chance, right?",
+            "And it's it's really tricky.",
+            "Is some kind of anomaly detection problem that you would want.",
+            "It said so maybe a little anecdote.",
+            "I don't think they do so much in that area, but when you know was first started with the video stream, they hired a few extra people because it's an amazing if you give people an opportunity to show themselves.",
+            "They show all kinds of strange things.",
+            "And so then you know they did an investigation into that.",
+            "So it's there.",
+            "It was more crucial photo application of the service together, right?",
+            "Yeah, there are some people.",
+            "And they can black blacklist gamertags.",
+            "Or they can block them for two weeks.",
+            "Most people don't care because these, really.",
+            "Gamers have often three to five accounts for boosting and for collusion and for fun.",
+            "Reasons.",
+            "How do you deal with GNU offers in their deflectors?",
+            "If you have a new offers selves?",
+            "The customers.",
+            "Favorite thing or?",
+            "It's an interesting question.",
+            "So the question is basically one of generalization, right?",
+            "How can we when we have a new ad?",
+            "How can we accurately predict the CPR and the most powerful features for that are hierarchical features?",
+            "So you can think of the ad as being there being an ad ID and the NID is really one that is assigned to a particular advertiser or to the particular campaign that we put it that way, and the campaign is assigned to a particular advertiser and the advertisers.",
+            "Assigned to particular account and so you have a hierarchy of features, and even if you don't know the individual F ID and it's a new one, the system still maintains knowledge about how are things going in that campaign, or are they going for that particular advertiser on that particular account?",
+            "And so it's almost like a backing off 2 features that are lower cardinality and therefore therefore have more data per feature.",
+            "And those are the most powerful features that we have for that.",
+            "OK, well we should probably move on so it's at the speaker again."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Thank you very much for the invitation letter to be here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it's one of the most beautiful places to have such workshops, so it's really nice to be here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at the online services and advertising research group at Microsoft Research, Cambridge, we look at very large scale machine learning problems and today I would like to take the opportunity to talk about two of them which were successfully put into Microsoft.",
+                    "label": 1
+                },
+                {
+                    "sent": "Services, one of them is called true skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other ones called at Predictor and I called this machine learning in the wild because when you actually do machine learning applications as opposed to machine learning theory or machine learning algorithms, you quickly realize that the reality out there is pretty wild, and that while you may think that you have a beautiful abstraction of giving problem, reality will hit you from all kinds of angles and will will tell you that things need to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Different adjusted that there were effects that we had accounted for, that you need to make your system more robust, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll talk about some of these challenges that arose in these two.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So start out with the saying if he works about the general rule of the applications in machine learning research and then I'll talk about true skill.",
+                    "label": 1
+                },
+                {
+                    "sent": "This, which is the ranking and matchmaking system for the Xbox Live Gaming Service.",
+                    "label": 0
+                },
+                {
+                    "sent": "And after that I'll talk about at predictor which is the click through rate estimation system for online advertising an in both of them are really motivated task tell you about the model and the inference, and I'll show you empirical results from the actual service running.",
+                    "label": 0
+                },
+                {
+                    "sent": "With millions of customers typically, and discuss some specific challenges that arise in these applications due to their nature as being out there in the wild with real users providing them.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in general, just a few words about applications in machine learning.",
+                    "label": 1
+                },
+                {
+                    "sent": "Personally, I've started off with very theoretical work in learning theory, and then I moved on to more algorithmic work and now I'm doing a lot of application driven work and I think it's kind of the logical progression on post.",
+                    "label": 0
+                },
+                {
+                    "sent": "But of course the applications almost always pull me back into algorithmic and theoretical work, and that's what's so fascinating about them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way I do it is that we can take.",
+                    "label": 0
+                },
+                {
+                    "sent": "Machine learning theory, machine learning algorithms and domain knowledge, and all of these need to go into it into a successful application of machine learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the great thing is that we can put these insights and methods and experience we have in this area into the applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we gotta get back from the application are new challenges that we may not even have thought about previously.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get feedback about how the systems that we actually use work on real data and we can have an impact.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you think about it, although different people may be working on different parts of the spectrum of Thierry algorithms and applications, really, applications are the endpoint.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the way we make impact on the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so in some sense, all of the research almost feeds one way or another into into successful applications that have that have an impact as at least my my view from being at that applications point at the moment, and all of these things of course are very useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this context.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's start with the true skill through skill is joint work with Ralph Property and Tom Minka and a lot of people at Xbox Live, which is Microsoft's online gaming service.",
+                    "label": 0
+                },
+                {
+                    "sent": "To help us make this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And so here's the general problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're dealing with the phenomenon of competition and 1st competition drives many sports, and maybe in the first sport.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to call it that which actually picked up on this idea of a formalized statistical skill measuring system was developed for chest by GEICO, DARPA, the Halo in 1960 and he needed to come up with a way of estimating the skills of chess players.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the game outcomes because he wanted to see tournaments create fair matches, invite the right people for tournaments and put them into the right groups and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, in some sense the either system is still the standard in chess today, but of course it is tailored to chest, so it is tailored to games that have two players playing against each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's of course very different in many online games, because in online gaming we have additional challenges.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one thing is we need to learn from very few game outcomes in online games because it's a fast moving world.",
+                    "label": 0
+                },
+                {
+                    "sent": "People buying there, they try it out.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we don't match them with players they enjoy playing with, they will move on to the next game.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need an efficient method that data efficient method if you like.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we also need to support the scenario of multiple teams and multiple players per team because not all games online are just one on one like chess.",
+                    "label": 1
+                },
+                {
+                    "sent": "You know there are other types of games for different teams play against each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we would like to design a system that can can handle all of these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Situations, so let's look at this in a slightly more formal sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would like to learn from match outcomes.",
+                    "label": 0
+                },
+                {
+                    "sent": "We consider them to be ordering some unk a Toulouse, each of which has a given number of players.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the two player case, quite clear two players, 1 one wins, the other loses.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you have more than two players, it would be a permutation.",
+                    "label": 0
+                },
+                {
+                    "sent": "That would be the outcome of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's an example from my favorite game, Halo.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is what characterizes a game.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's two teams are Red Team and the Blue team.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Red team won with a score of 50 points against the new team with a score of 40 points.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what he called the game outcome, but we would like to estimate is not the skills of the teams, but the skills of the players that make up the teams.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so here you have these four players, characterized by what we call their gamertag.",
+                    "label": 0
+                },
+                {
+                    "sent": "Make up the red team in this case, and these four players make up the blue team and you can see here the individual.",
+                    "label": 0
+                },
+                {
+                    "sent": "Skills and at individual scores.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here is another example of a different type.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is called a free for all game, so you can imagine 8 heavily armed artificial characters battling it out in on some artificial battlefield, and the goal is to kill as many opponents as possible and then the ranking is who they had the most kills.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case Sniper Eye, which is my friend and colleague Rob perforated 25 kills.",
+                    "label": 0
+                },
+                {
+                    "sent": "He made this slide so no surprise.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think one of the rare occasions where he came out on top.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you see here these identities gamertags that characterize these one player teams and consider each player as forming their own team here and here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interestingly, we also have the case of draws, so there are two people in 3rd place, for example, and we'd like to be able to account for that as well below.",
+                    "label": 0
+                },
+                {
+                    "sent": "Does that for chess as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because, of course, you can have a draw in chess, but it does it in a not very principled way, and we improve upon that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the idea is basically that we want to estimate a or skill as I for each player such that for two players, if the skill of one player is greater than that of another, and the probability that in this pairing this first player win over the second would be greater than 1/2, right here the better player would have a higher probability of winning, and then we would like to get from them is a global ranking among all players and we would like to get fair matches between players and by fair.",
+                    "label": 0
+                },
+                {
+                    "sent": "That really means exciting matches because the outcome is open and the players will have an incentive to give their best to actually win the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can view this as taking a lot of these game outcomes, and in some sense merging these partial orderings here into one global ordering of the players.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's what we call a leaderboard.",
+                    "label": 0
+                },
+                {
+                    "sent": "Players are actually very, very, very keen on being on top of the leaderboard, and this will.",
+                    "label": 0
+                },
+                {
+                    "sent": "This will play a role in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Later.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look at the model that we used to estimate these skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "So although what we observe on the game outcomes that we want to infer the skills, or we do in the modeling approach, and we are using kind of base net here to to visualize.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, we imagine if we knew the skills of the participating players, what would we be?",
+                    "label": 1
+                },
+                {
+                    "sent": "The probability of a given game outcome?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're basically only invert that we observe the game outcome and update our beliefs about the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The skills of the players, so these are the skills of the players and in this example here we have three teams.",
+                    "label": 0
+                },
+                {
+                    "sent": "This one is that this guy has only one member of this team has two members.",
+                    "label": 0
+                },
+                {
+                    "sent": "This team has one member and we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you like a generative model of team performances.",
+                    "label": 0
+                },
+                {
+                    "sent": "So while these guys are skills kind of in eternal thing that is part of associated with the player.",
+                    "label": 0
+                },
+                {
+                    "sent": "Performance is something that is shown in this particular game.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's a noisy version of the skill, because your phone may be ringing, or you could be on LSD or whatever and you know it could change your performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is the problem, Sir.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have different effects.",
+                    "label": 0
+                },
+                {
+                    "sent": "See, they keep ideas that we don't actually care.",
+                    "label": 0
+                },
+                {
+                    "sent": "What causes the disruption or improvement, and then once we have this key performance is we have a pretty easy rule that the team with the highest key performance wins and the one with the second hires coming second with third Eyes, 3rd and so on.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we get a game outcome Y and this right here when you have many teams can become pretty complex beast 'cause it it would have to encode all the possible outcomes which would be K factorial.",
+                    "label": 0
+                },
+                {
+                    "sent": "The case of pay players that we disregard crossed so just to say a word about the team skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we use here is a negative team skill model, so we assume that this the the team performance is a noisy version of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of these two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Skills that the players bring in now that is in many ways a dodgy assumption, but it works quite well in practice and it makes the inference tractable.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could probably think of games where one player can be very decisive in if you have the best player in the world, then that would truly decide the game and not the sum, but you could equally think of games where if you have a really bad guy in the team, you lose.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, if you do this team running stuff where you pass on the stick.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then surely, if you had a very slow there in your scene then that will dominate the outcome in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they taking the sum is a bit of a compromise here, but turns out to work quite well in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so as I said, this is a generative model and now let's think about the case where we actually observe the Y.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "'cause in that case we can set things up slightly differently because now we actually know the order of the teams and we know we can, for example know that this guy beat that guide and encode that here through a partial result and this team, this team, and we can encode that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So once we know the ordering and the complexity of those many permutations of the result goes away, we can construct a new graphical model which takes that information into account.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's quite crucial in the generative process we would have to define a probability distribution over permutations, but in the process where we actually observe the outcome, we can construct a fixed graphical model that overcomes this difficulty.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let's look at this then.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so just to complete this, we have priors on these skills here and then we observe this result and then we'll update these skills to obtain posteriors.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the basic idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then those posteriors will be the priors for the next game, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "With just some kind of Bayesian online learning.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That we perform here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look at the inference process, and this is actually quite crucial if you have big games you would like this to work fast because the system has a lot of customers, millions of customers they play a lot of games.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we encode the the graphical model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now for the purpose of inference in terms of the factor graph, you can think of the nodes as variables and these as functions that where this function takes these two arguments and the whole thing encodes the joint probability distribution over these variables here and the goal of inference now is to calculate the marginal distributions of their joint distribution for these skill variables, because they will be the posterior.",
+                    "label": 0
+                },
+                {
+                    "sent": "That take it takes into account the prior coming from here and the game outcome information coming from the bottom here, which is encoded in this ordering here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so you can think of this as a as the priors, and this is the likelihood you like in terms of Bayesian inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now we use message passing to this inference and message passing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here really means that we do small partial calculations.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, we load these variables that prior and discussed passed on to obtain a distribution over the performances of the teams.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there's an iterative process is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an expectation propagation algorithm that now recognize the information we have about these three team skills give enforcing basically that this the performance of team one must have been great at the net of team two because in one 1 /, Q Two and team two, 1 / 2 three in the similar way transitivity takes care of the rest.",
+                    "label": 0
+                },
+                {
+                    "sent": "We automatically include the team won, therefore must also have 143.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what makes the inference sufficient here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once this iterative process is finished, we pass up the messages to these notes into these skill nodes and can easily calculate the posterior over those.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's basically how the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Prince works.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as a result, now we have the skill distributions for each player.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now keep in mind this is a Bayesian methods, so we don't have a single skill number for each player.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we have a distribution over skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our belief about roughly scale of that player is and then in this example as I was trying with priors and also the posteriors were Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have an independent Gaussians run for each player, now characterizing their skill in that game mode, and so the first question is how can can we now create a leader?",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to order these numbers, but neither have different means they have different variances and what we decided to do is we rank the players conservatively according to you too mu I -- 3 Sigma I so we take a lower quantile of the of the belief distribution and that has the effect that only players who have a high mean and low variance will be very far on top.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if someone ends up on top will be very certain that they actually are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very good now the question of matchmaking, which may even be more important in match making.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would like to create fun exciting matches for our players right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And you see already at the language.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here they go in the service is not really an estimation goal, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not estimate the skills of the players correctly.",
+                    "label": 0
+                },
+                {
+                    "sent": "The the goal is to provide funding experience for the players.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what does it mean?",
+                    "label": 0
+                },
+                {
+                    "sent": "Our interpretation is for?",
+                    "label": 0
+                },
+                {
+                    "sent": "Gamers that negate the most fun if the outcome is most uncertain.",
+                    "label": 1
+                },
+                {
+                    "sent": "If the inner 2 fair game they all come chances a priority or 5050.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is that the case?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because then if they give that extra my if they go that extra mile and effort they can really make a difference to the game outcome.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we had a situation where one player would dominate the other player, it would probably be boring for both of them because the outcome will be clear from the beginning and for neither player wouldn't make much sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "With any extra effort into the game now from the inference perspective, you can also think of the ability for us to let players worldwide play against each other as our freedom to do experimental design, because we can now create the experiments that we would like to do in order to find out what the skills of these players are now as we prefer to pay out in order to find out their skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's the same situation we want to create the maximum entropy pairings.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's where the outcome is most uncertain, because they will be informative matches playing right because two players we might not quite sure which one is the better one.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to have them play so that we can figure out what the true ordering is.",
+                    "label": 1
+                },
+                {
+                    "sent": "So these two things having the most fun matches and getting the most informative metrics are ineffective quivalent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's of course very useful for this service.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's look at an example of convergent speed we have here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two players that participated in a beta test of Halo two Shar was a developer and SQL Wild Man is actually the 13 year old kid of the sequel, divided over who got hold of the account or testing account with his father and plays pretty much 24 hours.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you can see that from the number of games played, because this thing here, so he claimed.",
+                    "label": 1
+                },
+                {
+                    "sent": "Games and here's the outcome at according to the ranking system that was used before in Hilo type system, you can see here that SQL Wildman ended up at a very high level and this other character Char ended up at the lower level.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you look at these skill evolution of these players you probably support, then there's something wrong here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Char guy is going at a much steeper right, so it's a bit suspicious.",
+                    "label": 0
+                },
+                {
+                    "sent": "What would have happened if we had had more time?",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause there are more games or if we had had a better estimation algorithm so I can show you this is the result that true skill comes up with.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in fact it turns out that charged the red guy is the better player and we could also confirm this from the data and the true skill is very fast and can within 20 games pretty much nailed the skills of these players.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also a dynamic component so players can actually improve overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "The model is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually static, we think of this as a noisy time series, and so we add a little bit of variance to the skill estimates at each time step, and so players we do not make the assumption that there's a fixed skill, but they still can very slowly overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "Options on the learning curve.",
+                    "label": 0
+                },
+                {
+                    "sent": "I was learning pairs, might well have different shapes for different people.",
+                    "label": 0
+                },
+                {
+                    "sent": "Absolutely, we just picked one fixed one if we wanted to really drill down on the scale as quickly as possible, then we might want to do that per player differently per player.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's another dimension which actually ties in with the with the topic of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because people don't view this purely as an estimation thing, they viewed as an achievement thing as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you use the cleverest inference algorithm and they don't understand the outcome, they they probably think is intransparent.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm getting cheated because I have a different dynamics problem someone else?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's also an interesting aspect that people take these.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think these are estimates.",
+                    "label": 0
+                },
+                {
+                    "sent": "They think these are heroes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so just to tell you a little bit about the launch of this service so Xbox 360 Live Microsoft Online service for the Xbox 360 launch in September 2005.",
+                    "label": 1
+                },
+                {
+                    "sent": "Together with the true skill and true skill, is the official ranking and matchmaking system.",
+                    "label": 0
+                },
+                {
+                    "sent": "And every game needs to report the outcomes of the matches and also use to still for matchmaking.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are in fact then there were couple of years ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "This 20,000,000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe there are 30,000,000 by now players on the service.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least 2 million matches per day.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I don't even want to think about the number of man hours wasted on this effort.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it's certainly in the billions of hours that people have in this in this game.",
+                    "label": 0
+                },
+                {
+                    "sent": "And only.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that's the advantage for us.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's all the experiments that we run with these people, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So Halo three specifically launched in 2007.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was at the time the largest entertainment launch in history.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since then, I guess Spiderman to another power and whatever have eaten it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can think of this at the peak time.",
+                    "label": 0
+                },
+                {
+                    "sent": "There were up to a million players online at the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now it has gone down to two to 1000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe one problem depends on the time of the day and so on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But it's still a pretty big thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I'd like to show you.",
+                    "label": 0
+                },
+                {
+                    "sent": "A little video of how this works in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this will demonstrate what the what the matchmaking looks like in Halo.",
+                    "label": 0
+                },
+                {
+                    "sent": "Adam.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you'll see what a player sees when they want to actually join in match against other people involved, so they will do matchmaking here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is the representation of the player together with their skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "They know oy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lower power skilled in 733.",
+                    "label": 0
+                },
+                {
+                    "sent": "You see, it's pretty flat distribution across all the levels.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is our level 33 here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now.",
+                    "label": 0
+                },
+                {
+                    "sent": "This system is looking for compatible players all over the planet that have roughly level 33 or similar skill level and tries to put them into one match.",
+                    "label": 0
+                },
+                {
+                    "sent": "It needs to find a players because that's how many people play this particular hopper.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see here better information about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're just found and then the match starts.",
+                    "label": 0
+                },
+                {
+                    "sent": "This guy is a first person shooter, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we used to your own web can see the world through your own weapon.",
+                    "label": 0
+                },
+                {
+                    "sent": "Battling it out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Today you can see here 221 kills for Red 21.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two at this time after, after three minutes or so, or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's already pretty types match, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this case we actually succeeded in putting 2 keys together and living with this for different, very very close.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the players, as a consequence of that are very engaged and try to win the match.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm just.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I was saying, while we approached the problem originally as an estimation problem, what really matters is the match quality to people that they get that they have a fair chance of winning their matches, and we tried to visualize this for our test data set here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Still here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is.",
+                    "label": 0
+                },
+                {
+                    "sent": "The skill level of players.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the winning probability that they that they currently have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Empirically, through the games that they played and now I will show a little movie showing how this will.",
+                    "label": 0
+                },
+                {
+                    "sent": "This will be a scatter plot in a moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "How this develops over the number of games players have played and what we would like to see here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "That independent of the skill level that means for everyone in the population we would like to see that they have a winning percentage of roughly between 40 and 60%.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause that means that no matter how good or how bad you are, you will always find people such that you will have a 5050 chance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Obviously it's impossible for the worst player in the world and all the best player that doesn't work, but that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, let's look at how this develops as the number of games.",
+                    "label": 0
+                },
+                {
+                    "sent": "These people have played, you can see.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the population rises in estimated skill level.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here and you see, we get that vertical line that we we that was desirable here that pretty much independent of the skill level you are.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get between 40 and 60% winning probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so that was one of the tests we made in order to ensure that although we approached the problem's estimation problem, the matchmaking actually yielded the type of results that we wanted to see for the service.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, I would like to show you a few skill distributions for games that come out of the service.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example, there's there's a golf game and both as a player taking holds is a very skill based game and you see therefore that the two skills of people vary alot.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very broad distributions and doing all kinds of people very beginner astuta very good players.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now here's a racing game with very relatively short left times and you see that the skill distribution is more.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kick it here because there's more noise in the system, even a very good player can make a mistake.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get out of the race, and so there's more noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's more with they don't have as many different skill levels in this game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's another one called.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know it's a card game.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know if there's anyone here know it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's quite a fun day, isn't it?",
+                    "label": 0
+                },
+                {
+                    "sent": "But.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mostly random, what do we see?",
+                    "label": 0
+                },
+                {
+                    "sent": "Most people remain at their 25 skill level.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no way for at there's no notion of a good or a bad human really.",
+                    "label": 0
+                },
+                {
+                    "sent": "Random key and so we can see these things from the service.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I just mentioned.",
+                    "label": 0
+                },
+                {
+                    "sent": "Earlier.",
+                    "label": 0
+                },
+                {
+                    "sent": "You saw in the little movie that the skill distribution for Halo appeared to be pretty flat, whereas what we see here is more like the Bell curve type of skills solution, which is also known from intelligence research, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, they picked a they fit Gaussians.",
+                    "label": 0
+                },
+                {
+                    "sent": "Population.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Distribution are turns out that the Halo skin distribution is so flat because the people who were working with Bungie, the game studio that developed these games, asked us to make it meant you wouldn't believe it.",
+                    "label": 0
+                },
+                {
+                    "sent": "To which length you go if you think you have the best matchmaking algorithm in the world to make these people actually use it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they said we need a flat school district.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's for reasons of matchmaking.",
+                    "label": 0
+                },
+                {
+                    "sent": "They want to match, make people within plus minus three skill levels, and if you have a very keep distribution on the edges, you will not find enough players.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we divide the transformation of the skill Maps that made the distribution flat, then they then we were shocked even further.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you make this killer convergence lower?",
+                    "label": 0
+                },
+                {
+                    "sent": "We would like to have a Hill climbing experience for our players so we have spent a couple of months helping an algorithm pets.",
+                    "label": 0
+                },
+                {
+                    "sent": "Makes the convergence extremely fast as the number of data points and these guys wanted us to dumb it down to make it slower because they said, you know, our players actually enjoy seeing their rank growing up in the slow way and also the strong players want to have some fun kicking weak players.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so OK, we made it slower.",
+                    "label": 0
+                },
+                {
+                    "sent": "No problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take the likelihood a little less peak and then your updates will be less effective.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then they also wanted us to reduce the strength of the updates when low quality matches or bad connections, or detected because if you have a bad connection to the game then obviously the result will be distorted and they really want to take that into account.",
+                    "label": 1
+                },
+                {
+                    "sent": "So much so we did and finally they wanted to factor in the time that player actually participates in the game, so their games were there comes in place for 10 minutes, then drops out and is only part of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Results of this week for half of the time or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, we did, and so a lot of this stuff while we started out from a very purist and model, we had to make a lot of adaptations to it too.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Please, the game developers.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to tell you about another aspect which I also found quite interesting, which is the extra zariel behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "You wouldn't believe to what lengths people go in order to boost their skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the two common strategies players conclude by choosing a common but the real language in the set up.",
+                    "label": 0
+                },
+                {
+                    "sent": "The language is also used as part of the matchmaking criteria, so if you speak very rare language, then you there will only be a very small set of players that the service will match you with.",
+                    "label": 0
+                },
+                {
+                    "sent": "As a consequence, you can you can set up a collusion scheme where everyone chooses strange language and then everyone will be sure to get match together and then they can arrange the game outcome and we can say OK, this guy always wins and we can boost his skill estimate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or if these things were detected then measures were taken to prevent them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's another one, and I found this particularly clever because people began to understand how true skill works.",
+                    "label": 0
+                },
+                {
+                    "sent": "They realize that in order to boost the player that in a team game, you will need to derank your first account.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you want to get it to a very low rank with very low uncertainty?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then if this guy goes into a match with another normal account and they win against someone, the system will be surprised.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because they will be very they will if the sum of their skills will it be small yet they want so they will update the players.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for the lower direct account the Sigma will be lower so they will think so.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were pretty certain about this guy so he gets a small bit of the update and the other account gets a large part of the update so they boosted the system so they reverse engineer the Bayesian update equations in order to boost players.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I found most amazing is you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Before this can send someone a game, your account and they will use this for you and you paid and done via eBay and various Lisa.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you think they actually?",
+                    "label": 0
+                },
+                {
+                    "sent": "That that's my reading.",
+                    "label": 0
+                },
+                {
+                    "sent": "We did have a web page where we explained to select various levels of sophistication, so I think they definitely use that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But these forums are also full of discussions about how to do this and the interesting thing is people also develop false hypothesis, so they say you know you need to make more kills or something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where is the number of kills per say?",
+                    "label": 0
+                },
+                {
+                    "sent": "Doesn't even enter into the system, but you know, like people doing, you look at the Sky at least patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, yeah, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the end they converged and the Internet made it possible that everyone knew how to do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yet do you know any words for certain skills?",
+                    "label": 0
+                },
+                {
+                    "sent": "Their reason for getting boosted?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Level of 2000 something.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you get a new weapon or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't get weapons, but you get recognition by ranks.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can become a general if you were level 50 for example, but people generally just like the number is displayed next to their name.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't say I have a level 50.",
+                    "label": 0
+                },
+                {
+                    "sent": "They say I am a 50.",
+                    "label": 0
+                },
+                {
+                    "sent": "Through identification with number.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So one thing I wanted to mention in terms of the design of two skill, something that people for a long time user services and didn't understand, is truly only takes into account the final game over to come at the team level, so it doesn't effectively matter how well you do in a team or that matters.",
+                    "label": 1
+                },
+                {
+                    "sent": "Completed by the little bit because they may have done very well in the game and their team may have lost, but because they were weaker players and then they wouldn't get a boost to their skills because their team had lost and that will be attributed probably to them.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's a valid point.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a bit of a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also didn't use proxies for skills, so you could imagine that the number of kills someone did or the number of flags discovery to the goal or things like that would count towards the skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "And intuitively that makes sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the reasons why we didn't go for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing is the way to school is it is very universal.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can cost almost any game into the setting where you just as the outcome report a permutation of the players ranking of the players like.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that means we can use it across the Xbox Live without much modification.",
+                    "label": 1
+                },
+                {
+                    "sent": "The other reason is that the rating system needs to be aligned with the objective of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Suppose we have the following situation.",
+                    "label": 0
+                },
+                {
+                    "sent": "People play capture the flag and the goal is together with your team to capture as many flags of the opponent and carry them back to your home.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now suppose we create a rating system where your individual number of flags carried counts towards your skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now suddenly there's two conflicting objectives, and in other games it has been observed that people were waiting very close to their flexible point, and when their friend that he made came along carrying the flag, it would Amber them, kill them, grab the flag carrier to the code for the last three yards or so so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, this really emphasizes the point that we're dealing with self interested agents here.",
+                    "label": 0
+                },
+                {
+                    "sent": "They they see value in their writing and therefore the writing is subject to manipulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's various ways in which people do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's of course a little arms race between Xbox Live and these people to kind of balance that out and prevent the worst.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Finally, I would like to mention an aspect which we also stumbled upon in this context.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as I was emphasizing before we developed through school originally on the particular data set, more as a static estimation problem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I have game outcomes.",
+                    "label": 0
+                },
+                {
+                    "sent": "What are the skills of the people?",
+                    "label": 1
+                },
+                {
+                    "sent": "But of course, if you use Trueskill estimates to then do matchmaking, you're actually using the estimates to create future trainings outputs right in the experimental design.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so you create a loop and the effect of that loop is quite peculiar, because as you are system improves its kill estimates.",
+                    "label": 1
+                },
+                {
+                    "sent": "It will create more and more balanced matches and hence it will become more and more difficult to predict Who Will Win.",
+                    "label": 0
+                },
+                {
+                    "sent": "So your performance indicators if you define them in a naive way, actually go down your system performs better, but since you are successful in creating unpredictable matches, naive matters like this, the log likelihood will not tell you that direction.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "The story continues.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know if you know this guy is my former boss.",
+                    "label": 0
+                },
+                {
+                    "sent": "He does a lot of charitable stuff now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we have we have these things called Bill Gates reviews where people would meet Bill Gates and tell them about their work and we told him about true skill which had just launched with Xbox Live and I think this situation must have been something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think in the back of his mind he was thinking why it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why are these people wasting their time with computer games?",
+                    "label": 1
+                },
+                {
+                    "sent": "Although I think he has wasted the share point of time with computer games as well, but he said of course was more polite.",
+                    "label": 0
+                },
+                {
+                    "sent": "Friendly and he said great stuff, but how about online advertising?",
+                    "label": 1
+                },
+                {
+                    "sent": "Isn't the situation where you show ads on the screen and they compete for the for the users attention?",
+                    "label": 0
+                },
+                {
+                    "sent": "Isn't it really similar to the situation where you have players trying to win a game?",
+                    "label": 0
+                },
+                {
+                    "sent": "Could you apply a similar system to online advertising?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we did?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And that's going to be the second part of the talk about AD predictor, which is joint work with sucking air Opendaylight, supportive and write poetry, and a lot of people and Ed Center who helped us make this Work etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is Microsoft's online advertising.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is about what people call sponsored or paid search and it works pretty much the same in Yahoo, Google and Microsoft.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then here's how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when you type in, a search query will get a number of organic results.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are the organic results and then here on top and on the side you will also see ends and these the the euphemism is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Concert search, of course, and the question is how do we allocate these ads?",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we decide where which adds it goes and how much we charge the advertiser for being displayed here?",
+                    "label": 0
+                },
+                {
+                    "sent": "And the way it works is that these advertisers who want to have their heads shown bid on keywords that appear in the query.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, they may have been on Flowers, or they may have made it on fast Flowers here and so there's a pool of advertisers that's eligible to be chosen for this particular keyword community here, and they indicate their interest by putting down it bid monetary bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "First guy may have it $1 of the second guy, $2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ask I $0.10.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is a per click bid, so this is the amount of money they indicate they would be willing to pay per click it click on.",
+                    "label": 0
+                },
+                {
+                    "sent": "That actually happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a nice advertising model because only if it click happens they actually get charged, so they're almost guaranteed to to benefit from this and that, of course, is 90% of Google's revenue stream, so that you can see here that we don't actually just order the ads.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bye bye.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's bit you could realize the 1st place here is the most valuable it gets the most clicks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Second, Postfix third mostly for foremost links and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So being on top is good, that's what people want.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what we do is we estimate the click through rate for each of these ads as if they were shown in position one, and we multiply their bid by the kicker, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can think of it as an expected monetization.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if they're willing to pay $1 and they have a 10% probability of being clicked, is roughly worth $0.10 to show them right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because every time we generated dollar?",
+                    "label": 0
+                },
+                {
+                    "sent": "And they are actually shown in the order according to this expected monetization.",
+                    "label": 0
+                },
+                {
+                    "sent": "See, this guy has the highest expected monetization second tier, third hikes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in some sense that says that the search engine is maximizing its expected revenue from from this order.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, how much would they have to pay?",
+                    "label": 0
+                },
+                {
+                    "sent": "They actually have to pay, not their bids, but they pay less than that.",
+                    "label": 0
+                },
+                {
+                    "sent": "They only paid so much that they could maintain their position in their ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's called a generalized second price auction and the idea is that they have no incentive to lower their bit artificially because they will not actually be charged their head.",
+                    "label": 0
+                },
+                {
+                    "sent": "They will be charged something more akin to the second guys, and so this creates a situation where there are more likely to bid what they actually think is worth to them, and that stabilizes the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just to recap.",
+                    "label": 0
+                },
+                {
+                    "sent": "We display the users by multiplying that is with their clickthrough rate at the first position, and we order them by by that and we calculate what we charge them by taking their their bid.",
+                    "label": 0
+                },
+                {
+                    "sent": "Times there the bit of the second guy displayed after them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Types, the kicks right of that second guy, divided by their own kicks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so if someone has a high pixel right they Payless.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's kind of a discount if you like.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the key thing here really is to see that both for deciding which adds to put where to put them and how much to charge them.",
+                    "label": 0
+                },
+                {
+                    "sent": "They click through rate these pieces.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here are the key quantity and those are the ones that had predictor estimates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is it important?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we can increase the satisfaction of users because.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we actually show as there are interested in, you know, then then they are more likely to pick them.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are more likely to be satisfied.",
+                    "label": 0
+                },
+                {
+                    "sent": "We provide a fair due to the advertisers and the scheme of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also increases the revenue of the search engine, possibly using the space that we have in the most efficient way in terms of allocation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the rest of the talk is going to be logged.",
+                    "label": 0
+                },
+                {
+                    "sent": "Estimating this quantity is probability that someone clicks on it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Give me that it's show.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the system that we built is relatively simple, but it may be aims at at simplicity and scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we have is typically a set of features, for example here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we might use the client IP if we know it, or some other indication of who the client is if they are logged into the system, we might use their user ID.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can use things like the match type, the keyword that the user bit on match, the theory exactly, or was it just.",
+                    "label": 1
+                },
+                {
+                    "sent": "Barry incited.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also we use a feature that position in which that ad was shown.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cause if you're showing in the first slot then it's a priority.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just much more likely that someone will take adversity showing at the bottom of the right training for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so again, we maintain belief distributions over the weights for these different features here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can think of these features SP these feature values as being mutually exclusive for this lineup each other you have this one, or that one or that one.",
+                    "label": 0
+                },
+                {
+                    "sent": "But kind of more than one.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these are similarly behind.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then we have essentially a linear probit regression where we modify the feature vector by the way factor.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you like, we had the relevant updates weights here, we push it through this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Appropriate function here and we get the probability of click.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now since we had a distribution on these weights, we also have a distribution on the probability of click, we'll see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In a moment, if you want to take a look at how the learning algorithm works, you can think of weights for each of the feature values, and here these are now only the weights that are wanted for this particular feature, which we're learning from, and then you have the same thing As for true skill, we have a prior distribution on these weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is private information gets passed on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Guests work through the probe it and gives us a probability of forming and no click down here.",
+                    "label": 0
+                },
+                {
+                    "sent": "But now what we actually observe is click or no click.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we all deserve say click which is a bit of a surprise because the probability was no here and then the system updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "It believes about these about these ways and so we get new way and you wait posterior is it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, basing online updates that were using it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK so I would like to take a look at the equations because they're actually quite simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a very complicated learning algorithm and so here it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically these are the closed form update plate equations that we use when click occurs.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then that means you see their patented update equations for the means and the multiplicative update equation for the variances and the typical thing of course is that when we see more data, the variances will shrink.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what you see here.",
+                    "label": 0
+                },
+                {
+                    "sent": "1 minus this term, which is positive but less than one.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the crucial quantity is normal variants that enters the system, which is the variance of the sum of the variances of the weights involved and the variance that from the noise process that we assume in generating the click.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then here's an interesting feature you can think of this number here based PS.",
+                    "label": 0
+                },
+                {
+                    "sent": "This step size, with which this mean of weight I is updated and is proportional to its variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's quite logically.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a lot of uncertainty about.",
+                    "label": 0
+                },
+                {
+                    "sent": "That way we would.",
+                    "label": 0
+                },
+                {
+                    "sent": "Want to move it quite a bit?",
+                    "label": 0
+                },
+                {
+                    "sent": "The meaning by the bit if we're already certain, is very tight, tightly constrained.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only one with little bit right and it's actually something akin to the fraction of at various over the total variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So every weight gets a bit of the update according to the How much variance contributes to the total variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that's similarly for the variance from the various update here and can't quite do the color.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this function H is depicted here and the key thing is that if the current prediction of this thing evaluates to negative number, then we are in this version of the function and the update will be big when the system is surprised by a click, it will do big updates if it's not surprised, which would be this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this number is positive.",
+                    "label": 0
+                },
+                {
+                    "sent": "This argument of this function and the update will only be small.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same holds for the variance, so this is the surprise inside.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the young surprising side so that the system is very intuitive.",
+                    "label": 0
+                },
+                {
+                    "sent": "It updates way switch with big variance and doesn't update so much weights with small variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "It updates in total a lot when it is surprised by a click and it updates only a little if it expected to click already.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these intuitions are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Hold it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Equations here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to show you some some weight parameters from the correction system and what I've got here is for each weight iPhone as a dot in this coordinate system of mean and variance, because every weight is characterized again by the mean and variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "And each one of these are displayed positions, so ML one is display position on top M L2 is the one low, and the three below, and then SPR the sidebar ones that are displayed to the side of the results and 1st higher means means a higher click probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So another one has the highest one who has a lower 1 / 301 and so on and have the variables is very much related to how many examples of that we have seen of course most.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whenever an ad is displayed in the sidebar, there also adds displayed on the main line, so these are the most display ads as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's why the variance is low.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've seen a lot of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're pretty certain about the value, but these we have seen less.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's why the various it doesn't play a big role here because the variance is very small anyway, because we see billions of examples per week and these are just a few parameters testament, so that's relatively easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's another example of same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Locking technique mean and variance each.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each dot is a future value and in this case for the user ID feature.",
+                    "label": 1
+                },
+                {
+                    "sent": "And here you see some interesting things.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, there are these very high means.",
+                    "label": 0
+                },
+                {
+                    "sent": "These must be people who click every single ad they see.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right box.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably take frog.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we reported these guys to the relevant parts of Microsoft to deal with this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now these are people will never click right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also bots typically that just use the search engine strip out ahead of our search engine, put in their own ads and display the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is basically the starting point.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a user which is initialized variables, run, it means zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "It hasn't where we haven't seen any training data.",
+                    "label": 0
+                },
+                {
+                    "sent": "The further we go down, the more training data we see for those.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, these bots we see a lot of training data for them, that's why it variances or no 'cause they they can work there.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so that's an example of that, and now I'd like to show you a comparison with Naive Bayes, which was basically the foundation of the system used previously, and one thing we do is we build a calibration plot.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we would like to figure out is if the click through rate that we estimate actually empirically corresponds to the fraction of times that we receive clicks on that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That helps.",
+                    "label": 0
+                },
+                {
+                    "sent": "That would be a nice indication of the approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do is we take say.",
+                    "label": 0
+                },
+                {
+                    "sent": "Billion ad impressions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are kind of event of showing an ad to the user and we predict for each one of them the probability of click.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we round them to say percent buckets, so we put all the impressions that get the predicted from zero to 1% into the first bucket, 1 to 2% in the 2nd, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have all of these buckets and now within these buckets we can just calculate the empirical probability of a click just a fraction of place in that bucket and you see the result of that here on the on the log scale so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The system would be perfectly calibrated if all of these dots were on this line.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see here that lie face actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "The prefix in this regime, he ran over predicts here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the measured one, and this is the one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Showing by Ivy Predictor and so you see that that predict is much better calibrated because it's much closer to the line here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not a big surprise is knowing that bit my face has this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's good in the ranking, but it's not very good at the absolute prediction of probability you can just see here quantity that we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "We called courage of the of the predictor which shows here how many.",
+                    "label": 0
+                },
+                {
+                    "sent": "Percentage of of the predictions of the predictor actually fell into the various buckets.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see that my face, as most of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "In in these very non exciting medium size predictions, whereas a predictor makes very low predictions and very high predictions as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it is it is more informative in this sense and these combining these two then gives you something like a loss or our wealthy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Still we had to two different quantities.",
+                    "label": 0
+                },
+                {
+                    "sent": "We looked at the area under the curve for both algorithms and predictor did better than 90 days and we also looked at something we call relative information gain.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hey, which is basically the cross entropy plus the entropy of the default classifier that just always predicts the average click through rate for across the whole system divided by that entropy and it gives a number between zero, one and basically tells you how could you do versus how good you could have done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again.",
+                    "label": 0
+                },
+                {
+                    "sent": "Space actually is worse than the default classifier when you don't properly calibrated.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use isotonic regression for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we found that the system was really better than the previous well across the board, but I'm sure you could do much better if you put a lot of computational resources behind it and took all the time we wanted, but we need a very fast simple system here, which can deal with billions of training data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the web scale implementation was of course a bit of a challenge because at predictor now drives almost 100% of our search traffic and I mentioned to the 9 examples per week, we need parallel training.",
+                    "label": 1
+                },
+                {
+                    "sent": "We again have this effect that the systems predictions have an impact on which adds get shown which forms the future training samples for the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it was also important to maintain the memory footprint of the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a model that gets continuously trained.",
+                    "label": 0
+                },
+                {
+                    "sent": "And new IP addresses, or whatever other teachers come in.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a danger that your system grows out of hands from Emory Point of view, so you need to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Prove that we cut it down.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can formulate the distributed training beautifully in the factor graph framework.",
+                    "label": 1
+                },
+                {
+                    "sent": "I don't want to go into it in detail, but the trick is that you create replications of your models on your different compute nodes and you sync them with the master node, and so the master node sends in the prior to these compute nodes, the data gets distributed among the compute nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "They do their message passing internally and then send the results back for reconciliation.",
+                    "label": 0
+                },
+                {
+                    "sent": "To the master and the nice thing is that you can formally express it just as another factor graph using these identity nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this this factory just enforces that this way should be the same as that way, and so formally you can express.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Are you another interesting aspect?",
+                    "label": 0
+                },
+                {
+                    "sent": "We do exploration so there's think of of our pool of ads and off some of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know how good or bad they are, but there are many non discovered ads that are out there in our pool and we must be careful not to neglect them.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would like to check them out and see how users react to them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need some some level of exploration for the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we use is the fact that we don't actually just estimate the point estimate for the for the click through rate, but that we get a distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Much like Anita is Tribu shun over over the probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we maintain the uncertainty about what the play is and you could have two different ads.",
+                    "label": 0
+                },
+                {
+                    "sent": "One may have a higher mean, say here the red one.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the lower variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're pretty certain about it, and another one may have a lower mean by the higher barriers, and you can then, for example, just sample from these distributions and that will automatically give you a different degree of exploration, because those that have a higher mean you will get high samples, so they will often be shown that those that have a very broad distribution will also have a chance to sometimes have the highest have the high C R&B showing.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the ads and then we learn about them and their rates will shrink, so it's an automatic exploration process, very natural.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Assist.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just a few things about representation behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is click fraud cases I was talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Advertisers may may also benefit from from our exploration policy if you can.",
+                    "label": 1
+                },
+                {
+                    "sent": "For example, as an advertiser, ensure that your crappy end is always knew to the system, then we will keep try and show it to figure out how bad it is and when it gets shown they get cheap.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe get impressions and they get their heads showing, so that's that's just an effect that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's been analyzed, and then there's also possibly collusion scenarios that we're looking into.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know if you know this story, but at some point.",
+                    "label": 0
+                },
+                {
+                    "sent": "Patrick is if you if you want to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to collude in the market you can try and coordinate with your with your competitor and just say when you offer your service Mondays to Wednesdays you I'd offer my services first thing to Sunday or something and then you are not in direct competition.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you can control your prices, that's something that people could also potentially do in these markets.",
+                    "label": 0
+                },
+                {
+                    "sent": "They could.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we want them to do is to bid for the high value keywords like insurance, but if there were only two insurance companies, one could always fit in the first half of the month and the other one in the second half of the month, and then we both get there, get there clicks for much less money.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're looking out for these cases for where people could collude and exploit the system.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, I don't want to get into the details, but the again we have the same phenomenon that we have closed and that we need to be careful not to judge on this our system on static evaluation measures because again, if this system is successful, it will create, it will show more apps that get click more, which makes the prediction task more difficult because it increases the entropy of the face reading so speak.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's really the same effect As for true skill.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, let me conclude they have this closed loop phenomenon and I think this really merits further study.",
+                    "label": 1
+                },
+                {
+                    "sent": "And because it's somewhere a little closer to reinforcement learning, almost because you get these effects of exploration you ever close, new system is not likely enforcement learning, and I think they're very important online and you have these self interested agencies, gamers who are so keen on getting their names up there on the leader boards are prepared to do anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or similarly in the advertising world people.",
+                    "label": 1
+                },
+                {
+                    "sent": "Peoples livelihood depend on this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know their their business.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need to design systems that take that into account.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, the lesson is you may have a beautiful abstraction for a machine learning problem when you take it into practice, things will be different, exciting but different.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Quick question.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm really a true skill system.",
+                    "label": 0
+                },
+                {
+                    "sent": "You said that once the Internet connection is bad or you get disconnected and it only adjusts your value halfway or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that's about just pull the plug and I'm fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that also needs to be is here.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of these vicious minds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright then again, one of those problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if someone disconnects, there is a real attribute problem with Attribution problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "If they did it on purpose then we were going to punish them and if they didn't do it on purpose.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we can't distinguish because I know that most games just beautiful penalty if you lose in the letter is disconnected now, which is yeah, because people will do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think in that case you get the full penalty, but if this connection is shaky then it will just reduce the string power update.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that is exactly the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We cannot quite trust your data sources.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe it just quick.",
+                    "label": 0
+                },
+                {
+                    "sent": "Same question was used for online matching as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like if you know the problem outcome for again, you can just offer it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, it's interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "We rent this over Premier League football.",
+                    "label": 0
+                },
+                {
+                    "sent": "And but when we found that the back end was only the player, the 100 best player in the League, we thought people would delicious if we.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, we did that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is in those sports, like football, there's not enough mixing in these online games.",
+                    "label": 0
+                },
+                {
+                    "sent": "People get matched together with all kinds of other people, and that allows us to pinpoint their individual skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because if I see someone play together with different other players and I can see how they perform in these different contexts, then the system can extract what the individual skill is now over a season of Premier League, people don't actually change that much.",
+                    "label": 0
+                },
+                {
+                    "sent": "Between teams, and also sometimes the only mixing you get this really that different selections of 11 people from there from the overall team gets elected.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what we actually did was we split the games into 5 minutes.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think blocks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And looked at looked at those sub games so to speak as the unit of game and then if again if the goal was scored within those minutes we would then take the players who or where at that point in the game and attribute it partly together.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's very difficult because that makes things individual player scores are very difficult to get because the mixing is not so present.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah, Horse Racing is the natives.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's talk about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Anymore questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Did you take any steps to try and discover the server?",
+                    "label": 0
+                },
+                {
+                    "sent": "Skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so the the Xbox Live team has all the kinds of monitoring systems, but I mean at the end of the day you really see you.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have very little information.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could always be that these things just come about by chance, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's it's really tricky.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is some kind of anomaly detection problem that you would want.",
+                    "label": 0
+                },
+                {
+                    "sent": "It said so maybe a little anecdote.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think they do so much in that area, but when you know was first started with the video stream, they hired a few extra people because it's an amazing if you give people an opportunity to show themselves.",
+                    "label": 0
+                },
+                {
+                    "sent": "They show all kinds of strange things.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so then you know they did an investigation into that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's there.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was more crucial photo application of the service together, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, there are some people.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they can black blacklist gamertags.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or they can block them for two weeks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most people don't care because these, really.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gamers have often three to five accounts for boosting and for collusion and for fun.",
+                    "label": 0
+                },
+                {
+                    "sent": "Reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you deal with GNU offers in their deflectors?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a new offers selves?",
+                    "label": 0
+                },
+                {
+                    "sent": "The customers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Favorite thing or?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an interesting question.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question is basically one of generalization, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "How can we when we have a new ad?",
+                    "label": 0
+                },
+                {
+                    "sent": "How can we accurately predict the CPR and the most powerful features for that are hierarchical features?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can think of the ad as being there being an ad ID and the NID is really one that is assigned to a particular advertiser or to the particular campaign that we put it that way, and the campaign is assigned to a particular advertiser and the advertisers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Assigned to particular account and so you have a hierarchy of features, and even if you don't know the individual F ID and it's a new one, the system still maintains knowledge about how are things going in that campaign, or are they going for that particular advertiser on that particular account?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so it's almost like a backing off 2 features that are lower cardinality and therefore therefore have more data per feature.",
+                    "label": 0
+                },
+                {
+                    "sent": "And those are the most powerful features that we have for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, well we should probably move on so it's at the speaker again.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

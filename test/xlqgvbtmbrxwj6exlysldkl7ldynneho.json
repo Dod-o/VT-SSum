@@ -1,0 +1,1239 @@
+{
+    "id": "xlqgvbtmbrxwj6exlysldkl7ldynneho",
+    "title": "Graph Spectral Image Smoothing",
+    "info": {
+        "author": [
+            "Edwin Hancock, Department of Computer Science, University of York"
+        ],
+        "published": "July 11, 2007",
+        "recorded": "June 2007",
+        "category": [
+            "Top->Computer Science->Image Analysis"
+        ]
+    },
+    "url": "http://videolectures.net/gbr07_hancock_gsis/",
+    "segmentation": [
+        [
+            "OK, So what I'd like to do is to talk about some work that I've been doing with Fan Zhang on developing graph spectral methods for image smoothing.",
+            "The idea behind this working if you want to encapsulate it in a nutshell, is that what we're trying to do is to try to develop a version of diffusion smoothing images where we commence from a discrete formulation from the outset.",
+            "So one of the weaknesses of existing diffusion methods is they commence from a partial differential equation that partial differential equation has to be discretized in order to generate the smoothing solution.",
+            "What we do in this work is is to commence from the outset from a discrete formula formulation of the problem, and particularly what we try to do is to set the diffusion process up as a heat equation on a graph, and then we use spectral methods to try to find the solution to this problem."
+        ],
+        [
+            "So this is an overview of the talk.",
+            "I'll start by giving a quick insight into the literature.",
+            "OK. Hello, I'll start by giving a quick review of the literature and motivation for the work.",
+            "Then what I'll do is I will start to introduce a method.",
+            "I'll talk about graph representations of an image, and the edge structures in an image.",
+            "I'll introduce the Heat equation that defines diffusion on a graph.",
+            "Then I'll give some details of numerical implementation and search about.",
+            "The talk will focus on the relationship with other methods, particularly anisotropic diffusion.",
+            "Those low pass filtering, normalized cut, not provide some experiments.",
+            "And finally, some conclusions."
+        ],
+        [
+            "So this slide really summarizes the prior work.",
+            "If we look at diffusion based approaches to image smoothing, they all revolve around the partial differential equation, which I've shown at the top, and that is that Du DT is a divergent SUV D, dotted into the gradient of the image you.",
+            "And this differential equation takes on different forms depending on the choice of D. So if we just take D to be the identity, then we have isotropic linear diffusion and it's well known that this can be implemented using Gaussian filters.",
+            "If we have D as a scalar function, then we have inhomogeneous diffusion of the perona Malik type.",
+            "And then if D has a more complicated tensor structure, then we have an anisotropic diffusion as as explored in the work of vicat.",
+            "So there's a three different types of image smoothing that come about from different forms of the differential equation.",
+            "Now the the point to note."
+        ],
+        [
+            "Is that?",
+            "Uh, the differential equation which I've shown you on the previous slide is continuous, and it's assumed to be a continuous function, R-squared for images, and in order to develop a practical smoothing algorithm, what you have to do is to consider the discretization of the differential equation for numerical implementation.",
+            "But this introduces a number of problems.",
+            "So for instance, for noisy images that they may not be sufficiently smooth to give reliable derivatives, and if we want to achieve fast, accurate and stable implementation, then this may be difficult in practice.",
+            "So the idea in this talk is to see whether we can commence by trying to set up the diffusion smoothing of images using a graph representation.",
+            "What we want to do?",
+            "Is too is to use purely combinatorial operators require no specific discretization procedure?",
+            "And the route to doing this is really is to set the diffusion process up on a graph and to use the heat equation to implement that.",
+            "If you the smoothing process."
+        ],
+        [
+            "So this is this talk really summarized.",
+            "The aims of the paper we're exploring.",
+            "If we can use graph spectral methods to solve the diffusion equation commencing from purely discrete setting."
+        ],
+        [
+            "So this is an overview of how we're going to set the process up.",
+            "The steps in the in the method and I will come back and focus on each of these inner as more mathematical detail.",
+            "So what we're going to do is we're going to set up a diffusion process as a problem involving a weighted graph, and we saw a flavor of that in the previous talk with work on normalized cuts and what we're going to do is to encapsulate anisotropic smoothing by an edge weight matrix.",
+            "And the idea is this weight matrix is going to have large elements if the image is effectively smooth, but it's going to have small elements if there's a big difference in grayscale.",
+            "Value in a particular direction.",
+            "So, since we're trying to work with the graph representation, what we're going to do is to make the pixels are nodes and what we're going to do is to try to diffuse grayscale information along the edges or connectivity structure of the pixel lattice with time.",
+            "What I'll do is I'll show how this process of diffusing information along the edges can be formulated in terms of the heat equation, and then what I'll do is I'll show you how we can find a solution to this problem by exponentiating the spectrum of the policy and matrix for the associated weighted graph, and then I'll later on talk about some efficient implementations of this, because obviously computing an eigen system is going to go like N cubed, when is the number of pixels in an image."
+        ],
+        [
+            "So this is the representation what we have are effectively pixels in the image and then we have edges if pixels are but in the in the pixel lattice.",
+            "And what we're trying to do is to assign an edge, we're going.",
+            "Uh, wait, and we're going to donate that weight by WIJ to tell us whether there's a smooth image structure connecting a pair of pixels, or whether we're encountering strong XD structure and the idea is to discourage diffusion where there is an edge and to encourage it weather smoothness.",
+            "This way we smoothie image whilst preserving edge structure."
+        ],
+        [
+            "So let's just quickly talk about how we set up the graph edge.",
+            "Wait, what we're going to do here is do something slightly different.",
+            "We're going to characterize each pixel by an end by end window, and that contains a set of neighbors, each of which has a pixel grayscale value.",
+            "We're going to be going to vectorize the neighborhoods, and then the idea is to compute computer distance between neighborhoods by taking the.",
+            "L2 norm between the vectors of pixel values in the neighborhoods of the pixels in the image and then we can also apply some Gaussian smoothing for this if we want to put a little bit of additional smoothing on top of the process.",
+            "So here's the formula for assigning the edge weights.",
+            "What we do is we take an exponential function of this distance between vectors of pixel grayscale values in the neighborhoods we square that that distance divided by a constant squared, and then just take the negative exponential of that and then in order to restrict the influence of this this weight matrix, we put on a test for the.",
+            "Distance between the pixel locations and if the distance between pixel locations I&J is less than some radius, then we compute the weight using this formula.",
+            "If it's greater than, we just set the weight equal to 0.",
+            "So this restricts the influence of the smoothing or waiting process."
+        ],
+        [
+            "Whoops OK, so once we have the.",
+            "Edge weight matrix.",
+            "We can start to set this problem up in a graph spectral setting.",
+            "So to do this, what we do is we first of all compute the diagonal degree matrix.",
+            "That's the the total weight of the edges incident on edge, and then we compute the Laplacian matrix, which is the degree matrix minus the weight matrix from the Laplacian matrix.",
+            "We compute the normalized applausi and which is just found by pre and post.",
+            "Multiplying the classy and matrix by one over the square root of the degree matrix.",
+            "So that's the the the normalized classy and this is the basically the graph spectral setup for the."
+        ],
+        [
+            "And what we want to do is to try to to work in terms of the spectrum of Alaskan matrix.",
+            "So what we do is we take the perform eigendecomposition on the normalized applausi.",
+            "And this is the eigen decomposition in terms of the eigenvalue matrix Lambda and the eigenvector matrix 5.",
+            "So the eigenvalue matrix is the diagonal matrix with the eigenvalues in decreasing order along the leading diagonal.",
+            "And the eigenvector matrix is a corresponding matrix with the ordered eigenvectors as columns.",
+            "So this is the.",
+            "I can do composition of the normalized applausi and in terms of the eigenvalue and eigenvector matrices, and this is in terms of the individual eigenvalues and eigenvectors.",
+            "So that gives us the the spectrum of the class.",
+            "You know we'll need that later on when we come to solving the diffusion equation on the."
+        ],
+        [
+            "The graph that I've set up.",
+            "So what we want to do is to is to model diffusion smoothing of the image data using the heat equation.",
+            "So what I want to do is to write down the heat equation for the graph and that's the partial differential equation on the top of the slide.",
+            "It's the HTTP equals minus the normalized the plastic lines HT where HT is the heat kernel and what I'll do later is to show how we can use a solution of this differential equation.",
+            "The heat kernel as a smoothing, a smoothing kernel on the graph for the for the pixel data.",
+            "So the the solution of this differential equation is fairly simple.",
+            "It's found by Exponentiating the normalized Laplacian with time, and if we have the the spectrum of the Laplacian matrix to hand then that X exponential of a normalized blasting with time is just find by pre and post.",
+            "Multiplying the exponentiation of the eigenvalue matrix with time by the eigenvector vector matrix and its transposed.",
+            "So that's the that's a solution to the."
+        ],
+        [
+            "Today, the Heat equation expressed in terms of the spectrum of the normalized plastic matrix.",
+            "Electron, I'm going to talk about the behavior of this equation for small and large times."
+        ],
+        [
+            "If we take a small time then the as time tends to 0, then the heat kernel solution of the diffusion equation at the top is just the identity matrix times the normalized Laplacian times time, and then if we."
+        ],
+        [
+            "Take the solution at large T. The heat kernel is just the identity matrix times the component of the heat kernel coming from the smallest non zero eigenvalue Lambda 2.",
+            "So that's the solution of the diffusion equation that the heat kernel on a graph expressed in terms of the spectrum of the normalized plaskon matrix."
+        ],
+        [
+            "So let me just skip this, but let's just say that the it's straightforward to show that the normalized applausi and is linked to the lazy random walk on a graph."
+        ],
+        [
+            "What I'm more interested in here is the link with the continuous time random walk.",
+            "So let me let me now consider what happens if we have a around and walk on the graph and I'm going to characterize that random walk in terms of a state vector time T. I'm going to denote that state vectors P of T, and that's the probability that that vector gives me the probability of visiting each of the nodes on the graph at time T under under the random walk.",
+            "And if I unpack this, the state vector, the probability of visiting the ice node after time T is just PT of I.",
+            "So it turns out that the the state vector of the continuous time random walk on a graph is given by a differential equation, which is very similar to the heat equation.",
+            "It's DP DT equals minus L hat times P, and if you if you solve that differential equation, we just find that P of T is E to the minus L hat T the normalized opacity and exponentiated time times P0.",
+            "The initial state vector.",
+            "And we can write that just as the heat kernel HT.",
+            "Times initial state vector.",
+            "So if we consider a random walk on on the graph structure, the Heat kernel tells us how the state vector evolves with time and will tell us the probability of visiting each of the nodes of the graph of the particular instant in time and what I want to do is to use this.",
+            "Use this equation to try to model how the grayscale values in an image evolve.",
+            "What I'm going to do is I'm going to make I'm going to vectorize the pixels in the image that's going those are going to be effectively my P0, so I'm going to take the brightness of a pixel as being the initial probability of visiting a site on the lattice initially, and then I'm going to evolve these vectors of pixel values with time.",
+            "In order to simulate the smoothing process under the heat equation."
+        ],
+        [
+            "OK, so that's just what Tokyo leading centers of Commerce, and that's very interesting, but I need to get rid of it.",
+            "Sorry bout that intrusion into my talk.",
+            "Sorry I. I don't know."
+        ],
+        [
+            "Yep.",
+            "So we're going to try to use the random walk on on the graph to model image smoothing van via anisotropic diffusion.",
+            "What's going to happen is when the transition probability is small, then there is strong evidence of edge structure and we see ourselves as residing in uniform image regions and the heat kernel is going to perform the role of smoothing the pixel values and this means that the pixel values are going to be related to state probabilities of the random walk."
+        ],
+        [
+            "OK, so this is the setup.",
+            "As I said earlier, we have the vertices are going to be pixel value values.",
+            "The edge weight is going to be computed in the way I showed you earlier and we can think of this as being sort of thermal conductivity for the diffusion process.",
+            "And then we're going to use the diffusion equation to smooth the pixel values.",
+            "And the idea here is we're going to have the pixel values stored as a vector.",
+            "Of stacked image columns and the connectivity structure is going to be encoded by the normalized Laplacian matrix."
+        ],
+        [
+            "So the.",
+            "The smoothing process looks like this."
+        ],
+        [
+            "If we have the pixel values stored as a long vector.",
+            "Basically stacked image columns.",
+            "Then the intensity vector of intense is at time T is just E to the minus TL hat times I 0 and that's going to be the heat kernel times the initial vector of pixel values.",
+            "And we can write this out in terms of the pixel indices.",
+            "What happens is that the.",
+            "The intensity of pixel value V is just going to be the sum over you.",
+            "The pixel values in the image IOU times the heat kernel at U&V.",
+            "So from this you can see that the heat kernel is performing the role of a smoothing process on the pixel values.",
+            "Now the interesting thing to do is now to consider what happens to this in different limiting."
+        ],
+        [
+            "Cases, so the simplest limiting case to consider is a small T behavior.",
+            "If we write down the equation on the top there for the case when T is small, then I've TSI 0 into I.",
+            "The identity matrix minus normalized Laplacian times T and then if we substitute the weight matrix into this, what you see is that the intensity of the pixel at time T is just the original intensity at that pixel times 1 -- T. So that's the original brightness of the pixel persisting with time, and then we have a tee times the effect of the weighting of the pixel brightness values coming from the model of edge weights, which I assumed.",
+            "So that's the the smoothing processor.",
+            "Small time.",
+            "We just have persistence of the original grayscale pixel value times 1 -- T and then we have tee times the smoothed smoothing of the image pixels from the neighbor neighboring sites in the pixel lattice controlled by the weights assigned to the edges."
+        ],
+        [
+            "So I think I've covered that pretty well in the previous slide."
+        ],
+        [
+            "Hide Now one of the obvious difficulties with trying to implement this is that we are faced with having to compute the spectrum of the normalized, classy and matrix.",
+            "The problem with that is it's it's an operation that is typically N cubed.",
+            "When it ended, the number of pixels in the image, and that's what we've done.",
+            "Here, is we've reduced the.",
+            "The complete the complexity of the computation of the exponentials by using the Krylov subspace projection technique.",
+            "So that's really the solution."
+        ],
+        [
+            "Into the computational bottleneck in this example.",
+            "So the this one I've just tried to summarize some of the relationships with the next few slides.",
+            "Some of the relationships with existing methods and if we try to consider the relationship with anisotropic diffusion, then the relation here comes from the fact that the graph Laplacian can be thought of as a discrete approximation to the plus Beltrami operator and so on.",
+            "The left hand side.",
+            "I've given the.",
+            "Smoothing process in terms of the Laplacian on the graph and then here is the corresponding.",
+            "Smoothing process in terms of the continuous Laplace Beltrami operator.",
+            "And if you pursue this analogy, then you get the following diffusion operator based in terms of pixel derivatives on the image."
+        ],
+        [
+            "Michael also try to think of this as being in some sense analogous to the full analysis of images.",
+            "If we think of the different eigen modes of the Laplacian matrix as corresponding to different Fourier components, then what we're doing is effectively waiting the different eigen modes according to.",
+            "A constant that constants determined by time and then we so we can think of this as really being a sort of a series of Fourier terms corresponding to each of the eigenmodes."
+        ],
+        [
+            "And then if we want to look at the relationship with graph spectral clustering, the thing to note here is that the heat kernel for large T is determined by the smallest non zero eigenvalue over the place in matrix and so the heat kernel just looks is just determined by the Fiedler vector.",
+            "So there's a."
+        ],
+        [
+            "Broad links with."
+        ],
+        [
+            "Laplace Beltrami smoothing."
+        ],
+        [
+            "For analysis and normalized cuts as in terms of image."
+        ],
+        [
+            "Processing so let me just show some some results now.",
+            "What we've done is we have run this on a variety of imagery, subject to noise and I show you the results of.",
+            "Applying the diffusion operator with with various parameters.",
+            "So for most of these these examples that is 2 = T = 3 K is set according to the variance of the image.",
+            "And now we see pairs of initial and then smoothed images.",
+            "So on the left in each pair we have the initial noisy image on the right hand side we have the result of applying this graph spectral diffusion process to to smooth the structures and the main effects to note that are that we seem to smooth.",
+            "Well within uniform regions to get rid of noise, but we don't erode the edge structure that's preserved by the diffusion process as you would hope with the way in."
+        ],
+        [
+            "Riverside awaits.",
+            "So the comparison here with with different with different algorithms.",
+            "So here we take a leaner image with some noise added.",
+            "In in Bay I show the zoom portion of the image.",
+            "Then in see I show the effect of of smoothing with the best choice of parameters for our method on this this data and then for comparison we have the results of regularised perona, Malik diffusion and then the number of alternative filters.",
+            "And I think the the main thing to take from this picture is that we seem to strike the best compromise between preserving structure and smoothing smoothing that the image data."
+        ],
+        [
+            "Here's another example, so this is an image containing fine fingerprint detail.",
+            "The noisy images shown in panel A, then I've shown 2 results for our algorithm B1 and B2 with different sets of parameters and then what we have again or the competitive algorithms we've got perona Malik in C and then the alternative algorithms include including wavelet filtering in the remaining panels.",
+            "And I think the main main feature to note here is if you take B2 then we seem to preserve most of the connectivity structure of the fingerprints without losing connectivity or losing.",
+            "Oh, blurring the OR disturbing the structure of the finger."
+        ],
+        [
+            "Prince so now some some quantitative analysis.",
+            "What we've done is we have computed RMS errors for the smoothing process on number of images, so these are the Barbara Lehner, Boone House and MRI brain image.",
+            "The first column shows the RMS error for graph smoothing and then I showed the RMS errors with with the alternative algorithms we've compared with.",
+            "So in each case we seem to get the.",
+            "The lowest one of the lower possible RMS errors in the few examples here where.",
+            "Particularly, the wavelet method seems to do rather better, so here we get 3.85 as our RMS error on the wavelet method outperforms it by by small amount.",
+            "Just to look at this in a minute."
+        ],
+        [
+            "In more detail here, I have a plot of the RMS error versus the standard deviation of the noise.",
+            "What we what we see here are curves corresponding to different algorithms, so the black curve shows the initial RMS error for the images is a function of standard deviation and then the different curves show the results of different algorithms.",
+            "So the red I've shown the result of the graph spectral smoothing.",
+            "And that seems to outperform all of the methods except the wavelet filtering or the blue diamonds."
+        ],
+        [
+            "And so with some extensions we can apply this to color imagery, and again the method seems to do very well in terms of smoothing image structure and preserving fine structure.",
+            "So particularly here is this fish image.",
+            "See that we're able to smooth the image data whilst preserving the fine structures in the background."
+        ],
+        [
+            "Again, his more color examples from the leader image and the jet plane.",
+            "And the results seem."
+        ],
+        [
+            "Seem to be satisfactory.",
+            "So to conclude what I've done is, I've provided a graph representation of images and this provides a natural way of trying to realize the diffusion.",
+            "Smoothing images in a discrete manner from the outset without having to worry about discretization of the partial differential equation.",
+            "I've shown that the diffusion on the graphs can be used to for smoothing efficiently, and the diffusion is determined by the spectrum.",
+            "Of the Laplacian for the weighted graph representing the problem and that we've overcome problems with computational complexity here, using the Krylov subspace technique.",
+            "And I've identified number of relationships between graph spectral smoothing and I nicer, Tropic diffusion, lowpass filtering and spectral clustering.",
+            "So thank you very much indeed."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what I'd like to do is to talk about some work that I've been doing with Fan Zhang on developing graph spectral methods for image smoothing.",
+                    "label": 1
+                },
+                {
+                    "sent": "The idea behind this working if you want to encapsulate it in a nutshell, is that what we're trying to do is to try to develop a version of diffusion smoothing images where we commence from a discrete formulation from the outset.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of the weaknesses of existing diffusion methods is they commence from a partial differential equation that partial differential equation has to be discretized in order to generate the smoothing solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we do in this work is is to commence from the outset from a discrete formula formulation of the problem, and particularly what we try to do is to set the diffusion process up as a heat equation on a graph, and then we use spectral methods to try to find the solution to this problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this is an overview of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll start by giving a quick insight into the literature.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Hello, I'll start by giving a quick review of the literature and motivation for the work.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then what I'll do is I will start to introduce a method.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll talk about graph representations of an image, and the edge structures in an image.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll introduce the Heat equation that defines diffusion on a graph.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then I'll give some details of numerical implementation and search about.",
+                    "label": 1
+                },
+                {
+                    "sent": "The talk will focus on the relationship with other methods, particularly anisotropic diffusion.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those low pass filtering, normalized cut, not provide some experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, some conclusions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this slide really summarizes the prior work.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we look at diffusion based approaches to image smoothing, they all revolve around the partial differential equation, which I've shown at the top, and that is that Du DT is a divergent SUV D, dotted into the gradient of the image you.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this differential equation takes on different forms depending on the choice of D. So if we just take D to be the identity, then we have isotropic linear diffusion and it's well known that this can be implemented using Gaussian filters.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have D as a scalar function, then we have inhomogeneous diffusion of the perona Malik type.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then if D has a more complicated tensor structure, then we have an anisotropic diffusion as as explored in the work of vicat.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a three different types of image smoothing that come about from different forms of the differential equation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the the point to note.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Is that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Uh, the differential equation which I've shown you on the previous slide is continuous, and it's assumed to be a continuous function, R-squared for images, and in order to develop a practical smoothing algorithm, what you have to do is to consider the discretization of the differential equation for numerical implementation.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this introduces a number of problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, for noisy images that they may not be sufficiently smooth to give reliable derivatives, and if we want to achieve fast, accurate and stable implementation, then this may be difficult in practice.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the idea in this talk is to see whether we can commence by trying to set up the diffusion smoothing of images using a graph representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we want to do?",
+                    "label": 1
+                },
+                {
+                    "sent": "Is too is to use purely combinatorial operators require no specific discretization procedure?",
+                    "label": 0
+                },
+                {
+                    "sent": "And the route to doing this is really is to set the diffusion process up on a graph and to use the heat equation to implement that.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you the smoothing process.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this is this talk really summarized.",
+                    "label": 0
+                },
+                {
+                    "sent": "The aims of the paper we're exploring.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we can use graph spectral methods to solve the diffusion equation commencing from purely discrete setting.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this is an overview of how we're going to set the process up.",
+                    "label": 0
+                },
+                {
+                    "sent": "The steps in the in the method and I will come back and focus on each of these inner as more mathematical detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to do is we're going to set up a diffusion process as a problem involving a weighted graph, and we saw a flavor of that in the previous talk with work on normalized cuts and what we're going to do is to encapsulate anisotropic smoothing by an edge weight matrix.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the idea is this weight matrix is going to have large elements if the image is effectively smooth, but it's going to have small elements if there's a big difference in grayscale.",
+                    "label": 0
+                },
+                {
+                    "sent": "Value in a particular direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, since we're trying to work with the graph representation, what we're going to do is to make the pixels are nodes and what we're going to do is to try to diffuse grayscale information along the edges or connectivity structure of the pixel lattice with time.",
+                    "label": 1
+                },
+                {
+                    "sent": "What I'll do is I'll show how this process of diffusing information along the edges can be formulated in terms of the heat equation, and then what I'll do is I'll show you how we can find a solution to this problem by exponentiating the spectrum of the policy and matrix for the associated weighted graph, and then I'll later on talk about some efficient implementations of this, because obviously computing an eigen system is going to go like N cubed, when is the number of pixels in an image.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is the representation what we have are effectively pixels in the image and then we have edges if pixels are but in the in the pixel lattice.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we're trying to do is to assign an edge, we're going.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uh, wait, and we're going to donate that weight by WIJ to tell us whether there's a smooth image structure connecting a pair of pixels, or whether we're encountering strong XD structure and the idea is to discourage diffusion where there is an edge and to encourage it weather smoothness.",
+                    "label": 0
+                },
+                {
+                    "sent": "This way we smoothie image whilst preserving edge structure.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's just quickly talk about how we set up the graph edge.",
+                    "label": 1
+                },
+                {
+                    "sent": "Wait, what we're going to do here is do something slightly different.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to characterize each pixel by an end by end window, and that contains a set of neighbors, each of which has a pixel grayscale value.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to be going to vectorize the neighborhoods, and then the idea is to compute computer distance between neighborhoods by taking the.",
+                    "label": 0
+                },
+                {
+                    "sent": "L2 norm between the vectors of pixel values in the neighborhoods of the pixels in the image and then we can also apply some Gaussian smoothing for this if we want to put a little bit of additional smoothing on top of the process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the formula for assigning the edge weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we do is we take an exponential function of this distance between vectors of pixel grayscale values in the neighborhoods we square that that distance divided by a constant squared, and then just take the negative exponential of that and then in order to restrict the influence of this this weight matrix, we put on a test for the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Distance between the pixel locations and if the distance between pixel locations I&J is less than some radius, then we compute the weight using this formula.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's greater than, we just set the weight equal to 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this restricts the influence of the smoothing or waiting process.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Whoops OK, so once we have the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Edge weight matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can start to set this problem up in a graph spectral setting.",
+                    "label": 1
+                },
+                {
+                    "sent": "So to do this, what we do is we first of all compute the diagonal degree matrix.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's the the total weight of the edges incident on edge, and then we compute the Laplacian matrix, which is the degree matrix minus the weight matrix from the Laplacian matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "We compute the normalized applausi and which is just found by pre and post.",
+                    "label": 0
+                },
+                {
+                    "sent": "Multiplying the classy and matrix by one over the square root of the degree matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the the the normalized classy and this is the basically the graph spectral setup for the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And what we want to do is to try to to work in terms of the spectrum of Alaskan matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do is we take the perform eigendecomposition on the normalized applausi.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is the eigen decomposition in terms of the eigenvalue matrix Lambda and the eigenvector matrix 5.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the eigenvalue matrix is the diagonal matrix with the eigenvalues in decreasing order along the leading diagonal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the eigenvector matrix is a corresponding matrix with the ordered eigenvectors as columns.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can do composition of the normalized applausi and in terms of the eigenvalue and eigenvector matrices, and this is in terms of the individual eigenvalues and eigenvectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that gives us the the spectrum of the class.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know we'll need that later on when we come to solving the diffusion equation on the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The graph that I've set up.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we want to do is to is to model diffusion smoothing of the image data using the heat equation.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what I want to do is to write down the heat equation for the graph and that's the partial differential equation on the top of the slide.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's the HTTP equals minus the normalized the plastic lines HT where HT is the heat kernel and what I'll do later is to show how we can use a solution of this differential equation.",
+                    "label": 1
+                },
+                {
+                    "sent": "The heat kernel as a smoothing, a smoothing kernel on the graph for the for the pixel data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the the solution of this differential equation is fairly simple.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's found by Exponentiating the normalized Laplacian with time, and if we have the the spectrum of the Laplacian matrix to hand then that X exponential of a normalized blasting with time is just find by pre and post.",
+                    "label": 0
+                },
+                {
+                    "sent": "Multiplying the exponentiation of the eigenvalue matrix with time by the eigenvector vector matrix and its transposed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the that's a solution to the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Today, the Heat equation expressed in terms of the spectrum of the normalized plastic matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Electron, I'm going to talk about the behavior of this equation for small and large times.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If we take a small time then the as time tends to 0, then the heat kernel solution of the diffusion equation at the top is just the identity matrix times the normalized Laplacian times time, and then if we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Take the solution at large T. The heat kernel is just the identity matrix times the component of the heat kernel coming from the smallest non zero eigenvalue Lambda 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the solution of the diffusion equation that the heat kernel on a graph expressed in terms of the spectrum of the normalized plaskon matrix.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let me just skip this, but let's just say that the it's straightforward to show that the normalized applausi and is linked to the lazy random walk on a graph.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What I'm more interested in here is the link with the continuous time random walk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me let me now consider what happens if we have a around and walk on the graph and I'm going to characterize that random walk in terms of a state vector time T. I'm going to denote that state vectors P of T, and that's the probability that that vector gives me the probability of visiting each of the nodes on the graph at time T under under the random walk.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I unpack this, the state vector, the probability of visiting the ice node after time T is just PT of I.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it turns out that the the state vector of the continuous time random walk on a graph is given by a differential equation, which is very similar to the heat equation.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's DP DT equals minus L hat times P, and if you if you solve that differential equation, we just find that P of T is E to the minus L hat T the normalized opacity and exponentiated time times P0.",
+                    "label": 0
+                },
+                {
+                    "sent": "The initial state vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can write that just as the heat kernel HT.",
+                    "label": 0
+                },
+                {
+                    "sent": "Times initial state vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we consider a random walk on on the graph structure, the Heat kernel tells us how the state vector evolves with time and will tell us the probability of visiting each of the nodes of the graph of the particular instant in time and what I want to do is to use this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Use this equation to try to model how the grayscale values in an image evolve.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I'm going to do is I'm going to make I'm going to vectorize the pixels in the image that's going those are going to be effectively my P0, so I'm going to take the brightness of a pixel as being the initial probability of visiting a site on the lattice initially, and then I'm going to evolve these vectors of pixel values with time.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to simulate the smoothing process under the heat equation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so that's just what Tokyo leading centers of Commerce, and that's very interesting, but I need to get rid of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry bout that intrusion into my talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry I. I don't know.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to try to use the random walk on on the graph to model image smoothing van via anisotropic diffusion.",
+                    "label": 1
+                },
+                {
+                    "sent": "What's going to happen is when the transition probability is small, then there is strong evidence of edge structure and we see ourselves as residing in uniform image regions and the heat kernel is going to perform the role of smoothing the pixel values and this means that the pixel values are going to be related to state probabilities of the random walk.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so this is the setup.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said earlier, we have the vertices are going to be pixel value values.",
+                    "label": 0
+                },
+                {
+                    "sent": "The edge weight is going to be computed in the way I showed you earlier and we can think of this as being sort of thermal conductivity for the diffusion process.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to use the diffusion equation to smooth the pixel values.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the idea here is we're going to have the pixel values stored as a vector.",
+                    "label": 1
+                },
+                {
+                    "sent": "Of stacked image columns and the connectivity structure is going to be encoded by the normalized Laplacian matrix.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The smoothing process looks like this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If we have the pixel values stored as a long vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically stacked image columns.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the intensity vector of intense is at time T is just E to the minus TL hat times I 0 and that's going to be the heat kernel times the initial vector of pixel values.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can write this out in terms of the pixel indices.",
+                    "label": 0
+                },
+                {
+                    "sent": "What happens is that the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The intensity of pixel value V is just going to be the sum over you.",
+                    "label": 0
+                },
+                {
+                    "sent": "The pixel values in the image IOU times the heat kernel at U&V.",
+                    "label": 0
+                },
+                {
+                    "sent": "So from this you can see that the heat kernel is performing the role of a smoothing process on the pixel values.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the interesting thing to do is now to consider what happens to this in different limiting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Cases, so the simplest limiting case to consider is a small T behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we write down the equation on the top there for the case when T is small, then I've TSI 0 into I.",
+                    "label": 0
+                },
+                {
+                    "sent": "The identity matrix minus normalized Laplacian times T and then if we substitute the weight matrix into this, what you see is that the intensity of the pixel at time T is just the original intensity at that pixel times 1 -- T. So that's the original brightness of the pixel persisting with time, and then we have a tee times the effect of the weighting of the pixel brightness values coming from the model of edge weights, which I assumed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the the smoothing processor.",
+                    "label": 0
+                },
+                {
+                    "sent": "Small time.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just have persistence of the original grayscale pixel value times 1 -- T and then we have tee times the smoothed smoothing of the image pixels from the neighbor neighboring sites in the pixel lattice controlled by the weights assigned to the edges.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I think I've covered that pretty well in the previous slide.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Hide Now one of the obvious difficulties with trying to implement this is that we are faced with having to compute the spectrum of the normalized, classy and matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem with that is it's it's an operation that is typically N cubed.",
+                    "label": 0
+                },
+                {
+                    "sent": "When it ended, the number of pixels in the image, and that's what we've done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here, is we've reduced the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The complete the complexity of the computation of the exponentials by using the Krylov subspace projection technique.",
+                    "label": 1
+                },
+                {
+                    "sent": "So that's really the solution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Into the computational bottleneck in this example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the this one I've just tried to summarize some of the relationships with the next few slides.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of the relationships with existing methods and if we try to consider the relationship with anisotropic diffusion, then the relation here comes from the fact that the graph Laplacian can be thought of as a discrete approximation to the plus Beltrami operator and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "The left hand side.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've given the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Smoothing process in terms of the Laplacian on the graph and then here is the corresponding.",
+                    "label": 0
+                },
+                {
+                    "sent": "Smoothing process in terms of the continuous Laplace Beltrami operator.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you pursue this analogy, then you get the following diffusion operator based in terms of pixel derivatives on the image.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Michael also try to think of this as being in some sense analogous to the full analysis of images.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we think of the different eigen modes of the Laplacian matrix as corresponding to different Fourier components, then what we're doing is effectively waiting the different eigen modes according to.",
+                    "label": 0
+                },
+                {
+                    "sent": "A constant that constants determined by time and then we so we can think of this as really being a sort of a series of Fourier terms corresponding to each of the eigenmodes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then if we want to look at the relationship with graph spectral clustering, the thing to note here is that the heat kernel for large T is determined by the smallest non zero eigenvalue over the place in matrix and so the heat kernel just looks is just determined by the Fiedler vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Broad links with.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Laplace Beltrami smoothing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "For analysis and normalized cuts as in terms of image.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Processing so let me just show some some results now.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we've done is we have run this on a variety of imagery, subject to noise and I show you the results of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Applying the diffusion operator with with various parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for most of these these examples that is 2 = T = 3 K is set according to the variance of the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now we see pairs of initial and then smoothed images.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on the left in each pair we have the initial noisy image on the right hand side we have the result of applying this graph spectral diffusion process to to smooth the structures and the main effects to note that are that we seem to smooth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well within uniform regions to get rid of noise, but we don't erode the edge structure that's preserved by the diffusion process as you would hope with the way in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Riverside awaits.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the comparison here with with different with different algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we take a leaner image with some noise added.",
+                    "label": 0
+                },
+                {
+                    "sent": "In in Bay I show the zoom portion of the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then in see I show the effect of of smoothing with the best choice of parameters for our method on this this data and then for comparison we have the results of regularised perona, Malik diffusion and then the number of alternative filters.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I think the the main thing to take from this picture is that we seem to strike the best compromise between preserving structure and smoothing smoothing that the image data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here's another example, so this is an image containing fine fingerprint detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "The noisy images shown in panel A, then I've shown 2 results for our algorithm B1 and B2 with different sets of parameters and then what we have again or the competitive algorithms we've got perona Malik in C and then the alternative algorithms include including wavelet filtering in the remaining panels.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I think the main main feature to note here is if you take B2 then we seem to preserve most of the connectivity structure of the fingerprints without losing connectivity or losing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, blurring the OR disturbing the structure of the finger.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Prince so now some some quantitative analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we've done is we have computed RMS errors for the smoothing process on number of images, so these are the Barbara Lehner, Boone House and MRI brain image.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first column shows the RMS error for graph smoothing and then I showed the RMS errors with with the alternative algorithms we've compared with.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in each case we seem to get the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The lowest one of the lower possible RMS errors in the few examples here where.",
+                    "label": 0
+                },
+                {
+                    "sent": "Particularly, the wavelet method seems to do rather better, so here we get 3.85 as our RMS error on the wavelet method outperforms it by by small amount.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just to look at this in a minute.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In more detail here, I have a plot of the RMS error versus the standard deviation of the noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we what we see here are curves corresponding to different algorithms, so the black curve shows the initial RMS error for the images is a function of standard deviation and then the different curves show the results of different algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the red I've shown the result of the graph spectral smoothing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that seems to outperform all of the methods except the wavelet filtering or the blue diamonds.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And so with some extensions we can apply this to color imagery, and again the method seems to do very well in terms of smoothing image structure and preserving fine structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So particularly here is this fish image.",
+                    "label": 0
+                },
+                {
+                    "sent": "See that we're able to smooth the image data whilst preserving the fine structures in the background.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Again, his more color examples from the leader image and the jet plane.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the results seem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Seem to be satisfactory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to conclude what I've done is, I've provided a graph representation of images and this provides a natural way of trying to realize the diffusion.",
+                    "label": 1
+                },
+                {
+                    "sent": "Smoothing images in a discrete manner from the outset without having to worry about discretization of the partial differential equation.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've shown that the diffusion on the graphs can be used to for smoothing efficiently, and the diffusion is determined by the spectrum.",
+                    "label": 1
+                },
+                {
+                    "sent": "Of the Laplacian for the weighted graph representing the problem and that we've overcome problems with computational complexity here, using the Krylov subspace technique.",
+                    "label": 1
+                },
+                {
+                    "sent": "And I've identified number of relationships between graph spectral smoothing and I nicer, Tropic diffusion, lowpass filtering and spectral clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So thank you very much indeed.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

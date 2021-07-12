@@ -1,0 +1,2723 @@
+{
+    "id": "jfm5lbmlg3unt62rz2risottpnn2yojz",
+    "title": "A general purpose segmentation algorithm using analytically evaluated random walks",
+    "info": {
+        "author": [
+            "Leo Grady, Siemens Corporate Research"
+        ],
+        "published": "July 11, 2007",
+        "recorded": "June 2007",
+        "category": [
+            "Top->Computer Science->Machine Learning->Pattern Recognition",
+            "Top->Computer Science->Data Mining"
+        ]
+    },
+    "url": "http://videolectures.net/gbr07_grady_gpsa/",
+    "segmentation": [
+        [
+            "Great.",
+            "Thanks for inviting me.",
+            "I'm happy to be here.",
+            "I'm going to be talking about general purpose image segmentation on using random walks.",
+            "We've heard a lot about random walks and graphs over the course of this conference.",
+            "I'm going to be continuing that and talking about uses for image segmentation specifically."
+        ],
+        [
+            "So here's the outline of what we're going to be talking about.",
+            "First, as Francisco mentioned, I come from Siemens corporate research.",
+            "I just want to give a few slides about who we are and what we do.",
+            "Then talk about what I mean by general purpose segmentation.",
+            "And then introduce you to a particular algorithm that I've been developing for the last few years now called the Random Walker algorithm.",
+            "The I'm going to go through the concept, the properties, the behavior of the algorithm, the theory numerics.",
+            "Look at some results and then talk about some more recent work.",
+            "Finally wrap up with a few conclusions."
+        ],
+        [
+            "SER Simmons corporate research is located in Princeton and New Jersey, USA.",
+            "We have about 200 full-time research staff and about slides a little bit old, but about 80 to 100 people at the PhD level working on computer vision.",
+            "Basically, at Siemens we are trying to solve practical computer vision problems mainly in the area of medical image analysis.",
+            "Our funding models such that we do about 1/3 of our time on basic research and about 2/3 on actual product development."
+        ],
+        [
+            "The goal of clinical imaging of computer vision in the medical domain is generally to do measurement or enhance therapy or provide more information to radiologists that would be otherwise looking at the images.",
+            "And obviously, ultimately to save time and reduce."
+        ],
+        [
+            "Cost.",
+            "Our core interests basically fall on the three major lines.",
+            "The medical imaging, community, segmentation, registration and visual."
+        ],
+        [
+            "Nation.",
+            "We also work on interventional imaging.",
+            "In which we can put people inside Mris and tried to help surgeons work in real time in order to.",
+            "Better extract organs and tumors and things like that.",
+            "There are a lot of problems here associated with segmentation, registration and real time analysis."
+        ],
+        [
+            "So that that's who we are at Siemens corporate research and we're always taking interns, an staff members.",
+            "And if anybody is interested in sending students or coming themselves, you know, please be in touch.",
+            "OK, so now my research I'm going to be talking about general purpose segmentation.",
+            "What I mean by that?",
+            "The."
+        ],
+        [
+            "All with general purpose segmentation is.",
+            "Simple or sound simple.",
+            "Imputing image and output the desired segmentation.",
+            "Obviously the problem is with this desired segmentation because two different people.",
+            "Two different users may want different objects to be extracted out of an image.",
+            "So from our standpoint, sometimes we'd actually like to provide a general purpose tool like the Magic Wand and photo shop that allows somebody to, on any given day, extract you know their cousin from the photograph, and put them somewhere else, or.",
+            "Especially for our product standpoint, if we build a segmentation engine to segment, say livers an tomorrow, we need to segment kidneys.",
+            "We'd like to be able to reuse the core segmentation engine and not start from scratch."
+        ],
+        [
+            "This problem though of trying to.",
+            "Return the object that a particular individual is looking for.",
+            "Requires some interaction.",
+            "In other words, if we really have a general purpose segmentation tool, then the user has to indicate to the algorithm which object it is they want to extract in order to produce the desired segmentation.",
+            "And they're basically three approaches for this.",
+            "In the literature, there's sort of the what you might call a classical approach, in which all the objects are segmented automatically from the from the image, and then a user would just go through and select the object that they were interested in.",
+            "Another approach is to provide pieces of a boundary of an object or a nearby boundary and evolve that.",
+            "Boundary to the desired boundary.",
+            "And its approach of say snakes and level sets intelligent scissors.",
+            "More recently, people have used this seated approach in which you mark some interior parts of the object and some exterior parts of the object and then allow the the system to generate where the boundary is.",
+            "Is the approach of graph cuts or magic wand in Photoshop or read?"
+        ],
+        [
+            "Growing.",
+            "The thing about these atomic methods, the ones that automatically segment all the objects in the image, is that the atoms must be.",
+            "Subsets of the true segmentation if they're not, then if a user wants half of one of the objects that's been segmented, they need to come up with some way of splitting those objects.",
+            "Or if they want multiple objects, they need to come up with ways of merging them.",
+            "The boundary methods are typically been easier to incorporate shape priors, and they can be used to improve the segmentation of another algorithm.",
+            "But traditionally, what's in the literature has been iterative, local minima, and it's very difficult to initialize boundary methods and higher dimensions or in abstract spaces.",
+            "In contrast, the seeding methods the third kind here.",
+            "Have generally lead naturally to steady state and graph based algorithms and it's easy to seed to provide points that are inside and outside an object even in arbitrary dimension or other data structures.",
+            "For example, if you wanted to segment a surface mesh or nonuniformly sampled data, or some general clustering problem.",
+            "So it's this third type seated methods that."
+        ],
+        [
+            "We're going to be looking at.",
+            "The classic seated algorithm is region growing.",
+            "Basically you start at one seed and you grow until some measure of distance or contrast is met.",
+            "The nice thing about region growing is that it's simple to code and it's fast.",
+            "Unfortunately, it really doesn't work unless the image is very simple.",
+            "So for example in this image.",
+            "You have these sort of two triangles and upper triangle, lower triangle, well separated by a boundary.",
+            "Except for this weakness, and that weakness is sufficient to cause a garbage result from region growing.",
+            "Likewise, if you have a black circle in a white background.",
+            "You can get fine segmentation with region growing, but once you add noise you around all sorts of problems."
+        ],
+        [
+            "In small amounts of noise.",
+            "More recently, the graph cuts approach has been developed for seated segmentation.",
+            "It's great, it's fast, has a probabilistic interpretation.",
+            "But there are some problems with it, for example.",
+            "The goal of graph cuts is to find a minimum boundary.",
+            "And so, for example, with the same image that we looked at with the upper triangle in the lower triangle, if you just input a small number of seeds, the minimum boundary separating blue from green or blue from red is just this little boundary surrounding the blue seed.",
+            "If you had enough.",
+            "Seeds in order to such that the surface area exceeds this weakness, you can.",
+            "Actually recover the weak boundary.",
+            "But when you have a four connected lattice in particular, you get these these metrication artifacts.",
+            "The reason being that the cut going down and over is the same as going over it down or even going down diagonally.",
+            "On a four connected graph.",
+            "This problem can be improved by adding more edges, but that increases the complexity in the memory.",
+            "Additionally, with graph cuts you are somewhat limited to two labels.",
+            "You can have more labels, but your ability to get an exact solution is erased when you have more than."
+        ],
+        [
+            "Two labels.",
+            "So it it's.",
+            "Into this gap that I introduced, this random Walker idea and.",
+            "The idea was basically too.",
+            "Capture the good properties of graph cuts as a segmentation algorithm while overcoming these difficulties.",
+            "So now I'm going to go through it in detail, starting with the cons."
+        ],
+        [
+            "Behind the algorithm.",
+            "So, given a set of seeds to indicate in this image 4 objects green, yellow, red and blue.",
+            "The idea is we could ask and now we want to label every other pixel we could ask.",
+            "For this pixel we want to label it with one of these colors.",
+            "We could ask if we release a random Walker from this pixel and allow it to wander all over the image.",
+            "With some probability will first arrive at green.",
+            "Some probability will first arrive at yellow at red and blue, and then if we knew those probabilities, we could assign this pixel to the color for which it's most likely to send a random Walker.",
+            "The impact of the image in this case.",
+            "Is to affect the walk and Tobias the Walker to avoid crossing intensity gradients or some kind of feature gradient.",
+            "For those of you ruined by Hollywood, I put a little movie together.",
+            "If you have a white circle in a black background and you put 2 seeds of blue and a red one, and you want to query this pixel.",
+            "You release this particle in Brownian motion or random walk.",
+            "And you'll see that it may come against the boundary of the circle, but be very unlikely to cross into it.",
+            "Therefore, eventually, and it may take a very long time.",
+            "This Walker is almost certainly going to arrive at red before it arrives at blue.",
+            "Consequently, this pixel will be labeled red.",
+            "Now you probably should have a feeling of this based on some of the other talks that we've seen, but these probabilities can actually be computed analytically and deterministically without any.",
+            "Simulation of random walks or any kind of Monte Carlo at all."
+        ],
+        [
+            "So just so that we're clear about what the algorithm is doing, we input.",
+            "Some image with seeds to indicate we want four objects, green, red, yellow and blue.",
+            "And then we would like to produce a labeling for every pixel of one of those four types.",
+            "So what we do is we compute the probability that each pixel sends a random Walker to green.",
+            "First we compute the the probability for each pixel that it sends random Walker red first to yellow and then to blue, and then we assign these labels based on whether or not.",
+            "We color the pixel with whichever label it's most likely to sender."
+        ],
+        [
+            "Walker.",
+            "When it in.",
+            "In practice, it looks like this user would input an image.",
+            "Paint some seeds.",
+            "And then in real time you can iteratively calculate these probabilities.",
+            "This is a real time screen capture and the segmentation looks like this, which can be corrected by adding more seed design."
+        ],
+        [
+            "So that's the concept behind the algorithm.",
+            "But why random walks?",
+            "What's the value of?",
+            "Taking this approach over some other method for signing late."
+        ],
+        [
+            "And there are basically two reasons.",
+            "One is weak boundary detection and the other is noise robustness, so this.",
+            "Hard to see here what this is supposed to show.",
+            "Is a solid circle and a solid circle, except for a gap here.",
+            "That is, is missing.",
+            "And what I was trying to show.",
+            "Is if you were trying to label this pixel just on the other side of the gap and you release the random Walker there.",
+            "Even though there's a gap in the random Walker.",
+            "Is more likely to get inside the circle here than without the gap.",
+            "Because of the motion of the random walk and the wiggling and jiggling of the Walker, it's still more likely to arrive at the red seed than it is to get inside the circle to the yellow seed.",
+            "And so in this reason you would expect it to be able to."
+        ],
+        [
+            "Recover weak boundaries to give you maybe a clearer picture of why that would be.",
+            "I produce this little diagram.",
+            "Imagine we just have this lattice graph with two seeds red and blue, and there's a boundary.",
+            "Which is solid except for a hole.",
+            "If we want to label this pixel here, we can imagine that the random Walker has to take one of four steps.",
+            "Initially three of those four steps keep it inside this red region and only one of those four steps brings it through into this blue region therefore.",
+            "When we compute the probabilities this this pixel is going to say roughly 3/4 red 1/4 blue.",
+            "But exactly the opposite is true for a random Walker starting on the other side of the gap.",
+            "Three out of its four initial steps will keep it in this blue region.",
+            "One step will bring it to the red region.",
+            "And so this picture will say three quarter Blue 1/4 read this one says three quarter red, 1/4 blue and when we do the labeling we pick up this boundary implicitly, even though there's a gap there.",
+            "So in order to illustrate this on a synthetic image, I generated this image myself.",
+            "It's completely or it was completely white, and then I drew these black lines to try to generate four different regions of different size and shape.",
+            "This one is concave and then I completely erased pieces of the boundary and introduced seeds.",
+            "Some are large, some are small, some are close to the boundary somewhere further away and the shading reflects the labeling produced by the random Walker so you can see that the I don't know how clear it is, but the red labeling captures this region.",
+            "The blue labeling captures this region.",
+            "Yellow and green.",
+            "So this is a key property of why random walks are good for sale."
+        ],
+        [
+            "Notation.",
+            "Another key property is noise robustness, so.",
+            "It makes sense why this should be true, right?",
+            "So if you knew that a given pixel was likely to send a random Walker to red 70% of the time and send a random Walker to green 30% of the time, then you would imagine that if you added noise and you randomly perturb the walk of that random Walker, who was otherwise walking randomly that.",
+            "If it was likely to get to read first the first time that it's still going to be likely to get to read first the second time, and in fact you can actually show this analytic."
+        ],
+        [
+            "Other properties of our segmentation algorithm defined like this is that segmented regions are always connected to a seed, which means that if any pixel gets labeled green, then there's an unbroken path of green labeled pixels all the way back to a green seed.",
+            "If you take a blank image.",
+            "Like this image is completely black and the segmentation that you'll get will look something like of our noise cell.",
+            "If the image is pure noise, the expected segmentation that you get is also a for noise cell."
+        ],
+        [
+            "So to go back to this example of the.",
+            "Two triangles with a weak boundary.",
+            "I said that with graph cuts you have this small cut problem.",
+            "If you introduce only one seed.",
+            "But you see that that this problem is is not present with the random Walker, because it's not trying to minimize the boundary.",
+            "The boundary length.",
+            "It operates under a different process.",
+            "Additionally, even though this is a four connected graph, you don't see this kind of metrication problem.",
+            "In addition, the random Walker gives you a confidence level on the segmentation which is not present with graph cuts.",
+            "Graph cuts.",
+            "You just have a label one or zero foreground or background.",
+            "The confidence is helpful in many real scenarios because, for example, if you want to smooth your segmentation, you can just blur this probability map and that will smooth more in regions that it's less confident.",
+            "And smooth lesson regions that it's more confident.",
+            "Additionally, in visualization or an Alpha matting you can interpret this as your transparency parameter.",
+            "In addition, as I mentioned with graph cuts, the there's a limitation in trying to extend more than two labels.",
+            "You can do it, but it's approximate.",
+            "If in their different algorithms, and it's complicated with the random Walker idea, there's no difference between two labels and 10 labels, or any arbitrary number of labels."
+        ],
+        [
+            "Now, as I mentioned previously, with the blank image or the aulnois image.",
+            "This you get these vernoy like effects.",
+            "But these effects happen low."
+        ],
+        [
+            "Only two fact we can interpret what's going on here as a little Patch of uniform image placed on the boundary, and in that unknown region you get some solution at the."
+        ],
+        [
+            "Center you can do the same thing with noise, and you can take this.",
+            "Same situation, except now instead of a uniform area you can put a big block of noise down and the segmentation you get looks like this.",
+            "So no other words.",
+            "There's no modeling going on here.",
+            "There's no filtering or it doesn't.",
+            "I'm not telling it how to distinguish noise from structure.",
+            "It does that on its own based on the random walk process and.",
+            "It doesn't know it's looking for triangles either, so.",
+            "In other words, what's going on here is that where the data is good.",
+            "You get a segmentation that fits the data where the data is poor.",
+            "You get something that is in the middle and just to show you that there's no specialization for on axis noise or diagonal lines, you can rotate the situation and you get the same behavior.",
+            "This kind of.",
+            "Property of being able to detect weak boundaries is absolutely essential.",
+            "In real image segmentation.",
+            "For example, in this CT image we have a tumor along tumor which is attached to the wall of the lung, but the actual tissue composition of the tumor as far as X Rays go is the same as the tissue composition of the wall.",
+            "So there's really, there's no absolutely no boundary contrast here to indicate.",
+            "Where the wall starts and where the tumor stops, all you can do is deduce based on the rest of the information in the image, that the segmentation should be something like that.",
+            "So in order to actually segment that tumor, you need an algorithm that's smart enough to handle these weak boundaries.",
+            "Using the random Walker idea, you can put some seeds down and really without giving it much information at all, you can recover this by."
+        ],
+        [
+            "Andre.",
+            "So those are the properties.",
+            "This is why we should be looking at a random Walker procedure to do this kind of segmentation, because it's robust to weaknesses in the boundary and robust to noise, and in fact the only it's effectively has only one parameter to it does only have one parameter, because an that parameter is what Maps the image intensities to these biases.",
+            "For the random Walker.",
+            "But all the examples that I'm.",
+            "Going to be showing you today and in fact, in practice this isn't Siemens products now.",
+            "Um?",
+            "Uses the same value for that parameter, so the next question is how do we actually compute?"
+        ],
+        [
+            "These probabilities.",
+            "It was discovered in 1945 by the Japanese researcher Kakuta Me that random Walker problem of this type is identical to the solution to the Dursley problem with appropriate boundary conditions by appropriate boundary conditions I mean that.",
+            "Part of the boundary is set to one and part of it set to 0.",
+            "The Dursley integral.",
+            "Governs the distribution of, say, temperatures or concentrations in a diffusive material.",
+            "The solution for the Dursley integral is given by a harmonic function.",
+            "Does the oil of grunge for the Dursley integral?",
+            "Because of this equivalence between random walks and the minimisation of this energy function.",
+            "We can forget about the random walks as far as computation is concerned and just minimize this energy."
+        ],
+        [
+            "The question of course, is you know this is the principle.",
+            "I haven't told you at any point whether or not our walk or random walk is taking place on a graph, or if it's taking place in the continuum and you could equally define the algorithm in either space.",
+            "The fact that I'm here probably gives you a suggestion of which space I chose, but there's good reason.",
+            "A graph is finite and exact, but it's also generalizable, so we don't need necessarily to have a lattice or a regular graph.",
+            "But we can have some abstract space and still solve the same problem.",
+            "Continuous space is Euclidean, but it's approximate to try and solve these problems and you run into all sorts of convergence issues and discretization errors so.",
+            "The formulation of the algorithm is going to be on a graph."
+        ],
+        [
+            "But as I mentioned, the identification of random walks with the Dursley problem was done in the continuum, and so the question is, what's the equivalent formulation?"
+        ],
+        [
+            "And on a graph."
+        ],
+        [
+            "The reason for this equivocation between random walks and the solution of the Dursley problem is as a result of the mean value theorem.",
+            "Mean value theorem states that any function, any harmonic function that satisfies the Dursley problem.",
+            "Has the following property that the potential at any given location is equal to the average of the potential in a small infinitesimal neighborhood around that point?",
+            "And the reason that that relates that property relates to the random Walker property is that if you know that all of your neighbors have some probability of sending a random Walker to one location or the other, and you are going to send a Walker to each of your neighbors with equal probability, then that the probability at that particular point has to be the average of the probability of its neighbors.",
+            "So any discretization or alternately combinatorial equivalent of this random Walker and Dursley problem equivalents has to preserve the mean value theorem, otherwise you lose."
+        ],
+        [
+            "Is this identification?",
+            "Fortunately, it's been well studied how to represent the Laplacian on a graph.",
+            "And the notation of algebraic topology.",
+            "You can think of the Laplacian as the composition of the boundary operator and the coboundary operator.",
+            "In the case of functions defined on nodes, the coboundary operator is the incidence matrix.",
+            "The edge node incidence matrix, and then the Laplacian becomes the.",
+            "Boundary operator the transpose.",
+            "The coboundary operator, the incidence matrix, and then C encodes the weights, or the."
+        ],
+        [
+            "Metric tensor.",
+            "So in other words, if we start with our Dursley integral.",
+            "And we combinatorial eyes that we formulate reformulate it on a graph.",
+            "This gradient of potential function you becomes the incidence matrix times X.",
+            "This geometric tensor is represented by the diagonal matrix C, taking the weights along the diagonal and the square and the integration is represented by the introduction of the transpose of of the gradients of of X.",
+            "Put everything together and you get this energy function in terms of the combinatorial Laplacian matrix.",
+            "Subject to boundary conditions at the seed locations.",
+            "So in other words, when you put seeds in the image.",
+            "In order to.",
+            "Provide targets for random walkers.",
+            "They in this equivalence.",
+            "Appears boundary conditions.",
+            "In other words, we fixed the potential at the seeds to be either one or zero.",
+            "Lawrence is to whether the seeds represent foreground or background.",
+            "Your LaGrange equation for the Dursley integral in the continuum looks like this, and for the graph problem it looks like that, so it's equivalent Laplacian of U = 0 or little posse."
+        ],
+        [
+            "If X = 0.",
+            "You can also define the Laplacian natively, just based on the topology of the graph.",
+            "I don't think I really need to go through this for this crowd, and in order to actually solve the problem with the boundary conditions, you can decompose the Laplacian into block form introduct, introduce the boundary conditions in the form of a vector, and then solve for the unknown.",
+            "Potentials at the nodes.",
+            "And what you're left with is a system of linear equations.",
+            "You need to solve 1 system of linear equations per label, or at least if you have K labels you need to solve K -- 1."
+        ],
+        [
+            "Systems of equations.",
+            "The weights again, as I'm sure you all know.",
+            "Take a function of the image gradient, or alternately, any other feature that you had in mind, say texture or color.",
+            "And the.",
+            "Each pixel or each voxel is associated with one node in the graph.",
+            "And this representation shows the the edge weights represented by the."
+        ],
+        [
+            "Thickness of the edges.",
+            "An alternate way of viewing this random Walker problem is from the standpoint of circuit theory.",
+            "The same Dursley integral, same combinatorial Dursley, integral, can be seen as the composition of the three main equations in circuit theory, Kirchoff's current law, Kirchoff's voltage law, an ohms law.",
+            "If you put these three together, you get this power dissipation on a circuit, and the system of distribution of potentials or probabilities.",
+            "Is going to be equivalent to the solution of this?"
+        ],
+        [
+            "Circuit theory problem from the standpoint of circuit there you can think of what the algorithm is doing is the following.",
+            "Say we had a four by four image.",
+            "And we label 3 seeds green, yellow and blue.",
+            "If we want to compute the probabilities that, say, a node here sends a random Walker to 1st label.",
+            "Before the other two from a circuit standpoint, we encode the weights as the conductances.",
+            "Or is there simply called the resistances and the?",
+            "Ground labels two and three establisher unit voltage source with label one and solve for the steady state DC potentials.",
+            "These state state DC potentials are exactly equal to the probabilities that we're looking for, and so therefore we get a distribution of probabilities that each node sends a random Walker to the first label.",
+            "In order to compute the probability that a random Walker sent to the second label, we can ground labels one and three and establish a unit voltage source with label two.",
+            "Compute these probabilities and then likewise for label 3 for any given node.",
+            "If you sum these probabilities across different labels, you should get one.",
+            "Another way of thinking about why this should be true is from the superposition theorem of circuit theory.",
+            "So this original motivating random Walker problem that we looked at can also be alternately thought of as a circuit theory problem, for which it should be no surprise that there is a steady state detur."
+        ],
+        [
+            "Mystic solution.",
+            "So to distill the last few slides, here's how you operate the algorithm.",
+            "You generate weights based on image intensities, or any other feature.",
+            "Build the Laplacian matrix.",
+            "You solve a system of equations for each seed group, each label, and then you assign the pixel to the label for which it has the highest probability.",
+            "It's about 15 lines of Matlab to do the whole thing, and you can find those 15 lines of Matlab on my webpage, but I'll get to that later."
+        ],
+        [
+            "So you can interpret this algorithm from several different perspectives depending on what you're most comfortable with.",
+            "As I've been discussing, there's this random Walker interpretation.",
+            "This electrical potential interpretation, from the standpoint of continuous PDS you can think of it as a temperature distribution like.",
+            "Let's say your image was thought of as a sheet of copper, and these edges could be thought of as thermal insulation's, not allowing temperature or heat to pass between them.",
+            "Then you could view the distribution of.",
+            "Potentials or probabilities as the distribution of potentials.",
+            "If you were to set up.",
+            "As a 1 degree Celsius boundary condition here and a zero degrees Celsius boundary condition there.",
+            "This would be the steady state of of temperatures across that piece of copper, which would then be thresholded to produce the segmentation.",
+            "Another interpretation, going back to the electrical circuit analogy, is in terms of effective resistance.",
+            "So given the same circuit setup.",
+            "We could compute the effective resistance between this point and blue or this point and red, and then, if the effective resistance with blue was smaller, it would be assigned labeled blue.",
+            "An intuition of what effective resistance represents.",
+            "Is the if there are a lot of parallel paths between this point and blew the effective resistance will be low, but if all the parallel paths have to go through a certain point or certain set of resistors, then the effective resistance will be larger."
+        ],
+        [
+            "A final interpretation is completely different, and it's entirely in terms of trees and completely combinatorial.",
+            "It shouldn't be surprised surprising that there is a tree interpretation of this problem, because ever since Kerr shops, original papers, treason circuits have really been identified.",
+            "So what's that reinterpretation here?",
+            "Imagine we have this graph.",
+            "And we seed these two nodes blue and red, and we want to label this green node.",
+            "If you were to do the following, you could obtain this labeling randomly.",
+            "Choose a tree from this graph and then randomly remove an edge from that tree.",
+            "And you would get for example, something that looks like this.",
+            "In this case.",
+            "The node in question is attached to blue but not too red.",
+            "Therefore one vote.",
+            "Based on this tree would send this node to blue if you were to keep repeating this procedure and keep trying new random trees, the expected connectivity of this node to blue would exactly equal these random Walker probabilities or circuit potentials.",
+            "This is a strange interpretation of the algorithm, and certainly not how you would actually want to compute the probabilities, but.",
+            "I want to stress it's important and in fact, in the PAMI paper, where all this appears.",
+            "And how I go about proving noise, robustness and in fact I'm not aware of any other way of proving those properties except through this analogy."
+        ],
+        [
+            "OK."
+        ],
+        [
+            "Wants a few words about numerics, the main computational burden here is solving this system of linear equations.",
+            "Fortunately, the system is sparse, it's symmetric, it's positive definite.",
+            "It's all those good things that help you solve systems quickly.",
+            "For a a 2D system, you would have a sparsity structure that looks something like this."
+        ],
+        [
+            "And one interesting aspect of the numerics is that it fits very well with GPU or parallel computation, and in fact.",
+            "We have a paper on how to solve these these systems with with the GPU, but I mean it's actually kind of trivial so it's very easy to solve these systems in parallel, although even CPU's solutions are quite fast."
+        ],
+        [
+            "OK, now let's just take a look."
+        ],
+        [
+            "A few results.",
+            "As I mentioned, the goal was general purpose image segmentation.",
+            "In other words, we'd like to be able to get a quality segmentation, maybe on one day of a tumor which is nontrivial.",
+            "Again because of this week boundary issue.",
+            "But on another day we may be interested in calculating the lung volume with the tumor, and we can take exactly the same algorithm.",
+            "And quickly get one segmentation or the other doesn't really matter.",
+            "The only thing that's different is how you place the seat area."
+        ],
+        [
+            "Track the image.",
+            "Course there's no limitation to medical images or black and white images.",
+            "Anytime you have a graph and you can set weights, whether it's based on intensity or on color, you can get a segmentation."
+        ],
+        [
+            "I hope you'll forgive me for this slide.",
+            "I am not trying to say that that the brain deals with random walks.",
+            "What I am trying to say is that.",
+            "It's clear that whatever is going on in.",
+            "Humans.",
+            "Mind when they look at images, does somehow take into account this week boundary phenomena and I would actually argue that any sophisticated segmentation algorithm needs to be able to deal with weak boundary detection.",
+            "So I'm not saying the random walks happen in the brain, far from it more, I'm just saying that whatever is going on the brain.",
+            "Is able to capture weak boundaries in your segmentation algorithms should be."
+        ],
+        [
+            "Will do as well.",
+            "Of course, as the algorithm is defined on an arbitrary graph, it doesn't matter if it's 2D or 3D.",
+            "You can place seeds on only one slice and achieve the segmentation in three dimensions.",
+            "Again, the boundary conditions are.",
+            "The seeds are only point, so it doesn't really matter what dimension or what space there in."
+        ],
+        [
+            "You can maybe this is a more to medical crowd, but you can run the algorithm on cardiac segmentation and different modalities.",
+            "This see T data MLR ultrasound.",
+            "In each of these modalities.",
+            "You are dealing with noise week boundaries here you can see the valve between the atrium and ventricle is open and there's absolutely no contrast separating them.",
+            "The only way that you can make this determination is using global information, but the algorithm does quite well and there's no modification.",
+            "There's no change in parameters or anything in order to operate it on these diff."
+        ],
+        [
+            "Modalities.",
+            "You can segment objects of different shape and texture.",
+            "Again, no modifications, no parameter changes nothing here this is a ankle bones in a CTS data set knee and Mr Lung lobes and ciety left atrium and szittya liver and ciety and another left atrium.",
+            "Again here the valve is open and we see streaking artifacts from the city."
+        ],
+        [
+            "Position.",
+            "OK, so now I'm just going to talk about some extensions.",
+            "The algorithm we've been working on more recently, some of which is published in."
+        ],
+        [
+            "Which is not published.",
+            "The.",
+            "Algorithm permits the ability to incorporate other terms.",
+            "For example, intensity priors.",
+            "So, for example, if we had this image.",
+            "If we were to apply seeds, we would get a just this segmentation of one single cell using the algorithm as I described it.",
+            "But because all the cells have a similar intensity profile, you could imagine doing the following.",
+            "You could build a histogram based on the seeds as a model of cell and background and then classify each pixel depending on whether or not it is more likely to belong to the cell distribution of the background distribution.",
+            "That procedure would give you this segmentation which is noisy and it's fragmented.",
+            "Turns out that you can actually combine both terms together and do a joint minimization, and you get a segmentation that looks like this.",
+            "Ultimately all you're doing is modifying the system of linear."
+        ],
+        [
+            "Asians?",
+            "We investigated what the effects of the weighting function is.",
+            "There seem to be these different weighting functions that appear over and over in the literature.",
+            "This Gaussian weighting function, this reciprocal I call it weighting function and we wanted to see what actually works better experimentally if we purport to be doing science here, then we should be doing experiments now and then to justify these equations.",
+            "So we took 62 CT datasets and seeds and manual segmentations and we tried these waiting functions for various values of this single beta parameter.",
+            "The call histogram waiting here.",
+            "Is the Gaussian weighting function, except instead of the intensities, use the probabilities from a learned histogram model.",
+            "So it's not surprising that that should do better because it uses a little more information.",
+            "What is surprising though, is that in the graph literature the Gaussian weighting function seems to be more prominent, however.",
+            "Rated higher levels of beta, the reciprocal weighting function actually seems to perform better.",
+            "Granted, maybe it's an artifact of the particular kind of data that we're using, but.",
+            "It."
+        ],
+        [
+            "At least a data point.",
+            "We also took the same situation, the same datasets, and studied the effects of graph topology.",
+            "I think conventional wisdom would say the more edges you have, the better your segmentation algorithm should be.",
+            "And that would argue that 26 connected 3D lattice would outperform 6 connected into 10 connected, which is which is actually true, although again at a slightly higher beta value.",
+            "What I thought was more surprising is that even though a 10 connected topology has more edges than a 6 connected topology, the performance was lower.",
+            "And the only explanation that we can come up with for that is the asymmetry or perhaps a bias introduced by using more weights in plan than between plans.",
+            "As far as I know though, nobody is really studied.",
+            "This and, uh."
+        ],
+        [
+            "Datasets.",
+            "Another independent work is been to formulate the random Walker algorithm as an instance of a particular or a more general approach to segmentation and with that more general approaches segmentation, you can view the random Walker as the use of an L2 norm.",
+            "You get graph cuts if you use an L1 norm and we also investigated the use of an L Infinity norm.",
+            "Ann, we did a comparison of these three with two different kinds of experiments.",
+            "We took about 30 images, gave them foreground and background seeds.",
+            "And tried to study the sensitivity to the seed quantity and the seed locations.",
+            "So in order to say the sensitivity to seed quantity, what we did was we got an initial segmentation and then filled the foreground with seeds and filled the background with seeds and then progressively eroded both the foreground in the background, calculated the segmentation and compared it with the original segmentation to see how much it changed.",
+            "So initially we started with 100% of the seeds and of course at zero you expect there's no segmentation.",
+            "What you see is that that graph cuts hits some point in which it really changes quite dramatically.",
+            "On average.",
+            "It's not surprising, based on this small cut property, that we were looking at before with Random Walker.",
+            "It's more robust to this kind of thing, although this L Infinity idea.",
+            "Seems to be the most robust of the three.",
+            "The.",
+            "Second experiment we did was took these seeds and segmentations and then randomly shifted the locations of the seeds internally and externally with random direction and varying magnitudes.",
+            "So again, you would expect that with larger magnitudes you would get a greater shift.",
+            "And what you see there is the graph cuts is the most robust to the seed placement.",
+            "Random Walker is slightly less robust and L Infinity is the least robust.",
+            "However, I should point out that when the Y axis here is actually.",
+            "Fairly compact going from.",
+            "Just 88% to 90%, whereas in the case of the sensitivity to seed quantity the changes is."
+        ],
+        [
+            "Drastic.",
+            "Another issue that we've been investigating is precomputation.",
+            "So imagine we had a data set we didn't know where the seeds were going to be, and we were given some time to do computation.",
+            "Could we come up with some way of accelerating the speed of segmentation once we do have scenes?",
+            "And it turns out that if you precompute some eigenvectors of the Laplacian.",
+            "Then, without knowing what the seeds are going to be, then a user can sit down and.",
+            "Give seeds and you can get an instant segmentation.",
+            "Of course it's an approximation, but in this case here we took these.",
+            "Blue seeds and green seeds, and for the exact solution random Walker.",
+            "You get this segmentation.",
+            "But about 40 eigenvectors is enough, even though the probabilities are not right.",
+            "The segmentation is pretty close to what you get in the exact case.",
+            "The usefulness here is that if you have, say, a data server somewhere that's able to process these images.",
+            "Then it can precompute a set of eigenvectors, and then when an actual doctor sits down, the amount of time that it takes them to get a segmentation is very small."
+        ],
+        [
+            "OK, so now."
+        ],
+        [
+            "Just want to wrap up.",
+            "This random Walker segmentation algorithm I've been describing general purpose.",
+            "It's robust to noise and weak boundaries.",
+            "It only has this one parameter which is in the waiting function, but I didn't adjust it for any of these results.",
+            "It's stable, it's accurate, and it's available in Matlab, at least on my webpage.",
+            "These examples down here show.",
+            "Radio radiologist defined contours in yellow an random Walker segmentations obtained in blue.",
+            "Given the seedings."
+        ],
+        [
+            "Precose if you're interested in more information, I maintain a web page at this location you can find the PAMI paper for the random Walker.",
+            "MATLAB code is also there.",
+            "There's a demo page there.",
+            "There's a Matlab toolbox that I wrote to do graph theoretic image processing.",
+            "And a new wireless network has been found and.",
+            "Yes.",
+            "Alright.",
+            "Great.",
+            "Um?",
+            "Is Matlab toolbox that I wrote in order to do graph theoretic image processing?",
+            "It's also available.",
+            "There's an extensive users manual, a lot of demo scripts to help you use it, and for any of you that are going to be at CPR next week, I'll be giving 1/2 day course with the title fundamentals, linking discrete and continuous approaches to computer vision.",
+            "A topological view in which I try to abstract out or review the abstraction of of continuous PD operators and discrete PD operators and show how to translate between the two domains.",
+            "There's also a web page with more details about that, so thank you very much.",
+            "It's been a pleasure."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Great.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks for inviting me.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm happy to be here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to be talking about general purpose image segmentation on using random walks.",
+                    "label": 1
+                },
+                {
+                    "sent": "We've heard a lot about random walks and graphs over the course of this conference.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to be continuing that and talking about uses for image segmentation specifically.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the outline of what we're going to be talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, as Francisco mentioned, I come from Siemens corporate research.",
+                    "label": 1
+                },
+                {
+                    "sent": "I just want to give a few slides about who we are and what we do.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then talk about what I mean by general purpose segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then introduce you to a particular algorithm that I've been developing for the last few years now called the Random Walker algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "The I'm going to go through the concept, the properties, the behavior of the algorithm, the theory numerics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look at some results and then talk about some more recent work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finally wrap up with a few conclusions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "SER Simmons corporate research is located in Princeton and New Jersey, USA.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have about 200 full-time research staff and about slides a little bit old, but about 80 to 100 people at the PhD level working on computer vision.",
+                    "label": 1
+                },
+                {
+                    "sent": "Basically, at Siemens we are trying to solve practical computer vision problems mainly in the area of medical image analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "Our funding models such that we do about 1/3 of our time on basic research and about 2/3 on actual product development.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The goal of clinical imaging of computer vision in the medical domain is generally to do measurement or enhance therapy or provide more information to radiologists that would be otherwise looking at the images.",
+                    "label": 0
+                },
+                {
+                    "sent": "And obviously, ultimately to save time and reduce.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Cost.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our core interests basically fall on the three major lines.",
+                    "label": 1
+                },
+                {
+                    "sent": "The medical imaging, community, segmentation, registration and visual.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Nation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also work on interventional imaging.",
+                    "label": 0
+                },
+                {
+                    "sent": "In which we can put people inside Mris and tried to help surgeons work in real time in order to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Better extract organs and tumors and things like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are a lot of problems here associated with segmentation, registration and real time analysis.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So that that's who we are at Siemens corporate research and we're always taking interns, an staff members.",
+                    "label": 1
+                },
+                {
+                    "sent": "And if anybody is interested in sending students or coming themselves, you know, please be in touch.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now my research I'm going to be talking about general purpose segmentation.",
+                    "label": 1
+                },
+                {
+                    "sent": "What I mean by that?",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "All with general purpose segmentation is.",
+                    "label": 1
+                },
+                {
+                    "sent": "Simple or sound simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "Imputing image and output the desired segmentation.",
+                    "label": 1
+                },
+                {
+                    "sent": "Obviously the problem is with this desired segmentation because two different people.",
+                    "label": 1
+                },
+                {
+                    "sent": "Two different users may want different objects to be extracted out of an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So from our standpoint, sometimes we'd actually like to provide a general purpose tool like the Magic Wand and photo shop that allows somebody to, on any given day, extract you know their cousin from the photograph, and put them somewhere else, or.",
+                    "label": 0
+                },
+                {
+                    "sent": "Especially for our product standpoint, if we build a segmentation engine to segment, say livers an tomorrow, we need to segment kidneys.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'd like to be able to reuse the core segmentation engine and not start from scratch.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This problem though of trying to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Return the object that a particular individual is looking for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Requires some interaction.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, if we really have a general purpose segmentation tool, then the user has to indicate to the algorithm which object it is they want to extract in order to produce the desired segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they're basically three approaches for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the literature, there's sort of the what you might call a classical approach, in which all the objects are segmented automatically from the from the image, and then a user would just go through and select the object that they were interested in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another approach is to provide pieces of a boundary of an object or a nearby boundary and evolve that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Boundary to the desired boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "And its approach of say snakes and level sets intelligent scissors.",
+                    "label": 1
+                },
+                {
+                    "sent": "More recently, people have used this seated approach in which you mark some interior parts of the object and some exterior parts of the object and then allow the the system to generate where the boundary is.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is the approach of graph cuts or magic wand in Photoshop or read?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Growing.",
+                    "label": 0
+                },
+                {
+                    "sent": "The thing about these atomic methods, the ones that automatically segment all the objects in the image, is that the atoms must be.",
+                    "label": 1
+                },
+                {
+                    "sent": "Subsets of the true segmentation if they're not, then if a user wants half of one of the objects that's been segmented, they need to come up with some way of splitting those objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or if they want multiple objects, they need to come up with ways of merging them.",
+                    "label": 0
+                },
+                {
+                    "sent": "The boundary methods are typically been easier to incorporate shape priors, and they can be used to improve the segmentation of another algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "But traditionally, what's in the literature has been iterative, local minima, and it's very difficult to initialize boundary methods and higher dimensions or in abstract spaces.",
+                    "label": 0
+                },
+                {
+                    "sent": "In contrast, the seeding methods the third kind here.",
+                    "label": 1
+                },
+                {
+                    "sent": "Have generally lead naturally to steady state and graph based algorithms and it's easy to seed to provide points that are inside and outside an object even in arbitrary dimension or other data structures.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, if you wanted to segment a surface mesh or nonuniformly sampled data, or some general clustering problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's this third type seated methods that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We're going to be looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "The classic seated algorithm is region growing.",
+                    "label": 1
+                },
+                {
+                    "sent": "Basically you start at one seed and you grow until some measure of distance or contrast is met.",
+                    "label": 0
+                },
+                {
+                    "sent": "The nice thing about region growing is that it's simple to code and it's fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, it really doesn't work unless the image is very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example in this image.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have these sort of two triangles and upper triangle, lower triangle, well separated by a boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "Except for this weakness, and that weakness is sufficient to cause a garbage result from region growing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Likewise, if you have a black circle in a white background.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can get fine segmentation with region growing, but once you add noise you around all sorts of problems.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In small amounts of noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "More recently, the graph cuts approach has been developed for seated segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's great, it's fast, has a probabilistic interpretation.",
+                    "label": 1
+                },
+                {
+                    "sent": "But there are some problems with it, for example.",
+                    "label": 1
+                },
+                {
+                    "sent": "The goal of graph cuts is to find a minimum boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so, for example, with the same image that we looked at with the upper triangle in the lower triangle, if you just input a small number of seeds, the minimum boundary separating blue from green or blue from red is just this little boundary surrounding the blue seed.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you had enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "Seeds in order to such that the surface area exceeds this weakness, you can.",
+                    "label": 1
+                },
+                {
+                    "sent": "Actually recover the weak boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "But when you have a four connected lattice in particular, you get these these metrication artifacts.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason being that the cut going down and over is the same as going over it down or even going down diagonally.",
+                    "label": 0
+                },
+                {
+                    "sent": "On a four connected graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "This problem can be improved by adding more edges, but that increases the complexity in the memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Additionally, with graph cuts you are somewhat limited to two labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can have more labels, but your ability to get an exact solution is erased when you have more than.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Two labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Into this gap that I introduced, this random Walker idea and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea was basically too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Capture the good properties of graph cuts as a segmentation algorithm while overcoming these difficulties.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now I'm going to go through it in detail, starting with the cons.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Behind the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, given a set of seeds to indicate in this image 4 objects green, yellow, red and blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea is we could ask and now we want to label every other pixel we could ask.",
+                    "label": 0
+                },
+                {
+                    "sent": "For this pixel we want to label it with one of these colors.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could ask if we release a random Walker from this pixel and allow it to wander all over the image.",
+                    "label": 1
+                },
+                {
+                    "sent": "With some probability will first arrive at green.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some probability will first arrive at yellow at red and blue, and then if we knew those probabilities, we could assign this pixel to the color for which it's most likely to send a random Walker.",
+                    "label": 0
+                },
+                {
+                    "sent": "The impact of the image in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is to affect the walk and Tobias the Walker to avoid crossing intensity gradients or some kind of feature gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "For those of you ruined by Hollywood, I put a little movie together.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a white circle in a black background and you put 2 seeds of blue and a red one, and you want to query this pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "You release this particle in Brownian motion or random walk.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you'll see that it may come against the boundary of the circle, but be very unlikely to cross into it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Therefore, eventually, and it may take a very long time.",
+                    "label": 0
+                },
+                {
+                    "sent": "This Walker is almost certainly going to arrive at red before it arrives at blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Consequently, this pixel will be labeled red.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you probably should have a feeling of this based on some of the other talks that we've seen, but these probabilities can actually be computed analytically and deterministically without any.",
+                    "label": 0
+                },
+                {
+                    "sent": "Simulation of random walks or any kind of Monte Carlo at all.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So just so that we're clear about what the algorithm is doing, we input.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some image with seeds to indicate we want four objects, green, red, yellow and blue.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then we would like to produce a labeling for every pixel of one of those four types.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what we do is we compute the probability that each pixel sends a random Walker to green.",
+                    "label": 0
+                },
+                {
+                    "sent": "First we compute the the probability for each pixel that it sends random Walker red first to yellow and then to blue, and then we assign these labels based on whether or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "We color the pixel with whichever label it's most likely to sender.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Walker.",
+                    "label": 0
+                },
+                {
+                    "sent": "When it in.",
+                    "label": 0
+                },
+                {
+                    "sent": "In practice, it looks like this user would input an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Paint some seeds.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then in real time you can iteratively calculate these probabilities.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a real time screen capture and the segmentation looks like this, which can be corrected by adding more seed design.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that's the concept behind the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "But why random walks?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the value of?",
+                    "label": 0
+                },
+                {
+                    "sent": "Taking this approach over some other method for signing late.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And there are basically two reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is weak boundary detection and the other is noise robustness, so this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hard to see here what this is supposed to show.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a solid circle and a solid circle, except for a gap here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, is missing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I was trying to show.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is if you were trying to label this pixel just on the other side of the gap and you release the random Walker there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even though there's a gap in the random Walker.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is more likely to get inside the circle here than without the gap.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because of the motion of the random walk and the wiggling and jiggling of the Walker, it's still more likely to arrive at the red seed than it is to get inside the circle to the yellow seed.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so in this reason you would expect it to be able to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Recover weak boundaries to give you maybe a clearer picture of why that would be.",
+                    "label": 0
+                },
+                {
+                    "sent": "I produce this little diagram.",
+                    "label": 0
+                },
+                {
+                    "sent": "Imagine we just have this lattice graph with two seeds red and blue, and there's a boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is solid except for a hole.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want to label this pixel here, we can imagine that the random Walker has to take one of four steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "Initially three of those four steps keep it inside this red region and only one of those four steps brings it through into this blue region therefore.",
+                    "label": 0
+                },
+                {
+                    "sent": "When we compute the probabilities this this pixel is going to say roughly 3/4 red 1/4 blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "But exactly the opposite is true for a random Walker starting on the other side of the gap.",
+                    "label": 0
+                },
+                {
+                    "sent": "Three out of its four initial steps will keep it in this blue region.",
+                    "label": 0
+                },
+                {
+                    "sent": "One step will bring it to the red region.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this picture will say three quarter Blue 1/4 read this one says three quarter red, 1/4 blue and when we do the labeling we pick up this boundary implicitly, even though there's a gap there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in order to illustrate this on a synthetic image, I generated this image myself.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's completely or it was completely white, and then I drew these black lines to try to generate four different regions of different size and shape.",
+                    "label": 0
+                },
+                {
+                    "sent": "This one is concave and then I completely erased pieces of the boundary and introduced seeds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some are large, some are small, some are close to the boundary somewhere further away and the shading reflects the labeling produced by the random Walker so you can see that the I don't know how clear it is, but the red labeling captures this region.",
+                    "label": 0
+                },
+                {
+                    "sent": "The blue labeling captures this region.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yellow and green.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a key property of why random walks are good for sale.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Notation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another key property is noise robustness, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "It makes sense why this should be true, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you knew that a given pixel was likely to send a random Walker to red 70% of the time and send a random Walker to green 30% of the time, then you would imagine that if you added noise and you randomly perturb the walk of that random Walker, who was otherwise walking randomly that.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it was likely to get to read first the first time that it's still going to be likely to get to read first the second time, and in fact you can actually show this analytic.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Other properties of our segmentation algorithm defined like this is that segmented regions are always connected to a seed, which means that if any pixel gets labeled green, then there's an unbroken path of green labeled pixels all the way back to a green seed.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you take a blank image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like this image is completely black and the segmentation that you'll get will look something like of our noise cell.",
+                    "label": 1
+                },
+                {
+                    "sent": "If the image is pure noise, the expected segmentation that you get is also a for noise cell.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to go back to this example of the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two triangles with a weak boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "I said that with graph cuts you have this small cut problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you introduce only one seed.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you see that that this problem is is not present with the random Walker, because it's not trying to minimize the boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "The boundary length.",
+                    "label": 0
+                },
+                {
+                    "sent": "It operates under a different process.",
+                    "label": 0
+                },
+                {
+                    "sent": "Additionally, even though this is a four connected graph, you don't see this kind of metrication problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "In addition, the random Walker gives you a confidence level on the segmentation which is not present with graph cuts.",
+                    "label": 1
+                },
+                {
+                    "sent": "Graph cuts.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just have a label one or zero foreground or background.",
+                    "label": 0
+                },
+                {
+                    "sent": "The confidence is helpful in many real scenarios because, for example, if you want to smooth your segmentation, you can just blur this probability map and that will smooth more in regions that it's less confident.",
+                    "label": 0
+                },
+                {
+                    "sent": "And smooth lesson regions that it's more confident.",
+                    "label": 0
+                },
+                {
+                    "sent": "Additionally, in visualization or an Alpha matting you can interpret this as your transparency parameter.",
+                    "label": 0
+                },
+                {
+                    "sent": "In addition, as I mentioned with graph cuts, the there's a limitation in trying to extend more than two labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can do it, but it's approximate.",
+                    "label": 0
+                },
+                {
+                    "sent": "If in their different algorithms, and it's complicated with the random Walker idea, there's no difference between two labels and 10 labels, or any arbitrary number of labels.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now, as I mentioned previously, with the blank image or the aulnois image.",
+                    "label": 0
+                },
+                {
+                    "sent": "This you get these vernoy like effects.",
+                    "label": 0
+                },
+                {
+                    "sent": "But these effects happen low.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Only two fact we can interpret what's going on here as a little Patch of uniform image placed on the boundary, and in that unknown region you get some solution at the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Center you can do the same thing with noise, and you can take this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Same situation, except now instead of a uniform area you can put a big block of noise down and the segmentation you get looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So no other words.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no modeling going on here.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no filtering or it doesn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not telling it how to distinguish noise from structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does that on its own based on the random walk process and.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't know it's looking for triangles either, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, what's going on here is that where the data is good.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get a segmentation that fits the data where the data is poor.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get something that is in the middle and just to show you that there's no specialization for on axis noise or diagonal lines, you can rotate the situation and you get the same behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "This kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Property of being able to detect weak boundaries is absolutely essential.",
+                    "label": 0
+                },
+                {
+                    "sent": "In real image segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, in this CT image we have a tumor along tumor which is attached to the wall of the lung, but the actual tissue composition of the tumor as far as X Rays go is the same as the tissue composition of the wall.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's really, there's no absolutely no boundary contrast here to indicate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where the wall starts and where the tumor stops, all you can do is deduce based on the rest of the information in the image, that the segmentation should be something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in order to actually segment that tumor, you need an algorithm that's smart enough to handle these weak boundaries.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using the random Walker idea, you can put some seeds down and really without giving it much information at all, you can recover this by.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Andre.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those are the properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is why we should be looking at a random Walker procedure to do this kind of segmentation, because it's robust to weaknesses in the boundary and robust to noise, and in fact the only it's effectively has only one parameter to it does only have one parameter, because an that parameter is what Maps the image intensities to these biases.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the random Walker.",
+                    "label": 0
+                },
+                {
+                    "sent": "But all the examples that I'm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going to be showing you today and in fact, in practice this isn't Siemens products now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "Uses the same value for that parameter, so the next question is how do we actually compute?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "These probabilities.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was discovered in 1945 by the Japanese researcher Kakuta Me that random Walker problem of this type is identical to the solution to the Dursley problem with appropriate boundary conditions by appropriate boundary conditions I mean that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Part of the boundary is set to one and part of it set to 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Dursley integral.",
+                    "label": 0
+                },
+                {
+                    "sent": "Governs the distribution of, say, temperatures or concentrations in a diffusive material.",
+                    "label": 0
+                },
+                {
+                    "sent": "The solution for the Dursley integral is given by a harmonic function.",
+                    "label": 1
+                },
+                {
+                    "sent": "Does the oil of grunge for the Dursley integral?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because of this equivalence between random walks and the minimisation of this energy function.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can forget about the random walks as far as computation is concerned and just minimize this energy.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The question of course, is you know this is the principle.",
+                    "label": 0
+                },
+                {
+                    "sent": "I haven't told you at any point whether or not our walk or random walk is taking place on a graph, or if it's taking place in the continuum and you could equally define the algorithm in either space.",
+                    "label": 0
+                },
+                {
+                    "sent": "The fact that I'm here probably gives you a suggestion of which space I chose, but there's good reason.",
+                    "label": 0
+                },
+                {
+                    "sent": "A graph is finite and exact, but it's also generalizable, so we don't need necessarily to have a lattice or a regular graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we can have some abstract space and still solve the same problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Continuous space is Euclidean, but it's approximate to try and solve these problems and you run into all sorts of convergence issues and discretization errors so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The formulation of the algorithm is going to be on a graph.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But as I mentioned, the identification of random walks with the Dursley problem was done in the continuum, and so the question is, what's the equivalent formulation?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And on a graph.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The reason for this equivocation between random walks and the solution of the Dursley problem is as a result of the mean value theorem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mean value theorem states that any function, any harmonic function that satisfies the Dursley problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "Has the following property that the potential at any given location is equal to the average of the potential in a small infinitesimal neighborhood around that point?",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason that that relates that property relates to the random Walker property is that if you know that all of your neighbors have some probability of sending a random Walker to one location or the other, and you are going to send a Walker to each of your neighbors with equal probability, then that the probability at that particular point has to be the average of the probability of its neighbors.",
+                    "label": 1
+                },
+                {
+                    "sent": "So any discretization or alternately combinatorial equivalent of this random Walker and Dursley problem equivalents has to preserve the mean value theorem, otherwise you lose.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Is this identification?",
+                    "label": 0
+                },
+                {
+                    "sent": "Fortunately, it's been well studied how to represent the Laplacian on a graph.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the notation of algebraic topology.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can think of the Laplacian as the composition of the boundary operator and the coboundary operator.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the case of functions defined on nodes, the coboundary operator is the incidence matrix.",
+                    "label": 1
+                },
+                {
+                    "sent": "The edge node incidence matrix, and then the Laplacian becomes the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Boundary operator the transpose.",
+                    "label": 0
+                },
+                {
+                    "sent": "The coboundary operator, the incidence matrix, and then C encodes the weights, or the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Metric tensor.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in other words, if we start with our Dursley integral.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we combinatorial eyes that we formulate reformulate it on a graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "This gradient of potential function you becomes the incidence matrix times X.",
+                    "label": 0
+                },
+                {
+                    "sent": "This geometric tensor is represented by the diagonal matrix C, taking the weights along the diagonal and the square and the integration is represented by the introduction of the transpose of of the gradients of of X.",
+                    "label": 0
+                },
+                {
+                    "sent": "Put everything together and you get this energy function in terms of the combinatorial Laplacian matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Subject to boundary conditions at the seed locations.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in other words, when you put seeds in the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Provide targets for random walkers.",
+                    "label": 0
+                },
+                {
+                    "sent": "They in this equivalence.",
+                    "label": 0
+                },
+                {
+                    "sent": "Appears boundary conditions.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, we fixed the potential at the seeds to be either one or zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lawrence is to whether the seeds represent foreground or background.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your LaGrange equation for the Dursley integral in the continuum looks like this, and for the graph problem it looks like that, so it's equivalent Laplacian of U = 0 or little posse.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "If X = 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can also define the Laplacian natively, just based on the topology of the graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think I really need to go through this for this crowd, and in order to actually solve the problem with the boundary conditions, you can decompose the Laplacian into block form introduct, introduce the boundary conditions in the form of a vector, and then solve for the unknown.",
+                    "label": 0
+                },
+                {
+                    "sent": "Potentials at the nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you're left with is a system of linear equations.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need to solve 1 system of linear equations per label, or at least if you have K labels you need to solve K -- 1.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Systems of equations.",
+                    "label": 0
+                },
+                {
+                    "sent": "The weights again, as I'm sure you all know.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take a function of the image gradient, or alternately, any other feature that you had in mind, say texture or color.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each pixel or each voxel is associated with one node in the graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this representation shows the the edge weights represented by the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thickness of the edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "An alternate way of viewing this random Walker problem is from the standpoint of circuit theory.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same Dursley integral, same combinatorial Dursley, integral, can be seen as the composition of the three main equations in circuit theory, Kirchoff's current law, Kirchoff's voltage law, an ohms law.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you put these three together, you get this power dissipation on a circuit, and the system of distribution of potentials or probabilities.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is going to be equivalent to the solution of this?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Circuit theory problem from the standpoint of circuit there you can think of what the algorithm is doing is the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say we had a four by four image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we label 3 seeds green, yellow and blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want to compute the probabilities that, say, a node here sends a random Walker to 1st label.",
+                    "label": 0
+                },
+                {
+                    "sent": "Before the other two from a circuit standpoint, we encode the weights as the conductances.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or is there simply called the resistances and the?",
+                    "label": 0
+                },
+                {
+                    "sent": "Ground labels two and three establisher unit voltage source with label one and solve for the steady state DC potentials.",
+                    "label": 0
+                },
+                {
+                    "sent": "These state state DC potentials are exactly equal to the probabilities that we're looking for, and so therefore we get a distribution of probabilities that each node sends a random Walker to the first label.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to compute the probability that a random Walker sent to the second label, we can ground labels one and three and establish a unit voltage source with label two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Compute these probabilities and then likewise for label 3 for any given node.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you sum these probabilities across different labels, you should get one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another way of thinking about why this should be true is from the superposition theorem of circuit theory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this original motivating random Walker problem that we looked at can also be alternately thought of as a circuit theory problem, for which it should be no surprise that there is a steady state detur.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Mystic solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to distill the last few slides, here's how you operate the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "You generate weights based on image intensities, or any other feature.",
+                    "label": 1
+                },
+                {
+                    "sent": "Build the Laplacian matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "You solve a system of equations for each seed group, each label, and then you assign the pixel to the label for which it has the highest probability.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's about 15 lines of Matlab to do the whole thing, and you can find those 15 lines of Matlab on my webpage, but I'll get to that later.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So you can interpret this algorithm from several different perspectives depending on what you're most comfortable with.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I've been discussing, there's this random Walker interpretation.",
+                    "label": 1
+                },
+                {
+                    "sent": "This electrical potential interpretation, from the standpoint of continuous PDS you can think of it as a temperature distribution like.",
+                    "label": 1
+                },
+                {
+                    "sent": "Let's say your image was thought of as a sheet of copper, and these edges could be thought of as thermal insulation's, not allowing temperature or heat to pass between them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you could view the distribution of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Potentials or probabilities as the distribution of potentials.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you were to set up.",
+                    "label": 0
+                },
+                {
+                    "sent": "As a 1 degree Celsius boundary condition here and a zero degrees Celsius boundary condition there.",
+                    "label": 0
+                },
+                {
+                    "sent": "This would be the steady state of of temperatures across that piece of copper, which would then be thresholded to produce the segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another interpretation, going back to the electrical circuit analogy, is in terms of effective resistance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So given the same circuit setup.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could compute the effective resistance between this point and blue or this point and red, and then, if the effective resistance with blue was smaller, it would be assigned labeled blue.",
+                    "label": 1
+                },
+                {
+                    "sent": "An intuition of what effective resistance represents.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the if there are a lot of parallel paths between this point and blew the effective resistance will be low, but if all the parallel paths have to go through a certain point or certain set of resistors, then the effective resistance will be larger.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "A final interpretation is completely different, and it's entirely in terms of trees and completely combinatorial.",
+                    "label": 0
+                },
+                {
+                    "sent": "It shouldn't be surprised surprising that there is a tree interpretation of this problem, because ever since Kerr shops, original papers, treason circuits have really been identified.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what's that reinterpretation here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Imagine we have this graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we seed these two nodes blue and red, and we want to label this green node.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you were to do the following, you could obtain this labeling randomly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Choose a tree from this graph and then randomly remove an edge from that tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you would get for example, something that looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "The node in question is attached to blue but not too red.",
+                    "label": 0
+                },
+                {
+                    "sent": "Therefore one vote.",
+                    "label": 0
+                },
+                {
+                    "sent": "Based on this tree would send this node to blue if you were to keep repeating this procedure and keep trying new random trees, the expected connectivity of this node to blue would exactly equal these random Walker probabilities or circuit potentials.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a strange interpretation of the algorithm, and certainly not how you would actually want to compute the probabilities, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to stress it's important and in fact, in the PAMI paper, where all this appears.",
+                    "label": 0
+                },
+                {
+                    "sent": "And how I go about proving noise, robustness and in fact I'm not aware of any other way of proving those properties except through this analogy.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Wants a few words about numerics, the main computational burden here is solving this system of linear equations.",
+                    "label": 1
+                },
+                {
+                    "sent": "Fortunately, the system is sparse, it's symmetric, it's positive definite.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's all those good things that help you solve systems quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "For a a 2D system, you would have a sparsity structure that looks something like this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And one interesting aspect of the numerics is that it fits very well with GPU or parallel computation, and in fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a paper on how to solve these these systems with with the GPU, but I mean it's actually kind of trivial so it's very easy to solve these systems in parallel, although even CPU's solutions are quite fast.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, now let's just take a look.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "A few results.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I mentioned, the goal was general purpose image segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, we'd like to be able to get a quality segmentation, maybe on one day of a tumor which is nontrivial.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again because of this week boundary issue.",
+                    "label": 0
+                },
+                {
+                    "sent": "But on another day we may be interested in calculating the lung volume with the tumor, and we can take exactly the same algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And quickly get one segmentation or the other doesn't really matter.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only thing that's different is how you place the seat area.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Track the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Course there's no limitation to medical images or black and white images.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anytime you have a graph and you can set weights, whether it's based on intensity or on color, you can get a segmentation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I hope you'll forgive me for this slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "I am not trying to say that that the brain deals with random walks.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I am trying to say is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's clear that whatever is going on in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Humans.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mind when they look at images, does somehow take into account this week boundary phenomena and I would actually argue that any sophisticated segmentation algorithm needs to be able to deal with weak boundary detection.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm not saying the random walks happen in the brain, far from it more, I'm just saying that whatever is going on the brain.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is able to capture weak boundaries in your segmentation algorithms should be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Will do as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, as the algorithm is defined on an arbitrary graph, it doesn't matter if it's 2D or 3D.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can place seeds on only one slice and achieve the segmentation in three dimensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, the boundary conditions are.",
+                    "label": 0
+                },
+                {
+                    "sent": "The seeds are only point, so it doesn't really matter what dimension or what space there in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You can maybe this is a more to medical crowd, but you can run the algorithm on cardiac segmentation and different modalities.",
+                    "label": 0
+                },
+                {
+                    "sent": "This see T data MLR ultrasound.",
+                    "label": 0
+                },
+                {
+                    "sent": "In each of these modalities.",
+                    "label": 0
+                },
+                {
+                    "sent": "You are dealing with noise week boundaries here you can see the valve between the atrium and ventricle is open and there's absolutely no contrast separating them.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only way that you can make this determination is using global information, but the algorithm does quite well and there's no modification.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no change in parameters or anything in order to operate it on these diff.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Modalities.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can segment objects of different shape and texture.",
+                    "label": 1
+                },
+                {
+                    "sent": "Again, no modifications, no parameter changes nothing here this is a ankle bones in a CTS data set knee and Mr Lung lobes and ciety left atrium and szittya liver and ciety and another left atrium.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again here the valve is open and we see streaking artifacts from the city.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Position.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now I'm just going to talk about some extensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "The algorithm we've been working on more recently, some of which is published in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_51": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Which is not published.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "Algorithm permits the ability to incorporate other terms.",
+                    "label": 1
+                },
+                {
+                    "sent": "For example, intensity priors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, if we had this image.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we were to apply seeds, we would get a just this segmentation of one single cell using the algorithm as I described it.",
+                    "label": 0
+                },
+                {
+                    "sent": "But because all the cells have a similar intensity profile, you could imagine doing the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could build a histogram based on the seeds as a model of cell and background and then classify each pixel depending on whether or not it is more likely to belong to the cell distribution of the background distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "That procedure would give you this segmentation which is noisy and it's fragmented.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turns out that you can actually combine both terms together and do a joint minimization, and you get a segmentation that looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ultimately all you're doing is modifying the system of linear.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Asians?",
+                    "label": 0
+                },
+                {
+                    "sent": "We investigated what the effects of the weighting function is.",
+                    "label": 0
+                },
+                {
+                    "sent": "There seem to be these different weighting functions that appear over and over in the literature.",
+                    "label": 0
+                },
+                {
+                    "sent": "This Gaussian weighting function, this reciprocal I call it weighting function and we wanted to see what actually works better experimentally if we purport to be doing science here, then we should be doing experiments now and then to justify these equations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we took 62 CT datasets and seeds and manual segmentations and we tried these waiting functions for various values of this single beta parameter.",
+                    "label": 1
+                },
+                {
+                    "sent": "The call histogram waiting here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the Gaussian weighting function, except instead of the intensities, use the probabilities from a learned histogram model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's not surprising that that should do better because it uses a little more information.",
+                    "label": 0
+                },
+                {
+                    "sent": "What is surprising though, is that in the graph literature the Gaussian weighting function seems to be more prominent, however.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rated higher levels of beta, the reciprocal weighting function actually seems to perform better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Granted, maybe it's an artifact of the particular kind of data that we're using, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "It.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "At least a data point.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also took the same situation, the same datasets, and studied the effects of graph topology.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think conventional wisdom would say the more edges you have, the better your segmentation algorithm should be.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that would argue that 26 connected 3D lattice would outperform 6 connected into 10 connected, which is which is actually true, although again at a slightly higher beta value.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I thought was more surprising is that even though a 10 connected topology has more edges than a 6 connected topology, the performance was lower.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the only explanation that we can come up with for that is the asymmetry or perhaps a bias introduced by using more weights in plan than between plans.",
+                    "label": 0
+                },
+                {
+                    "sent": "As far as I know though, nobody is really studied.",
+                    "label": 0
+                },
+                {
+                    "sent": "This and, uh.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_54": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another independent work is been to formulate the random Walker algorithm as an instance of a particular or a more general approach to segmentation and with that more general approaches segmentation, you can view the random Walker as the use of an L2 norm.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get graph cuts if you use an L1 norm and we also investigated the use of an L Infinity norm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ann, we did a comparison of these three with two different kinds of experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "We took about 30 images, gave them foreground and background seeds.",
+                    "label": 0
+                },
+                {
+                    "sent": "And tried to study the sensitivity to the seed quantity and the seed locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in order to say the sensitivity to seed quantity, what we did was we got an initial segmentation and then filled the foreground with seeds and filled the background with seeds and then progressively eroded both the foreground in the background, calculated the segmentation and compared it with the original segmentation to see how much it changed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So initially we started with 100% of the seeds and of course at zero you expect there's no segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you see is that that graph cuts hits some point in which it really changes quite dramatically.",
+                    "label": 0
+                },
+                {
+                    "sent": "On average.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not surprising, based on this small cut property, that we were looking at before with Random Walker.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's more robust to this kind of thing, although this L Infinity idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Seems to be the most robust of the three.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "Second experiment we did was took these seeds and segmentations and then randomly shifted the locations of the seeds internally and externally with random direction and varying magnitudes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, you would expect that with larger magnitudes you would get a greater shift.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you see there is the graph cuts is the most robust to the seed placement.",
+                    "label": 0
+                },
+                {
+                    "sent": "Random Walker is slightly less robust and L Infinity is the least robust.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, I should point out that when the Y axis here is actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "Fairly compact going from.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just 88% to 90%, whereas in the case of the sensitivity to seed quantity the changes is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_55": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Drastic.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another issue that we've been investigating is precomputation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So imagine we had a data set we didn't know where the seeds were going to be, and we were given some time to do computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Could we come up with some way of accelerating the speed of segmentation once we do have scenes?",
+                    "label": 0
+                },
+                {
+                    "sent": "And it turns out that if you precompute some eigenvectors of the Laplacian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then, without knowing what the seeds are going to be, then a user can sit down and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Give seeds and you can get an instant segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course it's an approximation, but in this case here we took these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Blue seeds and green seeds, and for the exact solution random Walker.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get this segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "But about 40 eigenvectors is enough, even though the probabilities are not right.",
+                    "label": 0
+                },
+                {
+                    "sent": "The segmentation is pretty close to what you get in the exact case.",
+                    "label": 0
+                },
+                {
+                    "sent": "The usefulness here is that if you have, say, a data server somewhere that's able to process these images.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it can precompute a set of eigenvectors, and then when an actual doctor sits down, the amount of time that it takes them to get a segmentation is very small.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_57": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Just want to wrap up.",
+                    "label": 0
+                },
+                {
+                    "sent": "This random Walker segmentation algorithm I've been describing general purpose.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's robust to noise and weak boundaries.",
+                    "label": 1
+                },
+                {
+                    "sent": "It only has this one parameter which is in the waiting function, but I didn't adjust it for any of these results.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's stable, it's accurate, and it's available in Matlab, at least on my webpage.",
+                    "label": 0
+                },
+                {
+                    "sent": "These examples down here show.",
+                    "label": 0
+                },
+                {
+                    "sent": "Radio radiologist defined contours in yellow an random Walker segmentations obtained in blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given the seedings.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_58": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Precose if you're interested in more information, I maintain a web page at this location you can find the PAMI paper for the random Walker.",
+                    "label": 0
+                },
+                {
+                    "sent": "MATLAB code is also there.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a demo page there.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a Matlab toolbox that I wrote to do graph theoretic image processing.",
+                    "label": 1
+                },
+                {
+                    "sent": "And a new wireless network has been found and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "Great.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is Matlab toolbox that I wrote in order to do graph theoretic image processing?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's also available.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's an extensive users manual, a lot of demo scripts to help you use it, and for any of you that are going to be at CPR next week, I'll be giving 1/2 day course with the title fundamentals, linking discrete and continuous approaches to computer vision.",
+                    "label": 1
+                },
+                {
+                    "sent": "A topological view in which I try to abstract out or review the abstraction of of continuous PD operators and discrete PD operators and show how to translate between the two domains.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also a web page with more details about that, so thank you very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's been a pleasure.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,1862 @@
+{
+    "id": "o5v5jcsdfucbw4rhioyeksllurfhjsnk",
+    "title": "Neighbourhood Components Analysis",
+    "info": {
+        "author": [
+            "Sam Roweis"
+        ],
+        "published": "Feb. 25, 2007",
+        "recorded": "July 2006",
+        "category": [
+            "Top->Computer Science->Machine Learning->Principal Component Analysis"
+        ]
+    },
+    "url": "http://videolectures.net/mlss06tw_roweis_nca/",
+    "segmentation": [
+        [
+            "Oh you guys are probably sick of hearing me talk.",
+            "And I had a kind of obnoxious title from my original research type talk where I was going to talk about several problems and how inference in these models can solve all of your problems, but.",
+            "I actually don't really need this.",
+            "Yeah, yeah, OK, I'll use it, but I decided that I decided that.",
+            "First of all, they told me I only have half an hour, so and then also I decided let's just talk about something very very simple because it's the end of the day and I know John and I are really tired.",
+            "You guys must be really, really tired, so I'm going to talk about something so simple.",
+            "It's incredibly simple once you get the basic idea.",
+            "It's like very easy to understand.",
+            "So really, this talk should only take 10 minutes and it will probably take actually 20 minutes, but hopefully it will even be shorter than half an hour so."
+        ],
+        [
+            "Here is a. Scan of a paper by Rob Holt, which was written about almost 15 years ago now and Rob made this interesting observation that very, very simple classifiers perform annoyingly well on lots of problems.",
+            "So he basically just did a medium scale experimental study where he measured a whole bunch of classification algorithms on a whole bunch of different problems, and he concluded that if you don't know what the problem is beforehand.",
+            "And I asked you to bet on a classifier.",
+            "You're probably better off betting on a really simple classifier than on a more complicated one, and for any in any given problem, these classifiers are never at the top of the list, but they consistently perform surprisingly well."
+        ],
+        [
+            "So.",
+            "I want to focus today on the simplest of simple classifiers, which is K nearest neighbor.",
+            "So K nearest neighbor kind of has a bad reputation, right?",
+            "It's like the punching bag of classifiers.",
+            "Everyone usually uses K nearest neighbor as like you know, the dumb thing that I'm going to show you that my algorithm is now going to beat but actually came nearest neighbor has many kind of appealing properties, right?",
+            "So it's a very simple but surprisingly effective classification procedure.",
+            "The decision services are sort of automatically nonlinear.",
+            "It's nonparametric.",
+            "So it has very high capacity, but you don't really need to do any kind of training on it.",
+            "The quality of the predictions improves automatically as you get more data.",
+            "There's some very strong theoretical results about this and on the face of it, there's only a single parameter K which you can easily tune by cross validation.",
+            "So can you name is actually?",
+            "You know, pretty pretty exciting idea and."
+        ],
+        [
+            "So what's the problem with K nearest neighbor?",
+            "Well, there's at least at least three problems, right?",
+            "One is what does nearest mean?",
+            "You know, so I tell you all you do K nearest neighbor so everybody knows the K nearest neighbor classifier right?",
+            "That you take the test point, you find the K nearest training samples to the test point and you take the majority vote of their class labels.",
+            "But in order to do this you need to define what nearest means and that requires specifying a distance metric on the input space.",
+            "So this is where things get a little bit ugly.",
+            "People usually just say, well, you know we're going to normalize the features in some kind of way that my cousin told me it's good idea.",
+            "And then I'm going to do Euclidean distance in that space and kind of pretend that everything will be OK. That seems a little bit unsatisfying, right?",
+            "It's not very principled to just sort of arbitrarily define these distance measures.",
+            "Anyway, even if you thought you had a good distance measure, there would be another problem, which is how do you actually find the K nearest neighbors.",
+            "So the typical datasets you know that people are using now are huge.",
+            "They have hundreds of thousands or millions of training examples, and so are you really going to search through all of these examples at Test time.",
+            "And Furthermore, are you really going to carry them around in your suitcase with you when you deploy your classifier?",
+            "You say, OK, I'm ready to send you my classifier, but in order to do that I have to FedEx you a hard drive that has the training set on it, because that's part of my classifier.",
+            "Well, that doesn't also sound like a very good idea, so we'd like to improve on both of these things here.",
+            "We'd like to somehow figure out a principled way of defining what a distance metric on the input space is.",
+            "That would be good for classification, and we'd like to reduce the computational cost of the K nearest."
+        ],
+        [
+            "Classifier OK so.",
+            "This is a joke for those of you who are too tired to understand what's the right distance metric for K nearest neighbor classification.",
+            "The one that optimizes test error.",
+            "OK ha ha, very funny.",
+            "Fortunately, we don't have the testing data in our hand, and so we can't go and optimize the test error.",
+            "So let's try and approximate the testing error by the leave one out cross validation error.",
+            "OK, so some of you may know this procedure, but for those of you who don't know, it's very simple.",
+            "You just take each data point in your training set.",
+            "You pretend that you didn't know its label and you apply the K nearest neighbor classification rule as though it were the test point using everyone else in the training set.",
+            "So you find the K nearest neighbors.",
+            "You vote their classes and you see what I have gotten this point right or wrong.",
+            "You cycle around all of the points doing that, and you say what fraction of them would I have gotten right?",
+            "That's a leave one out estimate of your test performance.",
+            "Assuming your test data comes from the same distribution as your training data.",
+            "So if I gave you a finite set of distance metrics to choose between, and of course if I told you K, you could pick the best one right.",
+            "I give you distance metric, one distance metric, two, what do you do?",
+            "You use distance metric one?",
+            "You do leave one out cross validation, use distance metric two, you do leave one out cross validation.",
+            "Whichever one gives you better cross validation.",
+            "You score you say that's the one I prefer for doing K nearest neighbor at Test time.",
+            "So here's the obvious next question.",
+            "What if instead of just a finite set of distance metrics, I gave you a continuously parameterized family of distance metrics?",
+            "And I asked you to search through that family and find the one which maximizes the leave one out performance as a surrogate for test to test error.",
+            "How can you do that?",
+            "And what about K?",
+            "When are we going to do?"
+        ],
+        [
+            "OK, OK.",
+            "So you should insert here like about two weeks of misguided work by Jacob Goldberger and I where we were doing something very foolish, and let me summarize, roughly speaking, what we were doing.",
+            "We were trying to optimize by gradient descent, a function that was piecewise constant.",
+            "OK, that's kind of a bad idea, so here's the thing.",
+            "Leave one out.",
+            "Cross Validation performance is very hard to optimize.",
+            "Why is it hard to optimize?",
+            "Well, if you think about it for a moment, you realize that the performance, the cross validation estimate depends only on the nearest neighbor graph of your data as defined by the distance metric.",
+            "OK, and so if you take your distance metric and you make a small change to it, probably the nearest neighbor graph isn't going to change.",
+            "OK, and then you make another small change.",
+            "Nothing changes, so the leave one out estimate which we're trying to optimize.",
+            "This flat, you're changing the metric and then.",
+            "And here's the really bad part.",
+            "You make an infinitesimal change to the metric and then boom, suddenly one of your neighbors is not your neighbor and another one of the points is your neighbor and the metric jumps.",
+            "The measure jumps up or down by a finite amount, so this function is like constant and then jumps and jumps.",
+            "OK, so this is really highly discontinuous function of the distance metric and you don't want to.",
+            "Try and search in that space so we need a smoother or at least it more continuous version of the test error estimate to optimum."
+        ],
+        [
+            "OK.",
+            "So here's the idea.",
+            "This is the key slide you guys are for this joke.",
+            "In every talk there's either zero or one key slides.",
+            "Hopefully this is not the kind of talk where there's zero key slides, but if there's one key slide, this is the key slide.",
+            "So here's what we're going to do.",
+            "We're going to do randomize neighbor selection.",
+            "This is a standard computer science trick.",
+            "You introduce randomization, and then you average it away.",
+            "So instead of picking a fixed number of K nearest neighbors and then majority vote of their, those guys were going to pick a single neighbor randomly and look at the expected votes for each class.",
+            "So each point I is going to choose another point in the training set, J probabilistically with this probability.",
+            "So the probability that I choose is J as his neighbor is E to the minus dij, where this is the distance?",
+            "Normalized and of course the probability of choosing yourself is 0.",
+            "And now we just look at the fraction of votes, the expected number of votes for each class.",
+            "So what's under this randomized rule?",
+            "What's the fraction of the time that I will be correctly labeled?",
+            "Well, it's just the sum of all the points J in the same class as I.",
+            "That's what this notation means of this probability PIG.",
+            "OK, this is the expected fraction of the time that I would get point.",
+            "I write under, leave one out doing randomized neighbors election instead of K nearest neighbors selection.",
+            "OK."
+        ],
+        [
+            "So here's the good news.",
+            "The good news is if you now write down the leave one out classification performance on the entire data set, which is just the average of all the data points of this expected chance that you'll get that data point right?",
+            "This objective function is nice and smooth and differentiable.",
+            "Look at this.",
+            "This is just some function which depends in a continuous way on the distances.",
+            "So if I adjust the distance is this function goes up and down smoothly and now the strategy for learning a metric in nearest neighbor K nearest neighbor is just going to be to optimize this function with respect to the distances?",
+            "And even better I got rid of the parameter K. Right, there's no K anymore.",
+            "I didn't have to pick K nearest neighbors.",
+            "I just do random neighbors selection.",
+            "Most of the time I pick somebody close some of the time I pick somebody far, but there's no explicit parameter K. I'll say a little bit."
+        ],
+        [
+            "More about that later.",
+            "OK, so having done the simplest possible thing I could by doing K nearest neighbor, I'm now going to make the simplest possible choice I can for a family of distance metrics.",
+            "So the family of distance metrics I'm going to use, or just the quadratic monovisc metrics so they measure the distance between two points I&J by just taking the inner product of their difference vector under some symmetric positive definite matrix OK?",
+            "That's a very simple family and you can think of this by clicking this square root of that inverse covariance matrix.",
+            "There you can just think of this as taking a linear transformation a of your data, and after that doing K nearest neighbor using Euclidean distance.",
+            "OK, So what I'm really saying is, let's find a linear transformation of the data.",
+            "After which Euclidean distance is the right thing to use?",
+            "OK, so you start with your data set.",
+            "Your plan is to use K nearest neighbor.",
+            "But before you use K nearest neighbor, you're going to linearly transform all the features by some matrix A.",
+            "If you do that, it will be equivalent to doing K nearest neighbour inonu space where you transformed all the features by a or doing K nearest neighbor in the original space using the metric.",
+            "A transposing exactly equivalent way to think about it.",
+            "So in other words, what I'm doing is I'm asking you please find me a linear transformation of your original features, after which K nearest neighbor can be expected to do well.",
+            "Estimated by this smooth or randomized version of leave one out.",
+            "OK, so very simple idea.",
+            "Transform your features to make a nearest neighbor better.",
+            "What's the transformation class linear?",
+            "What's the definition of better cross validation smoothed up a bit?"
+        ],
+        [
+            "You can take the derivative.",
+            "So you write down this thing and then you take the gradient.",
+            "The first time you take the gradient, it looks really, really bad, and then if you sort of rewrite it then you get this expression on the bottom.",
+            "And if you look at this expression for a second, you'll be sort of ready to throw me out of the room.",
+            "Will say what do you think computing this gradient looks like it's quadratic in the number of data points?",
+            "I mean you have to sum over the data points and for each data point you have to sum over all the other points not in his class, and all the other points in his class.",
+            "So your method is quadratic in the size of the data, so I don't even want to talk to you anymore.",
+            "You can just go home now.",
+            "OK, so this is the exact expression for the gradient, but remember we're going to do gradient descent on this linear transformation, so the gradient it's not like a holy artifact, right?",
+            "What do I care about the gradient?",
+            "I don't need the gradient bike, it's not a magical object, I'm just going to use it to update the parameters, and then I'm going to drop it on the floor so I don't need the exact gradient.",
+            "So the first thing you can do is you can sub sample this sum.",
+            "Here the gradients just an average over all of the training cases, so you just subsample this.",
+            "The second thing is these sums here, which is for each data point I it's a sum over the other points K not in its class, and the points J which are in its class.",
+            "I should use the computer here.",
+            "So these two sums are weighted by these probabilities and most of these probabilities because they're computed with this decaying distance function are extremely close to 0, so you can just truncate these sums by eliminating all of the terms which are almost zero, which is almost all of the terms there, so there's two very aggressive ways you can compute this truncate dissemination, and then every once in awhile you have to do a sort of full computation to re."
+        ],
+        [
+            "We estimate these values.",
+            "OK, so here's the algorithm.",
+            "If I were mathematician, I would have started with this slide right?",
+            "I just give you the answer and then I completely obscure the route to discovery.",
+            "OK, but here's the algorithm you algorithm.",
+            "It's called Neighbourhood components analysis.",
+            "It learns a linear transformation of the original input space after which nearest neighbor can be expected to perform well.",
+            "And the way you get the transformation is you receive your data set.",
+            "You write down this function and you maximize it as hard as you can with respect to it.",
+            "That's it.",
+            "And then you use the A that you learn to project the training set, and you store only the transformed values Y.",
+            "And this thing A and then you use whatever your favorite nearest neighbor code is.",
+            "If you have nearest neighbor code that uses some fancy KD data structure to do whatever, you can use exactly the same code you have.",
+            "You just store Y instead of X and then you store this a every time you get a test point X, you multiply it by A to get the test point Y in the wide space and you fire this into your.",
+            "Normal Euclidean Cambridge neighbor classifier.",
+            "So once you have the matrix A, it's basically no change to your existing code."
+        ],
+        [
+            "OK.",
+            "So you might be a little bit nervous that you know K sort of disappeared here.",
+            "It might sort of feel like we're getting away with something.",
+            "Keiko.",
+            "So notice that the scale of A is also learned, so we're not only learning the direction of this linear transformation, but we're also learning the scale.",
+            "And that means that we're effectively learning a real valued estimate of the optimal neighborhood size at the same time, because if the classifier wants to use more neighbors to do is averaging, it can just scale.",
+            "The distance is a so that these numbers by Jr.",
+            "Smaller and that will make the probabilities more uniform if it wants to use fewer neighbors, it can scale up the distances and that will make the probabilities more peaked.",
+            "If the distances are measured in really big units, it's doing K = 1, and if the distances are measured in really small units, it's essentially averaging over just the average class proportions and anything in between.",
+            "And that direction is available to the optimizer, so we're kind of learning K at the same time as we're learning the transformation."
+        ],
+        [
+            "That's that's a nice property here.",
+            "OK, I promised you that I would also tell you how to reduce the computational requirements of nearest neighbor in addition to making it perform better and the way you do that is embarrassingly simple.",
+            "You just make a a rectangular matrix.",
+            "OK, you just exactly take exactly the same code and you just make a instead of a million by million.",
+            "If you had a million features, you make a 30 by 1 million and now what you're saying is find me a low dimensional projection of my original data so that when I look into that projection.",
+            "Euclidean distance is a good prediction of classification.",
+            "OK, so it's just saying I have this huge high dimensional set of features I want to linearly project them down to some low dimensional space, not a random projection, but a projection specifically designed to make K nearest neighbor work well.",
+            "How do I find that projection?",
+            "I just write down the same cost function I had before and optimize it.",
+            "So this is kind of the double edge sword of writing down nonconvex objective functions and attacking them by gradient descent.",
+            "Because of the thing wasn't convex to begin with, we don't really care that we're now working in the space of low rank metrics, which is, you know, a nonconvex set 'cause we're just doing gradient descent, so we just attack this.",
+            "So we're essentially what you're doing when you have this low rank.",
+            "When you have this rectangular matrix is you're learning a low rank metric and you're learning it by parameterising its inverse square root using your Cholesky factorization.",
+            "So that's what you're doing.",
+            "Or you can just think of it as you're just learning a projection matrix A instead of a transformation.",
+            "But the advantage is that we seriously reduce storage and computation.",
+            "We now have a much smaller set of features to store a much smaller set of features to process, and you can use these fancy data structures to do accelerated look up.",
+            "So the last thing here is if you have.",
+            "If you project all the way down to two or three dimensions, you can do visualization of your data.",
+            "You can really say I want you to make me a picture of my data when in which.",
+            "Points that are appear nearby in the picture."
+        ],
+        [
+            "Have the same class label.",
+            "So.",
+            "Just in the few minutes that remain here, I just want to show you some very simple preliminary results on this.",
+            "So the first thing is just a sanity check.",
+            "We just created a synthetic data set.",
+            "I think there's 500 dimensions in this data set.",
+            "498 of them are random noise.",
+            "Gaussian noise with the variance is drawn from some gamma distribution OK, and two of them contain this concentric ring structure which is hiding the class labels.",
+            "And then we applied Fisher's linear discriminant to project that data down to two dimensions.",
+            "That's this picture.",
+            "Now, Fisher's discriminant makes us, you know, assumption that each class is Gaussian distributed, so it's kind of unfair, but it didn't really discover anything.",
+            "And we also apply principle components analysis.",
+            "Now principle components analysis doesn't even know about the class labels right?",
+            "It just goes and finds the subspace of codimension two that has the highest variance.",
+            "So you really wouldn't expect it to do anything.",
+            "But anyway, there it is.",
+            "And then neighborhood Components analysis produces this picture in which the concentric rings are beautifully revealed.",
+            "OK, that's just a sanity check that if you really set up the problem so that nearest neighbor is bound to do the right thing, then you can find."
+        ],
+        [
+            "Map projection.",
+            "So just some more kind of toy datasets there, all these very small datasets in the UCI repository that you could play around with.",
+            "So here's a 13 dimensional data set.",
+            "It has three classes, this is Fisher's discriminant.",
+            "This is PCA, and this is the neighborhood components analysis.",
+            "And if you take half of it for training and half of it for testing, then the testing errors if you use a full rank distance metric, it's about 30%.",
+            "If you just use Euclidean nearest neighbor, 25% if you normalize all the coordinates to have variance one and about 7%.",
+            "If you use NCA.",
+            "If you project down to two dimensions using Fisher's discriminant, you get about the same, about 30%.",
+            "Same thing for PCA and NCA.",
+            "You get still about the same performance.",
+            "So this is a projection you get and you could sort of see that you know if you were doing data visualization, you would definitely want to go and click on these two data points here, and so they say oh, how come there are these red guys you know in the sea of green?",
+            "Maybe there's some unusual points or something.",
+            "This is a really nice way to look at your data.",
+            "It's just a linear projection of the original features, so it's not very complicated."
+        ],
+        [
+            "Transformation.",
+            "Here's a slightly more interesting example.",
+            "These are grayscale images of faces that were taken just raw frames off a webcam, so we just got a really cheap webcam and we ran it in its lowest resolution mode.",
+            "So please give us these 20 by 28 images and then different people sit in front of the video camera and the consecutive frames of each person are taken as the data points.",
+            "So there's 18 people which we use.",
+            "Their identity is the class labels.",
+            "The original frames have.",
+            "Dimension 560 we took, you know, 100 of each person's frames for training and 900 for testing.",
+            "So here's the projection.",
+            "So this is just literally a 2 by 560 matrix that I multiplied the raw data by and then I plotted.",
+            "It is not very hard to understand how I made this picture right, so I think this is actually pretty amazing that there's a linear projection that goes from raw pixel space to this space in which the identity of people is.",
+            "Fairly well separated Alex.",
+            "So Alex is asking what do the rows or columns of the matrix so I should have displayed them.",
+            "They look sort of like the kind of thing you expect if you trained a discriminative system.",
+            "So one of them has a lot of mass around the forehead region and another one has a lot of math over here, which I think, at least in this data set distinguishes.",
+            "There's some people who are facial hair but also women, I think, have narrower faces, and then that shows through the background.",
+            "It's hard to interpret, but they look sort of similar to what you get when you go into training like, say, softmax regression, logistic regression type of thing.",
+            "But remember, this is all happening in a 2 dimensional 2 dimensional feature space.",
+            "And again, you can see that the test errors are substantially substantially better."
+        ],
+        [
+            "Here's some inevitable experiments on the handwritten digits which I want to bore you with.",
+            "You know, being in Toronto, you're sort of obligated to do experiments on the digits, but the.",
+            "Anyway, so here's the summary.",
+            "In the absence of strong prior knowledge about how to pick your K nearest neighbor distance metric, I think learning the metric from data seems like a good idea, right?",
+            "We always make this big idea.",
+            "We shouldn't just try and inject knowledge by hand.",
+            "You should learn everything from data.",
+            "That's the whole idea of machine learning.",
+            "But then when we go and do K nearest neighbor, we just try and hack up the metric by hand.",
+            "So we have all this labeled data.",
+            "We should use that data to learn the distance metric for K nearest neighbor and this seems like.",
+            "A reasonable way to learn the distance metric, and then if you really need to go fast at Test time.",
+            "This is an easy way to substantially reduce the dimensionality of your feature space.",
+            "Again, not in an arbitrary way, like by taking the principle components of your data.",
+            "That seems kind of weird.",
+            "Why would you think that the dimensions with most variants would be the most informative about class labels?",
+            "That there's no reasoning priority?",
+            "Think that NCA is nice, 'cause it assumes nothing about the form of the class distributions.",
+            "It doesn't assume that their Gaussian or their convex or even connected.",
+            "It doesn't assume anything about the separating surface, but it's linear or linear in some feature space.",
+            "It's completely nonparametric memory based method which is just K nearest neighbor sort of taken seriously.",
+            "So I think the take home message to me was.",
+            "It's very surprising how far you can go with just a linear mapping.",
+            "There's some really good linear transformations of your research space out there if you just spend some energy trying to find them.",
+            "OK, so that's all.",
+            "John, I couldn't really tell how far you went, so did you try to compare with?",
+            "Until after you went, did you try to compare with?",
+            "Like other classifiers that people are familiar with, machine decision trees or yeah, so so John's question is, did you know how does this perform in terms of the spectrum of classifiers like decision trees or support vector machines, or boosted simple things or whatever?",
+            "And we didn't compare with that, but the idea here was not to try and sell this as a state of the art classification method.",
+            "The idea here was to try and say if you're going to do K nearest neighbor which a lot of people are doing already, especially like in the computer vision, community and stuff.",
+            "Then at least you should try and do it in a reasonable way that leverages the data that you have.",
+            "And it doesn't waste computation so that you should think of this as a conditional statement.",
+            "The statement is if you're going to do K nearest neighbor.",
+            "I have some suggestions for you.",
+            "OK, but I'm not trying to make a claim one way or the other that you should or shouldn't use K nearest neighbor.",
+            "At least not yet.",
+            "Yep.",
+            "Question.",
+            "Can you say a little bit about how the matches a is initialized?",
+            "That's a good question.",
+            "So the question was how do we initialize the Matrix A?",
+            "So remember, this is a nonconvex objective function, and we're doing local search, so that always brings up the question how did you initialize it?",
+            "And the answer is we just initialize with all of the obvious things, plus a lot of random starting points, and we just take the one that gives us the best objective function.",
+            "So the obvious things are the identity matrix.",
+            "The whitening matrix, which just is the covariance sample covariance of the data, Fisher's discriminant projection matrix.",
+            "Essentially, whatever you can think of right?",
+            "Because it doesn't matter, all you do is throw that as the initial condition and optimize it so.",
+            "But yeah, it's a good question.",
+            "And also I should be very clear that how you initialize is important.",
+            "So if you always start with the identity matrix, you might be missing out on some good local Optima that you would never find by starting with a matrix.",
+            "So you have to try these things like PCA and LDA and random things just to make sure that you explore the space a little bit.",
+            "It seems.",
+            "About four months in the case of wine deficiencies, the performance in the case of which.",
+            "This.",
+            "I'm not sure what you mean winding feature space.",
+            "Maybe you can send money and everything.",
+            "This is this is not linear.",
+            "Well, I mean I don't know what it means for the feature space to be nonlinear, but the decision surface is here are certainly nonlinear, right?",
+            "I mean, if you draw the boundaries between classes in this picture, they are extremely nonlinear, right?",
+            "I mean, this is not a linear method in any way except for the fact that the projection from the original features base down to the reduced feature space is linear, but that doesn't mean that the separation boundaries are linear.",
+            "It's not a linear classifier, it's just a linear transformation of the original feature space, after which you apply a highly nonlinear classifier which is Canon.",
+            "Now you could also consider making this track."
+        ],
+        [
+            "Information here instead of a linear transformation a, we could make it a nonlinear mapping.",
+            "We could train some, you know, neural network or or GP regressor or something like that to transform the data.",
+            "But then you I mean then it's like you know children shouldn't play with matches, you just once you give yourself a nonlinear transformation then it's like you're just going to be completely overfitting the.",
+            "Then you can basically always find a transformation of your original feature space in which K = 1 nearest neighbor does.",
+            "Amazingly well, and he never learned anything so.",
+            "So have you tried using NT as a feature extraction method to improve other kind of classifiers?",
+            "Yeah, so that's a good question is, can you use NCA as a feature extraction method and then instead of applying K nearest neighbor, apply some other class farm top of that?",
+            "So we haven't really tried that, but of course it's a.",
+            "It's a great idea when you want to do feature extraction because this brings you know classes.",
+            "Items of the same class near each other.",
+            "We have to be careful about which classifier you're going to apply, so if you're going to apply a linear classifier afterwards, then you might not want to do this right?",
+            "You might not want to try and give local separability.",
+            "You might really want to try and unfold the space in a way that the classes are separated by hyper points.",
+            "So, but if you're going to apply like a Gaussian kernel SVM, then this is a great idea, right?",
+            "There is a great way to preprocess your features, so I think there's some bad news on the.",
+            "Theoretical front for learning kernel matrix, but you can think of this as a sort of weak way of learning.",
+            "Learning something about the kernel for Gaussian kernel SVM so certainly well, I mean, yeah, so there's a lot of in a lot of good work, including my tongue are going to talk about it about combining kernels, so you could think of this as sort of a weight machine, kernel, SVM trying to learn projection.",
+            "You said that you could use the information to visualize your data.",
+            "Do you see any relation with self rising map?"
+        ],
+        [
+            "So the question was, since this kind of thing can be thought of a visualization, is there any relationship with Conan, Self organizing map so well?",
+            "Remember what Conan's algorithm I mean, at least as originally proposed.",
+            "Conan's algorithm is an unsupervised algorithm, right?",
+            "So it just tries to find a low dimensional grid in which nearby grid points are associated with nearby vectors in the.",
+            "High dimensional space.",
+            "Now you could try and modify components algorithm to take into account the class labels, but the idea here is that things that could be very very far apart in the original space might get mapped nearby if that mapping keeps their classes.",
+            "So this projection is intentionally going to project out directions of high variance that have nothing to do with class label, whereas Conan's algorithm would like to do that because it would mean that two very far things would appear next to each other in the grid.",
+            "OK well thanks for attention.",
+            "Sorry bout the relentless talks but you only have to put up with me for one more afternoon tomorrow and that'll be the end of it.",
+            "OK, thanks."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Oh you guys are probably sick of hearing me talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I had a kind of obnoxious title from my original research type talk where I was going to talk about several problems and how inference in these models can solve all of your problems, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "I actually don't really need this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah, OK, I'll use it, but I decided that I decided that.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, they told me I only have half an hour, so and then also I decided let's just talk about something very very simple because it's the end of the day and I know John and I are really tired.",
+                    "label": 0
+                },
+                {
+                    "sent": "You guys must be really, really tired, so I'm going to talk about something so simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's incredibly simple once you get the basic idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like very easy to understand.",
+                    "label": 0
+                },
+                {
+                    "sent": "So really, this talk should only take 10 minutes and it will probably take actually 20 minutes, but hopefully it will even be shorter than half an hour so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Here is a. Scan of a paper by Rob Holt, which was written about almost 15 years ago now and Rob made this interesting observation that very, very simple classifiers perform annoyingly well on lots of problems.",
+                    "label": 1
+                },
+                {
+                    "sent": "So he basically just did a medium scale experimental study where he measured a whole bunch of classification algorithms on a whole bunch of different problems, and he concluded that if you don't know what the problem is beforehand.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I asked you to bet on a classifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're probably better off betting on a really simple classifier than on a more complicated one, and for any in any given problem, these classifiers are never at the top of the list, but they consistently perform surprisingly well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to focus today on the simplest of simple classifiers, which is K nearest neighbor.",
+                    "label": 0
+                },
+                {
+                    "sent": "So K nearest neighbor kind of has a bad reputation, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "It's like the punching bag of classifiers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everyone usually uses K nearest neighbor as like you know, the dumb thing that I'm going to show you that my algorithm is now going to beat but actually came nearest neighbor has many kind of appealing properties, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a very simple but surprisingly effective classification procedure.",
+                    "label": 1
+                },
+                {
+                    "sent": "The decision services are sort of automatically nonlinear.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's nonparametric.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it has very high capacity, but you don't really need to do any kind of training on it.",
+                    "label": 1
+                },
+                {
+                    "sent": "The quality of the predictions improves automatically as you get more data.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some very strong theoretical results about this and on the face of it, there's only a single parameter K which you can easily tune by cross validation.",
+                    "label": 1
+                },
+                {
+                    "sent": "So can you name is actually?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, pretty pretty exciting idea and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what's the problem with K nearest neighbor?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, there's at least at least three problems, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "One is what does nearest mean?",
+                    "label": 1
+                },
+                {
+                    "sent": "You know, so I tell you all you do K nearest neighbor so everybody knows the K nearest neighbor classifier right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That you take the test point, you find the K nearest training samples to the test point and you take the majority vote of their class labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in order to do this you need to define what nearest means and that requires specifying a distance metric on the input space.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is where things get a little bit ugly.",
+                    "label": 0
+                },
+                {
+                    "sent": "People usually just say, well, you know we're going to normalize the features in some kind of way that my cousin told me it's good idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I'm going to do Euclidean distance in that space and kind of pretend that everything will be OK. That seems a little bit unsatisfying, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not very principled to just sort of arbitrarily define these distance measures.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anyway, even if you thought you had a good distance measure, there would be another problem, which is how do you actually find the K nearest neighbors.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the typical datasets you know that people are using now are huge.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have hundreds of thousands or millions of training examples, and so are you really going to search through all of these examples at Test time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Furthermore, are you really going to carry them around in your suitcase with you when you deploy your classifier?",
+                    "label": 0
+                },
+                {
+                    "sent": "You say, OK, I'm ready to send you my classifier, but in order to do that I have to FedEx you a hard drive that has the training set on it, because that's part of my classifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, that doesn't also sound like a very good idea, so we'd like to improve on both of these things here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'd like to somehow figure out a principled way of defining what a distance metric on the input space is.",
+                    "label": 0
+                },
+                {
+                    "sent": "That would be good for classification, and we'd like to reduce the computational cost of the K nearest.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Classifier OK so.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a joke for those of you who are too tired to understand what's the right distance metric for K nearest neighbor classification.",
+                    "label": 0
+                },
+                {
+                    "sent": "The one that optimizes test error.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK ha ha, very funny.",
+                    "label": 0
+                },
+                {
+                    "sent": "Fortunately, we don't have the testing data in our hand, and so we can't go and optimize the test error.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's try and approximate the testing error by the leave one out cross validation error.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so some of you may know this procedure, but for those of you who don't know, it's very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just take each data point in your training set.",
+                    "label": 0
+                },
+                {
+                    "sent": "You pretend that you didn't know its label and you apply the K nearest neighbor classification rule as though it were the test point using everyone else in the training set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you find the K nearest neighbors.",
+                    "label": 0
+                },
+                {
+                    "sent": "You vote their classes and you see what I have gotten this point right or wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "You cycle around all of the points doing that, and you say what fraction of them would I have gotten right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a leave one out estimate of your test performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Assuming your test data comes from the same distribution as your training data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I gave you a finite set of distance metrics to choose between, and of course if I told you K, you could pick the best one right.",
+                    "label": 1
+                },
+                {
+                    "sent": "I give you distance metric, one distance metric, two, what do you do?",
+                    "label": 0
+                },
+                {
+                    "sent": "You use distance metric one?",
+                    "label": 0
+                },
+                {
+                    "sent": "You do leave one out cross validation, use distance metric two, you do leave one out cross validation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whichever one gives you better cross validation.",
+                    "label": 0
+                },
+                {
+                    "sent": "You score you say that's the one I prefer for doing K nearest neighbor at Test time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the obvious next question.",
+                    "label": 0
+                },
+                {
+                    "sent": "What if instead of just a finite set of distance metrics, I gave you a continuously parameterized family of distance metrics?",
+                    "label": 0
+                },
+                {
+                    "sent": "And I asked you to search through that family and find the one which maximizes the leave one out performance as a surrogate for test to test error.",
+                    "label": 0
+                },
+                {
+                    "sent": "How can you do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "And what about K?",
+                    "label": 0
+                },
+                {
+                    "sent": "When are we going to do?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you should insert here like about two weeks of misguided work by Jacob Goldberger and I where we were doing something very foolish, and let me summarize, roughly speaking, what we were doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were trying to optimize by gradient descent, a function that was piecewise constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that's kind of a bad idea, so here's the thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Leave one out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cross Validation performance is very hard to optimize.",
+                    "label": 1
+                },
+                {
+                    "sent": "Why is it hard to optimize?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if you think about it for a moment, you realize that the performance, the cross validation estimate depends only on the nearest neighbor graph of your data as defined by the distance metric.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and so if you take your distance metric and you make a small change to it, probably the nearest neighbor graph isn't going to change.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and then you make another small change.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nothing changes, so the leave one out estimate which we're trying to optimize.",
+                    "label": 0
+                },
+                {
+                    "sent": "This flat, you're changing the metric and then.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here's the really bad part.",
+                    "label": 0
+                },
+                {
+                    "sent": "You make an infinitesimal change to the metric and then boom, suddenly one of your neighbors is not your neighbor and another one of the points is your neighbor and the metric jumps.",
+                    "label": 0
+                },
+                {
+                    "sent": "The measure jumps up or down by a finite amount, so this function is like constant and then jumps and jumps.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is really highly discontinuous function of the distance metric and you don't want to.",
+                    "label": 1
+                },
+                {
+                    "sent": "Try and search in that space so we need a smoother or at least it more continuous version of the test error estimate to optimum.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the key slide you guys are for this joke.",
+                    "label": 0
+                },
+                {
+                    "sent": "In every talk there's either zero or one key slides.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully this is not the kind of talk where there's zero key slides, but if there's one key slide, this is the key slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's what we're going to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to do randomize neighbor selection.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a standard computer science trick.",
+                    "label": 0
+                },
+                {
+                    "sent": "You introduce randomization, and then you average it away.",
+                    "label": 0
+                },
+                {
+                    "sent": "So instead of picking a fixed number of K nearest neighbors and then majority vote of their, those guys were going to pick a single neighbor randomly and look at the expected votes for each class.",
+                    "label": 1
+                },
+                {
+                    "sent": "So each point I is going to choose another point in the training set, J probabilistically with this probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the probability that I choose is J as his neighbor is E to the minus dij, where this is the distance?",
+                    "label": 0
+                },
+                {
+                    "sent": "Normalized and of course the probability of choosing yourself is 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now we just look at the fraction of votes, the expected number of votes for each class.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what's under this randomized rule?",
+                    "label": 1
+                },
+                {
+                    "sent": "What's the fraction of the time that I will be correctly labeled?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it's just the sum of all the points J in the same class as I.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what this notation means of this probability PIG.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, this is the expected fraction of the time that I would get point.",
+                    "label": 0
+                },
+                {
+                    "sent": "I write under, leave one out doing randomized neighbors election instead of K nearest neighbors selection.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the good news.",
+                    "label": 0
+                },
+                {
+                    "sent": "The good news is if you now write down the leave one out classification performance on the entire data set, which is just the average of all the data points of this expected chance that you'll get that data point right?",
+                    "label": 1
+                },
+                {
+                    "sent": "This objective function is nice and smooth and differentiable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look at this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just some function which depends in a continuous way on the distances.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if I adjust the distance is this function goes up and down smoothly and now the strategy for learning a metric in nearest neighbor K nearest neighbor is just going to be to optimize this function with respect to the distances?",
+                    "label": 0
+                },
+                {
+                    "sent": "And even better I got rid of the parameter K. Right, there's no K anymore.",
+                    "label": 0
+                },
+                {
+                    "sent": "I didn't have to pick K nearest neighbors.",
+                    "label": 1
+                },
+                {
+                    "sent": "I just do random neighbors selection.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of the time I pick somebody close some of the time I pick somebody far, but there's no explicit parameter K. I'll say a little bit.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "More about that later.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so having done the simplest possible thing I could by doing K nearest neighbor, I'm now going to make the simplest possible choice I can for a family of distance metrics.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the family of distance metrics I'm going to use, or just the quadratic monovisc metrics so they measure the distance between two points I&J by just taking the inner product of their difference vector under some symmetric positive definite matrix OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a very simple family and you can think of this by clicking this square root of that inverse covariance matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "There you can just think of this as taking a linear transformation a of your data, and after that doing K nearest neighbor using Euclidean distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, So what I'm really saying is, let's find a linear transformation of the data.",
+                    "label": 1
+                },
+                {
+                    "sent": "After which Euclidean distance is the right thing to use?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so you start with your data set.",
+                    "label": 1
+                },
+                {
+                    "sent": "Your plan is to use K nearest neighbor.",
+                    "label": 1
+                },
+                {
+                    "sent": "But before you use K nearest neighbor, you're going to linearly transform all the features by some matrix A.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do that, it will be equivalent to doing K nearest neighbour inonu space where you transformed all the features by a or doing K nearest neighbor in the original space using the metric.",
+                    "label": 1
+                },
+                {
+                    "sent": "A transposing exactly equivalent way to think about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in other words, what I'm doing is I'm asking you please find me a linear transformation of your original features, after which K nearest neighbor can be expected to do well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Estimated by this smooth or randomized version of leave one out.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so very simple idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Transform your features to make a nearest neighbor better.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the transformation class linear?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the definition of better cross validation smoothed up a bit?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You can take the derivative.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you write down this thing and then you take the gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first time you take the gradient, it looks really, really bad, and then if you sort of rewrite it then you get this expression on the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you look at this expression for a second, you'll be sort of ready to throw me out of the room.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will say what do you think computing this gradient looks like it's quadratic in the number of data points?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean you have to sum over the data points and for each data point you have to sum over all the other points not in his class, and all the other points in his class.",
+                    "label": 0
+                },
+                {
+                    "sent": "So your method is quadratic in the size of the data, so I don't even want to talk to you anymore.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can just go home now.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is the exact expression for the gradient, but remember we're going to do gradient descent on this linear transformation, so the gradient it's not like a holy artifact, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "What do I care about the gradient?",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't need the gradient bike, it's not a magical object, I'm just going to use it to update the parameters, and then I'm going to drop it on the floor so I don't need the exact gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first thing you can do is you can sub sample this sum.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here the gradients just an average over all of the training cases, so you just subsample this.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second thing is these sums here, which is for each data point I it's a sum over the other points K not in its class, and the points J which are in its class.",
+                    "label": 0
+                },
+                {
+                    "sent": "I should use the computer here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these two sums are weighted by these probabilities and most of these probabilities because they're computed with this decaying distance function are extremely close to 0, so you can just truncate these sums by eliminating all of the terms which are almost zero, which is almost all of the terms there, so there's two very aggressive ways you can compute this truncate dissemination, and then every once in awhile you have to do a sort of full computation to re.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We estimate these values.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so here's the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I were mathematician, I would have started with this slide right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I just give you the answer and then I completely obscure the route to discovery.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, but here's the algorithm you algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's called Neighbourhood components analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "It learns a linear transformation of the original input space after which nearest neighbor can be expected to perform well.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the way you get the transformation is you receive your data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "You write down this function and you maximize it as hard as you can with respect to it.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's it.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then you use the A that you learn to project the training set, and you store only the transformed values Y.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this thing A and then you use whatever your favorite nearest neighbor code is.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have nearest neighbor code that uses some fancy KD data structure to do whatever, you can use exactly the same code you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just store Y instead of X and then you store this a every time you get a test point X, you multiply it by A to get the test point Y in the wide space and you fire this into your.",
+                    "label": 0
+                },
+                {
+                    "sent": "Normal Euclidean Cambridge neighbor classifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "So once you have the matrix A, it's basically no change to your existing code.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you might be a little bit nervous that you know K sort of disappeared here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It might sort of feel like we're getting away with something.",
+                    "label": 0
+                },
+                {
+                    "sent": "Keiko.",
+                    "label": 0
+                },
+                {
+                    "sent": "So notice that the scale of A is also learned, so we're not only learning the direction of this linear transformation, but we're also learning the scale.",
+                    "label": 1
+                },
+                {
+                    "sent": "And that means that we're effectively learning a real valued estimate of the optimal neighborhood size at the same time, because if the classifier wants to use more neighbors to do is averaging, it can just scale.",
+                    "label": 1
+                },
+                {
+                    "sent": "The distance is a so that these numbers by Jr.",
+                    "label": 0
+                },
+                {
+                    "sent": "Smaller and that will make the probabilities more uniform if it wants to use fewer neighbors, it can scale up the distances and that will make the probabilities more peaked.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the distances are measured in really big units, it's doing K = 1, and if the distances are measured in really small units, it's essentially averaging over just the average class proportions and anything in between.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that direction is available to the optimizer, so we're kind of learning K at the same time as we're learning the transformation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That's that's a nice property here.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I promised you that I would also tell you how to reduce the computational requirements of nearest neighbor in addition to making it perform better and the way you do that is embarrassingly simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just make a a rectangular matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, you just exactly take exactly the same code and you just make a instead of a million by million.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you had a million features, you make a 30 by 1 million and now what you're saying is find me a low dimensional projection of my original data so that when I look into that projection.",
+                    "label": 0
+                },
+                {
+                    "sent": "Euclidean distance is a good prediction of classification.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so it's just saying I have this huge high dimensional set of features I want to linearly project them down to some low dimensional space, not a random projection, but a projection specifically designed to make K nearest neighbor work well.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do I find that projection?",
+                    "label": 0
+                },
+                {
+                    "sent": "I just write down the same cost function I had before and optimize it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is kind of the double edge sword of writing down nonconvex objective functions and attacking them by gradient descent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because of the thing wasn't convex to begin with, we don't really care that we're now working in the space of low rank metrics, which is, you know, a nonconvex set 'cause we're just doing gradient descent, so we just attack this.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we're essentially what you're doing when you have this low rank.",
+                    "label": 1
+                },
+                {
+                    "sent": "When you have this rectangular matrix is you're learning a low rank metric and you're learning it by parameterising its inverse square root using your Cholesky factorization.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's what you're doing.",
+                    "label": 1
+                },
+                {
+                    "sent": "Or you can just think of it as you're just learning a projection matrix A instead of a transformation.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the advantage is that we seriously reduce storage and computation.",
+                    "label": 1
+                },
+                {
+                    "sent": "We now have a much smaller set of features to store a much smaller set of features to process, and you can use these fancy data structures to do accelerated look up.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the last thing here is if you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you project all the way down to two or three dimensions, you can do visualization of your data.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can really say I want you to make me a picture of my data when in which.",
+                    "label": 0
+                },
+                {
+                    "sent": "Points that are appear nearby in the picture.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Have the same class label.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just in the few minutes that remain here, I just want to show you some very simple preliminary results on this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first thing is just a sanity check.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just created a synthetic data set.",
+                    "label": 1
+                },
+                {
+                    "sent": "I think there's 500 dimensions in this data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "498 of them are random noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gaussian noise with the variance is drawn from some gamma distribution OK, and two of them contain this concentric ring structure which is hiding the class labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we applied Fisher's linear discriminant to project that data down to two dimensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's this picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, Fisher's discriminant makes us, you know, assumption that each class is Gaussian distributed, so it's kind of unfair, but it didn't really discover anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we also apply principle components analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now principle components analysis doesn't even know about the class labels right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It just goes and finds the subspace of codimension two that has the highest variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you really wouldn't expect it to do anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "But anyway, there it is.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then neighborhood Components analysis produces this picture in which the concentric rings are beautifully revealed.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that's just a sanity check that if you really set up the problem so that nearest neighbor is bound to do the right thing, then you can find.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Map projection.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just some more kind of toy datasets there, all these very small datasets in the UCI repository that you could play around with.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a 13 dimensional data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has three classes, this is Fisher's discriminant.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is PCA, and this is the neighborhood components analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you take half of it for training and half of it for testing, then the testing errors if you use a full rank distance metric, it's about 30%.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you just use Euclidean nearest neighbor, 25% if you normalize all the coordinates to have variance one and about 7%.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you use NCA.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you project down to two dimensions using Fisher's discriminant, you get about the same, about 30%.",
+                    "label": 0
+                },
+                {
+                    "sent": "Same thing for PCA and NCA.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get still about the same performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a projection you get and you could sort of see that you know if you were doing data visualization, you would definitely want to go and click on these two data points here, and so they say oh, how come there are these red guys you know in the sea of green?",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe there's some unusual points or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a really nice way to look at your data.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just a linear projection of the original features, so it's not very complicated.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Transformation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's a slightly more interesting example.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are grayscale images of faces that were taken just raw frames off a webcam, so we just got a really cheap webcam and we ran it in its lowest resolution mode.",
+                    "label": 1
+                },
+                {
+                    "sent": "So please give us these 20 by 28 images and then different people sit in front of the video camera and the consecutive frames of each person are taken as the data points.",
+                    "label": 1
+                },
+                {
+                    "sent": "So there's 18 people which we use.",
+                    "label": 1
+                },
+                {
+                    "sent": "Their identity is the class labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "The original frames have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dimension 560 we took, you know, 100 of each person's frames for training and 900 for testing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the projection.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is just literally a 2 by 560 matrix that I multiplied the raw data by and then I plotted.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is not very hard to understand how I made this picture right, so I think this is actually pretty amazing that there's a linear projection that goes from raw pixel space to this space in which the identity of people is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Fairly well separated Alex.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Alex is asking what do the rows or columns of the matrix so I should have displayed them.",
+                    "label": 0
+                },
+                {
+                    "sent": "They look sort of like the kind of thing you expect if you trained a discriminative system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of them has a lot of mass around the forehead region and another one has a lot of math over here, which I think, at least in this data set distinguishes.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some people who are facial hair but also women, I think, have narrower faces, and then that shows through the background.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's hard to interpret, but they look sort of similar to what you get when you go into training like, say, softmax regression, logistic regression type of thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "But remember, this is all happening in a 2 dimensional 2 dimensional feature space.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, you can see that the test errors are substantially substantially better.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Here's some inevitable experiments on the handwritten digits which I want to bore you with.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, being in Toronto, you're sort of obligated to do experiments on the digits, but the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anyway, so here's the summary.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the absence of strong prior knowledge about how to pick your K nearest neighbor distance metric, I think learning the metric from data seems like a good idea, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "We always make this big idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "We shouldn't just try and inject knowledge by hand.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should learn everything from data.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the whole idea of machine learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then when we go and do K nearest neighbor, we just try and hack up the metric by hand.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have all this labeled data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We should use that data to learn the distance metric for K nearest neighbor and this seems like.",
+                    "label": 1
+                },
+                {
+                    "sent": "A reasonable way to learn the distance metric, and then if you really need to go fast at Test time.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an easy way to substantially reduce the dimensionality of your feature space.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, not in an arbitrary way, like by taking the principle components of your data.",
+                    "label": 0
+                },
+                {
+                    "sent": "That seems kind of weird.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why would you think that the dimensions with most variants would be the most informative about class labels?",
+                    "label": 0
+                },
+                {
+                    "sent": "That there's no reasoning priority?",
+                    "label": 1
+                },
+                {
+                    "sent": "Think that NCA is nice, 'cause it assumes nothing about the form of the class distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't assume that their Gaussian or their convex or even connected.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't assume anything about the separating surface, but it's linear or linear in some feature space.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's completely nonparametric memory based method which is just K nearest neighbor sort of taken seriously.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think the take home message to me was.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's very surprising how far you can go with just a linear mapping.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some really good linear transformations of your research space out there if you just spend some energy trying to find them.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's all.",
+                    "label": 0
+                },
+                {
+                    "sent": "John, I couldn't really tell how far you went, so did you try to compare with?",
+                    "label": 0
+                },
+                {
+                    "sent": "Until after you went, did you try to compare with?",
+                    "label": 0
+                },
+                {
+                    "sent": "Like other classifiers that people are familiar with, machine decision trees or yeah, so so John's question is, did you know how does this perform in terms of the spectrum of classifiers like decision trees or support vector machines, or boosted simple things or whatever?",
+                    "label": 0
+                },
+                {
+                    "sent": "And we didn't compare with that, but the idea here was not to try and sell this as a state of the art classification method.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea here was to try and say if you're going to do K nearest neighbor which a lot of people are doing already, especially like in the computer vision, community and stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then at least you should try and do it in a reasonable way that leverages the data that you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it doesn't waste computation so that you should think of this as a conditional statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "The statement is if you're going to do K nearest neighbor.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have some suggestions for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, but I'm not trying to make a claim one way or the other that you should or shouldn't use K nearest neighbor.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least not yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "Question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you say a little bit about how the matches a is initialized?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a good question.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question was how do we initialize the Matrix A?",
+                    "label": 0
+                },
+                {
+                    "sent": "So remember, this is a nonconvex objective function, and we're doing local search, so that always brings up the question how did you initialize it?",
+                    "label": 0
+                },
+                {
+                    "sent": "And the answer is we just initialize with all of the obvious things, plus a lot of random starting points, and we just take the one that gives us the best objective function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the obvious things are the identity matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "The whitening matrix, which just is the covariance sample covariance of the data, Fisher's discriminant projection matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially, whatever you can think of right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because it doesn't matter, all you do is throw that as the initial condition and optimize it so.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yeah, it's a good question.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also I should be very clear that how you initialize is important.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you always start with the identity matrix, you might be missing out on some good local Optima that you would never find by starting with a matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you have to try these things like PCA and LDA and random things just to make sure that you explore the space a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "It seems.",
+                    "label": 0
+                },
+                {
+                    "sent": "About four months in the case of wine deficiencies, the performance in the case of which.",
+                    "label": 0
+                },
+                {
+                    "sent": "This.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not sure what you mean winding feature space.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe you can send money and everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is this is not linear.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I mean I don't know what it means for the feature space to be nonlinear, but the decision surface is here are certainly nonlinear, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, if you draw the boundaries between classes in this picture, they are extremely nonlinear, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, this is not a linear method in any way except for the fact that the projection from the original features base down to the reduced feature space is linear, but that doesn't mean that the separation boundaries are linear.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a linear classifier, it's just a linear transformation of the original feature space, after which you apply a highly nonlinear classifier which is Canon.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you could also consider making this track.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Information here instead of a linear transformation a, we could make it a nonlinear mapping.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could train some, you know, neural network or or GP regressor or something like that to transform the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then you I mean then it's like you know children shouldn't play with matches, you just once you give yourself a nonlinear transformation then it's like you're just going to be completely overfitting the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you can basically always find a transformation of your original feature space in which K = 1 nearest neighbor does.",
+                    "label": 0
+                },
+                {
+                    "sent": "Amazingly well, and he never learned anything so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So have you tried using NT as a feature extraction method to improve other kind of classifiers?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so that's a good question is, can you use NCA as a feature extraction method and then instead of applying K nearest neighbor, apply some other class farm top of that?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we haven't really tried that, but of course it's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a great idea when you want to do feature extraction because this brings you know classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Items of the same class near each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to be careful about which classifier you're going to apply, so if you're going to apply a linear classifier afterwards, then you might not want to do this right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You might not want to try and give local separability.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might really want to try and unfold the space in a way that the classes are separated by hyper points.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, but if you're going to apply like a Gaussian kernel SVM, then this is a great idea, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a great way to preprocess your features, so I think there's some bad news on the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Theoretical front for learning kernel matrix, but you can think of this as a sort of weak way of learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Learning something about the kernel for Gaussian kernel SVM so certainly well, I mean, yeah, so there's a lot of in a lot of good work, including my tongue are going to talk about it about combining kernels, so you could think of this as sort of a weight machine, kernel, SVM trying to learn projection.",
+                    "label": 0
+                },
+                {
+                    "sent": "You said that you could use the information to visualize your data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you see any relation with self rising map?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the question was, since this kind of thing can be thought of a visualization, is there any relationship with Conan, Self organizing map so well?",
+                    "label": 0
+                },
+                {
+                    "sent": "Remember what Conan's algorithm I mean, at least as originally proposed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Conan's algorithm is an unsupervised algorithm, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it just tries to find a low dimensional grid in which nearby grid points are associated with nearby vectors in the.",
+                    "label": 0
+                },
+                {
+                    "sent": "High dimensional space.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you could try and modify components algorithm to take into account the class labels, but the idea here is that things that could be very very far apart in the original space might get mapped nearby if that mapping keeps their classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this projection is intentionally going to project out directions of high variance that have nothing to do with class label, whereas Conan's algorithm would like to do that because it would mean that two very far things would appear next to each other in the grid.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK well thanks for attention.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry bout the relentless talks but you only have to put up with me for one more afternoon tomorrow and that'll be the end of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, thanks.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

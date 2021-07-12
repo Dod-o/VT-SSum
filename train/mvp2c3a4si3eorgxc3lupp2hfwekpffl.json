@@ -1,0 +1,1142 @@
+{
+    "id": "mvp2c3a4si3eorgxc3lupp2hfwekpffl",
+    "title": "Slice sampling covariance hyperparameters of latent",
+    "info": {
+        "author": [
+            "Iain Murray, School of Informatics, University of Edinburgh"
+        ],
+        "published": "Jan. 12, 2011",
+        "recorded": "December 2010",
+        "category": [
+            "Top->Mathematics->Statistics",
+            "Top->Computer Science->Machine Learning->Monte Carlo Methods",
+            "Top->Computer Science->Machine Learning->Gaussian Processes"
+        ]
+    },
+    "url": "http://videolectures.net/nips2010_murray_ssc/",
+    "segmentation": [
+        [
+            "Thanks very much.",
+            "I'm going to start off by just building up a really simple running example for the rest."
+        ],
+        [
+            "The talk, so let's say we've just got some binary data living in some feature space, and we're going to have."
+        ],
+        [
+            "Latent explanation of where this data came from.",
+            "So you've got a vector F that contains values of these vertical offsets and we have a probabilistic model whereby positive offsets tend to lead to positive labels, so this probability."
+        ],
+        [
+            "Gives us a likelihood function that can score different latent services.",
+            "We could be Bayesian and also put a multivariate Gaussian prior on this surface."
+        ],
+        [
+            "And it's tough week and then multiply prior and likelihood together and get a posterior distribution over what is the surface underlying the data set that we saw.",
+            "So if you have something like label data binary data, it's actually fairly weak information.",
+            "In this example, it just tells you whether the underlying process is roughly positive or negative, and there's a lot of uncertainty hanging around, but any particular explanation of the data one of these smooth curves is actually heavily constrained by.",
+            "The covariance in this sort of Gaussian process model people use.",
+            "OK, so this is actually two constraining a lot of the time.",
+            "If I were to look at a data set like this, I might have a variety of explanation, so I might think that it could be a very straight line underlying the data set.",
+            "Or it could be a very wiggly function."
+        ],
+        [
+            "And the way people deal with this is to have a hierarchical or a deeper model.",
+            "You have some hyperparameters theater which specify the unknown covariance rather than assuming the covariance.",
+            "So this, this is actually a very general set up that you are interested in a posterior distribution over latent variables and also hyper parameters that describe some basic properties of the model an.",
+            "I would like to do inference jointly over both of these unknown quantities.",
+            "OK, so why am I so interested in developing code for this sort of very general setup?",
+            "It's because it appear."
+        ],
+        [
+            "Is all the time.",
+            "I mean, we might not have binary labels.",
+            "We could have all sorts of different regression problems with different types of label and also latent Gaussian models are just a completely standard building block in many many hierarchical Bayesian models.",
+            "So in the previous Spotlight session we saw these latent force models.",
+            "In fact, that post is going to be next to our poster tonight post you missed last night, or you might have seen last night as by Andrew Wilson and Zoom in Germany on popular processes.",
+            "They again had a Gaussian process at the heart of what they're doing.",
+            "And they've been using some of our multi color technology.",
+            "So for us this work has been motivated because we've been doing a body of work that uses these models and we wanted code that would just run without hassle.",
+            "So with David Mackay, we've done a variety of work on non parametric processes for point processes and also density estimation and very recently with George Dahl in Toronto we've been exploring variants of probabilistic matrix factor."
+        ],
+        [
+            "So I just want to give you 1 slide on the probabilistic matrix factorization work we did to sort of motivate the sorts of things that we need to do in these models.",
+            "We were actually modeling NBA basketball scores so our data were a bunch of the results of games and these were shoved into the Matrix said on the left.",
+            "So when we were modeling these data we said that the scores came from an underlying matrix that we didn't observe.",
+            "Why?",
+            "And this is sort of a very standard setup.",
+            "We assumed that that matrix was low rank.",
+            "And then we need some sort of prior model over where these matrices came from.",
+            "Now we don't just have a whole bunch of rule schools of basketball and we have a lot of side information associated with the games to do with home and away and line up some things.",
+            "But the simplified information you can imagine is just time we could have a matrix that contains all the scores of the results for this week and behind that in the matrix for the previous week and behind that the week before.",
+            "So we got a whole stack of related matrix factorization problems and in this work the way we dealt with that relation was the colored line show examples of.",
+            "Pride rules from a single element of one of the LLV matrices.",
+            "They're going back through time, are features varied in a smooth way.",
+            "OK, so this is just one of many, many examples of a model where in the guts of it you've got one of these latent Gaussian models and we're going to have to write code that deals with this.",
+            "And do we want to spend our time tuning the code and worrying about getting the code to work for this thing in the guts?",
+            "Or do we want to spend our time thinking about basketball or whatever actual application is and building a better model?",
+            "So we want to make dealing with the Gaussian bit as simple as possible."
+        ],
+        [
+            "We can't just ignore the hyperparameters in the structure of the model A because the hyperparameters in these models are actually key to doing decent inference.",
+            "They not only specify the sort of basic properties of these curves house me, they would they.",
+            "What time do they vary over what their amplitude and so on, but also hyperparameters can be used to specify model structure.",
+            "That's very hard to specify with a single covariance over a long time.",
+            "People have been using automatic relevance determination, aard for soft feature selection.",
+            "That's an example of hyperparameter learning.",
+            "In the NBA basketball problem that we were doing, we had hyperparameters to specify how the features very differently in the season gap between games when we weren't actually having data coming in.",
+            "So it's a sort of scientifically interesting question.",
+            "What can you say about what happens to teams in between the seasons?",
+            "From the data, we don't want to just hack those hyperparameters and fit them somehow.",
+            "We want to do the correct inference to learn what we can actually pull out of the data.",
+            "So I'm very keen on sort of getting the right answer for scientific applications, and another example might be that you're observing a distant Galaxy and light is coming in and you're asking the question, is there a particular periodic structure in this data set or not?",
+            "And that might correspond to trying to capture the posterior distribution over a hyperparameter that captures that periodicity in the data.",
+            "Thanks."
+        ],
+        [
+            "Returning to what we're actually doing, what we what we need is to infer this joint distribution, and there are variety of approaches to inference, and I'd happily discuss the alternatives of the poster session for now.",
+            "For time, I'm going to assume the Markov chain Monte Carlo sampling is a sensible approach, at least sometimes to this problem, so I'm wanting to draw joint samples, particular explanations of what's the surface underlying my data set, and what hyperparameters were responsible for that.",
+            "A lot of us have been doing this and I models over the years and the way most of us here have been doing.",
+            "This is the following straightforward approach we first train to blob of code that will just update this underlying surface for fixed hyperparameters, 'cause then that code knows the covariance and it doesn't have to worry about that bit then because we need to infer the hyperparameters available right in separably code that will move the hyperparameters for fixed surface and the advantage of doing that is that that code then went depend on the data or the model at all.",
+            "We could get that working.",
+            "In dependently once and then run it on lots of different applications.",
+            "So this is a natural way of going about things and the problem is that it just doesn't work very well.",
+            "So on the left."
+        ],
+        [
+            "I've got an example of three draws from the prior from one of these Gaussian models, so the blue curve police set of points came from a very long length scale hyperparameter in the black set of points came from a short length scale.",
+            "So imagine I gave you the red set of points and I said these are the latent values that I've got at the current state in my sample.",
+            "When I'm doing inference, you could then do a little inference problem and say well.",
+            "What hyperparameters did you use to generate these red values?",
+            "You've just given me and your posterior distribution would be the red curve on the right, so you know basically what hyperparameters are used, and that's a fundamental problem for any Markov chain Monte Carlo sampling approach.",
+            "That's going to try and move the hyperparameters for a fixed setting of the latent variables, so it doesn't matter if you're doing simple metropolis or a really carefully tuned Hamiltonian dynamics or something.",
+            "If you're going to clamp the underlying latent surface.",
+            "You just can't move the hyperparameters very far and the data as we've seen might not actually specify the hyperparameters very precisely at all, and so you end up with a Markov chain that mixes very slowly.",
+            "And this is kind of embarrassing.",
+            "I mean, this means that even if you're trying to sample from the prior of the model and the data don't say very much, it should be an easy problem, But the standard Markov chain approach doesn't work very well.",
+            "So there is a fix for this which is known, but I."
+        ],
+        [
+            "Think deserves to be used more in nine, nine more widely, and that's to just simply re parameterise the model.",
+            "So the way I would generate a sample from one of these latent models would be to first draw a variable knew from historical Gaussian distribution and then deterministically transform it with some decomposition of the covariance matrix, so that description of how I write code is actually an alternative description of the prior model.",
+            "I can now do inference on theater and knew instead of theater and F. So the figure shows three draws are actually all generated with the same drawer of knew.",
+            "All I'm doing is varying the hyperparameter and the surface automatically updates to given you setting of latent variables, which is sensible for that hyperparameter.",
+            "So these will be more sensible.",
+            "Monte Carlo moves than clamping the surface.",
+            "This can be a good idea and I'll return to that in the results, but it doesn't always work."
+        ],
+        [
+            "Count when you actually put data back in the picture.",
+            "So here's the running example again, and the solid curve gives an example of what a current state could be in a Markov chain Monte Carlo sampling.",
+            "So we've got some explanation of the data set.",
+            "It's plausable, and we now want to try and change the hyperparameter.",
+            "We think that long length scales could be possible, so we propose that.",
+            "And if we clamp, knew the new surface that we get out is plausable for that length.",
+            "Scale it sensible under the prior.",
+            "Unfortunately, it because we didn't look at the data at all when we did this update.",
+            "It's not a very good proposal.",
+            "And this will be rejected.",
+            "So we really want to take the data into account when we have our market romantic allocate, but that's hard because we want code that will work in a wide variety of settings.",
+            "And in particular for non Gaussian likelihoods it's very hard to do anything analytically.",
+            "If the noise model were Gaussian.",
+            "If we add Gaussian noise on the surface, we would be able to make progress.",
+            "So let's temporarily look at what the Gaussian noise case look."
+        ],
+        [
+            "Blank 'cause we're going to be able to leverage this, so this is what are Gaussian noise regression problem?",
+            "Looks like an.",
+            "I've generated this by adding Gaussian noise to the underlying surface to get the green crosses G. So in this picture I've actually got a joint distribution over three variables, Vita F&G and given that joined distribution, I can now play around with it in various ways.",
+            "So one thing is, I know what the marginal distribution on G is is just the sum of two Gaussians and I could choose to sample that variable 1st and then draw the others condition."
+        ],
+        [
+            "So.",
+            "The way I happened to generate from the post area over F given a value of G as I first generated spherical Gaussian veriton.",
+            "Calling ETA and then I would deterministically transform that with the standard Gaussian process posterior that some of you will know in love with.",
+            "It has mean M and covariance are.",
+            "So this is a convoluted description of a way of generating F from a Gaussian distribution with covariance Sigma.",
+            "It's actually equivalent to our original model, but this description is very convenient for making Markov chain proposals.",
+            "Our variables are now data 8 and G."
+        ],
+        [
+            "And we can clamp ETA in G and now propose changing the length scale.",
+            "So as before we want to try and come up with a longer length scale explanation of the data.",
+            "And for client atron G, we can recompute what F would be under this description, and as before, we now get a nice long length scale surface automatically, and so the prior is happy.",
+            "And also the surface has to now look like a plausable draw from the posterior that you would generate if you looked at just the green crosses and that means that the proposal is going to be in the same ballpark as where you were before.",
+            "It's going to lie in the same place.",
+            "So if we."
+        ],
+        [
+            "Put the data back into the picture, becausw the original surface was a sensible explanation of the data, or if our algorithm was working correctly, then the proposal is in a similar place and so it will also be a reasonable explanation of the data often, and this move may well be accepted as going to work a lot better than any of the approaches I've described so far.",
+            "OK."
+        ],
+        [
+            "So to actually implement this, there's a whole bunch of detail I've glossed over.",
+            "If you're going to change hyperparameters, you'd have to choose how far to actually move them, and to get these green crosses, I've added some amount of noise I've added, added noise drawn from covariance as feature, and you know where did I get that from.",
+            "In the paper we give very concrete suggestions for where to actually get US data from.",
+            "For time I'm going to skip over that now.",
+            "As far as I'm step sizes are concerned, I think if you're ever doing.",
+            "MCMC and you're setting step sizes.",
+            "You should ask yourself the question, is there a way of avoiding doing this?",
+            "You're going to be setting hyperparameters are going to be making all sorts of choices.",
+            "The last thing you want to be spending your time doing is setting step sizes, so I didn't motivate exactly why I've constructed the model as I have."
+        ],
+        [
+            "But we did this so that it works well with Radford Neal Slice sampling.",
+            "So given this representation you can you slice sampling to search over the hyperparameters for you and it will do that robustly and you don't have to worry too much about the step sizes.",
+            "We also have our invariant of slice sampling called elliptical flying sampling this year, where the code doesn't make you set any free parameters at all, and I will take care of that for you.",
+            "Elliptical size sampling is also ideally suited to updating latent surface is for fixed hyperparameters.",
+            "So that can be a useful tool to have in your in your box."
+        ],
+        [
+            "OK, so we have some results and I'm not going to describe."
+        ],
+        [
+            "Does bars mean I can do that at the pace to the executive summary?",
+            "Is that actually the prime lightning thing?",
+            "The simple thing I described first?",
+            "This is about 2 lines of code to add to whatever you're already doing can work much faster than what most people do, which is fixing the latent surface.",
+            "So if you're ever using some sort of hierarchical model and you're going to do something, you should ask yourself the question if there's a simple repair metrization you could do.",
+            "If you're prepared to do a bit more work and use the fancier randomly parametrizations we proposed, and we have code on the supplementary material on the NIPS website, then over a wide variety of applications we did faster than either of the extremes of whitening from the prior or fixing the function."
+        ],
+        [
+            "OK this.",
+            "Quite a lot of quite closely related work, and we take pains in the paper to to point some of this out.",
+            "Michaelis, it's.",
+            "It's this year independently came up with a very similar idea for a related problem.",
+            "There's some stuff in the stats literature which comes up with very closely related representations, and I think it's also important to continually ask the question whether you should be doing 1 to color or deterministic work and buttons.",
+            "Husky and Tom Huskies have some very nice deterministic Gaussian process inference work this year."
+        ],
+        [
+            "So for now I just like to to sum up with the following observation.",
+            "If you've got a latent Gaussian model or in fact any deep hierarchical Bayesian model.",
+            "The hyperparameters are there to specify the key properties of your model, important things, how many clusters.",
+            "So I expect what's the smoothness of the curve.",
+            "So of course those hyperparameters are going to be strongly related to the variables that follow, and that's always going to be a problem for Markov chain Monte Carlo.",
+            "Now a lot of us know that, and the contribution in this work is meant to be a simple fix for the special case of latent Gaussian models, and we hope that's broadly useful in the future.",
+            "I'd really like to see more workers sort of similarly simple things to apply that we could use in.",
+            "More general settings and non Gaussian models.",
+            "A few questions.",
+            "This is Michael.",
+            "Yeah alright.",
+            "So one of the things one of the questions you actually you had in your slide was how to choose us or theater.",
+            "How to choose the covariance of the latent process?",
+            "Gee, I was wondering if you have any guidelines for different models.",
+            "Sorry.",
+            "OK. Anne.",
+            "OK, so.",
+            "This is what the method looked liked.",
+            "Again to remind you you add some noise to your current state and that gives you these green crosses and the question is how much noise do I add?",
+            "How do I choose this?",
+            "This espita covariance and let's look at what's happening in the picture.",
+            "The new proposal is going to live in this sort of tube of possible states which live inside this massive green green points.",
+            "So we want to choose the noise level so that this tube is constraining our proposals by about the same amount that the data is constraining the posterior.",
+            "So if the noise was zero, would be concerning the function too much would be clamping the function, and if you added an infinite amount of noise that would actually reduced to whining from the prior.",
+            "So the S that you want to pick is the one that constrains the function by about the same amount the likelihood does and one thing you could do is Taylor expand the log likelihood.",
+            "That doesn't always work.",
+            "I don't think I should spend a long time going into the details of this, but.",
+            "Roughly what we do we suggest in the paper is something simple.",
+            "You can always do, which is considered what the posterior would be if you only had one data point at a time.",
+            "That's what the picture on the right is meant to be.",
+            "If you only had one data point, you'd have a spray of possible values associated with it, and you could look at the width of that site.",
+            "Posterior is what we call it, how, how much uncertainty you have given one data point, and that tells you what the one effect of that likelihood is at one point.",
+            "So what we're trying to do is fit this auxiliary noise.",
+            "So that it would give you a site posterior that has the same width as the true likelihood is like doing one step of EP and Monday further work.",
+            "I'd like to ask you, how do you think this compares to join the updating the latent Gaussian variables and the hyperparameters using, say, Hamiltonian Monte Carlo.",
+            "OK, so we do actually mention the possibility in the paper of joining the updating the surface and the hyperparameters.",
+            "There's a nice Masters thesis by a student former student of Radford Neal's, where he tries to do something similar.",
+            "Update the hyperparameters and weights of abating neural network, which you can think of her closely related problem.",
+            "And surprisingly it doesn't work that much better for a wide variety of things I tried than separately running Hamiltonian Monte Carlo on just the hyperparameters and the function values separately.",
+            "I would be happy to talk about this issue offline with people 'cause it's actually slightly shuffle, but there are entropic problems where I don't know this like I don't think I want to go into that.",
+            "There are entropic problems that mean that we're not just trying to find jointly sensible settings.",
+            "It's not like made finding you really need to take into account the structure of the space and that although the thing you suggested very sensible and I thought that would work, it turns out not to work as well as what we're doing here.",
+            "What you could do is run Hamiltonian Monte Carlo on our representation.",
+            "And paste document Jeremy's has been trying that recently.",
+            "It seems to work quite well.",
+            "I haven't tried it myself yet."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thanks very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to start off by just building up a really simple running example for the rest.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The talk, so let's say we've just got some binary data living in some feature space, and we're going to have.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Latent explanation of where this data came from.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you've got a vector F that contains values of these vertical offsets and we have a probabilistic model whereby positive offsets tend to lead to positive labels, so this probability.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Gives us a likelihood function that can score different latent services.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could be Bayesian and also put a multivariate Gaussian prior on this surface.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And it's tough week and then multiply prior and likelihood together and get a posterior distribution over what is the surface underlying the data set that we saw.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have something like label data binary data, it's actually fairly weak information.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this example, it just tells you whether the underlying process is roughly positive or negative, and there's a lot of uncertainty hanging around, but any particular explanation of the data one of these smooth curves is actually heavily constrained by.",
+                    "label": 0
+                },
+                {
+                    "sent": "The covariance in this sort of Gaussian process model people use.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is actually two constraining a lot of the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I were to look at a data set like this, I might have a variety of explanation, so I might think that it could be a very straight line underlying the data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or it could be a very wiggly function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the way people deal with this is to have a hierarchical or a deeper model.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have some hyperparameters theater which specify the unknown covariance rather than assuming the covariance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this, this is actually a very general set up that you are interested in a posterior distribution over latent variables and also hyper parameters that describe some basic properties of the model an.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would like to do inference jointly over both of these unknown quantities.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so why am I so interested in developing code for this sort of very general setup?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's because it appear.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is all the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, we might not have binary labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could have all sorts of different regression problems with different types of label and also latent Gaussian models are just a completely standard building block in many many hierarchical Bayesian models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the previous Spotlight session we saw these latent force models.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, that post is going to be next to our poster tonight post you missed last night, or you might have seen last night as by Andrew Wilson and Zoom in Germany on popular processes.",
+                    "label": 0
+                },
+                {
+                    "sent": "They again had a Gaussian process at the heart of what they're doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they've been using some of our multi color technology.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for us this work has been motivated because we've been doing a body of work that uses these models and we wanted code that would just run without hassle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with David Mackay, we've done a variety of work on non parametric processes for point processes and also density estimation and very recently with George Dahl in Toronto we've been exploring variants of probabilistic matrix factor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I just want to give you 1 slide on the probabilistic matrix factorization work we did to sort of motivate the sorts of things that we need to do in these models.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were actually modeling NBA basketball scores so our data were a bunch of the results of games and these were shoved into the Matrix said on the left.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when we were modeling these data we said that the scores came from an underlying matrix that we didn't observe.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is sort of a very standard setup.",
+                    "label": 0
+                },
+                {
+                    "sent": "We assumed that that matrix was low rank.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we need some sort of prior model over where these matrices came from.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we don't just have a whole bunch of rule schools of basketball and we have a lot of side information associated with the games to do with home and away and line up some things.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the simplified information you can imagine is just time we could have a matrix that contains all the scores of the results for this week and behind that in the matrix for the previous week and behind that the week before.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we got a whole stack of related matrix factorization problems and in this work the way we dealt with that relation was the colored line show examples of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Pride rules from a single element of one of the LLV matrices.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're going back through time, are features varied in a smooth way.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is just one of many, many examples of a model where in the guts of it you've got one of these latent Gaussian models and we're going to have to write code that deals with this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And do we want to spend our time tuning the code and worrying about getting the code to work for this thing in the guts?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or do we want to spend our time thinking about basketball or whatever actual application is and building a better model?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we want to make dealing with the Gaussian bit as simple as possible.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We can't just ignore the hyperparameters in the structure of the model A because the hyperparameters in these models are actually key to doing decent inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "They not only specify the sort of basic properties of these curves house me, they would they.",
+                    "label": 0
+                },
+                {
+                    "sent": "What time do they vary over what their amplitude and so on, but also hyperparameters can be used to specify model structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's very hard to specify with a single covariance over a long time.",
+                    "label": 0
+                },
+                {
+                    "sent": "People have been using automatic relevance determination, aard for soft feature selection.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's an example of hyperparameter learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the NBA basketball problem that we were doing, we had hyperparameters to specify how the features very differently in the season gap between games when we weren't actually having data coming in.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a sort of scientifically interesting question.",
+                    "label": 0
+                },
+                {
+                    "sent": "What can you say about what happens to teams in between the seasons?",
+                    "label": 0
+                },
+                {
+                    "sent": "From the data, we don't want to just hack those hyperparameters and fit them somehow.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to do the correct inference to learn what we can actually pull out of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm very keen on sort of getting the right answer for scientific applications, and another example might be that you're observing a distant Galaxy and light is coming in and you're asking the question, is there a particular periodic structure in this data set or not?",
+                    "label": 0
+                },
+                {
+                    "sent": "And that might correspond to trying to capture the posterior distribution over a hyperparameter that captures that periodicity in the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Returning to what we're actually doing, what we what we need is to infer this joint distribution, and there are variety of approaches to inference, and I'd happily discuss the alternatives of the poster session for now.",
+                    "label": 0
+                },
+                {
+                    "sent": "For time, I'm going to assume the Markov chain Monte Carlo sampling is a sensible approach, at least sometimes to this problem, so I'm wanting to draw joint samples, particular explanations of what's the surface underlying my data set, and what hyperparameters were responsible for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of us have been doing this and I models over the years and the way most of us here have been doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the following straightforward approach we first train to blob of code that will just update this underlying surface for fixed hyperparameters, 'cause then that code knows the covariance and it doesn't have to worry about that bit then because we need to infer the hyperparameters available right in separably code that will move the hyperparameters for fixed surface and the advantage of doing that is that that code then went depend on the data or the model at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could get that working.",
+                    "label": 0
+                },
+                {
+                    "sent": "In dependently once and then run it on lots of different applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a natural way of going about things and the problem is that it just doesn't work very well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on the left.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I've got an example of three draws from the prior from one of these Gaussian models, so the blue curve police set of points came from a very long length scale hyperparameter in the black set of points came from a short length scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "So imagine I gave you the red set of points and I said these are the latent values that I've got at the current state in my sample.",
+                    "label": 0
+                },
+                {
+                    "sent": "When I'm doing inference, you could then do a little inference problem and say well.",
+                    "label": 0
+                },
+                {
+                    "sent": "What hyperparameters did you use to generate these red values?",
+                    "label": 0
+                },
+                {
+                    "sent": "You've just given me and your posterior distribution would be the red curve on the right, so you know basically what hyperparameters are used, and that's a fundamental problem for any Markov chain Monte Carlo sampling approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's going to try and move the hyperparameters for a fixed setting of the latent variables, so it doesn't matter if you're doing simple metropolis or a really carefully tuned Hamiltonian dynamics or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're going to clamp the underlying latent surface.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just can't move the hyperparameters very far and the data as we've seen might not actually specify the hyperparameters very precisely at all, and so you end up with a Markov chain that mixes very slowly.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is kind of embarrassing.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, this means that even if you're trying to sample from the prior of the model and the data don't say very much, it should be an easy problem, But the standard Markov chain approach doesn't work very well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there is a fix for this which is known, but I.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Think deserves to be used more in nine, nine more widely, and that's to just simply re parameterise the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way I would generate a sample from one of these latent models would be to first draw a variable knew from historical Gaussian distribution and then deterministically transform it with some decomposition of the covariance matrix, so that description of how I write code is actually an alternative description of the prior model.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can now do inference on theater and knew instead of theater and F. So the figure shows three draws are actually all generated with the same drawer of knew.",
+                    "label": 0
+                },
+                {
+                    "sent": "All I'm doing is varying the hyperparameter and the surface automatically updates to given you setting of latent variables, which is sensible for that hyperparameter.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these will be more sensible.",
+                    "label": 0
+                },
+                {
+                    "sent": "Monte Carlo moves than clamping the surface.",
+                    "label": 0
+                },
+                {
+                    "sent": "This can be a good idea and I'll return to that in the results, but it doesn't always work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Count when you actually put data back in the picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the running example again, and the solid curve gives an example of what a current state could be in a Markov chain Monte Carlo sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've got some explanation of the data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's plausable, and we now want to try and change the hyperparameter.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think that long length scales could be possible, so we propose that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we clamp, knew the new surface that we get out is plausable for that length.",
+                    "label": 0
+                },
+                {
+                    "sent": "Scale it sensible under the prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, it because we didn't look at the data at all when we did this update.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a very good proposal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this will be rejected.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we really want to take the data into account when we have our market romantic allocate, but that's hard because we want code that will work in a wide variety of settings.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in particular for non Gaussian likelihoods it's very hard to do anything analytically.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the noise model were Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we add Gaussian noise on the surface, we would be able to make progress.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's temporarily look at what the Gaussian noise case look.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Blank 'cause we're going to be able to leverage this, so this is what are Gaussian noise regression problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks like an.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've generated this by adding Gaussian noise to the underlying surface to get the green crosses G. So in this picture I've actually got a joint distribution over three variables, Vita F&G and given that joined distribution, I can now play around with it in various ways.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one thing is, I know what the marginal distribution on G is is just the sum of two Gaussians and I could choose to sample that variable 1st and then draw the others condition.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way I happened to generate from the post area over F given a value of G as I first generated spherical Gaussian veriton.",
+                    "label": 0
+                },
+                {
+                    "sent": "Calling ETA and then I would deterministically transform that with the standard Gaussian process posterior that some of you will know in love with.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has mean M and covariance are.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a convoluted description of a way of generating F from a Gaussian distribution with covariance Sigma.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's actually equivalent to our original model, but this description is very convenient for making Markov chain proposals.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our variables are now data 8 and G.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And we can clamp ETA in G and now propose changing the length scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as before we want to try and come up with a longer length scale explanation of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for client atron G, we can recompute what F would be under this description, and as before, we now get a nice long length scale surface automatically, and so the prior is happy.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also the surface has to now look like a plausable draw from the posterior that you would generate if you looked at just the green crosses and that means that the proposal is going to be in the same ballpark as where you were before.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to lie in the same place.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Put the data back into the picture, becausw the original surface was a sensible explanation of the data, or if our algorithm was working correctly, then the proposal is in a similar place and so it will also be a reasonable explanation of the data often, and this move may well be accepted as going to work a lot better than any of the approaches I've described so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So to actually implement this, there's a whole bunch of detail I've glossed over.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're going to change hyperparameters, you'd have to choose how far to actually move them, and to get these green crosses, I've added some amount of noise I've added, added noise drawn from covariance as feature, and you know where did I get that from.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the paper we give very concrete suggestions for where to actually get US data from.",
+                    "label": 0
+                },
+                {
+                    "sent": "For time I'm going to skip over that now.",
+                    "label": 0
+                },
+                {
+                    "sent": "As far as I'm step sizes are concerned, I think if you're ever doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "MCMC and you're setting step sizes.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should ask yourself the question, is there a way of avoiding doing this?",
+                    "label": 0
+                },
+                {
+                    "sent": "You're going to be setting hyperparameters are going to be making all sorts of choices.",
+                    "label": 0
+                },
+                {
+                    "sent": "The last thing you want to be spending your time doing is setting step sizes, so I didn't motivate exactly why I've constructed the model as I have.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But we did this so that it works well with Radford Neal Slice sampling.",
+                    "label": 1
+                },
+                {
+                    "sent": "So given this representation you can you slice sampling to search over the hyperparameters for you and it will do that robustly and you don't have to worry too much about the step sizes.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also have our invariant of slice sampling called elliptical flying sampling this year, where the code doesn't make you set any free parameters at all, and I will take care of that for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Elliptical size sampling is also ideally suited to updating latent surface is for fixed hyperparameters.",
+                    "label": 1
+                },
+                {
+                    "sent": "So that can be a useful tool to have in your in your box.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so we have some results and I'm not going to describe.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Does bars mean I can do that at the pace to the executive summary?",
+                    "label": 1
+                },
+                {
+                    "sent": "Is that actually the prime lightning thing?",
+                    "label": 0
+                },
+                {
+                    "sent": "The simple thing I described first?",
+                    "label": 1
+                },
+                {
+                    "sent": "This is about 2 lines of code to add to whatever you're already doing can work much faster than what most people do, which is fixing the latent surface.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you're ever using some sort of hierarchical model and you're going to do something, you should ask yourself the question if there's a simple repair metrization you could do.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're prepared to do a bit more work and use the fancier randomly parametrizations we proposed, and we have code on the supplementary material on the NIPS website, then over a wide variety of applications we did faster than either of the extremes of whitening from the prior or fixing the function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quite a lot of quite closely related work, and we take pains in the paper to to point some of this out.",
+                    "label": 1
+                },
+                {
+                    "sent": "Michaelis, it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's this year independently came up with a very similar idea for a related problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some stuff in the stats literature which comes up with very closely related representations, and I think it's also important to continually ask the question whether you should be doing 1 to color or deterministic work and buttons.",
+                    "label": 0
+                },
+                {
+                    "sent": "Husky and Tom Huskies have some very nice deterministic Gaussian process inference work this year.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So for now I just like to to sum up with the following observation.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you've got a latent Gaussian model or in fact any deep hierarchical Bayesian model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The hyperparameters are there to specify the key properties of your model, important things, how many clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I expect what's the smoothness of the curve.",
+                    "label": 0
+                },
+                {
+                    "sent": "So of course those hyperparameters are going to be strongly related to the variables that follow, and that's always going to be a problem for Markov chain Monte Carlo.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now a lot of us know that, and the contribution in this work is meant to be a simple fix for the special case of latent Gaussian models, and we hope that's broadly useful in the future.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd really like to see more workers sort of similarly simple things to apply that we could use in.",
+                    "label": 0
+                },
+                {
+                    "sent": "More general settings and non Gaussian models.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is Michael.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of the things one of the questions you actually you had in your slide was how to choose us or theater.",
+                    "label": 0
+                },
+                {
+                    "sent": "How to choose the covariance of the latent process?",
+                    "label": 0
+                },
+                {
+                    "sent": "Gee, I was wondering if you have any guidelines for different models.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is what the method looked liked.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again to remind you you add some noise to your current state and that gives you these green crosses and the question is how much noise do I add?",
+                    "label": 0
+                },
+                {
+                    "sent": "How do I choose this?",
+                    "label": 0
+                },
+                {
+                    "sent": "This espita covariance and let's look at what's happening in the picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "The new proposal is going to live in this sort of tube of possible states which live inside this massive green green points.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we want to choose the noise level so that this tube is constraining our proposals by about the same amount that the data is constraining the posterior.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if the noise was zero, would be concerning the function too much would be clamping the function, and if you added an infinite amount of noise that would actually reduced to whining from the prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the S that you want to pick is the one that constrains the function by about the same amount the likelihood does and one thing you could do is Taylor expand the log likelihood.",
+                    "label": 0
+                },
+                {
+                    "sent": "That doesn't always work.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think I should spend a long time going into the details of this, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Roughly what we do we suggest in the paper is something simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can always do, which is considered what the posterior would be if you only had one data point at a time.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what the picture on the right is meant to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you only had one data point, you'd have a spray of possible values associated with it, and you could look at the width of that site.",
+                    "label": 0
+                },
+                {
+                    "sent": "Posterior is what we call it, how, how much uncertainty you have given one data point, and that tells you what the one effect of that likelihood is at one point.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're trying to do is fit this auxiliary noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that it would give you a site posterior that has the same width as the true likelihood is like doing one step of EP and Monday further work.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to ask you, how do you think this compares to join the updating the latent Gaussian variables and the hyperparameters using, say, Hamiltonian Monte Carlo.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so we do actually mention the possibility in the paper of joining the updating the surface and the hyperparameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a nice Masters thesis by a student former student of Radford Neal's, where he tries to do something similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Update the hyperparameters and weights of abating neural network, which you can think of her closely related problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And surprisingly it doesn't work that much better for a wide variety of things I tried than separately running Hamiltonian Monte Carlo on just the hyperparameters and the function values separately.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would be happy to talk about this issue offline with people 'cause it's actually slightly shuffle, but there are entropic problems where I don't know this like I don't think I want to go into that.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are entropic problems that mean that we're not just trying to find jointly sensible settings.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not like made finding you really need to take into account the structure of the space and that although the thing you suggested very sensible and I thought that would work, it turns out not to work as well as what we're doing here.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you could do is run Hamiltonian Monte Carlo on our representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And paste document Jeremy's has been trying that recently.",
+                    "label": 0
+                },
+                {
+                    "sent": "It seems to work quite well.",
+                    "label": 0
+                },
+                {
+                    "sent": "I haven't tried it myself yet.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

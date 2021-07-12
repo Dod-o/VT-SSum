@@ -1,0 +1,1481 @@
+{
+    "id": "ns6jsmck2u6nugezheuwyo5ymls5i7no",
+    "title": "Nonparametric Variational Inference",
+    "info": {
+        "author": [
+            "Matt Hoffman, Adobe Systems Incorporated"
+        ],
+        "published": "Jan. 16, 2013",
+        "recorded": "December 2012",
+        "category": [
+            "Top->Computer Science->Machine Learning->Graphical Models",
+            "Top->Computer Science->Machine Learning->Kernel Methods"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2012_hoffman_variational/",
+    "segmentation": [
+        [
+            "Thanks for thanks for the invitation.",
+            "So I'm going to be talking about some work that that I did with Sam Grossman and David Bly.",
+            "And I should say that you know, really I was, you know, I was involved in this, but really, Sam deserves most of the credit for this work.",
+            "But unfortunately he couldn't be here."
+        ],
+        [
+            "So the the basic motivating application is we want to do approximate inference on some kind of probabilistic model.",
+            "So in general we've got some kind of distribution P of data that we can only compute up to a normalizing constant, and usually for our purposes this will be the posterior of some Bayesian model."
+        ],
+        [
+            "So I.",
+            "There are of course, a variety of ways of doing approximate inference in graphical models, but the one I'm going to be talking about is variational inference and the basic idea is to approximate this this intractable distribution P of data.",
+            "Whatever our parameter vector is, given our data, why?",
+            "Whatever that maybe with some tractable distribution Q of data, and we're going in the basic idea is to sort of frame the problem of approximate inference as an optimization problem.",
+            "We want to find.",
+            "Out of some tractable set of distributions, Q of data, the queue of data that best approximates according to some according to some definition of goodness, usually KL divergent's, one form or another of closeness of Q 2."
+        ],
+        [
+            "Area.",
+            "So, um, variational methods have sort of advantages and disadvantages so.",
+            "The sort of most commonly used mean field variational methods have the advantage that they can often converge to their ultimate destination much faster than Markov chain.",
+            "Monte Carlo methods can, but.",
+            "They have.",
+            "Basically I would say two major drawbacks.",
+            "One is they are difficult to apply often for the sort of general class of graphical models, right?",
+            "There's basically if you don't, if your model doesn't enjoy conditional conjugacy, which is to say that each.",
+            "Each.",
+            "UN observed variable conditioned on all of the other ones are variables in the data.",
+            "If that distribution is intractable to work with, it's not intractable.",
+            "Exponential family.",
+            "You're going to have to do some work to figure out how to fit your model using variational inference, which is annoying because it restricts the class of models we can work with and the other problem is that driving variational updates is kind of a pain.",
+            "It's, I mean, once you're sort of good at it, it's not really that much harder than then deriving a Gibbs sampler, but it's nonetheless it's tedious so."
+        ],
+        [
+            "We'd like to sort of get around both of these issues.",
+            "And So what I'm going to talk about is this nonparametric variational inference algorithm, which gets around these problems that we can so we can apply it to models that don't enjoy conditional conjugacy.",
+            "Basically, any kind of model that so we are restricted for the moment to models that only use continuous hidden variables, but within that class of models we can pretty much always use this algorithm, and I.",
+            "As far and and the other thing, the other attractive feature of this algorithm is that.",
+            "Rather than is that there's the sort of work that we have to do.",
+            "To apply this algorithm is kind of the same every time.",
+            "So basically if you can evaluate the log posterior up to a constant, compute its gradient, and ideally compute the diagonal of the Hessian of the log posterior, then you can immediately apply this algorithm so it's not sort of a different thing every time."
+        ],
+        [
+            "So.",
+            "The basic basic heart of the approach is is this idea that sort of inspired by kernel density estimation, where we'd like instead of approximating a distribution that we get to observe samples from, we're going to approximate a distribution that we only know up to this normalizing constant, and so basically what we're going to do is we're going to restrict this distribution Q over our overall parameters to be a mixture of Gaussians, and specifically a mixture of isentropic Gaussians.",
+            "So.",
+            "Basically, each one of these Gaussians is parameterized by some mean, so there's any of these Gaussians, so each one of them is parameterized by some mean and some variance, and I was just sort of lazy notationally.",
+            "But you could put an eye in behind anytime you see Sigma squared in this talk."
+        ],
+        [
+            "So.",
+            "The.",
+            "So sort of traditional variational objective, sometimes called the evidence, lower bound or elbow for short is this expression here so and this.",
+            "So basically this holds for.",
+            "This is works for basically any distribution Q over Theta that you like.",
+            "This is a lower bound on the marginal probability of the data, and maximizing it is equivalent to minimizing the KL divergent between Q and the posterior that we're interested in.",
+            "And you can break it into these two terms right?",
+            "This first term is.",
+            "Can think of a sort of the expected up to a constant.",
+            "The expected log density of under the posterior of of your parameters.",
+            "And then there's this other term, which is the entropy of your approximating distribution.",
+            "So if you want to sort of compare this to maximum office teorie inference, one way to think about it is.",
+            "If you just sort of cover up this term here.",
+            "The optimal Q distribution would be a Delta and you would just fit.",
+            "Basically would just find basically the Theta that gives you the maximum density under the posterior, but because we've got this entropy term you can think of this sort of where it's like we're optimizing instead of.",
+            "Instead of finding the point with highest density, we're finding the sort of set of area of parameter space that has the most mass, right?",
+            "It's sort of like remote, because this is sort of like.",
+            "This expression is sort of like log average log density times log volume if you will.",
+            "So I we're going to so in general, computing these expectations is not not necessarily easy.",
+            "It can be easy in certain for this.",
+            "For certain restricted classes of models.",
+            "But like I said, we don't want to restrict ourselves to that class of models.",
+            "So what we're going to do is we're going to come up with on approximate evidence lower bound that is easy to compute and easy to optimize using gradient methods like BFF's."
+        ],
+        [
+            "And the basic idea for how we're going to construct that approximation is this expectation.",
+            "The expected log density joint density of data and unobserved variables will approximate using a second order.",
+            "Taylor series expansion around the mean of each Gaussian component and then the second term.",
+            "The entropy term.",
+            "We're going to lower bound by by applying instance inequality and exploiting some very convenient properties that come from working with Gaussian mixtures."
+        ],
+        [
+            "So first, here's the here's the bound on the entropy, right?",
+            "So I'll just quickly go through it.",
+            "So this is just the definition of entropy, right?",
+            "Simple enough for a particular choice of variational distribution that just expands to this sum.",
+            "You just sort of expand Q here and you get the density under the variational distribution.",
+            "By Jens inequality we can move the sum here outside of.",
+            "Yeah, outside of the log, which makes things a little bit easier to work with and then by exploiting the fact that the convolution of two Gaussians is itself a Gaussian, we wind up with this expression down here, which is.",
+            "You know, not not too nasty to work with.",
+            "And then."
+        ],
+        [
+            "Anne.",
+            "On to.",
+            "Sorry, that should not say bound.",
+            "This is not a bound.",
+            "This is an approximation that has absolutely no guarantee of being lower bound.",
+            "So if we take a second order Taylor expansion around.",
+            "The.",
+            "So if we take a second order Taylor expansion for each for each of these Gaussian components around its mean then.",
+            "After you do some algebra and again take advantage of the properties of isotropic Gaussians, you wind up with this expression here.",
+            "And what's nice about that is that.",
+            "Because we've used an isotropic because we're using this mixture of isotropic Gaussians.",
+            "The even though we're using the multivariate Delta method which uses this full second order Taylor expansion that you know in theory would be sort of quadratic to compute.",
+            "It turns out that we only care about the trace of the Hessian around each around the mean of each of these Gaussian components, and so the nice thing about that is that we can compute that in linear time right in time linear in the number of parameters.",
+            "So which is a desirable thing, because often we have many parameters."
+        ],
+        [
+            "So putting it all together, we have this approximation to the evidence lower bound and it basically you can sort of think about it in terms of.",
+            "I'm trying to up so if you tried to optimize this you can sort of think about trying to satisfy a number of competing objectives.",
+            "So this is the sort of most intuitive, simplest, most intuitive thing, right?",
+            "This is basically just saying we want each one of these means to be in kind of as high density or region as possible.",
+            "But then I against that we have this term here which basically says, right?",
+            "This is the bound on the entropy and right?",
+            "So basically, if all of the means are really close to each other, right?",
+            "If they all just sort of land on top of each other in the same spot, then that's going to make this density relatively high, which we get a penalty for, right?",
+            "So basically because these means are?",
+            "Because because of this normal term that's actually encouraging the means to spread out and not all just sort of land in the same spot with the maximum posteriori solution.",
+            "Um?",
+            "Then I.",
+            "We have this term over here, which is basically saying right so if we.",
+            "If we assume that our models for the that for the most part.",
+            "The trace of the Hessian in most high density regions is going to be negative.",
+            "Right, so if we were working with log concave, posterior would always be negative, but you know, typically as long as you're not sort of too far out in the boonies of your of your posterior.",
+            "That race is going to be negative.",
+            "So basically what that saying is that that term says.",
+            "We want to make the variance of each of these Gaussians relatively small because this is a penalty for having overly broad Gaussians.",
+            "Against that we have this term down here, right?",
+            "So if you.",
+            "Basically, if you can make the basically if you just made Sigma squared go to zero and made everything a Delta right, then what would happen is.",
+            "Then what you could do is sort of put everything together and the sum of these variances become zero.",
+            "These these means are right on top of each other.",
+            "This density goes to Infinity minus log of Infinity is minus Infinity, and that's not where that's not how you maximize an objective function.",
+            "By setting it to negative Infinity.",
+            "So basically this term here is encouraging the Gaussians to be broader, so it sort of is weighed against.",
+            "This term here, which discourages the Gaussians from getting too broad, so that's the.",
+            "That's sort of the intuition, or some intuition.",
+            "Hopefully for for what this objective function is trying to accomplish."
+        ],
+        [
+            "Now as far as how we actually optimize this objective function, there is one sort of hiccup which is this some.",
+            "If we want to write all of this is differentiable, we'll assume.",
+            "But the one sort of hiccup is that if we want to compute the gradient of this trace term that actually winds up being that ones up having a cost that's quadratic in in the number of parameters, right?",
+            "Because it's you wind up with.",
+            "You wind up basically having to compute a big Jacobian, so.",
+            "What we do is we go sort of alternate between optimizing each one of these means, holding all the other ones fixed.",
+            "That's you don't have to do that, but it seems to make things a little faster in practice.",
+            "An when we optimize the means, we actually ignore that Hessian trace term, so that's sort of like instead of taking a second order approximation where only optimizing the 1st order approximation when we're when we're fitting those means.",
+            "So like I said, that's one thing that that lets us do is avoid.",
+            "Computing a quadratic number of their derivatives, and another thing that it actually does is it avoids possible degeneracies if we have non log concave posteriors.",
+            "Right, so you can imagine right if if you had a really heavy tailed posterior.",
+            "I then what will happen is if you get really far out into that tail, then every term on the diagonal of the Hessian could conceivably actually be positive, and then when that happens things sort of get very strange, because now you could actually write if all of these terms are positive, then you could just set Sigma squared N to Infinity and.",
+            "An that gives you something infinite here, and that winds up making the density of each of these means under that normal 0 sum of a bunch of zeros.",
+            "Take the log, negate it.",
+            "That gives you another Infinity, so that's a degeneracy that actually.",
+            "We sort of have to worry about and so by ignoring that trace term when optimizing these means we reduce the chances that we're going to end up in this really weird part of the posterior where.",
+            "Where things are just really really log convex.",
+            "So having optimized each one of these mus, we then focus on the Sigma vector optimized that holding you fixed over and now we don't have to worry so much about that trace term.",
+            "I mean we don't have to worry about it blowing up and then, so we do include it when optimizing the sort of kernel widths.",
+            "So we alternate between between these two steps.",
+            "In practice, it seems to seems to converge pretty quickly in just a few, just a few iterations of alternating between these between these steps."
+        ],
+        [
+            "So I'll just say a little bit about sort of.",
+            "You know, this is you can sort of it's sort of interesting to think about this algorithm through the lens of some other kind of popular.",
+            "And less popular inference algorithms so.",
+            "If you think about what happens if you just, if you just let Sigma go to zero and choose to use just a single approximating Gaussian, right?",
+            "So basically then.",
+            "You're saying that you're approximating distributions, just a Delta, and in fact, what happens when you try and optimize the approximate.",
+            "Although holding holding Sigma at zero as you wind up with the maximum office theory solution, right?",
+            "So because the bandwidth of the kernel zero, basically all it cares about is density, and sure enough it optimized.",
+            "It finds the point of highest density.",
+            "If you don't restrict Sigma to be 0, but keeping it one, then you end up with a diagonal Laplace approximation, so because.",
+            "Here, if N is 1.",
+            "Than basically it.",
+            "I there's no then.",
+            "There's no other mu J here, basically, so this is the only term that sort of keeping you from.",
+            "I.",
+            "Because where because when we optimize the means we ignore this.",
+            "This session term.",
+            "Basically, this term winds up being constant with respect to the mean because because Muon is new Jay and there's only one norje, and so we're basically just finding the point of highest density.",
+            "And then then taking a diagonal Laplace approximation.",
+            "If you let an become greater than one and have all of these signals go to 0, then.",
+            "There's a sense in which you can think of.",
+            "This is sort of doing quasi Monte Carlo right where you basically are approximating the posterior distribution with a bunch of points.",
+            "If you did that and try to optimize our approximate elbow, then you would not actually get a very good quasi Monte Carlo approximation.",
+            "It would, everything would just be basically arbitrarily close to everything else, but it's still there.",
+            "Still a relationship there.",
+            "And finally, this is what we actually do.",
+            "Let the number of components be greater than one and let them all have different bandwidths.",
+            "That are not zero, and then you wind up with our algorithm, which you can sort of think of as a form of mixture, mean field which has.",
+            "Some history behind it, but is sort of historically not been that widely used, and again, it's sort of analogous to doing kernel density estimation on the posterior that we're interested in."
+        ],
+        [
+            "So, um.",
+            "I'll just show some now, just show some.",
+            "Sperimentale results and wrap up after that.",
+            "So here.",
+            "Is a synthetic example where we're saying where we're pretending that we have a posterior that looks like this.",
+            "It's a couple of.",
+            "It's a mixture of two skewed bivariate T distributions.",
+            "So.",
+            "Their non isotropic and their heavy tailed.",
+            "If we do nonparametric variational inference with just one mixture component, then of course it's really not able to.",
+            "It's not able to capture the bimodality 'cause it's a unimodal distribution, obviously, but it finds one of the modes anyway.",
+            "If we let the number of mixture components go to two, then in fact it does do the right thing and it fine inputs one Gaussian at one mode, one Gaussian at the other mode.",
+            "But of course because these are.",
+            "This is a Gaussian approximation.",
+            "Anisotropic Gaussian approximation?",
+            "It's not able to capture the skewness or the heavy tailed Ness of the T distributions.",
+            "But if we allow the number of components to increase to 10.",
+            "Then it does a better job of capturing the heavy tailed Ness and the non isotropic Ness of the of the posterior."
+        ],
+        [
+            "Um?",
+            "So we also compare, so moving to some actual maybe more interesting experiments.",
+            "We compared the performance of nonparametric variational inference against we compared its ability to approximate the posterior of logistic regression model.",
+            "Against the quality of the approximation that you get if you use the Now classic Jordan Yakala bound, that's a very specially designed very clever bound for doing variational inference in this non conjugate logistic regression model.",
+            "So you know they.",
+            "You know, both Michael Jordan, Tommy Aguilar, both very clever people and they came up with this very clever bound that.",
+            "It is particularly tape tailored to this particular non conjugate model, whereas we just applied nonparametric variational inference out of the box to the same model.",
+            "And what these are showing is average log likelihood on a set of 1313 binary classification datasets.",
+            "So X axis is the performance of the Jordan Yankle bound.",
+            "Y axis is the performance of nonparametric variational inference in terms of predictive likelihood on held out test set and what you can see is that basically performance is the same.",
+            "So even though we didn't have to do anything special for this model, we're able to get performance.",
+            "That's that's as good as this special purpose tailored approximation.",
+            "And then here this shows the just the evidence lower bound or the approximate evidence lower bound that we get for the same model.",
+            "And again, we're getting performance that's comparable to this special purpose algorithm.",
+            "How does this depend on the number of components that you would choose?",
+            "Yeah, we saw this here.",
+            "We're using five components.",
+            "We tried it with 10 and it didn't.",
+            "There wasn't really a very meaningful difference.",
+            "I.",
+            "Up to that point, you know you got sort of, you know, it's a sort of diminishing returns kind of thing.",
+            "Which sort of you can.",
+            "Certainly in terms of the evidence lower bound, it makes sense, right?",
+            "Because that's.",
+            "Sort of on this log scale, right?",
+            "And if you think about it.",
+            "The.",
+            "Kind of reduction in KL that you can get by increasing the number of mixture components.",
+            "Is log arhythmic in the number of mixture components?",
+            "Now you know whether that whether the log scale is the right scale to be thinking about this, is sort of a deeper question, but.",
+            "On"
+        ],
+        [
+            "And one more experiment.",
+            "And then I'll wrap up.",
+            "So this is a.",
+            "How so?",
+            "This is a model of brain activity and the Y axis here is.",
+            "I.",
+            "Negative log likelihood in terms of held out predictions on held out data set.",
+            "So basically, how good is this?",
+            "Is approximate?",
+            "How good is whatever approximate inference algorithm you're using at?",
+            "Really doing a good job of approximating.",
+            "The real posterior, which presumably would give you the highest log likelihood.",
+            "So we're comparing two point estimation maximum office theory inference here, which is this Red Square not so good.",
+            "This magenta diamond, which is the performance of a specially created Metropolis Hastings proposal from the paper that introduced this model, and it's better than map but not a ton better than map.",
+            "This green triangle.",
+            "Here is the performance of Hamiltonian Monte Carlo on the problem, which, so that's MCMC, right?",
+            "So it should be sort of.",
+            "It seems as though it should be sort of the most accurate of all.",
+            "Because, at least if you let it run for long enough, then it should really give you samples from the posterior.",
+            "But Interestingly, it actually performs a little worse than nonparametric variational inference.",
+            "Once you get 5 or more components, presumably if we let this run for long enough it would eventually be nonparametric variational inference, but it's sort of interesting that on kind of the human time scale that we did run MCMC for the deterministic method, which should be more approximate, does better.",
+            "And in terms of performance as a function of number of components, three is OK, 5 is fine, 8 and 10 or not really better.",
+            "Is this a multimodal posterior?",
+            "Yeah, yeah, this is not.",
+            "It's a, it's a very high dimensional model and and I yeah, it's pretty multimodal if you look at the if you look at what the.",
+            "What the what the components?",
+            "What the Gaussian mixture components look like.",
+            "You fit nonparametric variational inference.",
+            "When you fit this model using nonparametric variational inference, they they don't.",
+            "They sort of capture very different.",
+            "Plausable explanations of the data."
+        ],
+        [
+            "So to summarize, I've talked about nonparametric variational inference, which is this variational inference algorithm that circumvents the traditional conjugacy restrictions that you have to work hard to get around when doing mean field variational inference, and that it allows for a more expressive variational distribution class of variational distributions than mean field does, and has the nice property that can be used for arbitrary graphical models."
+        ],
+        [
+            "On in terms of future work, there's certainly a few things to consider.",
+            "So one thing is just to think about, you know what would happen if we considered a right so.",
+            "You can express pretty much anything.",
+            "While not anything almost you can express up to.",
+            "You know some tolerance pretty much anything with a large enough mixture of isotropic Gaussians, but it would be interesting to think about what would happen if we didn't restrict them to be isotropic, and what would happen if we allow them to have nonuniform mixture weights.",
+            "We did I mean, this is not so hard to implement, but but when we tried it, it sort of.",
+            "God had a tendency to get stuck in weird pathological local optimum, so would be interesting to think about.",
+            "Ways of getting around that?",
+            "Big restriction is we don't really have a way of dealing with discrete random variables in this framework.",
+            "It would be neat to not have that restriction.",
+            "One way of thinking about doing that might be to use some kind of continuous continuous relaxation.",
+            "And something that I personally would like to do is implement this in a generic inference package like like Stan, which basically you know.",
+            "So that basically you would have the option of so that we could sort of get one step closer to the dream of not having to spend all of our time implementing inference algorithms.",
+            "And we could get back to modeling.",
+            "So that's it.",
+            "I would be happy to take any questions there is time for.",
+            "Thanks."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thanks for thanks for the invitation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to be talking about some work that that I did with Sam Grossman and David Bly.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I should say that you know, really I was, you know, I was involved in this, but really, Sam deserves most of the credit for this work.",
+                    "label": 0
+                },
+                {
+                    "sent": "But unfortunately he couldn't be here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the the basic motivating application is we want to do approximate inference on some kind of probabilistic model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in general we've got some kind of distribution P of data that we can only compute up to a normalizing constant, and usually for our purposes this will be the posterior of some Bayesian model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are of course, a variety of ways of doing approximate inference in graphical models, but the one I'm going to be talking about is variational inference and the basic idea is to approximate this this intractable distribution P of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whatever our parameter vector is, given our data, why?",
+                    "label": 0
+                },
+                {
+                    "sent": "Whatever that maybe with some tractable distribution Q of data, and we're going in the basic idea is to sort of frame the problem of approximate inference as an optimization problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "We want to find.",
+                    "label": 0
+                },
+                {
+                    "sent": "Out of some tractable set of distributions, Q of data, the queue of data that best approximates according to some according to some definition of goodness, usually KL divergent's, one form or another of closeness of Q 2.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Area.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, um, variational methods have sort of advantages and disadvantages so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The sort of most commonly used mean field variational methods have the advantage that they can often converge to their ultimate destination much faster than Markov chain.",
+                    "label": 1
+                },
+                {
+                    "sent": "Monte Carlo methods can, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically I would say two major drawbacks.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is they are difficult to apply often for the sort of general class of graphical models, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "There's basically if you don't, if your model doesn't enjoy conditional conjugacy, which is to say that each.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each.",
+                    "label": 0
+                },
+                {
+                    "sent": "UN observed variable conditioned on all of the other ones are variables in the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "If that distribution is intractable to work with, it's not intractable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exponential family.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're going to have to do some work to figure out how to fit your model using variational inference, which is annoying because it restricts the class of models we can work with and the other problem is that driving variational updates is kind of a pain.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's, I mean, once you're sort of good at it, it's not really that much harder than then deriving a Gibbs sampler, but it's nonetheless it's tedious so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We'd like to sort of get around both of these issues.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what I'm going to talk about is this nonparametric variational inference algorithm, which gets around these problems that we can so we can apply it to models that don't enjoy conditional conjugacy.",
+                    "label": 1
+                },
+                {
+                    "sent": "Basically, any kind of model that so we are restricted for the moment to models that only use continuous hidden variables, but within that class of models we can pretty much always use this algorithm, and I.",
+                    "label": 0
+                },
+                {
+                    "sent": "As far and and the other thing, the other attractive feature of this algorithm is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rather than is that there's the sort of work that we have to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "To apply this algorithm is kind of the same every time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically if you can evaluate the log posterior up to a constant, compute its gradient, and ideally compute the diagonal of the Hessian of the log posterior, then you can immediately apply this algorithm so it's not sort of a different thing every time.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "The basic basic heart of the approach is is this idea that sort of inspired by kernel density estimation, where we'd like instead of approximating a distribution that we get to observe samples from, we're going to approximate a distribution that we only know up to this normalizing constant, and so basically what we're going to do is we're going to restrict this distribution Q over our overall parameters to be a mixture of Gaussians, and specifically a mixture of isentropic Gaussians.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, each one of these Gaussians is parameterized by some mean, so there's any of these Gaussians, so each one of them is parameterized by some mean and some variance, and I was just sort of lazy notationally.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you could put an eye in behind anytime you see Sigma squared in this talk.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "So sort of traditional variational objective, sometimes called the evidence, lower bound or elbow for short is this expression here so and this.",
+                    "label": 1
+                },
+                {
+                    "sent": "So basically this holds for.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is works for basically any distribution Q over Theta that you like.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a lower bound on the marginal probability of the data, and maximizing it is equivalent to minimizing the KL divergent between Q and the posterior that we're interested in.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can break it into these two terms right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This first term is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can think of a sort of the expected up to a constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "The expected log density of under the posterior of of your parameters.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then there's this other term, which is the entropy of your approximating distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you want to sort of compare this to maximum office teorie inference, one way to think about it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you just sort of cover up this term here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The optimal Q distribution would be a Delta and you would just fit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically would just find basically the Theta that gives you the maximum density under the posterior, but because we've got this entropy term you can think of this sort of where it's like we're optimizing instead of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instead of finding the point with highest density, we're finding the sort of set of area of parameter space that has the most mass, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's sort of like remote, because this is sort of like.",
+                    "label": 0
+                },
+                {
+                    "sent": "This expression is sort of like log average log density times log volume if you will.",
+                    "label": 1
+                },
+                {
+                    "sent": "So I we're going to so in general, computing these expectations is not not necessarily easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can be easy in certain for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "For certain restricted classes of models.",
+                    "label": 0
+                },
+                {
+                    "sent": "But like I said, we don't want to restrict ourselves to that class of models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to do is we're going to come up with on approximate evidence lower bound that is easy to compute and easy to optimize using gradient methods like BFF's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And the basic idea for how we're going to construct that approximation is this expectation.",
+                    "label": 0
+                },
+                {
+                    "sent": "The expected log density joint density of data and unobserved variables will approximate using a second order.",
+                    "label": 0
+                },
+                {
+                    "sent": "Taylor series expansion around the mean of each Gaussian component and then the second term.",
+                    "label": 1
+                },
+                {
+                    "sent": "The entropy term.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to lower bound by by applying instance inequality and exploiting some very convenient properties that come from working with Gaussian mixtures.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So first, here's the here's the bound on the entropy, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll just quickly go through it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is just the definition of entropy, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Simple enough for a particular choice of variational distribution that just expands to this sum.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just sort of expand Q here and you get the density under the variational distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "By Jens inequality we can move the sum here outside of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, outside of the log, which makes things a little bit easier to work with and then by exploiting the fact that the convolution of two Gaussians is itself a Gaussian, we wind up with this expression down here, which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, not not too nasty to work with.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "On to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, that should not say bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is not a bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an approximation that has absolutely no guarantee of being lower bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we take a second order Taylor expansion around.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we take a second order Taylor expansion for each for each of these Gaussian components around its mean then.",
+                    "label": 0
+                },
+                {
+                    "sent": "After you do some algebra and again take advantage of the properties of isotropic Gaussians, you wind up with this expression here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what's nice about that is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because we've used an isotropic because we're using this mixture of isotropic Gaussians.",
+                    "label": 0
+                },
+                {
+                    "sent": "The even though we're using the multivariate Delta method which uses this full second order Taylor expansion that you know in theory would be sort of quadratic to compute.",
+                    "label": 1
+                },
+                {
+                    "sent": "It turns out that we only care about the trace of the Hessian around each around the mean of each of these Gaussian components, and so the nice thing about that is that we can compute that in linear time right in time linear in the number of parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So which is a desirable thing, because often we have many parameters.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So putting it all together, we have this approximation to the evidence lower bound and it basically you can sort of think about it in terms of.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm trying to up so if you tried to optimize this you can sort of think about trying to satisfy a number of competing objectives.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the sort of most intuitive, simplest, most intuitive thing, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is basically just saying we want each one of these means to be in kind of as high density or region as possible.",
+                    "label": 1
+                },
+                {
+                    "sent": "But then I against that we have this term here which basically says, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the bound on the entropy and right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically, if all of the means are really close to each other, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "If they all just sort of land on top of each other in the same spot, then that's going to make this density relatively high, which we get a penalty for, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically because these means are?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because because of this normal term that's actually encouraging the means to spread out and not all just sort of land in the same spot with the maximum posteriori solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have this term over here, which is basically saying right so if we.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we assume that our models for the that for the most part.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trace of the Hessian in most high density regions is going to be negative.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so if we were working with log concave, posterior would always be negative, but you know, typically as long as you're not sort of too far out in the boonies of your of your posterior.",
+                    "label": 0
+                },
+                {
+                    "sent": "That race is going to be negative.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically what that saying is that that term says.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to make the variance of each of these Gaussians relatively small because this is a penalty for having overly broad Gaussians.",
+                    "label": 0
+                },
+                {
+                    "sent": "Against that we have this term down here, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, if you can make the basically if you just made Sigma squared go to zero and made everything a Delta right, then what would happen is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then what you could do is sort of put everything together and the sum of these variances become zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "These these means are right on top of each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "This density goes to Infinity minus log of Infinity is minus Infinity, and that's not where that's not how you maximize an objective function.",
+                    "label": 0
+                },
+                {
+                    "sent": "By setting it to negative Infinity.",
+                    "label": 1
+                },
+                {
+                    "sent": "So basically this term here is encouraging the Gaussians to be broader, so it sort of is weighed against.",
+                    "label": 0
+                },
+                {
+                    "sent": "This term here, which discourages the Gaussians from getting too broad, so that's the.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's sort of the intuition, or some intuition.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully for for what this objective function is trying to accomplish.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now as far as how we actually optimize this objective function, there is one sort of hiccup which is this some.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want to write all of this is differentiable, we'll assume.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the one sort of hiccup is that if we want to compute the gradient of this trace term that actually winds up being that ones up having a cost that's quadratic in in the number of parameters, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because it's you wind up with.",
+                    "label": 0
+                },
+                {
+                    "sent": "You wind up basically having to compute a big Jacobian, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we do is we go sort of alternate between optimizing each one of these means, holding all the other ones fixed.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's you don't have to do that, but it seems to make things a little faster in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "An when we optimize the means, we actually ignore that Hessian trace term, so that's sort of like instead of taking a second order approximation where only optimizing the 1st order approximation when we're when we're fitting those means.",
+                    "label": 1
+                },
+                {
+                    "sent": "So like I said, that's one thing that that lets us do is avoid.",
+                    "label": 0
+                },
+                {
+                    "sent": "Computing a quadratic number of their derivatives, and another thing that it actually does is it avoids possible degeneracies if we have non log concave posteriors.",
+                    "label": 1
+                },
+                {
+                    "sent": "Right, so you can imagine right if if you had a really heavy tailed posterior.",
+                    "label": 0
+                },
+                {
+                    "sent": "I then what will happen is if you get really far out into that tail, then every term on the diagonal of the Hessian could conceivably actually be positive, and then when that happens things sort of get very strange, because now you could actually write if all of these terms are positive, then you could just set Sigma squared N to Infinity and.",
+                    "label": 0
+                },
+                {
+                    "sent": "An that gives you something infinite here, and that winds up making the density of each of these means under that normal 0 sum of a bunch of zeros.",
+                    "label": 0
+                },
+                {
+                    "sent": "Take the log, negate it.",
+                    "label": 0
+                },
+                {
+                    "sent": "That gives you another Infinity, so that's a degeneracy that actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "We sort of have to worry about and so by ignoring that trace term when optimizing these means we reduce the chances that we're going to end up in this really weird part of the posterior where.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where things are just really really log convex.",
+                    "label": 0
+                },
+                {
+                    "sent": "So having optimized each one of these mus, we then focus on the Sigma vector optimized that holding you fixed over and now we don't have to worry so much about that trace term.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean we don't have to worry about it blowing up and then, so we do include it when optimizing the sort of kernel widths.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we alternate between between these two steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "In practice, it seems to seems to converge pretty quickly in just a few, just a few iterations of alternating between these between these steps.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I'll just say a little bit about sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, this is you can sort of it's sort of interesting to think about this algorithm through the lens of some other kind of popular.",
+                    "label": 0
+                },
+                {
+                    "sent": "And less popular inference algorithms so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you think about what happens if you just, if you just let Sigma go to zero and choose to use just a single approximating Gaussian, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically then.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're saying that you're approximating distributions, just a Delta, and in fact, what happens when you try and optimize the approximate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Although holding holding Sigma at zero as you wind up with the maximum office theory solution, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So because the bandwidth of the kernel zero, basically all it cares about is density, and sure enough it optimized.",
+                    "label": 0
+                },
+                {
+                    "sent": "It finds the point of highest density.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you don't restrict Sigma to be 0, but keeping it one, then you end up with a diagonal Laplace approximation, so because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here, if N is 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "Than basically it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I there's no then.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no other mu J here, basically, so this is the only term that sort of keeping you from.",
+                    "label": 0
+                },
+                {
+                    "sent": "I.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because where because when we optimize the means we ignore this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This session term.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, this term winds up being constant with respect to the mean because because Muon is new Jay and there's only one norje, and so we're basically just finding the point of highest density.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then then taking a diagonal Laplace approximation.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you let an become greater than one and have all of these signals go to 0, then.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a sense in which you can think of.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is sort of doing quasi Monte Carlo right where you basically are approximating the posterior distribution with a bunch of points.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you did that and try to optimize our approximate elbow, then you would not actually get a very good quasi Monte Carlo approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would, everything would just be basically arbitrarily close to everything else, but it's still there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Still a relationship there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, this is what we actually do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let the number of components be greater than one and let them all have different bandwidths.",
+                    "label": 0
+                },
+                {
+                    "sent": "That are not zero, and then you wind up with our algorithm, which you can sort of think of as a form of mixture, mean field which has.",
+                    "label": 1
+                },
+                {
+                    "sent": "Some history behind it, but is sort of historically not been that widely used, and again, it's sort of analogous to doing kernel density estimation on the posterior that we're interested in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So, um.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll just show some now, just show some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sperimentale results and wrap up after that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a synthetic example where we're saying where we're pretending that we have a posterior that looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a couple of.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a mixture of two skewed bivariate T distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Their non isotropic and their heavy tailed.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we do nonparametric variational inference with just one mixture component, then of course it's really not able to.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not able to capture the bimodality 'cause it's a unimodal distribution, obviously, but it finds one of the modes anyway.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we let the number of mixture components go to two, then in fact it does do the right thing and it fine inputs one Gaussian at one mode, one Gaussian at the other mode.",
+                    "label": 0
+                },
+                {
+                    "sent": "But of course because these are.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a Gaussian approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anisotropic Gaussian approximation?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not able to capture the skewness or the heavy tailed Ness of the T distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if we allow the number of components to increase to 10.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it does a better job of capturing the heavy tailed Ness and the non isotropic Ness of the of the posterior.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we also compare, so moving to some actual maybe more interesting experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "We compared the performance of nonparametric variational inference against we compared its ability to approximate the posterior of logistic regression model.",
+                    "label": 1
+                },
+                {
+                    "sent": "Against the quality of the approximation that you get if you use the Now classic Jordan Yakala bound, that's a very specially designed very clever bound for doing variational inference in this non conjugate logistic regression model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you know they.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, both Michael Jordan, Tommy Aguilar, both very clever people and they came up with this very clever bound that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is particularly tape tailored to this particular non conjugate model, whereas we just applied nonparametric variational inference out of the box to the same model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what these are showing is average log likelihood on a set of 1313 binary classification datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "So X axis is the performance of the Jordan Yankle bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "Y axis is the performance of nonparametric variational inference in terms of predictive likelihood on held out test set and what you can see is that basically performance is the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "So even though we didn't have to do anything special for this model, we're able to get performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's as good as this special purpose tailored approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then here this shows the just the evidence lower bound or the approximate evidence lower bound that we get for the same model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, we're getting performance that's comparable to this special purpose algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "How does this depend on the number of components that you would choose?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, we saw this here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're using five components.",
+                    "label": 0
+                },
+                {
+                    "sent": "We tried it with 10 and it didn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "There wasn't really a very meaningful difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "I.",
+                    "label": 0
+                },
+                {
+                    "sent": "Up to that point, you know you got sort of, you know, it's a sort of diminishing returns kind of thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which sort of you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Certainly in terms of the evidence lower bound, it makes sense, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of on this log scale, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you think about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of reduction in KL that you can get by increasing the number of mixture components.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is log arhythmic in the number of mixture components?",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you know whether that whether the log scale is the right scale to be thinking about this, is sort of a deeper question, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "On",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And one more experiment.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I'll wrap up.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "How so?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a model of brain activity and the Y axis here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I.",
+                    "label": 0
+                },
+                {
+                    "sent": "Negative log likelihood in terms of held out predictions on held out data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically, how good is this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is approximate?",
+                    "label": 0
+                },
+                {
+                    "sent": "How good is whatever approximate inference algorithm you're using at?",
+                    "label": 0
+                },
+                {
+                    "sent": "Really doing a good job of approximating.",
+                    "label": 0
+                },
+                {
+                    "sent": "The real posterior, which presumably would give you the highest log likelihood.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're comparing two point estimation maximum office theory inference here, which is this Red Square not so good.",
+                    "label": 0
+                },
+                {
+                    "sent": "This magenta diamond, which is the performance of a specially created Metropolis Hastings proposal from the paper that introduced this model, and it's better than map but not a ton better than map.",
+                    "label": 0
+                },
+                {
+                    "sent": "This green triangle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is the performance of Hamiltonian Monte Carlo on the problem, which, so that's MCMC, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So it should be sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "It seems as though it should be sort of the most accurate of all.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because, at least if you let it run for long enough, then it should really give you samples from the posterior.",
+                    "label": 0
+                },
+                {
+                    "sent": "But Interestingly, it actually performs a little worse than nonparametric variational inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once you get 5 or more components, presumably if we let this run for long enough it would eventually be nonparametric variational inference, but it's sort of interesting that on kind of the human time scale that we did run MCMC for the deterministic method, which should be more approximate, does better.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in terms of performance as a function of number of components, three is OK, 5 is fine, 8 and 10 or not really better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is this a multimodal posterior?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah, this is not.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a, it's a very high dimensional model and and I yeah, it's pretty multimodal if you look at the if you look at what the.",
+                    "label": 0
+                },
+                {
+                    "sent": "What the what the components?",
+                    "label": 0
+                },
+                {
+                    "sent": "What the Gaussian mixture components look like.",
+                    "label": 0
+                },
+                {
+                    "sent": "You fit nonparametric variational inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you fit this model using nonparametric variational inference, they they don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "They sort of capture very different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Plausable explanations of the data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So to summarize, I've talked about nonparametric variational inference, which is this variational inference algorithm that circumvents the traditional conjugacy restrictions that you have to work hard to get around when doing mean field variational inference, and that it allows for a more expressive variational distribution class of variational distributions than mean field does, and has the nice property that can be used for arbitrary graphical models.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "On in terms of future work, there's certainly a few things to consider.",
+                    "label": 1
+                },
+                {
+                    "sent": "So one thing is just to think about, you know what would happen if we considered a right so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can express pretty much anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "While not anything almost you can express up to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know some tolerance pretty much anything with a large enough mixture of isotropic Gaussians, but it would be interesting to think about what would happen if we didn't restrict them to be isotropic, and what would happen if we allow them to have nonuniform mixture weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "We did I mean, this is not so hard to implement, but but when we tried it, it sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "God had a tendency to get stuck in weird pathological local optimum, so would be interesting to think about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ways of getting around that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Big restriction is we don't really have a way of dealing with discrete random variables in this framework.",
+                    "label": 1
+                },
+                {
+                    "sent": "It would be neat to not have that restriction.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way of thinking about doing that might be to use some kind of continuous continuous relaxation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And something that I personally would like to do is implement this in a generic inference package like like Stan, which basically you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that basically you would have the option of so that we could sort of get one step closer to the dream of not having to spend all of our time implementing inference algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we could get back to modeling.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would be happy to take any questions there is time for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

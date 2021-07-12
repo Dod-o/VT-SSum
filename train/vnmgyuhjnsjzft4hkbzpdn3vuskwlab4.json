@@ -1,0 +1,1228 @@
+{
+    "id": "vnmgyuhjnsjzft4hkbzpdn3vuskwlab4",
+    "title": "MapReduce/Bigtable for Distributed Optimization",
+    "info": {
+        "author": [
+            "Slav Petrov, Research at Google, Google, Inc."
+        ],
+        "published": "Jan. 13, 2011",
+        "recorded": "December 2010",
+        "category": [
+            "Top->Computer Science->Optimization Methods"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2010_petrov_mrb/",
+    "segmentation": [
+        [
+            "Hi so if I say we I actually mean they.",
+            "And if I say something that's confusing, just interrupt me and then I can hopefully clarify or we can figure out gently what's going on."
+        ],
+        [
+            "So this paper is all empirical.",
+            "There's some theory that preceded it, but this is just an empirical comparison of different algorithms with a practical focus of using kind of cluster architecture that we have at Google and that we believe is common at other places too.",
+            "So we'll first just go over a set of different optimization algorithms to establish a common ground well, then look at how they're interpreted with MapReduce and big table and our cluster infrastructure is.",
+            "And then we'll look at experimental results."
+        ],
+        [
+            "Comparing efficiency and accuracy of these algorithms.",
+            "So what we want to do is we want to optimize some convex or differentiable function.",
+            "So we're looking for optimal parameter vector Theta star and if the function is differentiable then we can do this via gradient updates so.",
+            "Theory you could use your favorite optimizer here, but will be focused on 1st order methods because we want to do this in a large scale and in a distributed way without having to compute Hessians and things like that.",
+            "So Furthermore, will make an assumption that will focus on the case where the function F that we optimizing is composed of a sum of differentiable functions, so it decomposes in a nice way and will use the summation here too.",
+            "Distributor."
+        ],
+        [
+            "Computation our focus will be on maximum entropy models or logistic regression models, so we have just some common notation here.",
+            "We have a large set of data points.",
+            "That potentially cannot fit on a single machine, and we also have a large parameter vector that in some cases we won't be able to store on a single machine, so we need to keep it in a central location where.",
+            "And share it among the different machines.",
+            "So for maximum entropy models, the nice property of our objective function.",
+            "If we just use log loss, is that the composes nicely along the data points, so we have a sum over the individual data points and we can use this."
+        ],
+        [
+            "Distributive algorithm.",
+            "So.",
+            "One thing that was looked at by an drinks Group A few years ago wants to evaluate the number of different machine learning algorithms in a MapReduce setting and maximum entropy models were one of those cases.",
+            "The idea in the distributed gradient cases that you want to compute your gradient on a number of different machines and then sum up the gradients of the individual batches so.",
+            "You will take your data shorted until number of shards.",
+            "Santee Charter Machine compute the gradient on that chart.",
+            "This can be done in parallel on each machine and then once you get these gradients you just need to sum over the individual gradients.",
+            "This is cheap to compute because it's on the order of the number of features rather than on the order of data points, and then you take your update step.",
+            "And you send back the new parameter vector to the individual machines or workers and they continue.",
+            "So we use these.",
+            "Can I notation that kind of indicate that we have this shared parameter vector and the?"
+        ],
+        [
+            "Individual machines compute the gradient.",
+            "So related, but slightly different stochastic gradient where we say that will start the data at the Shard size will be actually one.",
+            "So we will take each data point, compute the gradient and the gradient.",
+            "The way we look at it here we don't look at it in the distributed case, but on a single machine, then will actually take an update right away rather than waiting to aggregate these.",
+            "Gradients, and it has some nice provable properties that it will converge, and it works actually very well in practice.",
+            "Will see that because we do many updates very quickly, it actually converges oftentimes faster than the distributed gradient where we need to wait to do 1 pass through the whole data."
+        ],
+        [
+            "We take step.",
+            "An extension of our modification of stochastic gradient to the distributed setting is what they call asynchronous updates or stochastic gradient with asynchronous updates, and the idea here is that we have a shared global parameter vector and each worker will compute the gradient and directly optimize modify.",
+            "The parameter vector if we wanted to do this exactly, we would need to lock the gradient.",
+            "The shared parameter vector before it's right, and if we have many machines that will actually slow us down quite a bit.",
+            "So what we do in practice is actually to let the rights clobber each other.",
+            "So we introduce a slight error there and also independently of whether we like or not will be using slightly stale parameter vectors when we compute the gradients, because between the time that a worker picked up the parameter vector.",
+            "And it actually uses it.",
+            "Somebody else might have updated it, but given.",
+            "Some bounds on how long this lag is.",
+            "There's a nice paper by John Langford at all saying that this will still converge to the correct optimum."
+        ],
+        [
+            "Finally, getting men and Ryan MacDonald then kick all have been looking at what they call parameter mixtures or iterative parameter mixtures, and the idea here is that will start the data.",
+            "We will compute will let each.",
+            "Worker optimize optimize its own.",
+            "Parameter vector on it's short of the data and then one.",
+            "Once it's done, it will average the learned models and will repeat and in the iterative version will actually each worker will do one pass of stochastic gradient through the day to learn a parameter vector that will be then sent back to a central location where will average these parameters and then send them back to the mappers.",
+            "And for certain cases of objective functions, again, we have theoretical guarantees that this will converge, and there's some nice bounds that can improve.",
+            "The nice thing here is that the communication between the workers is minimized because each worker gets its data, works independently through the data, and then sends it back to the central location.",
+            "So a lot of the work can be done in asynchronous way.",
+            "So."
+        ],
+        [
+            "Everybody with me so far.",
+            "Good.",
+            "What's the typical data center?",
+            "Opinions might defer an GPU's are becoming more and more popular, but reality is that we at least Google don't really have many of them.",
+            "Our setup is we have lots of commodity machines that are each of them is fairly low powered, doesn't have a huge memory.",
+            "They fail often.",
+            "And they're connected through Ethernet.",
+            "There's no shared memory.",
+            "Or at least nothing that is fast.",
+            "And none of them is massively multicore, so they might have a couple cores or four cores.",
+            "But for the interest of this paper will consider them just single core.",
+            "But we have lots of them, and so."
+        ],
+        [
+            "We want to take advantage of them.",
+            "So the implications are for algorithms that we want are that we want to minimize the communication because communication is expensive and.",
+            "Each worker is relatively low powered, so.",
+            "If we have huge models, they might not be able to store the entire model, so we might have to distribute.",
+            "The location where the parameter vectors stored, because for each individual data point we don't need all the parameters parameters that are needed with."
+        ],
+        [
+            "In the memory.",
+            "Alright, so.",
+            "Well, now look a little bit more at the infrastructure and how MapReduce in big table to infrastructure pieces that we."
+        ],
+        [
+            "Use.",
+            "Can help us and what we need to change in order to make things work, so I assume everybody is familiar with MapReduce.",
+            "Show of hands.",
+            "So just two things to kind of emphasize, because we always talk about map reduce.",
+            "But one thing that kind of is swept under the rock is that there's this shuffle face that takes the outputs of the map phases and sorts them, and that can have interesting interplay with algorithm.",
+            "And the second thing is that we show typically the mappers is individual boxes, but typically there's backup machines that work on the same Shard of the data in the background.",
+            "In case the machine fails.",
+            "So if we have already started computing the data and this has implications.",
+            "For example, if we want to do asynchronous updates from each map or directly.",
+            "We would potentially do multiple updates for the same data point, so we need to be careful to do the updates in the reduce phase rather than the mapper, and also kind of technicalities that from a high level don't really matter, but if you're implementing these things you need to be careful about.",
+            "And the sorting phase also requires that everything has completed, so if something takes longer, this might introduce additional."
+        ],
+        [
+            "Face.",
+            "Um?",
+            "So if we want to implement distributed gradient or enter parameter mixtures using map reduce things up fairly straightforward.",
+            "We take the data, send it to the mappers.",
+            "Each mapper computes the gradient on its local part of the data and the reduce phase.",
+            "We collect these gradients, we sum them, update the parameter vector, and then we repeat.",
+            "For this sort of parameter mixture, each mapper will compute the gradient an updates it local copy of the parameter vector as well at the end.",
+            "When it's done, a pass through the data, it will send back, not the gradient, but its final weight vector and that weight vector will then be averaged in the reduce phase.",
+            "For synchronous algorithms we will need some shared mem."
+        ],
+        [
+            "So we need a little bit more, and that's where the big table comes in.",
+            "So big table is.",
+            "A central source distributed storage system which is similar to database, but it's not a database which has cells that can be indexed by role column in time, so it's a table with a third dimension overtime so it keeps track of the last K values.",
+            "And there's additional infrastructure that does some caching locally on the machine, at the network level to make things more efficient and to synchronize the writes and reads between the different jobs.",
+            "In this transaction, processing is what I meant by locking the cell.",
+            "So if we want.",
+            "Text the results to be exact.",
+            "Whenever we have a right would need to lock the cell first, then complete the right and then only after that another process could proceed to do a right.",
+            "But that can be turned off and we will turn it up for the asynchronous algorithms because otherwise they will lock."
+        ],
+        [
+            "Block on each other.",
+            "So to make asynchronous updates work with map reduce and big table we had to do a couple modifications.",
+            "So as I said we cannot do the updates in a map because there will be backup mappers and we need to do the updates in the reduce phase.",
+            "But since we won't be updating on individual data points anyways, we'll do mini batches that actually works out nicely, because then we can do in the map.",
+            "We can pass over our mini batch size and then correct the gradients and do the right.",
+            "Will turn off starting so that this can be done on the fly.",
+            "We don't need for all mappers to have finished and will turn off transaction processing in the big table.",
+            "So we introduce some inexactness there, but.",
+            "It will."
+        ],
+        [
+            "As well, in practice.",
+            "So."
+        ],
+        [
+            "Moving to experimental results.",
+            "The.",
+            "They consider two different setups, a small scale and a large scale experiment.",
+            "Small scale, fairly big, already 370 million training instances, and the task is to predict click through so.",
+            "Did somebody click on this or not?",
+            "And yeah, you have a notion of how many features are involved.",
+            "Yeah, for the small model it's 9 million roughly.",
+            "Front non 0 features in example.",
+            "Oh, in an example that I don't know, I know that the total parameter vector is on the order of 9 million, but I don't know how many active for instance.",
+            "And yeah, so basically it's a bunch of data from there was connected continuously.",
+            "The first part is taken as a small scale experiment, 1.6 billion are taking as a larger scale experiment and then something that's temporally occurs after is used to evaluate."
+        ],
+        [
+            "Now.",
+            "There's.",
+            "Comparing these algorithms turns out to be actually quite tricky and messy.",
+            "If you wanted in on the real data center where lots of other jobs are crank.",
+            "And also because.",
+            "It's it's the stopping criteria for these algorithms are different and it's hard to kind of.",
+            "Make them all identical, so sometimes for some algorithms they look and they try to play around with different stuff in criteria to give each algorithm a fair chance.",
+            "As far as I know, so they use gradient change.",
+            "So how much does the global gradient?",
+            "Change.",
+            "Between iterations.",
+            "Changing the lock in the objective function or also just doing a fixed number of iterations.",
+            "And again, depending on whether you're doing distributed gradient or asynchronous updates or iterative parameter mixtures where we actually do online updates.",
+            "Number of iterations will mean very."
+        ],
+        [
+            "Different things, so keep that in mind when we go to these results so.",
+            "The number of a bunch of numbers here.",
+            "So this is area under the curve.",
+            "Accuracy, so to say.",
+            "These are relative performance numbers, and the baseline is distributed gradient.",
+            "And relative to that we compare CPU consumption.",
+            "Total CPU consumption as measured across the network wall Clock time.",
+            "That's basically what the user observes.",
+            "How long does it take for the training to complete and then network usage?",
+            "So.",
+            "A few things.",
+            "To stand out and do it.",
+            "Kind of calibrate so distributed gradient because it needs to do a pass through the data before it takes an update.",
+            "Will actually do many more passes through the data and therefore.",
+            "The.",
+            "Numbers might seem a little surprising at first, but what's interesting is that the iterative parameter mixture.",
+            "Is in the single Core, HD is not distributed, so that's basically for the small scale experiment.",
+            "They could do it on a single machine and it's a little surprising that the distributed gradient.",
+            "Is just 10 times faster even though 200 machines were involved, but that's because.",
+            "The stochastic gradient descent on a single core converges much faster, so it's more interesting to compare the single Core HD to the iterative parameter mixture because they data parameter mixture also uses SSD on each local machine, but then averages the models after each pass through the data.",
+            "So we see roughly 100 fold speedup and we had a 200 machines, so would have liked to get the 200 fold speedup.",
+            "But because of communication overhead and other things.",
+            "We were getting about 50% of what we could hope for.",
+            "Asynchronous HD this number seems very low and it.",
+            "There was no good explanation on the large scale experiment.",
+            "Asynchronous actually works actually quite well, so it might have to do with either the batch size that was used in the asynchronous SGD.",
+            "They very did, but found for this experiment they use many bed size of 1000, which is not that many.",
+            "And.",
+            "It's so it should be taken a little bit with with a grain of salt.",
+            "And also wall Clock time.",
+            "They tried to make sure that things started up right away and ran through without being too many jobs being killed, but this was done on a cluster where other things were running so jobs could interfere with each other."
+        ],
+        [
+            "There are scale experiment, roughly similar observations.",
+            "There's no single Core HD in this case because it wasn't feasible to run it again.",
+            "So now we see the asynchronous HD is actually performance wise and accuracy.",
+            "It's competitive, but again it's much lower in terms of Wall Clock time and the network usage is really prohibitive because even though they use back sides of 1000.",
+            "There's lots of communication that is involved.",
+            "And again they don't have parameter mixtures.",
+            "Seem to provide empirically the strongest."
+        ],
+        [
+            "Results and they also come up with some nice theoretical guarantees.",
+            "So to include maybe somewhat surprisingly asynchronous updates.",
+            "Don't seem very well suited for practical datasets.",
+            "The configurations and iterative parameter mixtures, on the other hand, give significant time improvements over distributed gradient because they can be run.",
+            "Online fashion on each mapper.",
+            "Thanks."
+        ],
+        [
+            "Song.",
+            "Can you say something about this Reporter magazine?",
+            "How many iterations?",
+            "I wish I knew.",
+            "I don't really know how many they had to run.",
+            "I know that they used to run.",
+            "Each.",
+            "Mapper to convergence and then average at the end, but they've switched now to running just one pass through the data average and then go back.",
+            "So that seems to work better, but I'm not sure how many iterations they actually had to run.",
+            "Associated with the Maps, like you haven't write to disk between iterations.",
+            "Oh, reading the data from this.",
+            "It seems like if there is no communication directly, it's all done, yeah?",
+            "Then everything is communicated through files.",
+            "Yes.",
+            "So.",
+            "Just passing the museum.",
+            "Compared to other.",
+            "Sorry yeah.",
+            "Experience, but in general you don't need to do that.",
+            "Is that we have the invite on the different set up for parallel or the training we had to pay for that kind of talk last summer where we describe away where it's actually you have for each day.",
+            "Yeah.",
+            "This is this is a civil is civil.",
+            "Where's the data?",
+            "I believe.",
+            "But I believe it was distributed randomly and I don't think it makes much of a difference, but.",
+            "I have been running currently.",
+            "In the interest of time, let's take the rest of them offline.",
+            "The speaker hand."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Hi so if I say we I actually mean they.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I say something that's confusing, just interrupt me and then I can hopefully clarify or we can figure out gently what's going on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this paper is all empirical.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some theory that preceded it, but this is just an empirical comparison of different algorithms with a practical focus of using kind of cluster architecture that we have at Google and that we believe is common at other places too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we'll first just go over a set of different optimization algorithms to establish a common ground well, then look at how they're interpreted with MapReduce and big table and our cluster infrastructure is.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we'll look at experimental results.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Comparing efficiency and accuracy of these algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we want to do is we want to optimize some convex or differentiable function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're looking for optimal parameter vector Theta star and if the function is differentiable then we can do this via gradient updates so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Theory you could use your favorite optimizer here, but will be focused on 1st order methods because we want to do this in a large scale and in a distributed way without having to compute Hessians and things like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Furthermore, will make an assumption that will focus on the case where the function F that we optimizing is composed of a sum of differentiable functions, so it decomposes in a nice way and will use the summation here too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Distributor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Computation our focus will be on maximum entropy models or logistic regression models, so we have just some common notation here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a large set of data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "That potentially cannot fit on a single machine, and we also have a large parameter vector that in some cases we won't be able to store on a single machine, so we need to keep it in a central location where.",
+                    "label": 0
+                },
+                {
+                    "sent": "And share it among the different machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for maximum entropy models, the nice property of our objective function.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we just use log loss, is that the composes nicely along the data points, so we have a sum over the individual data points and we can use this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Distributive algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing that was looked at by an drinks Group A few years ago wants to evaluate the number of different machine learning algorithms in a MapReduce setting and maximum entropy models were one of those cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea in the distributed gradient cases that you want to compute your gradient on a number of different machines and then sum up the gradients of the individual batches so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You will take your data shorted until number of shards.",
+                    "label": 0
+                },
+                {
+                    "sent": "Santee Charter Machine compute the gradient on that chart.",
+                    "label": 0
+                },
+                {
+                    "sent": "This can be done in parallel on each machine and then once you get these gradients you just need to sum over the individual gradients.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is cheap to compute because it's on the order of the number of features rather than on the order of data points, and then you take your update step.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you send back the new parameter vector to the individual machines or workers and they continue.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we use these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I notation that kind of indicate that we have this shared parameter vector and the?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Individual machines compute the gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "So related, but slightly different stochastic gradient where we say that will start the data at the Shard size will be actually one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we will take each data point, compute the gradient and the gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way we look at it here we don't look at it in the distributed case, but on a single machine, then will actually take an update right away rather than waiting to aggregate these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gradients, and it has some nice provable properties that it will converge, and it works actually very well in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will see that because we do many updates very quickly, it actually converges oftentimes faster than the distributed gradient where we need to wait to do 1 pass through the whole data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We take step.",
+                    "label": 0
+                },
+                {
+                    "sent": "An extension of our modification of stochastic gradient to the distributed setting is what they call asynchronous updates or stochastic gradient with asynchronous updates, and the idea here is that we have a shared global parameter vector and each worker will compute the gradient and directly optimize modify.",
+                    "label": 0
+                },
+                {
+                    "sent": "The parameter vector if we wanted to do this exactly, we would need to lock the gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "The shared parameter vector before it's right, and if we have many machines that will actually slow us down quite a bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do in practice is actually to let the rights clobber each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we introduce a slight error there and also independently of whether we like or not will be using slightly stale parameter vectors when we compute the gradients, because between the time that a worker picked up the parameter vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it actually uses it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Somebody else might have updated it, but given.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some bounds on how long this lag is.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a nice paper by John Langford at all saying that this will still converge to the correct optimum.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Finally, getting men and Ryan MacDonald then kick all have been looking at what they call parameter mixtures or iterative parameter mixtures, and the idea here is that will start the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We will compute will let each.",
+                    "label": 0
+                },
+                {
+                    "sent": "Worker optimize optimize its own.",
+                    "label": 0
+                },
+                {
+                    "sent": "Parameter vector on it's short of the data and then one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once it's done, it will average the learned models and will repeat and in the iterative version will actually each worker will do one pass of stochastic gradient through the day to learn a parameter vector that will be then sent back to a central location where will average these parameters and then send them back to the mappers.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for certain cases of objective functions, again, we have theoretical guarantees that this will converge, and there's some nice bounds that can improve.",
+                    "label": 0
+                },
+                {
+                    "sent": "The nice thing here is that the communication between the workers is minimized because each worker gets its data, works independently through the data, and then sends it back to the central location.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a lot of the work can be done in asynchronous way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Everybody with me so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "Good.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the typical data center?",
+                    "label": 0
+                },
+                {
+                    "sent": "Opinions might defer an GPU's are becoming more and more popular, but reality is that we at least Google don't really have many of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our setup is we have lots of commodity machines that are each of them is fairly low powered, doesn't have a huge memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "They fail often.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they're connected through Ethernet.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no shared memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or at least nothing that is fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "And none of them is massively multicore, so they might have a couple cores or four cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for the interest of this paper will consider them just single core.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we have lots of them, and so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We want to take advantage of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the implications are for algorithms that we want are that we want to minimize the communication because communication is expensive and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each worker is relatively low powered, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have huge models, they might not be able to store the entire model, so we might have to distribute.",
+                    "label": 0
+                },
+                {
+                    "sent": "The location where the parameter vectors stored, because for each individual data point we don't need all the parameters parameters that are needed with.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In the memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, now look a little bit more at the infrastructure and how MapReduce in big table to infrastructure pieces that we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can help us and what we need to change in order to make things work, so I assume everybody is familiar with MapReduce.",
+                    "label": 0
+                },
+                {
+                    "sent": "Show of hands.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just two things to kind of emphasize, because we always talk about map reduce.",
+                    "label": 0
+                },
+                {
+                    "sent": "But one thing that kind of is swept under the rock is that there's this shuffle face that takes the outputs of the map phases and sorts them, and that can have interesting interplay with algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the second thing is that we show typically the mappers is individual boxes, but typically there's backup machines that work on the same Shard of the data in the background.",
+                    "label": 0
+                },
+                {
+                    "sent": "In case the machine fails.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we have already started computing the data and this has implications.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, if we want to do asynchronous updates from each map or directly.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would potentially do multiple updates for the same data point, so we need to be careful to do the updates in the reduce phase rather than the mapper, and also kind of technicalities that from a high level don't really matter, but if you're implementing these things you need to be careful about.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the sorting phase also requires that everything has completed, so if something takes longer, this might introduce additional.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Face.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we want to implement distributed gradient or enter parameter mixtures using map reduce things up fairly straightforward.",
+                    "label": 1
+                },
+                {
+                    "sent": "We take the data, send it to the mappers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each mapper computes the gradient on its local part of the data and the reduce phase.",
+                    "label": 0
+                },
+                {
+                    "sent": "We collect these gradients, we sum them, update the parameter vector, and then we repeat.",
+                    "label": 0
+                },
+                {
+                    "sent": "For this sort of parameter mixture, each mapper will compute the gradient an updates it local copy of the parameter vector as well at the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "When it's done, a pass through the data, it will send back, not the gradient, but its final weight vector and that weight vector will then be averaged in the reduce phase.",
+                    "label": 0
+                },
+                {
+                    "sent": "For synchronous algorithms we will need some shared mem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we need a little bit more, and that's where the big table comes in.",
+                    "label": 0
+                },
+                {
+                    "sent": "So big table is.",
+                    "label": 0
+                },
+                {
+                    "sent": "A central source distributed storage system which is similar to database, but it's not a database which has cells that can be indexed by role column in time, so it's a table with a third dimension overtime so it keeps track of the last K values.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's additional infrastructure that does some caching locally on the machine, at the network level to make things more efficient and to synchronize the writes and reads between the different jobs.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this transaction, processing is what I meant by locking the cell.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we want.",
+                    "label": 0
+                },
+                {
+                    "sent": "Text the results to be exact.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whenever we have a right would need to lock the cell first, then complete the right and then only after that another process could proceed to do a right.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that can be turned off and we will turn it up for the asynchronous algorithms because otherwise they will lock.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Block on each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to make asynchronous updates work with map reduce and big table we had to do a couple modifications.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as I said we cannot do the updates in a map because there will be backup mappers and we need to do the updates in the reduce phase.",
+                    "label": 0
+                },
+                {
+                    "sent": "But since we won't be updating on individual data points anyways, we'll do mini batches that actually works out nicely, because then we can do in the map.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can pass over our mini batch size and then correct the gradients and do the right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will turn off starting so that this can be done on the fly.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't need for all mappers to have finished and will turn off transaction processing in the big table.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we introduce some inexactness there, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "As well, in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Moving to experimental results.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "They consider two different setups, a small scale and a large scale experiment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Small scale, fairly big, already 370 million training instances, and the task is to predict click through so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Did somebody click on this or not?",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, you have a notion of how many features are involved.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, for the small model it's 9 million roughly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Front non 0 features in example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, in an example that I don't know, I know that the total parameter vector is on the order of 9 million, but I don't know how many active for instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, so basically it's a bunch of data from there was connected continuously.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first part is taken as a small scale experiment, 1.6 billion are taking as a larger scale experiment and then something that's temporally occurs after is used to evaluate.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Comparing these algorithms turns out to be actually quite tricky and messy.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you wanted in on the real data center where lots of other jobs are crank.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also because.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's the stopping criteria for these algorithms are different and it's hard to kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Make them all identical, so sometimes for some algorithms they look and they try to play around with different stuff in criteria to give each algorithm a fair chance.",
+                    "label": 0
+                },
+                {
+                    "sent": "As far as I know, so they use gradient change.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how much does the global gradient?",
+                    "label": 0
+                },
+                {
+                    "sent": "Change.",
+                    "label": 0
+                },
+                {
+                    "sent": "Between iterations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Changing the lock in the objective function or also just doing a fixed number of iterations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, depending on whether you're doing distributed gradient or asynchronous updates or iterative parameter mixtures where we actually do online updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Number of iterations will mean very.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Different things, so keep that in mind when we go to these results so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of a bunch of numbers here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is area under the curve.",
+                    "label": 0
+                },
+                {
+                    "sent": "Accuracy, so to say.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are relative performance numbers, and the baseline is distributed gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "And relative to that we compare CPU consumption.",
+                    "label": 0
+                },
+                {
+                    "sent": "Total CPU consumption as measured across the network wall Clock time.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's basically what the user observes.",
+                    "label": 0
+                },
+                {
+                    "sent": "How long does it take for the training to complete and then network usage?",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few things.",
+                    "label": 0
+                },
+                {
+                    "sent": "To stand out and do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of calibrate so distributed gradient because it needs to do a pass through the data before it takes an update.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will actually do many more passes through the data and therefore.",
+                    "label": 0
+                },
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "Numbers might seem a little surprising at first, but what's interesting is that the iterative parameter mixture.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is in the single Core, HD is not distributed, so that's basically for the small scale experiment.",
+                    "label": 0
+                },
+                {
+                    "sent": "They could do it on a single machine and it's a little surprising that the distributed gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is just 10 times faster even though 200 machines were involved, but that's because.",
+                    "label": 0
+                },
+                {
+                    "sent": "The stochastic gradient descent on a single core converges much faster, so it's more interesting to compare the single Core HD to the iterative parameter mixture because they data parameter mixture also uses SSD on each local machine, but then averages the models after each pass through the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we see roughly 100 fold speedup and we had a 200 machines, so would have liked to get the 200 fold speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "But because of communication overhead and other things.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were getting about 50% of what we could hope for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Asynchronous HD this number seems very low and it.",
+                    "label": 0
+                },
+                {
+                    "sent": "There was no good explanation on the large scale experiment.",
+                    "label": 0
+                },
+                {
+                    "sent": "Asynchronous actually works actually quite well, so it might have to do with either the batch size that was used in the asynchronous SGD.",
+                    "label": 0
+                },
+                {
+                    "sent": "They very did, but found for this experiment they use many bed size of 1000, which is not that many.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's so it should be taken a little bit with with a grain of salt.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also wall Clock time.",
+                    "label": 0
+                },
+                {
+                    "sent": "They tried to make sure that things started up right away and ran through without being too many jobs being killed, but this was done on a cluster where other things were running so jobs could interfere with each other.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "There are scale experiment, roughly similar observations.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no single Core HD in this case because it wasn't feasible to run it again.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we see the asynchronous HD is actually performance wise and accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's competitive, but again it's much lower in terms of Wall Clock time and the network usage is really prohibitive because even though they use back sides of 1000.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's lots of communication that is involved.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again they don't have parameter mixtures.",
+                    "label": 0
+                },
+                {
+                    "sent": "Seem to provide empirically the strongest.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Results and they also come up with some nice theoretical guarantees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to include maybe somewhat surprisingly asynchronous updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't seem very well suited for practical datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "The configurations and iterative parameter mixtures, on the other hand, give significant time improvements over distributed gradient because they can be run.",
+                    "label": 0
+                },
+                {
+                    "sent": "Online fashion on each mapper.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Song.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you say something about this Reporter magazine?",
+                    "label": 0
+                },
+                {
+                    "sent": "How many iterations?",
+                    "label": 0
+                },
+                {
+                    "sent": "I wish I knew.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't really know how many they had to run.",
+                    "label": 0
+                },
+                {
+                    "sent": "I know that they used to run.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mapper to convergence and then average at the end, but they've switched now to running just one pass through the data average and then go back.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that seems to work better, but I'm not sure how many iterations they actually had to run.",
+                    "label": 0
+                },
+                {
+                    "sent": "Associated with the Maps, like you haven't write to disk between iterations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, reading the data from this.",
+                    "label": 0
+                },
+                {
+                    "sent": "It seems like if there is no communication directly, it's all done, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then everything is communicated through files.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just passing the museum.",
+                    "label": 0
+                },
+                {
+                    "sent": "Compared to other.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Experience, but in general you don't need to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that we have the invite on the different set up for parallel or the training we had to pay for that kind of talk last summer where we describe away where it's actually you have for each day.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is this is a civil is civil.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where's the data?",
+                    "label": 0
+                },
+                {
+                    "sent": "I believe.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I believe it was distributed randomly and I don't think it makes much of a difference, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have been running currently.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the interest of time, let's take the rest of them offline.",
+                    "label": 0
+                },
+                {
+                    "sent": "The speaker hand.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

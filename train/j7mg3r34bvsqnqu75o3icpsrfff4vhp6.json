@@ -1,0 +1,1166 @@
+{
+    "id": "j7mg3r34bvsqnqu75o3icpsrfff4vhp6",
+    "title": "Cascade Object Detection with Deformable Part Models",
+    "info": {
+        "author": [
+            "Ross B. Girshick, Facebook"
+        ],
+        "published": "July 19, 2010",
+        "recorded": "June 2010",
+        "category": [
+            "Top->Computer Science->Computer Vision->Object Recognition"
+        ]
+    },
+    "url": "http://videolectures.net/cvpr2010_girshick_codd/",
+    "segmentation": [
+        [
+            "Good afternoon, my name is Ross Girshick and I'll be presenting a method for fast object detection.",
+            "This is joint work with my advisor, Pedro Felzenszwalb at the University of Chicago and David McAllister at TTI Chicago."
+        ],
+        [
+            "So we present a method for building fast cascade detectors from state of the art deformable part models, and by doing this we're able to speed up detection times by more than an order of magnitude, and we demonstrate this with state of the art models from the UCT object detection system, which has been a consistent top performer in the detection task of the Pascal BOC challenge."
+        ],
+        [
+            "So here's some examples of the speedups that we're able to get by moving to a cascade based architecture.",
+            "So for many object classes were able to perform detections and less than one second per image.",
+            "We see some representative speedups ranging between, say, about 7 * 24 times over the baseline algorithm, and we got an average of about 14 1/2 times overall, 20 classes in Pascal 2007.",
+            "Now there are two notes I'd like to make about these figures.",
+            "One is that this is with the single threaded implementation with the multithreaded implementation, it should be possible to perform detections at several frames per second.",
+            "And the other is that this is with very conservative cascade thresholds chosen in order to get the full range of recall, so that we're able to report average precision numbers that are competitive or essentially the same as the baseline.",
+            "So this is the cascade operating in slow mode, and later I'll show how we can trade off recall in order to get faster detection times."
+        ],
+        [
+            "So we focus mostly on the case of star models because they lead to very simple algorithms, and yet they're still able to perform reasonably well in difficult real world data.",
+            "So just to review what a star model is, it's a pretty simple form of a pictorial structures.",
+            "Model is defined in terms of a set of parts.",
+            "Each part has a function which tells you how well it matches to particular location in an image.",
+            "One of these parts is distinguished as the root.",
+            "In that case, it's this triangular nose in the center.",
+            "The remaining parts, which are the eyes and the mouth.",
+            "Are anchored at some position relative to the root, but they're allowed to move from that anchor point, but it costs something which is modeled by a deformation penalty function.",
+            "Now, given one of these models and a test image, we're interested in doing detection, which basically amounts to finding good configurations such as this configuration of the model in front of Sir Isaac Newton space."
+        ],
+        [
+            "So we can formalize this a bit more by defining what we mean by the score of an object hypothesis.",
+            "So an object hypothesis is defined by."
+        ],
+        [
+            "Choosing a location Omega for the root part."
+        ],
+        [
+            "Then we have to choose a displacement Delta I for each of the non root parts in this."
+        ],
+        [
+            "Delta I displacement is measured relative to an anchor position AI, which is a function of the root location.",
+            "Now given this hypothesis, we can define the score by computing."
+        ],
+        [
+            "The part score for the route."
+        ],
+        [
+            "And then summing over the remaining non root part."
+        ],
+        [
+            "In which we take into account the score of the non root parts at their displaced locations relative to their anchor points."
+        ],
+        [
+            "But then we have to subtract away the displacement cost for moving those parts."
+        ],
+        [
+            "So we can then extend the score of a hypothesis to a single score for a root location of the object.",
+            "And we do this by maximizing over part displacements.",
+            "So intuitively you can think of this function score Omega as computing the maximum score over any possible hypothesis of this object, which places the root part at location Omega.",
+            "Now realizing the equation, this is done by replacing the terms in the sum by this function score I which is given the anchor."
+        ],
+        [
+            "Position of the earth part."
+        ],
+        [
+            "And then on the right hand side, here we're maximizing over the space of displacements of this part, and intuitively we're looking for the optimal tradeoff between how well the part matches data wise and the tradeoff between how much penalty you suffer from moving the part relative to its anchor point."
+        ],
+        [
+            "Now with all of that in place, we can finally do detection simply by thresholding the score function at the baseline algorithm that we compare ourselves to uses fast distance transforms and dynamic programming in order to compute all detections in an image in time that's linear in the number of parts in the model, and also linear in the number of locations in the image.",
+            "The problem with this is that in modern setup we typically have very dense feature Maps and we sample scale space very densely as well.",
+            "This means that the number of locations is typically huge.",
+            "And also because we use these rich filters to represent parts off and the cost to compute apart score is also quite expensive.",
+            "So these two factors are the bottleneck in practice for the baseline algorithm.",
+            "So as we all know, Cascade algorithms have been used over and over again to speed up various methods in computer vision.",
+            "So here we appeal to a cascade architecture in order to compute part scores in many fewer locations."
+        ],
+        [
+            "So we empirically validated.",
+            "Evaluate our approach using some models that are a little bit more sophisticated than just a simple star model.",
+            "So what we do is we take a mixture or a disjunction of star models so each component in this mixture model is itself a star model which is defined in terms of nine parts.",
+            "Each one of these parts is implemented as a linear filter on hog features, so there's the root part which captures the entire object's appearance at a coarse resolution, and then there are eight additional parts which capture localized regions of the object at a finer resolution.",
+            "Now, each one of these parts is allowed to move relative to its anchor position, but it costs something in that cost is modeled by separable quadratic equation of function."
+        ],
+        [
+            "So there are two more ingredients that we need to formulate the Cascade algorithm for star models.",
+            "The first is we need an ordering of the parts which implicitly defines a hierarchy of models.",
+            "The earth model in this hierarchy is defined by adding the I TH part to the previous model in the hierarchy.",
+            "Now if you recall the definition of the score function for a root location Omega, we were maximizing over part locations individually.",
+            "This means that as soon as we place the new part in this hierarchy and its optimal location, that remains the optimal location for that part.",
+            "As we place the additional parts because of this property, we can say that the score of an intermediate model is a partial score, which can be extended to the full score simply by adding in the optimal scores of the remaining parts.",
+            "The next ingredient that we need for the Cascade algorithm is a sequence of thresholds T. The Star Cascade algorithm operates by going between two different steps in a prune Omega step, we look at the current partial score of the model and we compare it to a threshold in order to decide whether or not we should abandon the root location.",
+            "Omega Print It away and move on to the next root location.",
+            "In the next step we do a prune Delta operation, So what this amounts to is we're placing a new part into the model and we need to search over displacements, but most of those displacements are going to be too costly and therefore we can immediately discard them by using a threshold test."
+        ],
+        [
+            "So now walk through a simple example of how the algorithm works in practice so you can understand exactly what it's doing.",
+            "We need our three ingredients, the object model, part ordering, and thresholds."
+        ],
+        [
+            "We take a test image.",
+            "We convert it into a feature pyramid representation."
+        ],
+        [
+            "To simplify things, I'll focus on a single scale of the pyramid and a single component of the model."
+        ],
+        [
+            "Also, because it's much nicer to look at images rather than visualizations of feature Maps, I'll simply rip."
+        ],
+        [
+            "Place that with national image.",
+            "The Cascade algorithm operates by maintaining score tables for each one of the parts.",
+            "Here I'm just showing the score tables for the root part and the first 2.",
+            "After that, so the algorithm is going to begin."
+        ],
+        [
+            "By testing root locations with the root filter, most of these locations."
+        ],
+        [
+            "Are going to score poorly, and they're going to fail their first prune Omega test.",
+            "This is represented by shading the corresponding cells in its core table Gray.",
+            "So we keep testing route locations.",
+            "Most of them fail, hopefully eventually."
+        ],
+        [
+            "We got to a location that scores."
+        ],
+        [
+            "High enough to pass the first threshold test.",
+            "Now that this has happened, we have to consider the contribution of the first part."
+        ],
+        [
+            "We do that by conducting a displacement search.",
+            "In principle, we'd have to search over all possible displacements."
+        ],
+        [
+            "However, we use the threat."
+        ],
+        [
+            "Full tests in order to reject most of them therefore."
+        ],
+        [
+            "We only have to consider a small number of locations, which are those indicated by this circle over the part one square table.",
+            "So in those locations we have to compute Part 1 score."
+        ],
+        [
+            "We do that.",
+            "We find the optimal location for Part one, we compared to its threshold test for the next prune Omega operation.",
+            "Here it fails, which means that we reject this."
+        ],
+        [
+            "Location."
+        ],
+        [
+            "And we move on to the next root location.",
+            "This location passes."
+        ],
+        [
+            "Like the previous one, again, we conduct our display."
+        ],
+        [
+            "Basement search most displaced."
+        ],
+        [
+            "Things are rejected.",
+            "However, there are few that do pass and again in these locations we have to compute the part score.",
+            "But now note that there is significant overlap between these locations and the previously computed locations, which means that we can simply reuse most of the computation that we already have done.",
+            "This element of the algorithm is the key for making the cascade fast.",
+            "For deformable part models there only a small number of locations here where we actually have to compute new part scores.",
+            "So after computing those."
+        ],
+        [
+            "Scores we find the optimal displacement compared to a threshold.",
+            "In this case, it passes which mean."
+        ],
+        [
+            "So we can move on to the second part we."
+        ],
+        [
+            "Repeat this whole process again."
+        ],
+        [
+            "And then."
+        ],
+        [
+            "We continue doing this for all the remain."
+        ],
+        [
+            "Imparts an in this."
+        ],
+        [
+            "Case, all of the remaining threshold tests were passed, which means that we can."
+        ],
+        [
+            "Support the object hypothesis and then move on to bigger and better things, like finding more bicycles."
+        ],
+        [
+            "So essential to the performance of the algorithm is choosing good thresholds.",
+            "Now we want the thresholds to be affective, meaning that they should prune a lot of true negatives, 'cause if they don't, the cascade won't be fast, but they also have to be safe and in the sense that they shouldn't prune many true positives, 'cause if they do, we'll lose recall and that will hurt our average precision score."
+        ],
+        [
+            "We can make the notion of safe thresholds a bit more precise, and we do so by introducing probably approximately admissible thresholds.",
+            "You can take X to be an ID set of positive examples drawn from some unknown distribution D. We can then define the error rate of a sequence of thresholds T to be the probability under a random draw.",
+            "An example from D that the Cascade algorithm computes a score other than the actual score.",
+            "Now, if the error rate was exactly 0, then we would have admissible thresholds.",
+            "We would never proven false.",
+            "We never proved true positives and that would be great.",
+            "But the problem is that it's very difficult.",
+            "We don't know how to actually pick probably admissible thresholds that are also effective in practice.",
+            "In other words, make a fast cascade so we can relax this a bit by just saying that we want to have epsilon Delta probably approximately admissible thresholds, and what this means is that the probability.",
+            "That the error rate exceeds a small number epsilon is bounded by a small number Delta.",
+            "So as has been used in other work on Cascades, one method of picking thresholds is to select the minimum of partial scores over the examples in your training set X.",
+            "Now we show that if you do this then that leads to probably approximately admissible thresholds, as long as the training set X increases as a relatively slowly growing function of epsilon and Delta.",
+            "We also demonstrate that if you do this, you get empirically effective thresholds."
+        ],
+        [
+            "So here are two examples in which the training set for the thresholds is selected in a slightly different way.",
+            "In the first example.",
+            "We choose X to include even relatively low scoring examples.",
+            "This means that we're able to get most almost the full range of recall, but we perform detections 20 three times faster.",
+            "In the case of motorbikes, about 600 milliseconds per image.",
+            "On the other hand, we can choose the training set for thresholds slightly differently.",
+            "Namely, we can choose it so that we only include relatively high scoring examples.",
+            "If we do that, we sacrifice a bit of recall, but in exchange we get much faster detection's down to about 450 milliseconds per image.",
+            "Now the important thing to note here is that we've sacrificed recall, but as you can see by tracing the precision recall curve of the Cascade algorithm, we haven't really lost any precision."
+        ],
+        [
+            "We also consider speed up due to simplified part models.",
+            "Here we do PCA of Hog features.",
+            "Then we project the features and the filters onto the top five principle components.",
+            "We integrate this into the cascade by doubling the number of stages in the first half of the stages.",
+            "We place the PCA filters which are much faster to evaluate.",
+            "In the second half we replace PCA filters with full filters, this least about a three times speedup over using the full filters alone."
+        ],
+        [
+            "We focus mostly OnStar models because they lead to nice simple algorithms which obtained good results on Pascal data set.",
+            "But we're interested in pushing the complexity of our models, and in particular we introduce a cascade algorithm for much more general class of grammar models.",
+            "These are trees that have variable structure, but there is one caveat which is that they can't have shared parts, which is unfortunate because that's a very desirable property in a grammar model and it remains this future work to actually empirically evaluate these."
+        ],
+        [
+            "So in conclusion, we've presented in the paper a simple algorithm for doing fast detection with star models, and there's essentially no loss in average precision scores as long as you choose the training set appropriately.",
+            "But on the other hand, you can allow for some loss of recall in order to get faster detection times.",
+            "The parallel implementation of this should allow for detections of multiple frames per second, which would be great for applications in robotics, for example.",
+            "We also present a general method for grammar models, so interesting thing to note is that about 10 years ago there was a lot of work done on algorithm algorithmic methods for speeding up the formal part model matching an network essentially showed that as long as you match parts everywhere asymptotically it costs nothing additional to take into account the geometric structure as long as tree model.",
+            "And what this work shows is it pushes that result a bit further by showing that you can actually do detection much faster by only evaluating part scores in a few number of locations, as long as they're the right locations.",
+            "Ann.",
+            "Just to conclude, we have source code available for this, and it's an add on to the object detection system.",
+            "You can download it from the project page, thank you.",
+            "Please come to the microphone if you have questions.",
+            "What about the order of parts in the cascade?",
+            "Isn't that crucial?",
+            "Yeah, that's that's a good question.",
+            "So we've experimented with a number of methods for choosing the order, and basically what we found is that if you choose the order randomly, that's bad.",
+            "But if you then try any number of intuitive ideas that you might have for choosing the order by looking at various statistics of the partial scores, all of the ideas that we tried performed about the same.",
+            "Thank you, yes, nice work.",
+            "Can your model handle parts that are either missing or not within the expected neighborhood?",
+            "Yeah, that's a good question because you might be concerned that occlusion would cause a significant problem as you move to cascade.",
+            "So the idea is that as long as your training set for the thresholds includes appropriate representative examples of objects that have occlusion because we're selecting thresholds based on the minimum of these partial scores, that will be automatically taken into account in the threshold selection.",
+            "But apart couldn't be missing, it would just have to have alone upright exactly.",
+            "So for example, the first part in your cascade is missing from a lot of examples that would probably adversely affect the first choice of the threshold.",
+            "More questions.",
+            "OK, so let's thank the speaker again."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Good afternoon, my name is Ross Girshick and I'll be presenting a method for fast object detection.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is joint work with my advisor, Pedro Felzenszwalb at the University of Chicago and David McAllister at TTI Chicago.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we present a method for building fast cascade detectors from state of the art deformable part models, and by doing this we're able to speed up detection times by more than an order of magnitude, and we demonstrate this with state of the art models from the UCT object detection system, which has been a consistent top performer in the detection task of the Pascal BOC challenge.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's some examples of the speedups that we're able to get by moving to a cascade based architecture.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for many object classes were able to perform detections and less than one second per image.",
+                    "label": 0
+                },
+                {
+                    "sent": "We see some representative speedups ranging between, say, about 7 * 24 times over the baseline algorithm, and we got an average of about 14 1/2 times overall, 20 classes in Pascal 2007.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there are two notes I'd like to make about these figures.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is that this is with the single threaded implementation with the multithreaded implementation, it should be possible to perform detections at several frames per second.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the other is that this is with very conservative cascade thresholds chosen in order to get the full range of recall, so that we're able to report average precision numbers that are competitive or essentially the same as the baseline.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the cascade operating in slow mode, and later I'll show how we can trade off recall in order to get faster detection times.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we focus mostly on the case of star models because they lead to very simple algorithms, and yet they're still able to perform reasonably well in difficult real world data.",
+                    "label": 1
+                },
+                {
+                    "sent": "So just to review what a star model is, it's a pretty simple form of a pictorial structures.",
+                    "label": 0
+                },
+                {
+                    "sent": "Model is defined in terms of a set of parts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each part has a function which tells you how well it matches to particular location in an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of these parts is distinguished as the root.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that case, it's this triangular nose in the center.",
+                    "label": 0
+                },
+                {
+                    "sent": "The remaining parts, which are the eyes and the mouth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are anchored at some position relative to the root, but they're allowed to move from that anchor point, but it costs something which is modeled by a deformation penalty function.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now, given one of these models and a test image, we're interested in doing detection, which basically amounts to finding good configurations such as this configuration of the model in front of Sir Isaac Newton space.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can formalize this a bit more by defining what we mean by the score of an object hypothesis.",
+                    "label": 0
+                },
+                {
+                    "sent": "So an object hypothesis is defined by.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Choosing a location Omega for the root part.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Then we have to choose a displacement Delta I for each of the non root parts in this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Delta I displacement is measured relative to an anchor position AI, which is a function of the root location.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now given this hypothesis, we can define the score by computing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The part score for the route.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then summing over the remaining non root part.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In which we take into account the score of the non root parts at their displaced locations relative to their anchor points.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But then we have to subtract away the displacement cost for moving those parts.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we can then extend the score of a hypothesis to a single score for a root location of the object.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we do this by maximizing over part displacements.",
+                    "label": 1
+                },
+                {
+                    "sent": "So intuitively you can think of this function score Omega as computing the maximum score over any possible hypothesis of this object, which places the root part at location Omega.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now realizing the equation, this is done by replacing the terms in the sum by this function score I which is given the anchor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Position of the earth part.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then on the right hand side, here we're maximizing over the space of displacements of this part, and intuitively we're looking for the optimal tradeoff between how well the part matches data wise and the tradeoff between how much penalty you suffer from moving the part relative to its anchor point.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now with all of that in place, we can finally do detection simply by thresholding the score function at the baseline algorithm that we compare ourselves to uses fast distance transforms and dynamic programming in order to compute all detections in an image in time that's linear in the number of parts in the model, and also linear in the number of locations in the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem with this is that in modern setup we typically have very dense feature Maps and we sample scale space very densely as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "This means that the number of locations is typically huge.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also because we use these rich filters to represent parts off and the cost to compute apart score is also quite expensive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these two factors are the bottleneck in practice for the baseline algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "So as we all know, Cascade algorithms have been used over and over again to speed up various methods in computer vision.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here we appeal to a cascade architecture in order to compute part scores in many fewer locations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we empirically validated.",
+                    "label": 0
+                },
+                {
+                    "sent": "Evaluate our approach using some models that are a little bit more sophisticated than just a simple star model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do is we take a mixture or a disjunction of star models so each component in this mixture model is itself a star model which is defined in terms of nine parts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each one of these parts is implemented as a linear filter on hog features, so there's the root part which captures the entire object's appearance at a coarse resolution, and then there are eight additional parts which capture localized regions of the object at a finer resolution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, each one of these parts is allowed to move relative to its anchor position, but it costs something in that cost is modeled by separable quadratic equation of function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So there are two more ingredients that we need to formulate the Cascade algorithm for star models.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first is we need an ordering of the parts which implicitly defines a hierarchy of models.",
+                    "label": 1
+                },
+                {
+                    "sent": "The earth model in this hierarchy is defined by adding the I TH part to the previous model in the hierarchy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if you recall the definition of the score function for a root location Omega, we were maximizing over part locations individually.",
+                    "label": 0
+                },
+                {
+                    "sent": "This means that as soon as we place the new part in this hierarchy and its optimal location, that remains the optimal location for that part.",
+                    "label": 0
+                },
+                {
+                    "sent": "As we place the additional parts because of this property, we can say that the score of an intermediate model is a partial score, which can be extended to the full score simply by adding in the optimal scores of the remaining parts.",
+                    "label": 1
+                },
+                {
+                    "sent": "The next ingredient that we need for the Cascade algorithm is a sequence of thresholds T. The Star Cascade algorithm operates by going between two different steps in a prune Omega step, we look at the current partial score of the model and we compare it to a threshold in order to decide whether or not we should abandon the root location.",
+                    "label": 0
+                },
+                {
+                    "sent": "Omega Print It away and move on to the next root location.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the next step we do a prune Delta operation, So what this amounts to is we're placing a new part into the model and we need to search over displacements, but most of those displacements are going to be too costly and therefore we can immediately discard them by using a threshold test.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now walk through a simple example of how the algorithm works in practice so you can understand exactly what it's doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need our three ingredients, the object model, part ordering, and thresholds.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We take a test image.",
+                    "label": 0
+                },
+                {
+                    "sent": "We convert it into a feature pyramid representation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To simplify things, I'll focus on a single scale of the pyramid and a single component of the model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Also, because it's much nicer to look at images rather than visualizations of feature Maps, I'll simply rip.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Place that with national image.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Cascade algorithm operates by maintaining score tables for each one of the parts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I'm just showing the score tables for the root part and the first 2.",
+                    "label": 1
+                },
+                {
+                    "sent": "After that, so the algorithm is going to begin.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "By testing root locations with the root filter, most of these locations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Are going to score poorly, and they're going to fail their first prune Omega test.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is represented by shading the corresponding cells in its core table Gray.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we keep testing route locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of them fail, hopefully eventually.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We got to a location that scores.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "High enough to pass the first threshold test.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that this has happened, we have to consider the contribution of the first part.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We do that by conducting a displacement search.",
+                    "label": 0
+                },
+                {
+                    "sent": "In principle, we'd have to search over all possible displacements.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "However, we use the threat.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Full tests in order to reject most of them therefore.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We only have to consider a small number of locations, which are those indicated by this circle over the part one square table.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in those locations we have to compute Part 1 score.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We find the optimal location for Part one, we compared to its threshold test for the next prune Omega operation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here it fails, which means that we reject this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Location.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And we move on to the next root location.",
+                    "label": 0
+                },
+                {
+                    "sent": "This location passes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Like the previous one, again, we conduct our display.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Basement search most displaced.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Things are rejected.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, there are few that do pass and again in these locations we have to compute the part score.",
+                    "label": 0
+                },
+                {
+                    "sent": "But now note that there is significant overlap between these locations and the previously computed locations, which means that we can simply reuse most of the computation that we already have done.",
+                    "label": 0
+                },
+                {
+                    "sent": "This element of the algorithm is the key for making the cascade fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "For deformable part models there only a small number of locations here where we actually have to compute new part scores.",
+                    "label": 0
+                },
+                {
+                    "sent": "So after computing those.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Scores we find the optimal displacement compared to a threshold.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, it passes which mean.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can move on to the second part we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Repeat this whole process again.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We continue doing this for all the remain.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Imparts an in this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Case, all of the remaining threshold tests were passed, which means that we can.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Support the object hypothesis and then move on to bigger and better things, like finding more bicycles.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So essential to the performance of the algorithm is choosing good thresholds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we want the thresholds to be affective, meaning that they should prune a lot of true negatives, 'cause if they don't, the cascade won't be fast, but they also have to be safe and in the sense that they shouldn't prune many true positives, 'cause if they do, we'll lose recall and that will hurt our average precision score.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We can make the notion of safe thresholds a bit more precise, and we do so by introducing probably approximately admissible thresholds.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can take X to be an ID set of positive examples drawn from some unknown distribution D. We can then define the error rate of a sequence of thresholds T to be the probability under a random draw.",
+                    "label": 0
+                },
+                {
+                    "sent": "An example from D that the Cascade algorithm computes a score other than the actual score.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, if the error rate was exactly 0, then we would have admissible thresholds.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would never proven false.",
+                    "label": 0
+                },
+                {
+                    "sent": "We never proved true positives and that would be great.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the problem is that it's very difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't know how to actually pick probably admissible thresholds that are also effective in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, make a fast cascade so we can relax this a bit by just saying that we want to have epsilon Delta probably approximately admissible thresholds, and what this means is that the probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "That the error rate exceeds a small number epsilon is bounded by a small number Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as has been used in other work on Cascades, one method of picking thresholds is to select the minimum of partial scores over the examples in your training set X.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now we show that if you do this then that leads to probably approximately admissible thresholds, as long as the training set X increases as a relatively slowly growing function of epsilon and Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also demonstrate that if you do this, you get empirically effective thresholds.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here are two examples in which the training set for the thresholds is selected in a slightly different way.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the first example.",
+                    "label": 0
+                },
+                {
+                    "sent": "We choose X to include even relatively low scoring examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "This means that we're able to get most almost the full range of recall, but we perform detections 20 three times faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the case of motorbikes, about 600 milliseconds per image.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, we can choose the training set for thresholds slightly differently.",
+                    "label": 0
+                },
+                {
+                    "sent": "Namely, we can choose it so that we only include relatively high scoring examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we do that, we sacrifice a bit of recall, but in exchange we get much faster detection's down to about 450 milliseconds per image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the important thing to note here is that we've sacrificed recall, but as you can see by tracing the precision recall curve of the Cascade algorithm, we haven't really lost any precision.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We also consider speed up due to simplified part models.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we do PCA of Hog features.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then we project the features and the filters onto the top five principle components.",
+                    "label": 0
+                },
+                {
+                    "sent": "We integrate this into the cascade by doubling the number of stages in the first half of the stages.",
+                    "label": 0
+                },
+                {
+                    "sent": "We place the PCA filters which are much faster to evaluate.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the second half we replace PCA filters with full filters, this least about a three times speedup over using the full filters alone.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We focus mostly OnStar models because they lead to nice simple algorithms which obtained good results on Pascal data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're interested in pushing the complexity of our models, and in particular we introduce a cascade algorithm for much more general class of grammar models.",
+                    "label": 1
+                },
+                {
+                    "sent": "These are trees that have variable structure, but there is one caveat which is that they can't have shared parts, which is unfortunate because that's a very desirable property in a grammar model and it remains this future work to actually empirically evaluate these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in conclusion, we've presented in the paper a simple algorithm for doing fast detection with star models, and there's essentially no loss in average precision scores as long as you choose the training set appropriately.",
+                    "label": 1
+                },
+                {
+                    "sent": "But on the other hand, you can allow for some loss of recall in order to get faster detection times.",
+                    "label": 1
+                },
+                {
+                    "sent": "The parallel implementation of this should allow for detections of multiple frames per second, which would be great for applications in robotics, for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also present a general method for grammar models, so interesting thing to note is that about 10 years ago there was a lot of work done on algorithm algorithmic methods for speeding up the formal part model matching an network essentially showed that as long as you match parts everywhere asymptotically it costs nothing additional to take into account the geometric structure as long as tree model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what this work shows is it pushes that result a bit further by showing that you can actually do detection much faster by only evaluating part scores in a few number of locations, as long as they're the right locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just to conclude, we have source code available for this, and it's an add on to the object detection system.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can download it from the project page, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Please come to the microphone if you have questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "What about the order of parts in the cascade?",
+                    "label": 0
+                },
+                {
+                    "sent": "Isn't that crucial?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that's that's a good question.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've experimented with a number of methods for choosing the order, and basically what we found is that if you choose the order randomly, that's bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you then try any number of intuitive ideas that you might have for choosing the order by looking at various statistics of the partial scores, all of the ideas that we tried performed about the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you, yes, nice work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can your model handle parts that are either missing or not within the expected neighborhood?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that's a good question because you might be concerned that occlusion would cause a significant problem as you move to cascade.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the idea is that as long as your training set for the thresholds includes appropriate representative examples of objects that have occlusion because we're selecting thresholds based on the minimum of these partial scores, that will be automatically taken into account in the threshold selection.",
+                    "label": 0
+                },
+                {
+                    "sent": "But apart couldn't be missing, it would just have to have alone upright exactly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, the first part in your cascade is missing from a lot of examples that would probably adversely affect the first choice of the threshold.",
+                    "label": 0
+                },
+                {
+                    "sent": "More questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let's thank the speaker again.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

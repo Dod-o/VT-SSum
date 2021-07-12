@@ -1,0 +1,1208 @@
+{
+    "id": "ayp3lbndv56um5dwmyn62obng5rp5cod",
+    "title": "Enabling ne-grained HTTP caching of SPARQL query results",
+    "info": {
+        "author": [
+            "Gregory Todd Williams, Rensselaer Polytechnic Institute"
+        ],
+        "published": "Nov. 25, 2011",
+        "recorded": "October 2011",
+        "category": [
+            "Top->Computer Science->Semantic Web"
+        ]
+    },
+    "url": "http://videolectures.net/iswc2011_todd_williams_results/",
+    "segmentation": [
+        [
+            "I'm Greg Williams from Rensselaer Polytechnic Institute and I'll be presenting some work I did with my colleague Jesse Weaver on Caching of Sparkle results.",
+            "Sorry."
+        ],
+        [
+            "So I briefly talk about why we would want to do this and why HTTP is a nice mechanism to use for the caching.",
+            "Talk briefly about some related work.",
+            "There's obviously a lot of related work in various areas, but there's one in particular that's very close to this work and I'll describe it and some of the differences between it in our work and then into some of the details of this work.",
+            "I'll talk about some changes we made to the data structures used to index RDF in many sparkle systems, and then how those connect to sparkle features.",
+            "So at the query level, how we can use those changes in the data structure.",
+            "To connect with features in the query language.",
+            "To enable caching, I'll go over some algorithmic sketches for how we use this in query evaluation and talk about some results we got."
+        ],
+        [
+            "So why would we want to cache sparkle results using HTTP?",
+            "The obvious answer here right is HTTP is already the protocol we use for talking with sparkle endpoints, and it provides some caching primitives that we can leverage here.",
+            "And if we can provide those on the server side, the caching supporters is widespread in on the client side, right?",
+            "A lot of HTTP libraries have this sort of thing built in, and so we don't have to start from zero.",
+            "In re implementing a caching system."
+        ],
+        [
+            "So HTTP provides.",
+            "I said primitives for doing caching.",
+            "The two fundamental things.",
+            "Here are the last modified and E tag headers.",
+            "I'm going to be talking only about last modified headers in this talk, but for our purposes here they are equivalent to E tags.",
+            "We could use either one, and in fact during the development of the system we use the tags interchangeably with last modified times.",
+            "So we wanted to say a look at this and see if these primitives could be used for caching of sparkle results.",
+            "And obviously, we're going to see the answer is yes, and this is really important because in real world world query workloads, some queries are executed far more often than others.",
+            "Right side here, there's some nice work out of EU Squad workshop earlier this year that looks at some of the Dbpedia query logs and.",
+            "Looks at some of the skewed distribution on that, so this is going to be a big deal for caching because if you can catch the query results for the queries that are executed much more frequently than others is going to have a big impact on your overall performance."
+        ],
+        [
+            "So at a kind of very high level here, right?",
+            "This is kind of what our system looks like.",
+            "We've got some triple store, an endpoint sitting on top of it and clients connecting to that through the Sparkle protocol, right?",
+            "And there may be caches either sitting right next to the client in a browser or ISP caches somewhere in between the client and the Triple Store, or I don't show this here, but you could have a cash sitting right next to the Triple Store, right?",
+            "In the reverse proxy sort of setup.",
+            "And what?"
+        ],
+        [
+            "Want to do is modify the indexes in the Triple Store, augment them with some information that's going to allow those caches to know about when they can use cash results that they've seen before."
+        ],
+        [
+            "So again, I don't very high level here right?",
+            "Using HTTP, if we send off a query, we don't just want the results back, we want some information back that says the data used to generate these query results I'm giving you were last modified on September 26 and at some point in the future when we send off that query again and pass in that date, we want to say I want the results only if they've changed since September 26th, and if they haven't, you want the reserved respond.",
+            "Not modified, you can use your cache results so you can obviously get this sort of effect by just having a time stamp on the whole database, right?",
+            "The minute something changes, update that modification time and tell all the clients that."
+        ],
+        [
+            "Things have changed, but the title was talking and said fine grained right?",
+            "We don't want any update to the database to affect your cache query results if they didn't affect those results.",
+            "So we want the database to respond not modified only if the data of interest to the."
+        ],
+        [
+            "Corey has been changed.",
+            "So an example here say we want to ask a query about Eve's social network, right?",
+            "Her friends and their names and email addresses you sent off the court."
+        ],
+        [
+            "We get back the last modified time and then sometime after that if someone inserts a triple into the database that has nothing to do with that query, right inserts a triple that says.",
+            "Here's the depiction of the six."
+        ],
+        [
+            "Needs and we execute our query again.",
+            "We really want that not modified response right because the change has nothing to do with the query we're asking."
+        ],
+        [
+            "So the idea here is that the results should appear to be last modified as close to the actual time that the data affecting those query results changed, and this is going to allow the caches to use their cash results.",
+            "When the underlying data has an."
+        ],
+        [
+            "Change.",
+            "So there's one kind of key related work here.",
+            "There's obviously a lot of related work in relational world with materialized views and things like that, but in the semantic Web world, this system presented by Martin Luther had an hour at ESL BC last year is very similar to this work.",
+            "It shares the same motivation, but has a very different approach.",
+            "They introduce a middleware layer in between clients and the Triple Store and maintain a completely separate cache of results.",
+            "So at the end I'll come back to.",
+            "So some of the differences that this has on our two approaches, our work here and the Martin work, but it's two very different approaches and it has a big effect on when you would want to use one or the other.",
+            "So I talked about relevant work, so relevant data before."
+        ],
+        [
+            "As far as the query goes and so relevant data to a query here is going to all boil down to triple patterns.",
+            "Talking about named graphs.",
+            "You can also think of it in terms of quad patterns and names.",
+            "The named graphs that are available."
+        ],
+        [
+            "But essentially this is all triple patterns, so if you have some query here relevant data in our case is going to be any data that matches the triple patterns in this query, right?",
+            "All the other things in the query, unions, filters all of that is irrelevant for Casey.",
+            "Here we're only going to look at the triple patterns."
+        ],
+        [
+            "So the relevant data to this example query here is going to be any data that matches these four triple patterns.",
+            "I show the graph on the side there, but just consider the triples.",
+            "The relevant data here is whether this first triple exists in the database, whether there are statements about who Eve knows and whether there are triples in the database using folk name Info Inbox.",
+            "So these are the relevant triples to this query."
+        ],
+        [
+            "So knowing that, how can we recognize that in the database, right?",
+            "So we're going to switch gears a little here."
+        ],
+        [
+            "A very low level and talk about the search trees used to index this data.",
+            "Very prevalent in indexing.",
+            "RDF is the use of search trees to provide you direct access to the data that matches a query pattern.",
+            "Samples here as far as published work goes Jahres.",
+            "I think was the first work that talked about 6 indexes being a really nice number of indexes because it could directly answer any quad pattern.",
+            "So any number of variables.",
+            "In your quad pattern you get direct access to that data.",
+            "Hexa Story 3X came out later and said six indexes was nice.",
+            "If you're dealing only with triple patterns because it'll cover all the triple patterns in any ordering and four store trades off that full indexing for some space and simplicity.",
+            "But all of these systems and many others.",
+            "To be amenable to this sort of caching, because all of them share this feature of using these search trees to index the data."
+        ],
+        [
+            "So the core of this work here is going to be augmenting those search trees by taking the nodes of those trees and adding a slot in this structure for a modification time.",
+            "So every node in the tree is going to have a modification time slot in it, and when the tree is updated on an insert of a triple or delete of a triple that M time is going to be updated so that the M time of any node is at or after the M time of all of its descendant nodes.",
+            "And we're going to use the lowest common ancestor of data in the tree, so you've got relevant data matching a pattern.",
+            "The lowest common ancestor of all of that data.",
+            "It's M time will stand in for the effective modification time of all of the data.",
+            "I say effective here because it may not be exactly the same time it may be after the actual change of that data, but it will always be safe with respect to caching, right?",
+            "In the worst case, if the database tells you.",
+            "The data was modified after it actually was.",
+            "You'll end up throwing at your past version, regenerated the same quarter results, and you've burned some CPU time and IO time, but you'll never have stale data."
+        ],
+        [
+            "So to maintain those M times in the indexing structure, you'll find the leaf node in the tree matching your data on insert or the leaf that has the data that you will be deleting.",
+            "You'll update that the node and its M time and then propagate that M time all the way back up to the root.",
+            "So the leaf node and all of its ancestors will then have the new M time and this obviously has some cost associated with it.",
+            "You may be doing extra rights that you wouldn't have had to do otherwise.",
+            "But it's a bounded cost and there are some certain scenarios in which this is essentially free.",
+            "Some certain tree types where you would have to do these rights anyway, and so it turns out not to be a big deal that you're."
+        ],
+        [
+            "These extra operations, so an example here of what this will look like.",
+            "Say we want to insert these five triples into a B plus tree at 2 three tree and the time at which we're going to insert them in in order.",
+            "Here is to the right of the Triple Times."
+        ],
+        [
+            "Through five, so we insert the triple the first one into arbitrary page and up to the top left of that page.",
+            "We have RM timestamp right, so at time one we have the 1st."
+        ],
+        [
+            "Able."
+        ],
+        [
+            "The second and third triple incrementing that EM time each time."
+        ],
+        [
+            "The 4th insert causes a page split and at this point every page in the tree has been modified, so all of them are updated with time 4."
+        ],
+        [
+            "And the fifth triple updates the same time of the rightmost leaf and the root."
+        ],
+        [
+            "Alright, so with."
+        ],
+        [
+            "Yes, say we want to match all the triples matching this pattern right?",
+            "The triples matching AP quirio these two triples matching this are in that left."
+        ],
+        [
+            "Leaf, right, so the lowest common ancestor of that data is the leaf node."
+        ],
+        [
+            "Same time is."
+        ],
+        [
+            "For and from this we can tell that no update after time for affected.",
+            "The results of this query right?",
+            "Looking at this by inspection."
+        ],
+        [
+            "We can tell that actually no update after time two affected it, but this is a result of how B plus."
+        ],
+        [
+            "It works right?",
+            "So the type of tree here is going to affect the precision of the M time we get back using different types of trees.",
+            "For example, try would improve this precision.",
+            "For a B plus tree, there's a tradeoff between the branching factor and that precision, but all of this, like I said, is going to be safe with respect to cash.",
+            "In the worst case here is you have to regenerate the results and you know just throw out the cache results, but it always be the same results you're getting back."
+        ],
+        [
+            "So at query time, now that we've got that modification time data in the search trees at query time, this is the process the endpoint will take to be able to use caching.",
+            "It will extract all of the access operations from the query.",
+            "These are going to triple patterns, right?",
+            "Ignore all the rest of it, and for each of those triple patterns, choose the right index in the database.",
+            "That will answer that triple pattern probe for the lowest common ancestor in that index.",
+            "For the relevant data.",
+            "And retrieve them time from that lowest common ancestor.",
+            "The modification time now of the whole query is going to be the Max M time.",
+            "All of the end times we just retrieved and the endpoint will be able to compare that with an if modified since header sent in by the client.",
+            "If the data hasn't been changed since the date the client sends you, it's able to respond.",
+            "No, not modified, your cash is still valid, otherwise it will then run the whole query and return the the same time as the last last amount."
+        ],
+        [
+            "Hide header.",
+            "So.",
+            "We implemented this system as a prototype using six covering indexes with B plus trees, and we evaluated using the Berlin Sparkle benchmark was just mentioned in the last talk.",
+            "We modified the benchmark slightly to use a non uniform query distribution.",
+            "This is using a peretto power law distribution and this is following evaluation of work in that Martin work I talked about earlier.",
+            "And this is, you know, to more closely align with real world query workloads.",
+            "We then modified the test driver with the Berlin benchmark to support caching to maintain a cache of all the results it had seen during the query run and to use HTTP headers last modified an if modified, since in its query evaluation."
+        ],
+        [
+            "So using this prototype system on the Berlin benchmark, first we'll look at a read only use case, right?",
+            "So no updates are going on, and so anything that's cash should be usable in the future.",
+            "This is on a log scale moving across the horizontal access.",
+            "This is the Alpha parameter to the Pareto distribution.",
+            "So as you move farther and farther right, you're getting more skewed distribution of queries until on the far right only a few queries.",
+            "Are executed a tremendous number of times, so the range and the vertical axis is percent change in the throughput.",
+            "So the range here is an improvement of 35 up to 650%.",
+            "So these are, you know, look like really good numbers on improving performance."
+        ],
+        [
+            "As we look at update performance as the data is being updated.",
+            "After every in the Berlin benchmark case, it's after every 25 updates, 25 queries, 5 updates are performed.",
+            "We get lower numbers for improvement, but still this nice.",
+            "Performance improvement trend.",
+            "As you get more skewed distribution, this is the same vertical and horizontal axis.",
+            "Here on two different data set sizes with a range of improvement from about 3% to 160% on the throughput."
+        ],
+        [
+            "Finally, we wanted to see what was the cost of implementing this caching.",
+            "So if clients, if you implemented the cash in on the server side and client didn't buy into it, didn't ever use it, does that have a cost associated?",
+            "And so there are vertical axis.",
+            "Here is the raw query mixes per hour in red is a system with no caching compiled in neither the server or the client and in yellow.",
+            "Is a system with caching supported on the server but not used on the client?",
+            "Soemtimes are being maintained and returned to the client, but it's never used and what we can see here is that there's no noticeable impact on performance for supporting caching when the clients don't use it, so this is good because you can implement it an when clients decide to use it, they'll experience those you know."
+        ],
+        [
+            "Meetups.",
+            "So like I said, there are some differences here with that previous work that I wanted to highlight.",
+            "Our system has high coupling with the underlying store in that on every request it has to validate the cash with the underlying cripple store the Martin work because they actively manage the cash, is able to return cash results without touching the underlying triplestore.",
+            "And so that's just, you know, a difference in in design.",
+            "Here.",
+            "the Martin work also has a nice feature of being portable in that they can use an office, the Shelf Triple Store without modifying the code so they could use commercial databases, anything they want.",
+            "With our approach we have to change the underlying data structures, but we get from that some nice features here.",
+            "In terms of decentralization, we can use caches at any level.",
+            "Like I said, anywhere from sitting right next to the database all the way to the browser cache and anywhere in between, and you can have multiple caches that are old, making use of the same underlying data store our systems lightweight for the cash management in that high update rates don't noticeably impact for performance, and this is in contrast to that actively managed cash in the modern work where you can see slowdowns if there is too high and update rate.",
+            "And our system is also lightweight in query performance like I just showed in that support on the server side.",
+            "Even when clients aren't using it doesn't have a noticeable impact on that."
+        ],
+        [
+            "Formance so in summary, here are relatively minor change in the underlying data structures used to index the data can enable this high level HTTP caching and the fine grained nature can allow you to cash.",
+            "Data, even when the database is being updated frequently, so long as that data isn't affecting your query results and on nonuniform workloads, we see some significant performance improvements based on this caching."
+        ],
+        [
+            "So in terms of future work, we would like to perform a larger and more thorough evaluation on this considering bandwidth and latency is important here.",
+            "Our system didn't evaluate this, which I think captures the reverse proxy situation, but not say a cache in the browser, but also looking at more accurate query distributions.",
+            "We followed the Martin work and using that Pareto distribution, but.",
+            "The DB pedia query logs things like that might be an interesting way to look at.",
+            "Actually.",
+            "The real world distributions of queries.",
+            "We're also interested in seeing if maintaining these sometimes in the index would continue to be efficient if we're using different entailment regimes, for example, and how that would affect the overall performance of the system.",
+            "And finally, we'd love to see this integrated into more commonly used sparkle systems, and this isn't so much of a technical challenge.",
+            "I suppose it is a technical, but the big problem we saw with this was that it requires punching through a lot of layers of abstraction.",
+            "Right, this requires changes in the code from the sparkle endpoint layer all the way down to the data structure used to index the RDF, and so it's a fairly big change at a lot of different levels of the code, but we think there's a lot of reward to to be seen if we can get past that so."
+        ],
+        [
+            "With that, I'll take any questions you have, thank you."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm Greg Williams from Rensselaer Polytechnic Institute and I'll be presenting some work I did with my colleague Jesse Weaver on Caching of Sparkle results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I briefly talk about why we would want to do this and why HTTP is a nice mechanism to use for the caching.",
+                    "label": 0
+                },
+                {
+                    "sent": "Talk briefly about some related work.",
+                    "label": 1
+                },
+                {
+                    "sent": "There's obviously a lot of related work in various areas, but there's one in particular that's very close to this work and I'll describe it and some of the differences between it in our work and then into some of the details of this work.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll talk about some changes we made to the data structures used to index RDF in many sparkle systems, and then how those connect to sparkle features.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at the query level, how we can use those changes in the data structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "To connect with features in the query language.",
+                    "label": 0
+                },
+                {
+                    "sent": "To enable caching, I'll go over some algorithmic sketches for how we use this in query evaluation and talk about some results we got.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So why would we want to cache sparkle results using HTTP?",
+                    "label": 0
+                },
+                {
+                    "sent": "The obvious answer here right is HTTP is already the protocol we use for talking with sparkle endpoints, and it provides some caching primitives that we can leverage here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we can provide those on the server side, the caching supporters is widespread in on the client side, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of HTTP libraries have this sort of thing built in, and so we don't have to start from zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "In re implementing a caching system.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So HTTP provides.",
+                    "label": 0
+                },
+                {
+                    "sent": "I said primitives for doing caching.",
+                    "label": 0
+                },
+                {
+                    "sent": "The two fundamental things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here are the last modified and E tag headers.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to be talking only about last modified headers in this talk, but for our purposes here they are equivalent to E tags.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could use either one, and in fact during the development of the system we use the tags interchangeably with last modified times.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we wanted to say a look at this and see if these primitives could be used for caching of sparkle results.",
+                    "label": 1
+                },
+                {
+                    "sent": "And obviously, we're going to see the answer is yes, and this is really important because in real world world query workloads, some queries are executed far more often than others.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right side here, there's some nice work out of EU Squad workshop earlier this year that looks at some of the Dbpedia query logs and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks at some of the skewed distribution on that, so this is going to be a big deal for caching because if you can catch the query results for the queries that are executed much more frequently than others is going to have a big impact on your overall performance.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So at a kind of very high level here, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is kind of what our system looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got some triple store, an endpoint sitting on top of it and clients connecting to that through the Sparkle protocol, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And there may be caches either sitting right next to the client in a browser or ISP caches somewhere in between the client and the Triple Store, or I don't show this here, but you could have a cash sitting right next to the Triple Store, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "In the reverse proxy sort of setup.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Want to do is modify the indexes in the Triple Store, augment them with some information that's going to allow those caches to know about when they can use cash results that they've seen before.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So again, I don't very high level here right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Using HTTP, if we send off a query, we don't just want the results back, we want some information back that says the data used to generate these query results I'm giving you were last modified on September 26 and at some point in the future when we send off that query again and pass in that date, we want to say I want the results only if they've changed since September 26th, and if they haven't, you want the reserved respond.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not modified, you can use your cache results so you can obviously get this sort of effect by just having a time stamp on the whole database, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "The minute something changes, update that modification time and tell all the clients that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Things have changed, but the title was talking and said fine grained right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't want any update to the database to affect your cache query results if they didn't affect those results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we want the database to respond not modified only if the data of interest to the.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Corey has been changed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So an example here say we want to ask a query about Eve's social network, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Her friends and their names and email addresses you sent off the court.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We get back the last modified time and then sometime after that if someone inserts a triple into the database that has nothing to do with that query, right inserts a triple that says.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the depiction of the six.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Needs and we execute our query again.",
+                    "label": 0
+                },
+                {
+                    "sent": "We really want that not modified response right because the change has nothing to do with the query we're asking.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the idea here is that the results should appear to be last modified as close to the actual time that the data affecting those query results changed, and this is going to allow the caches to use their cash results.",
+                    "label": 0
+                },
+                {
+                    "sent": "When the underlying data has an.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Change.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's one kind of key related work here.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's obviously a lot of related work in relational world with materialized views and things like that, but in the semantic Web world, this system presented by Martin Luther had an hour at ESL BC last year is very similar to this work.",
+                    "label": 0
+                },
+                {
+                    "sent": "It shares the same motivation, but has a very different approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "They introduce a middleware layer in between clients and the Triple Store and maintain a completely separate cache of results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at the end I'll come back to.",
+                    "label": 0
+                },
+                {
+                    "sent": "So some of the differences that this has on our two approaches, our work here and the Martin work, but it's two very different approaches and it has a big effect on when you would want to use one or the other.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I talked about relevant work, so relevant data before.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "As far as the query goes and so relevant data to a query here is going to all boil down to triple patterns.",
+                    "label": 1
+                },
+                {
+                    "sent": "Talking about named graphs.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can also think of it in terms of quad patterns and names.",
+                    "label": 0
+                },
+                {
+                    "sent": "The named graphs that are available.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But essentially this is all triple patterns, so if you have some query here relevant data in our case is going to be any data that matches the triple patterns in this query, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "All the other things in the query, unions, filters all of that is irrelevant for Casey.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we're only going to look at the triple patterns.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the relevant data to this example query here is going to be any data that matches these four triple patterns.",
+                    "label": 1
+                },
+                {
+                    "sent": "I show the graph on the side there, but just consider the triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "The relevant data here is whether this first triple exists in the database, whether there are statements about who Eve knows and whether there are triples in the database using folk name Info Inbox.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are the relevant triples to this query.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So knowing that, how can we recognize that in the database, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to switch gears a little here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "A very low level and talk about the search trees used to index this data.",
+                    "label": 1
+                },
+                {
+                    "sent": "Very prevalent in indexing.",
+                    "label": 0
+                },
+                {
+                    "sent": "RDF is the use of search trees to provide you direct access to the data that matches a query pattern.",
+                    "label": 1
+                },
+                {
+                    "sent": "Samples here as far as published work goes Jahres.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think was the first work that talked about 6 indexes being a really nice number of indexes because it could directly answer any quad pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "So any number of variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "In your quad pattern you get direct access to that data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hexa Story 3X came out later and said six indexes was nice.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you're dealing only with triple patterns because it'll cover all the triple patterns in any ordering and four store trades off that full indexing for some space and simplicity.",
+                    "label": 0
+                },
+                {
+                    "sent": "But all of these systems and many others.",
+                    "label": 0
+                },
+                {
+                    "sent": "To be amenable to this sort of caching, because all of them share this feature of using these search trees to index the data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the core of this work here is going to be augmenting those search trees by taking the nodes of those trees and adding a slot in this structure for a modification time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So every node in the tree is going to have a modification time slot in it, and when the tree is updated on an insert of a triple or delete of a triple that M time is going to be updated so that the M time of any node is at or after the M time of all of its descendant nodes.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we're going to use the lowest common ancestor of data in the tree, so you've got relevant data matching a pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "The lowest common ancestor of all of that data.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's M time will stand in for the effective modification time of all of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "I say effective here because it may not be exactly the same time it may be after the actual change of that data, but it will always be safe with respect to caching, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "In the worst case, if the database tells you.",
+                    "label": 0
+                },
+                {
+                    "sent": "The data was modified after it actually was.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll end up throwing at your past version, regenerated the same quarter results, and you've burned some CPU time and IO time, but you'll never have stale data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to maintain those M times in the indexing structure, you'll find the leaf node in the tree matching your data on insert or the leaf that has the data that you will be deleting.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll update that the node and its M time and then propagate that M time all the way back up to the root.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the leaf node and all of its ancestors will then have the new M time and this obviously has some cost associated with it.",
+                    "label": 1
+                },
+                {
+                    "sent": "You may be doing extra rights that you wouldn't have had to do otherwise.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's a bounded cost and there are some certain scenarios in which this is essentially free.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some certain tree types where you would have to do these rights anyway, and so it turns out not to be a big deal that you're.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "These extra operations, so an example here of what this will look like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say we want to insert these five triples into a B plus tree at 2 three tree and the time at which we're going to insert them in in order.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is to the right of the Triple Times.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Through five, so we insert the triple the first one into arbitrary page and up to the top left of that page.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have RM timestamp right, so at time one we have the 1st.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Able.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The second and third triple incrementing that EM time each time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The 4th insert causes a page split and at this point every page in the tree has been modified, so all of them are updated with time 4.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the fifth triple updates the same time of the rightmost leaf and the root.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so with.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yes, say we want to match all the triples matching this pattern right?",
+                    "label": 0
+                },
+                {
+                    "sent": "The triples matching AP quirio these two triples matching this are in that left.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Leaf, right, so the lowest common ancestor of that data is the leaf node.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Same time is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "For and from this we can tell that no update after time for affected.",
+                    "label": 0
+                },
+                {
+                    "sent": "The results of this query right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Looking at this by inspection.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We can tell that actually no update after time two affected it, but this is a result of how B plus.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It works right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the type of tree here is going to affect the precision of the M time we get back using different types of trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, try would improve this precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "For a B plus tree, there's a tradeoff between the branching factor and that precision, but all of this, like I said, is going to be safe with respect to cash.",
+                    "label": 1
+                },
+                {
+                    "sent": "In the worst case here is you have to regenerate the results and you know just throw out the cache results, but it always be the same results you're getting back.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So at query time, now that we've got that modification time data in the search trees at query time, this is the process the endpoint will take to be able to use caching.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will extract all of the access operations from the query.",
+                    "label": 1
+                },
+                {
+                    "sent": "These are going to triple patterns, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Ignore all the rest of it, and for each of those triple patterns, choose the right index in the database.",
+                    "label": 1
+                },
+                {
+                    "sent": "That will answer that triple pattern probe for the lowest common ancestor in that index.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the relevant data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And retrieve them time from that lowest common ancestor.",
+                    "label": 1
+                },
+                {
+                    "sent": "The modification time now of the whole query is going to be the Max M time.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of the end times we just retrieved and the endpoint will be able to compare that with an if modified since header sent in by the client.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the data hasn't been changed since the date the client sends you, it's able to respond.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, not modified, your cash is still valid, otherwise it will then run the whole query and return the the same time as the last last amount.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Hide header.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "We implemented this system as a prototype using six covering indexes with B plus trees, and we evaluated using the Berlin Sparkle benchmark was just mentioned in the last talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "We modified the benchmark slightly to use a non uniform query distribution.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is using a peretto power law distribution and this is following evaluation of work in that Martin work I talked about earlier.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is, you know, to more closely align with real world query workloads.",
+                    "label": 0
+                },
+                {
+                    "sent": "We then modified the test driver with the Berlin benchmark to support caching to maintain a cache of all the results it had seen during the query run and to use HTTP headers last modified an if modified, since in its query evaluation.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So using this prototype system on the Berlin benchmark, first we'll look at a read only use case, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So no updates are going on, and so anything that's cash should be usable in the future.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is on a log scale moving across the horizontal access.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the Alpha parameter to the Pareto distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as you move farther and farther right, you're getting more skewed distribution of queries until on the far right only a few queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are executed a tremendous number of times, so the range and the vertical axis is percent change in the throughput.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the range here is an improvement of 35 up to 650%.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are, you know, look like really good numbers on improving performance.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "As we look at update performance as the data is being updated.",
+                    "label": 0
+                },
+                {
+                    "sent": "After every in the Berlin benchmark case, it's after every 25 updates, 25 queries, 5 updates are performed.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get lower numbers for improvement, but still this nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "Performance improvement trend.",
+                    "label": 0
+                },
+                {
+                    "sent": "As you get more skewed distribution, this is the same vertical and horizontal axis.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here on two different data set sizes with a range of improvement from about 3% to 160% on the throughput.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Finally, we wanted to see what was the cost of implementing this caching.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if clients, if you implemented the cash in on the server side and client didn't buy into it, didn't ever use it, does that have a cost associated?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so there are vertical axis.",
+                    "label": 1
+                },
+                {
+                    "sent": "Here is the raw query mixes per hour in red is a system with no caching compiled in neither the server or the client and in yellow.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a system with caching supported on the server but not used on the client?",
+                    "label": 0
+                },
+                {
+                    "sent": "Soemtimes are being maintained and returned to the client, but it's never used and what we can see here is that there's no noticeable impact on performance for supporting caching when the clients don't use it, so this is good because you can implement it an when clients decide to use it, they'll experience those you know.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Meetups.",
+                    "label": 0
+                },
+                {
+                    "sent": "So like I said, there are some differences here with that previous work that I wanted to highlight.",
+                    "label": 1
+                },
+                {
+                    "sent": "Our system has high coupling with the underlying store in that on every request it has to validate the cash with the underlying cripple store the Martin work because they actively manage the cash, is able to return cash results without touching the underlying triplestore.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so that's just, you know, a difference in in design.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here.",
+                    "label": 0
+                },
+                {
+                    "sent": "the Martin work also has a nice feature of being portable in that they can use an office, the Shelf Triple Store without modifying the code so they could use commercial databases, anything they want.",
+                    "label": 0
+                },
+                {
+                    "sent": "With our approach we have to change the underlying data structures, but we get from that some nice features here.",
+                    "label": 0
+                },
+                {
+                    "sent": "In terms of decentralization, we can use caches at any level.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like I said, anywhere from sitting right next to the database all the way to the browser cache and anywhere in between, and you can have multiple caches that are old, making use of the same underlying data store our systems lightweight for the cash management in that high update rates don't noticeably impact for performance, and this is in contrast to that actively managed cash in the modern work where you can see slowdowns if there is too high and update rate.",
+                    "label": 1
+                },
+                {
+                    "sent": "And our system is also lightweight in query performance like I just showed in that support on the server side.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even when clients aren't using it doesn't have a noticeable impact on that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Formance so in summary, here are relatively minor change in the underlying data structures used to index the data can enable this high level HTTP caching and the fine grained nature can allow you to cash.",
+                    "label": 0
+                },
+                {
+                    "sent": "Data, even when the database is being updated frequently, so long as that data isn't affecting your query results and on nonuniform workloads, we see some significant performance improvements based on this caching.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in terms of future work, we would like to perform a larger and more thorough evaluation on this considering bandwidth and latency is important here.",
+                    "label": 1
+                },
+                {
+                    "sent": "Our system didn't evaluate this, which I think captures the reverse proxy situation, but not say a cache in the browser, but also looking at more accurate query distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "We followed the Martin work and using that Pareto distribution, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "The DB pedia query logs things like that might be an interesting way to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually.",
+                    "label": 1
+                },
+                {
+                    "sent": "The real world distributions of queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're also interested in seeing if maintaining these sometimes in the index would continue to be efficient if we're using different entailment regimes, for example, and how that would affect the overall performance of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, we'd love to see this integrated into more commonly used sparkle systems, and this isn't so much of a technical challenge.",
+                    "label": 0
+                },
+                {
+                    "sent": "I suppose it is a technical, but the big problem we saw with this was that it requires punching through a lot of layers of abstraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, this requires changes in the code from the sparkle endpoint layer all the way down to the data structure used to index the RDF, and so it's a fairly big change at a lot of different levels of the code, but we think there's a lot of reward to to be seen if we can get past that so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "With that, I'll take any questions you have, thank you.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

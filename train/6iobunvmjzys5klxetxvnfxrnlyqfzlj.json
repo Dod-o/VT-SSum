@@ -1,0 +1,1195 @@
+{
+    "id": "6iobunvmjzys5klxetxvnfxrnlyqfzlj",
+    "title": "Gaussian Processes and Fast Matrix-Vector Multiplies",
+    "info": {
+        "author": [
+            "Iain Murray, School of Informatics, University of Edinburgh"
+        ],
+        "published": "Aug. 26, 2009",
+        "recorded": "June 2009",
+        "category": [
+            "Top->Computer Science->Machine Learning->Gaussian Processes"
+        ]
+    },
+    "url": "http://videolectures.net/icml09_murray_gpf/",
+    "segmentation": [
+        [
+            "OK thanks.",
+            "I was saying to materials that this is sort of a bit of a on the fringes of what I'm interested in, but I got involved with all of these guys's list of sort of Gaussian process experts who have done quite a bit of research into approximate Gaussian process method.",
+            "So a lot of these guys are spending their time thinking about modeling and writing down approximate models to do fast computations with GPS and I had conversations with them saying hang on in our community.",
+            "There all these people who were saying this is the numerical mathematics problem.",
+            "You could just sort of use all of these great techniques from other literatures to not approximate the GP, but do computations with the original thing.",
+            "We should compare that.",
+            "So this is like me, hanging out The Dirty washing of the horrendous experience I had trying to do fast Gaussian processes, and the problems that you get, so I don't want to spend long on the Gaussian process overview because we're in a machine learning meeting and most of you know it, but we're doing nonparametric Bayesian regression so."
+        ],
+        [
+            "We have a model that has a prior of a functions.",
+            "You draw a random function from this model.",
+            "Then you have a noise model and so the day to observe will be noisy realizations of that function at some set of inputs and the distribution over everything is Gaussian and then."
+        ],
+        [
+            "The Bayesian inference pictorially proceeds where, once you've observed the black, crosses the data.",
+            "You can then construct a distribution over what you think the underlying function was, and that could be a full correlated distribution, and that's that.",
+            "Showing three samples from that distribution.",
+            "Or you could just report the marginal means and variances, which is just a compact summary of some of the information in that distribution.",
+            "Say."
+        ],
+        [
+            "What's really nice about this framework is that all of the core computations are just standard dent linear algebra operations, so is really easy to implement.",
+            "A lot of the time I'm doing very intractable basic modeling and having to do MCMC and spending a long time constructing very complicated algorithms to do inference here.",
+            "You just write it all down and a few lines of Matlab and you get your answers.",
+            "If the problem is sufficiently small.",
+            "It's tempting to sort of just.",
+            "Really dive into linear algebra and get excited about the fact that we recognize a load of these expressions.",
+            "But if you're going to do Gaussian process regression, you can't forget that you're doing modeling and sort of ask."
+        ],
+        [
+            "The model makes any sense, so in particular, when you construct a kernel that sort of describes what this prior Gaussian distribution over functions looks like that will have hyperparameters, and you need to think about and learn those hyperparameters.",
+            "So, for example, here's an inference where the hyperparameter setting is equal to the true hyperparameter that my toy data set was generated from.",
+            "If you set the hyperparameter really short, then your belief is that you've got really wiggly functions, and so then you'll make really silly predictions because.",
+            "In between two points, you believe that the function will be wiggling all over the place, and so you can't make confident predictions, so you have very large error bars, and that that black curve might look like a silly prediction, but that's not a prediction of what we think the function actually looks like.",
+            "Remember that's just the average over many different wiggly functions that we think could be there.",
+            "So Fortunately inferring hyperparameters is something that you can also do with standard dense linear algebra operations, and say for small problems we can learn hyper parameters, and we should be interested in how to scale up.",
+            "This problem as well a lot of papers concentrate just on all the operations on this slide.",
+            "But this is just as important.",
+            "If we're serious about using Gaussian processes."
+        ],
+        [
+            "OK, so obviously these matrix operations scale poorly if we have a large data set.",
+            "As computer scientists we usually just say Oh well.",
+            "What's the biggest big otermin will lay the blame there.",
+            "So you read papers and they will say Gaussian processes scale poorly because their order N cubed and then cube because we have to solve linear systems which are in cubed and workout that determinants are logged operations which are in cubed.",
+            "It's interesting when I profile my code that's not actually always true so.",
+            "Sometimes the biggest thing is just constructing the N squared covariance elements, because the constants can be surprisingly large compared to the very efficient Cholesky solvers we have and the fact that you just plain run out of memory can be the problem that actually hits you first.",
+            "If you've got a cluster in your prepared to wait if you run out of RAM, then you're stuffed.",
+            "So we want to deal with both of those issues, and we don't want to just concentrate on linear system solving.",
+            "OK."
+        ],
+        [
+            "St.",
+            "In some ways, this problem is really embarrassing because.",
+            "These costs is and keep costs are there, even if the regression problem that we're solving is really easy.",
+            "So here's a toy data set, 20,000 data points, and it's 1 dimensional.",
+            "It's a trivial regression problem.",
+            "If I asked you to make a prediction over what point would be at this new X input, you could just eyeball it and say, well, it's going to be here with some spread and uncertainty, and you can see the answer immediately is unlikely in your brain that you used gigabytes of RAM and did like 10 trillion floating point operations to say, oh, it's probably going to be out there.",
+            "Say.",
+            "If we're doing the full Gaussian process thing, we know we're doing something wrong.",
+            "And there must be some simple way around this and you can.",
+            "You can immediately come up with some very simple things that you could do to solve this problem, and I think it's always worth asking what's the simplest thing you can do before you go away and do something very complicated."
+        ],
+        [
+            "So the similar thing you can do is just throw some of the data away, because we probably don't need all of those 20,000 points.",
+            "And in Carlin Chris is Gaussian process book, this was grandiosely called the subset of data approximation and they gave it an initialism, and you know, put it in all their tables.",
+            "And when I first saw this I thought it was ridiculous that they were attaching a label to this trivial idea of just not reading in the whole table into your algorithm.",
+            "But The thing is, when in their chapter comparing gas increases approximations.",
+            "This is actually a very competitive.",
+            "Gaussian process method.",
+            "So you should always consider comparing against straying away from your data and making the predictions 'cause it's very stable and very robust if you're doing the full correct inference on some data then you're never going to do anything totally crazy.",
+            "You might just be less certain than if you had more information.",
+            "OK, and then another simple thing we might do."
+        ],
+        [
+            "Is say.",
+            "If we want to make a prediction in just one local location, then pass, we don't need all of that other data, so the idea of local regression, sort of frequentist regression thing is that you put a kernel down around where you're going to make a test set prediction, and then you wait the data set and then do some very simple regression method on that weighted data set.",
+            "So for example, if you had a kernel, it goes down to zero, you can just toss out a load of data that you don't think it's going to be so useful, and that sort of.",
+            "Another simple alternative we should consider and the other reason we need to consider this, is that this is sort of in some ways older and more studied in our community, so."
+        ],
+        [
+            "People are scaled this up to multiple dimensions by putting all of your data into multiresolution tree, like a KD tree, and then they can do fancier versions of this local regression where they can do recursions on this tree and just say here's a box of points that were going to prune out all at once and give 0 weight and efficiently toss them out so local regression with KD trees has.",
+            "Been around for quite awhile and can do very efficient regression on large datasets, but it's not the same as Gaussian process regression, even though it's a kernel method of some sort."
+        ],
+        [
+            "OK, so.",
+            "Have quickly run through Gaussian process regression and the scaling problems and said that these simple alternatives.",
+            "So what I'm going to do now is say if we actually want to do the get the same answer as doing the full GP, how would we do that and is that going to be a better idea than that's just giving up on it and falling back to one of these simpler, simpler alternatives?"
+        ],
+        [
+            "Say.",
+            "I'm not an expert and numerical methods, and perhaps some of you guys can berate me afterwards for sort of what?",
+            "What the obvious thing to do is, but say for example, we wanted to solve one of the linear systems that you need to solve in order to make GP mean predictions.",
+            "There are a whole set of iterative algorithms that you consider to solve linear systems, and there are papers in our community where they will just pick one of them with no real justification of picking it over another one, and they will.",
+            "They'll just try that so.",
+            "Over 10 years ago there was Mark Gibbs had a thesis describing how to do all Gaussian process approximations using variants of conjugate gradients at email a couple of years ago there was a different iterative scheme for doing.",
+            "Regularize least squares and it was sort of equivalent to some sort of Gaussian process.",
+            "So I don't really know which of these methods to pick, but what I do know is that within a lot of them the dominant cost is a matrix vector multiplies, so you have a big matrix containing a load of kernel valuations have to multiply that by some arbitrary vector within the algorithm, and you do that many, many times, and that's sort of the main cost of each iteration.",
+            "So that's sort of a kernel operation that we need to be able to do well if we're going to use any of these algorithms, so why don't I know which one to use?",
+            "So I'll just give you."
+        ],
+        [
+            "One example of my experience with them.",
+            "This is a a. I've cut this out of this HTML paper that was a couple of years ago and it was comparing the convergence of conjugate gradients to the method that they were championing in this particular paper and it was on a regression problem.",
+            "So they plotted progress up to iteration 50.",
+            "A lot of the code that I've got when people have sent me their fast guessing process methods has hard coded in that they're just going to run for 20 iterations or something.",
+            "And the Y axis is the sort of residual of the linear system, so it's some measure of progress in the linear solver.",
+            "So the blue is conjugate gradients and the black is there method in the thing?",
+            "Well, our method converges much faster and contradict gradients.",
+            "You should use that.",
+            "So I was really excited by this and I went to encode it up.",
+            "And here's the same plot, but I plotted the Y axis on a log scale and I ran the X axis for a bit longer, so."
+        ],
+        [
+            "Is me trying to solve for the gasoline prices mean in a 21 dimensional regression problem, so the blue and magenta are different variants of conjugate gradients?",
+            "I didn't know what I was doing, so I tried a couple of things on the green and red lines.",
+            "Are this method they championed.",
+            "So if you're only doing 10s of iterations then it does much better and they proved Atom tatic convergence rates for it so that you had some theoretical results, but sort of looking at the plot the automatic convergence rates aren't necessarily what you're interested in, because asymptotically it looks as a country.",
+            "Gradients converges much, much faster, so the key question is do you care about stopping before here or not?",
+            "Say the residual isn't what conjugate gradients is optimizing.",
+            "Its the gradients that you get.",
+            "In kind of gradient, so that is not guaranteed to go down monotonically.",
+            "Yeah, so if I plotted the conjugate gradient cost function instead, it would go down.",
+            "So in some ways I'm being unfair to kind of gradients 'cause I'm plotting something that the other function.",
+            "The other method cares about, but this is perhaps more related to generalization error, so you could ask whether this is a sensible cost function."
+        ],
+        [
+            "And say what I did then with plot generalization error instead.",
+            "So on the left is the same plot but it's test set error and on the right I've zoomed into sort of the final stages of the optimization.",
+            "So what they're doing is that and taking down to this black line, which is what you would get by just doing the full dense matrix operations.",
+            "And.",
+            "Say they both actually sort of kick into the exact numerical answer to a tolerance I would care about at around the same time.",
+            "Bet you could, but they don't do that for a very long time and you consider perhaps terminating earlier for some sort of tradeoff of accuracy, 'cause it turns out that it's just not worth doing for a problem that's only got 16,000 data points.",
+            "It's not really worth doing this, so unless you're going to stop before it completely converges, so what's when's a reasonable time to stop this dotted line gives the test set error.",
+            "If I just tossed out half of the data.",
+            "And the dotted line above.",
+            "That is, if I tossed out all but a quarter of the data, so they sort of give you some idea of what reasonable test that errors are.",
+            "So for example, if I just construct the kernel matrix for the 16 by 1000 by 60,000 kernel matrix, doing that takes half the time of solving the whole thing for the dotted line.",
+            "So there's not gonna be any great game changing improvement unless you come significantly below the dotted line.",
+            "So for this problem, without doing any fast matrix vector multiplies, I'm not getting a great advantage for this iterative method, but it's not obvious and let's you do the right control experiment comparing to tossing out data or comparing to some simple benchmarks.",
+            "So you've got an idea of like what these errors actually mean for the application."
+        ],
+        [
+            "OK, so that's what I've done so far.",
+            "I really struggle with these iterative methods and I'd love to talk with some of you guys about really how you go about running them and getting them to work robustly.",
+            "Because I had a lot of difficulty getting them not to explode and to know when to terminate them and to know whether it was worth running them at all.",
+            "But the strong conclusion I did get was that for this problem.",
+            "Even perhaps with some preconditioning, it wasn't worth doing these things for regular regression problems, unless you could come up with some way of doing fast matrix vector multiplies within the iterations.",
+            "And preferably not having to compute these whole N squared matrices either.",
+            "Say then you look at the literature on how to do just that operation and make sure that you can actually do that well without the added complication of this iterative method, which I think is definitely an open problem.",
+            "It's an open problem telling us how to do it, even if it's a solved problem elsewhere.",
+            "OK, so."
+        ],
+        [
+            "When conjugate gradients was initially introduced, it was a method for solving sparse systems in the matrix, vector multiplies were cheap because the matrices were sparse.",
+            "It in gas and process regression, at least a sort of standard boring regression problems where you have some sort of slight nonlinearity in a monotonic function.",
+            "The kernel matrix isn't going to be sparse, so we often see this Gaussian kernel and think, well, it has very light tails it slightly to be sparse, but that's only if the kernels are really narrow and Gaussian process regression as opposed to local regression.",
+            "You're going to have actually broad kernels that are sort of can parable to the width of the data set and that sort of basically related to the properties of the model.",
+            "If you believe that you're going to have some sort of.",
+            "Gentle nonlinearity without wild oscillations, which is very typical, and that saying that the length scale is sort of a similar width of the data set.",
+            "It's also sort of related to marginal independence.",
+            "If you didn't have a lot of data around here, that will be useful for local regression.",
+            "You believe that you could make a prediction here based on these points, and that wouldn't be true if you had a very short length skill.",
+            "Say when you do experiments with matrix multiplies, you have to make sure that you're doing it in a sensible regime, and unfortunately not as fast regime.",
+            "There are other methods though for trying to get fast matrix vector multiplies that don't rely on sparsity exactly."
+        ],
+        [
+            "So you can go back and see what they did in the local regression paper and so they they put the data into a KD tree and they were then sort of approximating using kernel to within some numerical tolerance.",
+            "So we're not going to be able to find actual zero values, but we still might be able to Nick bits out of their algorithm, and there was a paper in NIPS proposing doing just that.",
+            "So the idea behind the approximation is that if you have a lot of data, then some of the points are going to be very close to each other.",
+            "So if you have two.",
+            "Training points which are very near to each other in your evaluating a kernel with both of them.",
+            "So I gotta test location in two training points, then the kernel valuation between here and here and here and here are going to be very similar.",
+            "So crude approximation is just to say those are actually the same and lump them together so you lump loaded data points together in a KD tree node, and you say within there all of the kernel values of the same.",
+            "So you just rewrite a sum of kernel values with some weights as a sum over clusters, surrogate kennel value for that cluster, and the sum of the weights within the cluster.",
+            "And that's something that by doing some sort of recursion on a KD tree, might be able to do that efficiently.",
+            "And there's a bunch of papers on how to do that.",
+            "So I implemented a few of these and I couldn't get any of them to work, and I thought that maybe I was doing it wrong."
+        ],
+        [
+            "So then I found some other Peoples KD tree cave and I got exactly the same results so.",
+            "Here's a typical example of what would happen.",
+            "This was on synthetic data actually drawn from a GP, but it happened on real datasets too.",
+            "You learn the length scale, so you look at performance as a function of length scale and the error dip sharply at a particular length scale.",
+            "Here one an and then you look at how long it takes to do the Gaussian process inference or in fact just a single matrix vector multiply using the kernel.",
+            "So if you do that, if you use the dense matrix operations in Matlab then it's going to be roughly constant although.",
+            "Even in standard libraries, things can think and grab it with.",
+            "If you use the KD tree then for really short length scales which are typical in kernel density estimation, where these methods have really been championed and a really successful, then it's super fast.",
+            "But these length scales the method behave so poorly that you should probably just drain out some data and done the full thing on a smaller data set and then at the best length scale the method is maximally bad.",
+            "It's almost as if it's sort of a conspiracy to make it working.",
+            "Exceedingly poorly and.",
+            "It's also far, far worse than just doing the naive computations.",
+            "And there's a large literature on these KD tree methods, so you might think.",
+            "Maybe this particular implementation 'cause I love made choices of how to build this tree and exactly what sort of occasions to do on it.",
+            "Maybe if I'd done that differently it would have worked.",
+            "Say the thing to do is not to spend ages like playing around with all of the methods that are out there in the literature, but just ask is this basic approximation actually a good thing to do for Gaussian processes, which hasn't been done in any of the papers that have actually proposed doing this?"
+        ],
+        [
+            "So it turns out that you just can't merge points in this crude way in gas impresses regression, at least not if you've got a very simple regression problem and you worry about a method that falls over on a simple regression problem because.",
+            "How do you know if it doesn't even work in a simple problem, then is it a good idea to apply it to complex ones?",
+            "So here we've got a 1D regression point problem with the points in Gray and the red line shows the mean of a Gaussian process predictor using all of the data and the blue line, which is almost on top of it shows what would happen if you just threw away half of the data.",
+            "Save this far more data here than you need.",
+            "You could throw away a ton of it and still get much the same answers.",
+            "What you what you could do instead is merge adjacent points together, merge all of the kernel valuations together for adjacent points, and say, well, these points are so close together in on the X axis that any Kendall valuation is basically going to be the same between 2 the next to each other.",
+            "So I paired them up and merge those kernel values, so that's like the minimal thing the KD tree would have to do in order to give you a speed up.",
+            "If you can't even manage pairs, then you're not going to be able to manage lots of points to get a big speedup.",
+            "And if you do that approximation then you get you can't see it very well, but there's this black line which is nowhere near the correct meaning.",
+            "It's far, far worse than just tossing out half the data, which is actually cheaper thing to do.",
+            "So in the simplest possible situation, the minimal merging of kernels doesn't work.",
+            "It's a numerical disaster, so there's really no point for this sort of problem.",
+            "Then spending a long time trying to build clever data structures and recursions to do these operations.",
+            "Yeah, so in the NIPS paper, which in the NIPS paper that proposed this they said you could solve for the alphas using the approximation.",
+            "Then you'd consistently be using the same approximation for predictions and training, and maybe any errors would cancel each other out.",
+            "That's what I tried doing 1st and I never got it to work, and so it seemed to be simpler just to look at one operation and try.",
+            "It will be active.",
+            "Try and make that accurate 'cause there are no guarantees that that intuition would actually follow through.",
+            "And I did try it, but I just couldn't get it to work."
+        ],
+        [
+            "OK, say is it 5 minutes?",
+            "OK, and I'll finish a bit.",
+            "I'm nearly done so.",
+            "There are, there are better approximations out there than just matching, so there are these things called the fast gas transform and the improved fast transform that do clever expansions of the kernel to try and sort of.",
+            "So they make it so that you don't have to evaluate N squared covariances, but do a slightly more sophisticated approximation than matching.",
+            "So this is just an advert of the results rather than explaining how these methods work.",
+            "On a simple problem, you can actually get a speedup at the relevant link skill, so you can get a modest speedup which is worth having.",
+            "And these methods don't work at all in high dimensional problems.",
+            "So if I applied this to a 21 dimensional regression problem in robotics, the code just crashes in the code.",
+            "Also crashes on short length scale.",
+            "So it's a pain if you have code that crashes.",
+            "So if anyone goes away and implements a library for practitioners to use, you should make it detect when it's going to crash and then do the native thing, or preferably detect when it's going to be slower than they.",
+            "Even then do the native thing.",
+            "None of these libraries actually do that in our community at least.",
+            "Yeah, you can tell.",
+            "I'm frustrated with this."
+        ],
+        [
+            "OK I had.",
+            "If I had another half hour, would probably talk about.",
+            "How you should spend time, sort of.",
+            "Probably putting more effort into doing the Gaussian process modeling before you do a lot of this numerical stuff anyway, because if you have an awful lot of data that will usually embarrass a simplistic probabilistic model.",
+            "So if you have weird artifacts in the data set, there were some of this sort of mention earlier, then you can end up getting very silly results, and that's another reason why tossing out data can be good so that you're not overly confident.",
+            "Say it's just some dog."
+        ],
+        [
+            "And is the site name OK?",
+            "So I think I've given you a flavor for the sort of frustrations that I've had in sort of attempting to go the numerical mathematics through in my probabilistic modeling work, and I'm hoping that I'll get some useful feedback in the break, thanks."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK thanks.",
+                    "label": 0
+                },
+                {
+                    "sent": "I was saying to materials that this is sort of a bit of a on the fringes of what I'm interested in, but I got involved with all of these guys's list of sort of Gaussian process experts who have done quite a bit of research into approximate Gaussian process method.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a lot of these guys are spending their time thinking about modeling and writing down approximate models to do fast computations with GPS and I had conversations with them saying hang on in our community.",
+                    "label": 0
+                },
+                {
+                    "sent": "There all these people who were saying this is the numerical mathematics problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could just sort of use all of these great techniques from other literatures to not approximate the GP, but do computations with the original thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We should compare that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is like me, hanging out The Dirty washing of the horrendous experience I had trying to do fast Gaussian processes, and the problems that you get, so I don't want to spend long on the Gaussian process overview because we're in a machine learning meeting and most of you know it, but we're doing nonparametric Bayesian regression so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We have a model that has a prior of a functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "You draw a random function from this model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you have a noise model and so the day to observe will be noisy realizations of that function at some set of inputs and the distribution over everything is Gaussian and then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The Bayesian inference pictorially proceeds where, once you've observed the black, crosses the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can then construct a distribution over what you think the underlying function was, and that could be a full correlated distribution, and that's that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Showing three samples from that distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or you could just report the marginal means and variances, which is just a compact summary of some of the information in that distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What's really nice about this framework is that all of the core computations are just standard dent linear algebra operations, so is really easy to implement.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of the time I'm doing very intractable basic modeling and having to do MCMC and spending a long time constructing very complicated algorithms to do inference here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just write it all down and a few lines of Matlab and you get your answers.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the problem is sufficiently small.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's tempting to sort of just.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really dive into linear algebra and get excited about the fact that we recognize a load of these expressions.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you're going to do Gaussian process regression, you can't forget that you're doing modeling and sort of ask.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The model makes any sense, so in particular, when you construct a kernel that sort of describes what this prior Gaussian distribution over functions looks like that will have hyperparameters, and you need to think about and learn those hyperparameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, here's an inference where the hyperparameter setting is equal to the true hyperparameter that my toy data set was generated from.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you set the hyperparameter really short, then your belief is that you've got really wiggly functions, and so then you'll make really silly predictions because.",
+                    "label": 0
+                },
+                {
+                    "sent": "In between two points, you believe that the function will be wiggling all over the place, and so you can't make confident predictions, so you have very large error bars, and that that black curve might look like a silly prediction, but that's not a prediction of what we think the function actually looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Remember that's just the average over many different wiggly functions that we think could be there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Fortunately inferring hyperparameters is something that you can also do with standard dense linear algebra operations, and say for small problems we can learn hyper parameters, and we should be interested in how to scale up.",
+                    "label": 0
+                },
+                {
+                    "sent": "This problem as well a lot of papers concentrate just on all the operations on this slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is just as important.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we're serious about using Gaussian processes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so obviously these matrix operations scale poorly if we have a large data set.",
+                    "label": 1
+                },
+                {
+                    "sent": "As computer scientists we usually just say Oh well.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the biggest big otermin will lay the blame there.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you read papers and they will say Gaussian processes scale poorly because their order N cubed and then cube because we have to solve linear systems which are in cubed and workout that determinants are logged operations which are in cubed.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's interesting when I profile my code that's not actually always true so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes the biggest thing is just constructing the N squared covariance elements, because the constants can be surprisingly large compared to the very efficient Cholesky solvers we have and the fact that you just plain run out of memory can be the problem that actually hits you first.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you've got a cluster in your prepared to wait if you run out of RAM, then you're stuffed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we want to deal with both of those issues, and we don't want to just concentrate on linear system solving.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "St.",
+                    "label": 0
+                },
+                {
+                    "sent": "In some ways, this problem is really embarrassing because.",
+                    "label": 0
+                },
+                {
+                    "sent": "These costs is and keep costs are there, even if the regression problem that we're solving is really easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a toy data set, 20,000 data points, and it's 1 dimensional.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a trivial regression problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I asked you to make a prediction over what point would be at this new X input, you could just eyeball it and say, well, it's going to be here with some spread and uncertainty, and you can see the answer immediately is unlikely in your brain that you used gigabytes of RAM and did like 10 trillion floating point operations to say, oh, it's probably going to be out there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we're doing the full Gaussian process thing, we know we're doing something wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there must be some simple way around this and you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can immediately come up with some very simple things that you could do to solve this problem, and I think it's always worth asking what's the simplest thing you can do before you go away and do something very complicated.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the similar thing you can do is just throw some of the data away, because we probably don't need all of those 20,000 points.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in Carlin Chris is Gaussian process book, this was grandiosely called the subset of data approximation and they gave it an initialism, and you know, put it in all their tables.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when I first saw this I thought it was ridiculous that they were attaching a label to this trivial idea of just not reading in the whole table into your algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "But The thing is, when in their chapter comparing gas increases approximations.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually a very competitive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gaussian process method.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you should always consider comparing against straying away from your data and making the predictions 'cause it's very stable and very robust if you're doing the full correct inference on some data then you're never going to do anything totally crazy.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might just be less certain than if you had more information.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and then another simple thing we might do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is say.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want to make a prediction in just one local location, then pass, we don't need all of that other data, so the idea of local regression, sort of frequentist regression thing is that you put a kernel down around where you're going to make a test set prediction, and then you wait the data set and then do some very simple regression method on that weighted data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if you had a kernel, it goes down to zero, you can just toss out a load of data that you don't think it's going to be so useful, and that sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another simple alternative we should consider and the other reason we need to consider this, is that this is sort of in some ways older and more studied in our community, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "People are scaled this up to multiple dimensions by putting all of your data into multiresolution tree, like a KD tree, and then they can do fancier versions of this local regression where they can do recursions on this tree and just say here's a box of points that were going to prune out all at once and give 0 weight and efficiently toss them out so local regression with KD trees has.",
+                    "label": 0
+                },
+                {
+                    "sent": "Been around for quite awhile and can do very efficient regression on large datasets, but it's not the same as Gaussian process regression, even though it's a kernel method of some sort.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Have quickly run through Gaussian process regression and the scaling problems and said that these simple alternatives.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what I'm going to do now is say if we actually want to do the get the same answer as doing the full GP, how would we do that and is that going to be a better idea than that's just giving up on it and falling back to one of these simpler, simpler alternatives?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Say.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not an expert and numerical methods, and perhaps some of you guys can berate me afterwards for sort of what?",
+                    "label": 0
+                },
+                {
+                    "sent": "What the obvious thing to do is, but say for example, we wanted to solve one of the linear systems that you need to solve in order to make GP mean predictions.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are a whole set of iterative algorithms that you consider to solve linear systems, and there are papers in our community where they will just pick one of them with no real justification of picking it over another one, and they will.",
+                    "label": 0
+                },
+                {
+                    "sent": "They'll just try that so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Over 10 years ago there was Mark Gibbs had a thesis describing how to do all Gaussian process approximations using variants of conjugate gradients at email a couple of years ago there was a different iterative scheme for doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Regularize least squares and it was sort of equivalent to some sort of Gaussian process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I don't really know which of these methods to pick, but what I do know is that within a lot of them the dominant cost is a matrix vector multiplies, so you have a big matrix containing a load of kernel valuations have to multiply that by some arbitrary vector within the algorithm, and you do that many, many times, and that's sort of the main cost of each iteration.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's sort of a kernel operation that we need to be able to do well if we're going to use any of these algorithms, so why don't I know which one to use?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll just give you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "One example of my experience with them.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a a. I've cut this out of this HTML paper that was a couple of years ago and it was comparing the convergence of conjugate gradients to the method that they were championing in this particular paper and it was on a regression problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they plotted progress up to iteration 50.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of the code that I've got when people have sent me their fast guessing process methods has hard coded in that they're just going to run for 20 iterations or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the Y axis is the sort of residual of the linear system, so it's some measure of progress in the linear solver.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the blue is conjugate gradients and the black is there method in the thing?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, our method converges much faster and contradict gradients.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should use that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I was really excited by this and I went to encode it up.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here's the same plot, but I plotted the Y axis on a log scale and I ran the X axis for a bit longer, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is me trying to solve for the gasoline prices mean in a 21 dimensional regression problem, so the blue and magenta are different variants of conjugate gradients?",
+                    "label": 0
+                },
+                {
+                    "sent": "I didn't know what I was doing, so I tried a couple of things on the green and red lines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are this method they championed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you're only doing 10s of iterations then it does much better and they proved Atom tatic convergence rates for it so that you had some theoretical results, but sort of looking at the plot the automatic convergence rates aren't necessarily what you're interested in, because asymptotically it looks as a country.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gradients converges much, much faster, so the key question is do you care about stopping before here or not?",
+                    "label": 0
+                },
+                {
+                    "sent": "Say the residual isn't what conjugate gradients is optimizing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Its the gradients that you get.",
+                    "label": 0
+                },
+                {
+                    "sent": "In kind of gradient, so that is not guaranteed to go down monotonically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so if I plotted the conjugate gradient cost function instead, it would go down.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in some ways I'm being unfair to kind of gradients 'cause I'm plotting something that the other function.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other method cares about, but this is perhaps more related to generalization error, so you could ask whether this is a sensible cost function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And say what I did then with plot generalization error instead.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on the left is the same plot but it's test set error and on the right I've zoomed into sort of the final stages of the optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what they're doing is that and taking down to this black line, which is what you would get by just doing the full dense matrix operations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say they both actually sort of kick into the exact numerical answer to a tolerance I would care about at around the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bet you could, but they don't do that for a very long time and you consider perhaps terminating earlier for some sort of tradeoff of accuracy, 'cause it turns out that it's just not worth doing for a problem that's only got 16,000 data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not really worth doing this, so unless you're going to stop before it completely converges, so what's when's a reasonable time to stop this dotted line gives the test set error.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I just tossed out half of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the dotted line above.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, if I tossed out all but a quarter of the data, so they sort of give you some idea of what reasonable test that errors are.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if I just construct the kernel matrix for the 16 by 1000 by 60,000 kernel matrix, doing that takes half the time of solving the whole thing for the dotted line.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's not gonna be any great game changing improvement unless you come significantly below the dotted line.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for this problem, without doing any fast matrix vector multiplies, I'm not getting a great advantage for this iterative method, but it's not obvious and let's you do the right control experiment comparing to tossing out data or comparing to some simple benchmarks.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you've got an idea of like what these errors actually mean for the application.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so that's what I've done so far.",
+                    "label": 1
+                },
+                {
+                    "sent": "I really struggle with these iterative methods and I'd love to talk with some of you guys about really how you go about running them and getting them to work robustly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because I had a lot of difficulty getting them not to explode and to know when to terminate them and to know whether it was worth running them at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the strong conclusion I did get was that for this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even perhaps with some preconditioning, it wasn't worth doing these things for regular regression problems, unless you could come up with some way of doing fast matrix vector multiplies within the iterations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And preferably not having to compute these whole N squared matrices either.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say then you look at the literature on how to do just that operation and make sure that you can actually do that well without the added complication of this iterative method, which I think is definitely an open problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an open problem telling us how to do it, even if it's a solved problem elsewhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "When conjugate gradients was initially introduced, it was a method for solving sparse systems in the matrix, vector multiplies were cheap because the matrices were sparse.",
+                    "label": 1
+                },
+                {
+                    "sent": "It in gas and process regression, at least a sort of standard boring regression problems where you have some sort of slight nonlinearity in a monotonic function.",
+                    "label": 0
+                },
+                {
+                    "sent": "The kernel matrix isn't going to be sparse, so we often see this Gaussian kernel and think, well, it has very light tails it slightly to be sparse, but that's only if the kernels are really narrow and Gaussian process regression as opposed to local regression.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're going to have actually broad kernels that are sort of can parable to the width of the data set and that sort of basically related to the properties of the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you believe that you're going to have some sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gentle nonlinearity without wild oscillations, which is very typical, and that saying that the length scale is sort of a similar width of the data set.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's also sort of related to marginal independence.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you didn't have a lot of data around here, that will be useful for local regression.",
+                    "label": 0
+                },
+                {
+                    "sent": "You believe that you could make a prediction here based on these points, and that wouldn't be true if you had a very short length skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say when you do experiments with matrix multiplies, you have to make sure that you're doing it in a sensible regime, and unfortunately not as fast regime.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are other methods though for trying to get fast matrix vector multiplies that don't rely on sparsity exactly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So you can go back and see what they did in the local regression paper and so they they put the data into a KD tree and they were then sort of approximating using kernel to within some numerical tolerance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're not going to be able to find actual zero values, but we still might be able to Nick bits out of their algorithm, and there was a paper in NIPS proposing doing just that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the idea behind the approximation is that if you have a lot of data, then some of the points are going to be very close to each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Training points which are very near to each other in your evaluating a kernel with both of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I gotta test location in two training points, then the kernel valuation between here and here and here and here are going to be very similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "So crude approximation is just to say those are actually the same and lump them together so you lump loaded data points together in a KD tree node, and you say within there all of the kernel values of the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you just rewrite a sum of kernel values with some weights as a sum over clusters, surrogate kennel value for that cluster, and the sum of the weights within the cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's something that by doing some sort of recursion on a KD tree, might be able to do that efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's a bunch of papers on how to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I implemented a few of these and I couldn't get any of them to work, and I thought that maybe I was doing it wrong.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So then I found some other Peoples KD tree cave and I got exactly the same results so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's a typical example of what would happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was on synthetic data actually drawn from a GP, but it happened on real datasets too.",
+                    "label": 0
+                },
+                {
+                    "sent": "You learn the length scale, so you look at performance as a function of length scale and the error dip sharply at a particular length scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here one an and then you look at how long it takes to do the Gaussian process inference or in fact just a single matrix vector multiply using the kernel.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you do that, if you use the dense matrix operations in Matlab then it's going to be roughly constant although.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even in standard libraries, things can think and grab it with.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you use the KD tree then for really short length scales which are typical in kernel density estimation, where these methods have really been championed and a really successful, then it's super fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "But these length scales the method behave so poorly that you should probably just drain out some data and done the full thing on a smaller data set and then at the best length scale the method is maximally bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's almost as if it's sort of a conspiracy to make it working.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exceedingly poorly and.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's also far, far worse than just doing the naive computations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's a large literature on these KD tree methods, so you might think.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe this particular implementation 'cause I love made choices of how to build this tree and exactly what sort of occasions to do on it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe if I'd done that differently it would have worked.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say the thing to do is not to spend ages like playing around with all of the methods that are out there in the literature, but just ask is this basic approximation actually a good thing to do for Gaussian processes, which hasn't been done in any of the papers that have actually proposed doing this?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So it turns out that you just can't merge points in this crude way in gas impresses regression, at least not if you've got a very simple regression problem and you worry about a method that falls over on a simple regression problem because.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you know if it doesn't even work in a simple problem, then is it a good idea to apply it to complex ones?",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we've got a 1D regression point problem with the points in Gray and the red line shows the mean of a Gaussian process predictor using all of the data and the blue line, which is almost on top of it shows what would happen if you just threw away half of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Save this far more data here than you need.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could throw away a ton of it and still get much the same answers.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you what you could do instead is merge adjacent points together, merge all of the kernel valuations together for adjacent points, and say, well, these points are so close together in on the X axis that any Kendall valuation is basically going to be the same between 2 the next to each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I paired them up and merge those kernel values, so that's like the minimal thing the KD tree would have to do in order to give you a speed up.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you can't even manage pairs, then you're not going to be able to manage lots of points to get a big speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you do that approximation then you get you can't see it very well, but there's this black line which is nowhere near the correct meaning.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's far, far worse than just tossing out half the data, which is actually cheaper thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the simplest possible situation, the minimal merging of kernels doesn't work.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a numerical disaster, so there's really no point for this sort of problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then spending a long time trying to build clever data structures and recursions to do these operations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so in the NIPS paper, which in the NIPS paper that proposed this they said you could solve for the alphas using the approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you'd consistently be using the same approximation for predictions and training, and maybe any errors would cancel each other out.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what I tried doing 1st and I never got it to work, and so it seemed to be simpler just to look at one operation and try.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will be active.",
+                    "label": 0
+                },
+                {
+                    "sent": "Try and make that accurate 'cause there are no guarantees that that intuition would actually follow through.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I did try it, but I just couldn't get it to work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, say is it 5 minutes?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and I'll finish a bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm nearly done so.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are, there are better approximations out there than just matching, so there are these things called the fast gas transform and the improved fast transform that do clever expansions of the kernel to try and sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they make it so that you don't have to evaluate N squared covariances, but do a slightly more sophisticated approximation than matching.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is just an advert of the results rather than explaining how these methods work.",
+                    "label": 0
+                },
+                {
+                    "sent": "On a simple problem, you can actually get a speedup at the relevant link skill, so you can get a modest speedup which is worth having.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these methods don't work at all in high dimensional problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I applied this to a 21 dimensional regression problem in robotics, the code just crashes in the code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also crashes on short length scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a pain if you have code that crashes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if anyone goes away and implements a library for practitioners to use, you should make it detect when it's going to crash and then do the native thing, or preferably detect when it's going to be slower than they.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even then do the native thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "None of these libraries actually do that in our community at least.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, you can tell.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm frustrated with this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK I had.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I had another half hour, would probably talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "How you should spend time, sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably putting more effort into doing the Gaussian process modeling before you do a lot of this numerical stuff anyway, because if you have an awful lot of data that will usually embarrass a simplistic probabilistic model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have weird artifacts in the data set, there were some of this sort of mention earlier, then you can end up getting very silly results, and that's another reason why tossing out data can be good so that you're not overly confident.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say it's just some dog.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And is the site name OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think I've given you a flavor for the sort of frustrations that I've had in sort of attempting to go the numerical mathematics through in my probabilistic modeling work, and I'm hoping that I'll get some useful feedback in the break, thanks.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

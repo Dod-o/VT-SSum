@@ -1,0 +1,1408 @@
+{
+    "id": "ypkr2x5et7g2wqlmbwjtq7qma45cjrfq",
+    "title": "BulkFS: a Distributed Fault-Tolerant File System for Massive Data Applications",
+    "info": {
+        "author": [
+            "Antti Tuominen, Aalto University"
+        ],
+        "published": "Feb. 25, 2007",
+        "recorded": "July 2006",
+        "category": [
+            "Top->Computers"
+        ]
+    },
+    "url": "http://videolectures.net/iiia06_tuominen_dftfs/",
+    "segmentation": [
+        [
+            "Fairly practical and down to earth and and a yet another implementation very close to the Google FS.",
+            "OK, slightly less.",
+            "Multimedia content, then, really, but I hope we'll manage so.",
+            "Yes, we have been pursuing our.",
+            "Interest in finding stuff from the web and analyzing documents and so on.",
+            "We have faced of course.",
+            "Especially with the statistical approaches we use, we need we always hungry for more CPU, more memory, more disk space.",
+            "And unfortunately of course we are quite limited in our academic world with our financial hardware budgets, so we'll try to make the best out of out of the money we have."
+        ],
+        [
+            "And so I'll first start.",
+            "I'll try to be brief since we're running a little bit late, I think.",
+            "I'll start and say a few words about.",
+            "What kind of environment we have and what we are trying to achieve with it and then some stuff about file system?",
+            "What so what's it designed to do, what it's not designed to do?",
+            "And how it works.",
+            "And finally some no, no lies, no damp lies but benchmarks."
+        ],
+        [
+            "OK, so with the with.",
+            "Quite a little amount of money in our hands.",
+            "We were very interested in building a cluster with cheap hardware.",
+            "Since it seems that it's one way of getting many CPUs, lots of memory, cheap disks.",
+            "And comparing to having sort of quality hardware service rack units and so we would just end up with quite a quite a bit less units.",
+            "So cheap is good when you have little money and want lots of hardware.",
+            "Of course, being cheap means that it's.",
+            "Built by built from the cheapest components usually so expect to have have things broken.",
+            "Since the regular desktop machines aren't even usually designed for.",
+            "Heavy loads 24/7.",
+            "And one problem in our case is that since these are regular machines, we don't have central storage.",
+            "You can always go do that sum up to a point so you can add more disk to machine and and you can add more memory, but sooner or later you'll exhaust the resources of a regular machine anyway."
+        ],
+        [
+            "OK, Ann.",
+            "What is actually?",
+            "I'm talking only all about in the context of this file system, which cause, of course we already have NFS an we have regular local file systems and they're great for what they do.",
+            "And we're not trying to solve, solve solve any issues that are already solved.",
+            "But what we're looking for, since we have a bunch of machines and each each one has has a couple of hard drives and we want to use those drives.",
+            "In a convenient way.",
+            "So that.",
+            "So that first of all, from the application's point of view, we wouldn't need to worry about them being all around on different machines.",
+            "And of course, since they are bound to fail.",
+            "We would like to have some protection against hardware failures.",
+            "Cause you can replace hard drives and you can replace broken broken computers, but you don't want to end up trying to repair heavily damaged file system.",
+            "And what we need is place for large amounts of data, like for example the web documents we have across from the web.",
+            "And because of the small amounts of data, it isn't really a problem.",
+            "So there are already easy ways to handle the small amounts of data.",
+            "We just want the big box of data stored somewhere so that we can use it efficiently.",
+            "And of course speed well one can never get enough speed.",
+            "That's that's for granted and scalability in the sense that.",
+            "That one machine shouldn't be a bottleneck in the system.",
+            "Since after you keep adding more and more computers to the cluster, you already also add more and more CPU's and you want to use those.",
+            "So as you expand the cluster you also expand the need for data as well."
+        ],
+        [
+            "OK, well what we don't need for for this this particular course we don't need direct directory hierarchies.",
+            "Customer if we have a data set, we just want to give it a name and then store it somehow.",
+            "We don't want to go too structured.",
+            "I mean, when you tinker with this stuff, you.",
+            "Tend to end up reinventing a file system anyway.",
+            "If you have lots of work documents, they are very small and you have saved 10s of millions of those, and it's impractical and inefficient to have 10s of millions of small files in a directory.",
+            "On a regular file system, you don't want to go there, so you end up having large files, and you store the documents there.",
+            "Inside a single file.",
+            "So in some sense you are building a file system within a single file anyway, so something simple like that we are doing doing we sort of end up doing anyway and.",
+            "And now just now we need a place for these large files.",
+            "And of course.",
+            "One thing we also don't need is locking in a regular file system with with.",
+            "With with different unknown users using unknown applications, it's a good idea to implement locking on the files, so the so this.",
+            "These unknown interactions can safely access the same files, but we don't.",
+            "First of all, we don't have unknown users, there is just a bunch of us doing things.",
+            "We know what we're running.",
+            "We know how they access the data, so locking isn't an issue for us.",
+            "And another since we have only trusted users is file permissions and all kinds of fancy stuff that is usually.",
+            "Sort of.",
+            "Require to keep a sane file system around.",
+            "Everyone, everyone probably has been there that they're doing something together and the other guy has left.",
+            "And oh, I should access that stuff.",
+            "But no, he didn't.",
+            "Didn't fix the permissions so I'm I can't touch the data.",
+            "So that's basically what we don't need, and it would be just and just an annoyance."
+        ],
+        [
+            "So.",
+            "For the file system, of course, one thing is that we want to keep it as simple as possible.",
+            "Basically also becausw.",
+            "Having it reliably working is easier when you're doing something simple.",
+            "Something simple and for file systems you really don't want to have to repair it all the time.",
+            "And like I said before, avoiding avoiding a bottleneck, we don't know.",
+            "We can't have a single computer doing huge amount of work for everyone else, so all the heavy lifting should be distributed to the nodes in the cluster.",
+            "And and one thing, of course is when when we need to have some sort of bookkeeping metadata.",
+            "To know which is what is taught where and.",
+            "So we want to have it.",
+            "With with with the data in this case, so that all we need are the hard drives, we can take them somewhere else, read what's in there and reconstruct what was taught.",
+            "So that we don't have a central index somewhere of our data, and when it gets corrupt or the hard drive fails, we can't access our data anymore.",
+            "And like locking, locking and other other issues if we can also have other places of doing things if we really want to have locks on files, we can have a regular file system and do locking there.",
+            "We don't need it here.",
+            "So many, many things that can be done outside the file system are done there."
+        ],
+        [
+            "OK, what we have we have.",
+            "The component could IO serve?",
+            "It sits on.",
+            "Actually, multiple copies sit sit on each machine and like the name suggests, it's really stupid.",
+            "It just provides network access to a hard drive.",
+            "One tells it to.",
+            "OK, that's the location on your drive.",
+            "Give me this much data from it or put this much data on the on the given location.",
+            "And here's the data that kind of stuff so.",
+            "That's actually an easy component to be.",
+            "Keep simple and reliable.",
+            "Well, and all the data is stored on what I call her volumes.",
+            "And volume consists of small header in the start and then blocks of data and each block is prefixed with a header saying what what is where this block belongs at and so on.",
+            "So all the needed stuff is stored there so that we can even without any any directory indexes.",
+            "We can read read what's stored there and reconstruct our our data.",
+            "So and this IO surf needs anything you can open, read, seek, like a row.",
+            "Partition is a good good idea.",
+            "And then we have one bookkeeper which is used to keep track of what is taught where and allocate space and that kind of stuff.",
+            "It is running on one computer which actually is sort of front end in our cluster that doesn't do do the actual processing of the data.",
+            "And the bookkeeper only handles meta data and never the actual streams gigabytes that goes through the system.",
+            "Otherwise it would would become a bottleneck.",
+            "And for simplicity.",
+            "It's it's.",
+            "It's a central task, meaning that if that machine goes down everything fails, but for other reasons that a single machine is already a point of failure if it goes down in our cluster.",
+            "So that doesn't worry us too much.",
+            "And then we have a client library.",
+            "We talk to the bookkeeper to find out, find out data, ask for locations where the right stuff.",
+            "And then it talks over the network to the IO serves.",
+            "Audio serves.",
+            "By the bookkeeper to actually do the interactions reading and writing."
+        ],
+        [
+            "OK, so this is what we end up doing.",
+            "We don't.",
+            "We haven't implemented sort of regular postfix file system interface, but this is like actually this is the thing I wrote first when I started doing this.",
+            "This is how I want things to work.",
+            "A directory for us isn't a hierarchical thing, it's more like a namespace.",
+            "It's a string defining and telling me what the data set is.",
+            "And then we have a block name which is actually a number.",
+            "Which tells me which file I'm talking about, event that directory or namespace and our files are all equal in size.",
+            "They are 128 megabytes at this point.",
+            "Which is slightly inconvenient in some sense, but gives us other great benefits.",
+            "And then when writing, we have a redundancy level to protect us from failing hardware.",
+            "So you can specify.",
+            "How on how many different machines you want the same data stored?",
+            "For some, you might want to be consider yourself lucky and store it only on one one place and save some.",
+            "Save some storage and for important stuff you want to spread out further.",
+            "And the reading goes likewise.",
+            "And the application doesn't need to worry about.",
+            "Worry about the fact that they are all over the network and they are on different machines and different hard drives."
+        ],
+        [
+            "And now we come to the light.",
+            "First of all.",
+            "I'll talk a bit about how I benchmarked the system so we have the one.",
+            "One server running the bookkeeper.",
+            "Handling metadata.",
+            "We have five other computers.",
+            "Having two bulk assessed volumes, one is a raw partition on and off an entire disk and the other one is regular 100 gigabyte file under under the Under Eyes are FS normal file system and all machines are connected.",
+            "To each other with a Gigabit network.",
+            "Give some reference reference data points.",
+            "Soon, but which are?",
+            "Measured differently, but all these bulk affairs figures from a stress program I have, which basically takes a data set, writes it all into the file system, and then starts.",
+            "Starts randomly reading and writing.",
+            "It selects file and then with a with a 10% chance overwrites it in three copies or with a 90% chance, reads it from the network.",
+            "At one point also, is that what I realized that?",
+            "The even the network isn't always this.",
+            "Stressed test clients are run on the same machines as are used for storing the data, so we have 5.",
+            "Clients running on five machines, so one operator operation out of five actually doesn't even involve the network since it goes to local disk.",
+            "Just a question are happy with the falls in this stress test.",
+            "You say you're reading and writing blocks or files, yes, happy.",
+            "The entire data set to read and write.",
+            "What would be typical each read and write is 128 megabytes.",
+            "Since that's the file size fixed fixed in our system."
+        ],
+        [
+            "So.",
+            "How how the system performs otherwise?",
+            "Each heart rushing to be able to produce some 60 megabytes of data per second.",
+            "And with with this regular Unix tools using the same block sizes as we used in our file system, we got around 50 megabytes per second for reading.",
+            "And then if we do simulate simulator fact that we're doing it over network, we actually got also the same 50 megabytes.",
+            "Well of course a Gigabit network can handle that amount of speed.",
+            "That amount of data without problems.",
+            "You'll notice that.",
+            "I had to tweak the block size here, but since here the other interface is very fast, it doesn't pose a problem.",
+            "Problem for us, but in this case when you were reading from disk and writing through the network, it seems that this DD tool.",
+            "Wanted to do it this way that it first reads then right then start reading again and it would be a lot slower.",
+            "If I increase decrease the block size.",
+            "I was watching the network traffic with big block sizes and bursts of heavy action and then there was just then there was a delay when it was reading new stuff from the disk.",
+            "That's something to something to aim at."
+        ],
+        [
+            "And here are the lies and with some explanations.",
+            "I also did some benchmarking with NFS.",
+            "Which just.",
+            "I'm not this is not.",
+            "Trying to say that NFS is lousy and.",
+            "And of course, what was done here was really stupid.",
+            "Like Doug said earlier, if you want to have lots of data going through disks you don't want to do seeks.",
+            "What was done here is with a single client.",
+            "In NFS I was just writing a huge file over NFS and reading it and I got it.",
+            "It was pretty good.",
+            "I got fairly nice performance out of it, no complaints.",
+            "I'm not even an expert and tuning NFS.",
+            "I would probably.",
+            "Get even more performance out of it as you saw, NFS was only a single drive on one machine, so you can't expect too much performance out of it as we can see here.",
+            "If we do it five times simultaneously, the performance drops enormously.",
+            "But that's not the fault of the NFS.",
+            "Would you have all probably seen what happens if you have a hard drive and you start heavily concurrent access to it?",
+            "It seeks like 6 like mad and nothing gets done.",
+            "So this is just to demonstrate demonstrate the problem.",
+            "Of having a single drive and concurrent access.",
+            "OK, with one drive we got about the same.",
+            "Amount of data going through as DD Util in Unix.",
+            "These are these figures are from the.",
+            "I tried to be fair.",
+            "These are from the.",
+            "Client point of view or the applications point of view.",
+            "Since there are some rights of writing of data included which is multiplied to different places.",
+            "These are the this it doesn't show the actual.",
+            "Amount of data is some 20% larger that flows through because of the redundancy.",
+            "But it's not shown here.",
+            "And then when we increase the number of clients, we end up losing some speed on a single client, and that's to be expected.",
+            "Since we're doing we have 10 volumes and we're doing random reads and writes with five clients, there are bound to be some collisions where someone has to wait to access a drive.",
+            "We have all these drives accessed sequence sequentially.",
+            "All the accesses are serialized so that we prevent disk trashing from happening.",
+            "So if someone is reading a rating or writing and drive, the others must wait.",
+            "But of course, the aggregate speed gets better here with one client, we get a total of 50 something megabytes per second, and with five clients we get already.",
+            "Something like 160 megabytes total.",
+            "And the same same thing goes on with ten when we increased to 10 clients where you get 200 megabytes per second globally in the cluster.",
+            "I didn't run the NFS benchmarks.",
+            "I felt sorry for the poor hard drive.",
+            "I don't know whether I would have seen a pixel there or not.",
+            "And still increasing to 20 clients.",
+            "The aggregate speed slightly increases, but this seems to be the limit.",
+            "How much the hardware can handle with this setup, and of course with this software.",
+            "20 clients running on 10 machines.",
+            "Oh sorry, five machines.",
+            "So that means that there is 20 actions going on or need for 20 operations simultaneously and only 10 volumes available for that.",
+            "So there is bound to be some waiting waiting around."
+        ],
+        [
+            "OK, finally.",
+            "Of course I wouldn't.",
+            "I wouldn't probably have started doing this unless I once again underestimated heavily the amount of effort needed, so maybe I'm slow.",
+            "Or maybe this workshop was a bit early, but.",
+            "But it's still not quite finished.",
+            "It looks promising, but we haven't really put it to good use yet.",
+            "And since I felt like it turns out that we always want to improve and improve and improve so we don't release the code, it will fix this and repair that and then it's done.",
+            "And then we release the code.",
+            "So I put it out there so the interested ones can take a look at it.",
+            "OK, thank you.",
+            "Time for one question.",
+            "OK.",
+            "Motivation?",
+            "The family gave tours PM at the 20 o'clock taxes, so this seems to be exactly opposite to what would like to do is to just access once locally or doing any kind of process is.",
+            "I mean look at the map, reduce story that we kind of talked about those again and many other things we normally say there's some data over there and I want to work on that.",
+            "There and then never resolved.",
+            "The processing of the data then became rather than having remotely accessing these machines to concurrently to get data.",
+            "These things seem to be necessary.",
+            "Processing yes, that is sort of.",
+            "An entirely opposite approach, yes.",
+            "The way you know I don't understand why it why.",
+            "What's the motivation?",
+            "With what specific kind of application is?",
+            "I won't do this way rather than.",
+            "One thing is that we want to have the machines dedicated to certain tasks.",
+            "I mean for some purposes.",
+            "Things like having.",
+            "Unwanted process is on a machine is very bad for performance since it it keeps doing for only four.",
+            "Caching and context switches, so we would like to like to dedicate computers to tasks and then just spread out the data.",
+            "Instead of keeping certain data somewhere and then trying to use that machine for.",
+            "For processing processing that data since since what what?",
+            "I'm trying to say here is that now we have.",
+            "Machines dedicated to certain tasks.",
+            "And the data for all these talks are distributed distributed.",
+            "And another approach would be to dedicate the data and distributed processing so that it would be local data, but that's one way of doing it, but I'm not sure.",
+            "Would I like to do it that way?",
+            "From the data point of view?",
+            "Of course it would be very ideal.",
+            "So we would wouldn't have to transfer the data back and forth, but I'm not.",
+            "I can't say know offhand whether I would like to do the processing that way.",
+            "OK. Coffee coffee thank you.",
+            "The next speaker hungry theory."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Fairly practical and down to earth and and a yet another implementation very close to the Google FS.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, slightly less.",
+                    "label": 0
+                },
+                {
+                    "sent": "Multimedia content, then, really, but I hope we'll manage so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, we have been pursuing our.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interest in finding stuff from the web and analyzing documents and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have faced of course.",
+                    "label": 0
+                },
+                {
+                    "sent": "Especially with the statistical approaches we use, we need we always hungry for more CPU, more memory, more disk space.",
+                    "label": 0
+                },
+                {
+                    "sent": "And unfortunately of course we are quite limited in our academic world with our financial hardware budgets, so we'll try to make the best out of out of the money we have.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And so I'll first start.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll try to be brief since we're running a little bit late, I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll start and say a few words about.",
+                    "label": 0
+                },
+                {
+                    "sent": "What kind of environment we have and what we are trying to achieve with it and then some stuff about file system?",
+                    "label": 0
+                },
+                {
+                    "sent": "What so what's it designed to do, what it's not designed to do?",
+                    "label": 0
+                },
+                {
+                    "sent": "And how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally some no, no lies, no damp lies but benchmarks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so with the with.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quite a little amount of money in our hands.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were very interested in building a cluster with cheap hardware.",
+                    "label": 1
+                },
+                {
+                    "sent": "Since it seems that it's one way of getting many CPUs, lots of memory, cheap disks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And comparing to having sort of quality hardware service rack units and so we would just end up with quite a quite a bit less units.",
+                    "label": 0
+                },
+                {
+                    "sent": "So cheap is good when you have little money and want lots of hardware.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, being cheap means that it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Built by built from the cheapest components usually so expect to have have things broken.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since the regular desktop machines aren't even usually designed for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Heavy loads 24/7.",
+                    "label": 1
+                },
+                {
+                    "sent": "And one problem in our case is that since these are regular machines, we don't have central storage.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can always go do that sum up to a point so you can add more disk to machine and and you can add more memory, but sooner or later you'll exhaust the resources of a regular machine anyway.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "What is actually?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm talking only all about in the context of this file system, which cause, of course we already have NFS an we have regular local file systems and they're great for what they do.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're not trying to solve, solve solve any issues that are already solved.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what we're looking for, since we have a bunch of machines and each each one has has a couple of hard drives and we want to use those drives.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a convenient way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that first of all, from the application's point of view, we wouldn't need to worry about them being all around on different machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, since they are bound to fail.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would like to have some protection against hardware failures.",
+                    "label": 1
+                },
+                {
+                    "sent": "Cause you can replace hard drives and you can replace broken broken computers, but you don't want to end up trying to repair heavily damaged file system.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we need is place for large amounts of data, like for example the web documents we have across from the web.",
+                    "label": 0
+                },
+                {
+                    "sent": "And because of the small amounts of data, it isn't really a problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "So there are already easy ways to handle the small amounts of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just want the big box of data stored somewhere so that we can use it efficiently.",
+                    "label": 1
+                },
+                {
+                    "sent": "And of course speed well one can never get enough speed.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's for granted and scalability in the sense that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That one machine shouldn't be a bottleneck in the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since after you keep adding more and more computers to the cluster, you already also add more and more CPU's and you want to use those.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as you expand the cluster you also expand the need for data as well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, well what we don't need for for this this particular course we don't need direct directory hierarchies.",
+                    "label": 1
+                },
+                {
+                    "sent": "Customer if we have a data set, we just want to give it a name and then store it somehow.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't want to go too structured.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, when you tinker with this stuff, you.",
+                    "label": 1
+                },
+                {
+                    "sent": "Tend to end up reinventing a file system anyway.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have lots of work documents, they are very small and you have saved 10s of millions of those, and it's impractical and inefficient to have 10s of millions of small files in a directory.",
+                    "label": 0
+                },
+                {
+                    "sent": "On a regular file system, you don't want to go there, so you end up having large files, and you store the documents there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Inside a single file.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in some sense you are building a file system within a single file anyway, so something simple like that we are doing doing we sort of end up doing anyway and.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now just now we need a place for these large files.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing we also don't need is locking in a regular file system with with.",
+                    "label": 0
+                },
+                {
+                    "sent": "With with different unknown users using unknown applications, it's a good idea to implement locking on the files, so the so this.",
+                    "label": 0
+                },
+                {
+                    "sent": "These unknown interactions can safely access the same files, but we don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, we don't have unknown users, there is just a bunch of us doing things.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know what we're running.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know how they access the data, so locking isn't an issue for us.",
+                    "label": 0
+                },
+                {
+                    "sent": "And another since we have only trusted users is file permissions and all kinds of fancy stuff that is usually.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Require to keep a sane file system around.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everyone, everyone probably has been there that they're doing something together and the other guy has left.",
+                    "label": 0
+                },
+                {
+                    "sent": "And oh, I should access that stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "But no, he didn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Didn't fix the permissions so I'm I can't touch the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's basically what we don't need, and it would be just and just an annoyance.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the file system, of course, one thing is that we want to keep it as simple as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically also becausw.",
+                    "label": 0
+                },
+                {
+                    "sent": "Having it reliably working is easier when you're doing something simple.",
+                    "label": 1
+                },
+                {
+                    "sent": "Something simple and for file systems you really don't want to have to repair it all the time.",
+                    "label": 1
+                },
+                {
+                    "sent": "And like I said before, avoiding avoiding a bottleneck, we don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can't have a single computer doing huge amount of work for everyone else, so all the heavy lifting should be distributed to the nodes in the cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And and one thing, of course is when when we need to have some sort of bookkeeping metadata.",
+                    "label": 0
+                },
+                {
+                    "sent": "To know which is what is taught where and.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we want to have it.",
+                    "label": 0
+                },
+                {
+                    "sent": "With with with the data in this case, so that all we need are the hard drives, we can take them somewhere else, read what's in there and reconstruct what was taught.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that we don't have a central index somewhere of our data, and when it gets corrupt or the hard drive fails, we can't access our data anymore.",
+                    "label": 0
+                },
+                {
+                    "sent": "And like locking, locking and other other issues if we can also have other places of doing things if we really want to have locks on files, we can have a regular file system and do locking there.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't need it here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So many, many things that can be done outside the file system are done there.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, what we have we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "The component could IO serve?",
+                    "label": 0
+                },
+                {
+                    "sent": "It sits on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, multiple copies sit sit on each machine and like the name suggests, it's really stupid.",
+                    "label": 0
+                },
+                {
+                    "sent": "It just provides network access to a hard drive.",
+                    "label": 1
+                },
+                {
+                    "sent": "One tells it to.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that's the location on your drive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Give me this much data from it or put this much data on the on the given location.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here's the data that kind of stuff so.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's actually an easy component to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Keep simple and reliable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, and all the data is stored on what I call her volumes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And volume consists of small header in the start and then blocks of data and each block is prefixed with a header saying what what is where this block belongs at and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So all the needed stuff is stored there so that we can even without any any directory indexes.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can read read what's stored there and reconstruct our our data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So and this IO surf needs anything you can open, read, seek, like a row.",
+                    "label": 0
+                },
+                {
+                    "sent": "Partition is a good good idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have one bookkeeper which is used to keep track of what is taught where and allocate space and that kind of stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is running on one computer which actually is sort of front end in our cluster that doesn't do do the actual processing of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the bookkeeper only handles meta data and never the actual streams gigabytes that goes through the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise it would would become a bottleneck.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for simplicity.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a central task, meaning that if that machine goes down everything fails, but for other reasons that a single machine is already a point of failure if it goes down in our cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that doesn't worry us too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have a client library.",
+                    "label": 1
+                },
+                {
+                    "sent": "We talk to the bookkeeper to find out, find out data, ask for locations where the right stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it talks over the network to the IO serves.",
+                    "label": 0
+                },
+                {
+                    "sent": "Audio serves.",
+                    "label": 0
+                },
+                {
+                    "sent": "By the bookkeeper to actually do the interactions reading and writing.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so this is what we end up doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "We haven't implemented sort of regular postfix file system interface, but this is like actually this is the thing I wrote first when I started doing this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is how I want things to work.",
+                    "label": 0
+                },
+                {
+                    "sent": "A directory for us isn't a hierarchical thing, it's more like a namespace.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a string defining and telling me what the data set is.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have a block name which is actually a number.",
+                    "label": 1
+                },
+                {
+                    "sent": "Which tells me which file I'm talking about, event that directory or namespace and our files are all equal in size.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are 128 megabytes at this point.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is slightly inconvenient in some sense, but gives us other great benefits.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then when writing, we have a redundancy level to protect us from failing hardware.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you can specify.",
+                    "label": 0
+                },
+                {
+                    "sent": "How on how many different machines you want the same data stored?",
+                    "label": 0
+                },
+                {
+                    "sent": "For some, you might want to be consider yourself lucky and store it only on one one place and save some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Save some storage and for important stuff you want to spread out further.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reading goes likewise.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the application doesn't need to worry about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Worry about the fact that they are all over the network and they are on different machines and different hard drives.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And now we come to the light.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll talk a bit about how I benchmarked the system so we have the one.",
+                    "label": 0
+                },
+                {
+                    "sent": "One server running the bookkeeper.",
+                    "label": 1
+                },
+                {
+                    "sent": "Handling metadata.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have five other computers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Having two bulk assessed volumes, one is a raw partition on and off an entire disk and the other one is regular 100 gigabyte file under under the Under Eyes are FS normal file system and all machines are connected.",
+                    "label": 1
+                },
+                {
+                    "sent": "To each other with a Gigabit network.",
+                    "label": 0
+                },
+                {
+                    "sent": "Give some reference reference data points.",
+                    "label": 1
+                },
+                {
+                    "sent": "Soon, but which are?",
+                    "label": 0
+                },
+                {
+                    "sent": "Measured differently, but all these bulk affairs figures from a stress program I have, which basically takes a data set, writes it all into the file system, and then starts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Starts randomly reading and writing.",
+                    "label": 0
+                },
+                {
+                    "sent": "It selects file and then with a with a 10% chance overwrites it in three copies or with a 90% chance, reads it from the network.",
+                    "label": 0
+                },
+                {
+                    "sent": "At one point also, is that what I realized that?",
+                    "label": 0
+                },
+                {
+                    "sent": "The even the network isn't always this.",
+                    "label": 1
+                },
+                {
+                    "sent": "Stressed test clients are run on the same machines as are used for storing the data, so we have 5.",
+                    "label": 1
+                },
+                {
+                    "sent": "Clients running on five machines, so one operator operation out of five actually doesn't even involve the network since it goes to local disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just a question are happy with the falls in this stress test.",
+                    "label": 0
+                },
+                {
+                    "sent": "You say you're reading and writing blocks or files, yes, happy.",
+                    "label": 0
+                },
+                {
+                    "sent": "The entire data set to read and write.",
+                    "label": 0
+                },
+                {
+                    "sent": "What would be typical each read and write is 128 megabytes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since that's the file size fixed fixed in our system.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "How how the system performs otherwise?",
+                    "label": 0
+                },
+                {
+                    "sent": "Each heart rushing to be able to produce some 60 megabytes of data per second.",
+                    "label": 0
+                },
+                {
+                    "sent": "And with with this regular Unix tools using the same block sizes as we used in our file system, we got around 50 megabytes per second for reading.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then if we do simulate simulator fact that we're doing it over network, we actually got also the same 50 megabytes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well of course a Gigabit network can handle that amount of speed.",
+                    "label": 0
+                },
+                {
+                    "sent": "That amount of data without problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll notice that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I had to tweak the block size here, but since here the other interface is very fast, it doesn't pose a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Problem for us, but in this case when you were reading from disk and writing through the network, it seems that this DD tool.",
+                    "label": 0
+                },
+                {
+                    "sent": "Wanted to do it this way that it first reads then right then start reading again and it would be a lot slower.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I increase decrease the block size.",
+                    "label": 0
+                },
+                {
+                    "sent": "I was watching the network traffic with big block sizes and bursts of heavy action and then there was just then there was a delay when it was reading new stuff from the disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's something to something to aim at.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And here are the lies and with some explanations.",
+                    "label": 0
+                },
+                {
+                    "sent": "I also did some benchmarking with NFS.",
+                    "label": 1
+                },
+                {
+                    "sent": "Which just.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not this is not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Trying to say that NFS is lousy and.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, what was done here was really stupid.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like Doug said earlier, if you want to have lots of data going through disks you don't want to do seeks.",
+                    "label": 0
+                },
+                {
+                    "sent": "What was done here is with a single client.",
+                    "label": 0
+                },
+                {
+                    "sent": "In NFS I was just writing a huge file over NFS and reading it and I got it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was pretty good.",
+                    "label": 0
+                },
+                {
+                    "sent": "I got fairly nice performance out of it, no complaints.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not even an expert and tuning NFS.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would probably.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get even more performance out of it as you saw, NFS was only a single drive on one machine, so you can't expect too much performance out of it as we can see here.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we do it five times simultaneously, the performance drops enormously.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that's not the fault of the NFS.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would you have all probably seen what happens if you have a hard drive and you start heavily concurrent access to it?",
+                    "label": 0
+                },
+                {
+                    "sent": "It seeks like 6 like mad and nothing gets done.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is just to demonstrate demonstrate the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of having a single drive and concurrent access.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, with one drive we got about the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Amount of data going through as DD Util in Unix.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are these figures are from the.",
+                    "label": 0
+                },
+                {
+                    "sent": "I tried to be fair.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are from the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Client point of view or the applications point of view.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since there are some rights of writing of data included which is multiplied to different places.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are the this it doesn't show the actual.",
+                    "label": 0
+                },
+                {
+                    "sent": "Amount of data is some 20% larger that flows through because of the redundancy.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's not shown here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then when we increase the number of clients, we end up losing some speed on a single client, and that's to be expected.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since we're doing we have 10 volumes and we're doing random reads and writes with five clients, there are bound to be some collisions where someone has to wait to access a drive.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have all these drives accessed sequence sequentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the accesses are serialized so that we prevent disk trashing from happening.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if someone is reading a rating or writing and drive, the others must wait.",
+                    "label": 0
+                },
+                {
+                    "sent": "But of course, the aggregate speed gets better here with one client, we get a total of 50 something megabytes per second, and with five clients we get already.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something like 160 megabytes total.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the same same thing goes on with ten when we increased to 10 clients where you get 200 megabytes per second globally in the cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "I didn't run the NFS benchmarks.",
+                    "label": 0
+                },
+                {
+                    "sent": "I felt sorry for the poor hard drive.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know whether I would have seen a pixel there or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "And still increasing to 20 clients.",
+                    "label": 0
+                },
+                {
+                    "sent": "The aggregate speed slightly increases, but this seems to be the limit.",
+                    "label": 0
+                },
+                {
+                    "sent": "How much the hardware can handle with this setup, and of course with this software.",
+                    "label": 0
+                },
+                {
+                    "sent": "20 clients running on 10 machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh sorry, five machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that means that there is 20 actions going on or need for 20 operations simultaneously and only 10 volumes available for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there is bound to be some waiting waiting around.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, finally.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course I wouldn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "I wouldn't probably have started doing this unless I once again underestimated heavily the amount of effort needed, so maybe I'm slow.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or maybe this workshop was a bit early, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's still not quite finished.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks promising, but we haven't really put it to good use yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "And since I felt like it turns out that we always want to improve and improve and improve so we don't release the code, it will fix this and repair that and then it's done.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we release the code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I put it out there so the interested ones can take a look at it.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Time for one question.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Motivation?",
+                    "label": 0
+                },
+                {
+                    "sent": "The family gave tours PM at the 20 o'clock taxes, so this seems to be exactly opposite to what would like to do is to just access once locally or doing any kind of process is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean look at the map, reduce story that we kind of talked about those again and many other things we normally say there's some data over there and I want to work on that.",
+                    "label": 0
+                },
+                {
+                    "sent": "There and then never resolved.",
+                    "label": 0
+                },
+                {
+                    "sent": "The processing of the data then became rather than having remotely accessing these machines to concurrently to get data.",
+                    "label": 0
+                },
+                {
+                    "sent": "These things seem to be necessary.",
+                    "label": 0
+                },
+                {
+                    "sent": "Processing yes, that is sort of.",
+                    "label": 0
+                },
+                {
+                    "sent": "An entirely opposite approach, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way you know I don't understand why it why.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the motivation?",
+                    "label": 0
+                },
+                {
+                    "sent": "With what specific kind of application is?",
+                    "label": 0
+                },
+                {
+                    "sent": "I won't do this way rather than.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing is that we want to have the machines dedicated to certain tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean for some purposes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things like having.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unwanted process is on a machine is very bad for performance since it it keeps doing for only four.",
+                    "label": 0
+                },
+                {
+                    "sent": "Caching and context switches, so we would like to like to dedicate computers to tasks and then just spread out the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instead of keeping certain data somewhere and then trying to use that machine for.",
+                    "label": 0
+                },
+                {
+                    "sent": "For processing processing that data since since what what?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm trying to say here is that now we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Machines dedicated to certain tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the data for all these talks are distributed distributed.",
+                    "label": 0
+                },
+                {
+                    "sent": "And another approach would be to dedicate the data and distributed processing so that it would be local data, but that's one way of doing it, but I'm not sure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would I like to do it that way?",
+                    "label": 0
+                },
+                {
+                    "sent": "From the data point of view?",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course it would be very ideal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we would wouldn't have to transfer the data back and forth, but I'm not.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can't say know offhand whether I would like to do the processing that way.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Coffee coffee thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next speaker hungry theory.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

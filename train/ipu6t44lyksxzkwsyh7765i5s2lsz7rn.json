@@ -1,0 +1,3636 @@
+{
+    "id": "ipu6t44lyksxzkwsyh7765i5s2lsz7rn",
+    "title": "Applications of Machine Learning to the Game of Go",
+    "info": {
+        "author": [
+            "David Stern, Microsoft Research"
+        ],
+        "published": "Feb. 5, 2008",
+        "recorded": "January 2008",
+        "category": [
+            "Top->Computer Science->Machine Learning"
+        ]
+    },
+    "url": "http://videolectures.net/epsrcws08_stern_aml/",
+    "segmentation": [
+        [
+            "Right say?",
+            "Yeah, this is going to be quite different from what you've been hearing about so far this morning, but I hope that it's interesting for people, and I think the great thing about this application is that there's a huge range of ways that machine learning can be applied.",
+            "I hope that I can carry that across a bit in this talk, so a lot of this work was done in collaboration with Torah and David who supervised my PhD and a lot of it also with Ralph, who works at Microsoft."
+        ],
+        [
+            "So I'm going to talk about the game, go what it is for people who don't haven't heard of it before.",
+            "Going to talk about why it's interesting for machine learning researchers because of the complexity that results from the 'cause of the uncertainty that results from the complexity of the game.",
+            "I'm going to talk about models to predict the moves of human players models to predict the final outcomes of games, and finally a little bit if I have time about Monte Carlo Go, which is something that has been has raised a lot of interest recently in the in the go field because it's been applied very successfully."
+        ],
+        [
+            "Small boats say go is a game.",
+            "It started being played about 4000 years ago in ancient China and it's currently played by about 60 million people worldwide, mostly in the Far East.",
+            "It's a game of two players, black and white, and they play using a board which is a 19 by 19 grid like this and they take it in turns to place stones on the vertices of the grid, and one stone is placed.",
+            "It is not moved, but it can be captured.",
+            "And a study is captured by being surrounded by opponents stones.",
+            "Like this, so white stone there black surrounded it on the outside.",
+            "Finally captures by moving there.",
+            "If there's a chain of stones connected together, like these three white stones, they're connected because they are adjacent in the horizontal and vertical directions.",
+            "Then their captured all together or not at all.",
+            "So Black captures them by moving around the outside.",
+            "Finally moved here and then they captured.",
+            "The name of the game is to make territory by surrounding regions of the board.",
+            "So here White House, this area on the left black has this area on the right and you count the score by summing up these areas.",
+            "The player with the most score wins."
+        ],
+        [
+            "Say that's pretty much all of the rules of the game, but that really is it.",
+            "And he might ask, how can this game work because?",
+            "Surely OK Black say surrounds a little bit.",
+            "Why can't white just go round on the outside and then moving there and capture the Blackstone from the game?",
+            "Will just go on forever?",
+            "Well, the reason that it works?"
+        ],
+        [
+            "It's because there's certain configurations of stones you can make, like this one, which can never be captured, so white goes round on the outside, but now what can they do?",
+            "They can't move into either of these points, because neither of those points they would already be captured.",
+            "They would already be surrounded and you can only place one stone at a time, and these are called eyes this."
+        ],
+        [
+            "Locations.",
+            "So that's all of the rules of go.",
+            "And don't worry if you didn't completely follow that you don't actually need to know how to play the game to understand this talk.",
+            "But what I'd like to do now is, say why I think go is interesting because.",
+            "Everyone here probably knows that computer chess is now at the level of grandmasters, so Kasparov was beaten back in 97 and now desktop computers can beat Grandmaster chess players.",
+            "But at the same time the best go programmers, at least on the full board, can't beat week amateur go players.",
+            "People have just been playing for maybe a few months.",
+            "And guys becoming recognize this big challenge in AI and machine learning as well recently.",
+            "And if you want to read more about going computer go and stuff then I suggest having a look at this survey by Martin Miller."
+        ],
+        [
+            "I'm just going to give a very quick summary of what I think that one of the reasons why it's difficult.",
+            "There's two reasons really.",
+            "So is to do with the reason why we see chess as being easy.",
+            "The reason that we computers play chess is because the uses brute force minimax search, which involves just expanding a tree of future games.",
+            "You play move sequences from the current position into the future.",
+            "You evaluate the resulting positions and you can propagate back information which allows you to decide where to move.",
+            "So requires this.",
+            "Look ahead and evaluating the resulting in positions.",
+            "Both of these can't be done for go so very easily, so the branching factor could go the number of legal moves each turn is about 200 compared to about 35 legal moves each turn.",
+            "In chess on average, and more importantly, the evaluation of the positions at the leaves of this tree is much more difficult for ago.",
+            "There's no fast function to estimate the value.",
+            "Her position in chess you can sum up the points of the pieces that gives you a.",
+            "A good estimate of who's ahead and who's behind, but in go, all of the pieces that each player has their identical, so you have to value them based on the configuration of stones around them.",
+            "And that's and that's slow to do so you can't use it in conjunction with this kind of brute force search where you have to.",
+            "You have to evaluate millions of positions."
+        ],
+        [
+            "2nd.",
+            "Say that means if you can't search, you have to use knowledge instead.",
+            "It's something that people have people have known in AI for a long time.",
+            "There's a tradeoff between search and knowledge, and most current go programs use a great deal of handcrafted knowledge.",
+            "The problem with this is that it's very slow to program all this handcrafted knowledge into a program.",
+            "Most of these programs took decades to.",
+            "Be developed and.",
+            "Hand tuning them all.",
+            "These hand crafted heuristics pieces of knowledge to work together well is very difficult.",
+            "It takes a long time and you get diminishing returns.",
+            "The more complex system is, the harder it is to tune it together to work well.",
+            "So this led to people looking at machine learning approaches to to automating this sort of knowledge acquisition by go programs.",
+            "Eric Vanderwerf did a PhD thesis where he applied neural networks to all different aspects of Go territory prediction, move prediction, all kinds of things.",
+            "Also, people have looked at using machine learning in conjunction with pattern matching and the first part of the talk I'm going to talk about move prediction system that we worked on using pattern matching and this was very much inspired by the work done by Frank Degroote."
+        ],
+        [
+            "And I'd just like to briefly make the point that although go is a game of perfect information, there's no throwing of the dice.",
+            "There shouldn't be any uncertainty.",
+            "There is uncertainty because our brains or computers only have limited computational speed.",
+            "So in conjunction with the complexity of the game tree, you can't predict what's going to happen in the future and go.",
+            "Players refer to have all kinds of words which refer to this one is aji taken literally, that means taste.",
+            "And it's used to refer to the lingering effect lingering in for influence of stones on the board, even if it looks like they're going to be captured because of the uncertainty about their future influence, and I guess the theme of this talk is that.",
+            "We think it's a good idea to represent this uncertainty using Prop."
+        ],
+        [
+            "Ilities so to start off with going to talk about a model for predicting moves of human places, where on the board the plane is going to go and this model is trained from records of historical expert games.",
+            "So when another good thing about working on go is that we have a huge amount of training data, so there's this Internet ghost because go players are relatively dispersed across the world, there's a lot of people that play online and a lot of very strong people that play online and every single one of these games is recorded so.",
+            "Vast amounts of training data.",
+            "We have a million games between various."
+        ],
+        [
+            "Human go players.",
+            "Say.",
+            "The way that we choose to represent a move in order to build a model to predict moves is as a pattern.",
+            "So every move is actually associated with a set of patterns and a pattern is the exact arrangement of stones centered on the point where we're thinking about moving within a sequence of nested templates with."
+        ],
+        [
+            "Which we are matching patterns.",
+            "So to make that a bit clearer, we're thinking about moving at this location and this movie is can be associated."
+        ],
+        [
+            "With a bunch of patterns, for example this one.",
+            "So this is a template.",
+            "This blue line and the exact arrangement arrangement is tones within that template is the pattern, but it's showing up there and you can draw."
+        ],
+        [
+            "A number of templates for."
+        ],
+        [
+            "And each one year."
+        ],
+        [
+            "Different pattern so.",
+            "Even move is associated with a vector of these paths."
+        ],
+        [
+            "Now we actually defined 13 different pattern sizes, so we have a vector of 13 different patents for every move.",
+            "The biggest one is.",
+            "This is actually big enough to contain the full board position, so it's actually a 38 by 38 patterns, so you can always see the whole board even if you're right in the corner and the smallest is just the point at which we are moving."
+        ],
+        [
+            "Now, if he slides with how we do the engineering of this to make it efficient, because I think this is actually really important to make this model useful.",
+            "The pattern information is stored in a hash table.",
+            "Obviously this gives constant time access and it means we don't need to store the state.",
+            "The shape of the patterns explicitly.",
+            "And in order to make this pattern matching efficient, we need a rapid incremental hash function.",
+            "So to achieve this incremental property, we want it to be commutative and reversible.",
+            "This means that as we place stones on the board, we can cash the keys of the patterns corresponding to the different moves on the board and update those cache key."
+        ],
+        [
+            "This incrementally.",
+            "The method used to do this is called Zobrist hashing and it works by Store 1.",
+            "One of four use one of four possible 64 bit random numbers for each point in the pattern.",
+            "So in this pattern you would use a random number for black at this particular location relative to the center, and you choose the number for empty at this location relative to the center, and in order to generate the hash key for this pattern, you take the X or of all those numbers together.",
+            "Add.",
+            "The case the meaning of one of these patterns doesn't change if you rotate it or if you reflected patterns invariant to April symmetry of the square, and it's also invariant to reversing the colors of all the stones and reversing the color of the move.",
+            "We generate the hash keys for all of those 16 variants, and then we take the minimum, and that's how we that's how we generate the hash key to be invariant to these."
+        ],
+        [
+            "Summations.",
+            "So the way we build the table of patterns which we're going to, we're going to use to to build our MOVE predictor is to automatically harvest them from records of historical games.",
+            "So I said we have a million games for this experiment.",
+            "We used 180,000 games because they're the strongest ones in the data set.",
+            "Each one has about 250 moves, and as I say, we define 13 pattern sizes, so we harvest.",
+            "The past all the patterns for every move played by the human players in these games.",
+            "Then that gives us 600 million patterns that are disposal.",
+            "Now OK, yeah, you could store that many patterns in memory if you really wanted to, but if you want to store useful information with those patterns and that starts to become a bit difficult.",
+            "So partly for space, and also because you want to be able to generalize, there's no point in storing patterns that are never going to be seen.",
+            "Again.",
+            "We want to limit the number of patterns we store.",
+            "The way we choose to do that, it is just to store the patterns that were played more than a certain number of times in the training data and the method to do this as Bloom filter, which is a smart way of giving an approximate test for set membership with very minimal memory footprint so you don't have to build a big hash table size of.",
+            "A million to to see if you've seen them before, and I'm not going to go into how that works now 'cause I don't have time, but I I do think that it's a really useful thing for lots of areas of machine learning.",
+            "So if people are interested, there's this reference that she invented back in 1970."
+        ],
+        [
+            "So we do that.",
+            "We play through these 181 thousand games.",
+            "We still all patterns in fact, see in three or more times.",
+            "Add this shows the relative frequencies of the occurrence of the different pattern sizes at different phases of the game, so these are the phases of the game.",
+            "Each 1:30 moves, so at the later in the game we tend to be matching smaller patterns, so these these are the smaller patterns up here, the size 14 is actually the full size.",
+            "The full board pattern, so the beginning of the game we actually frequently matched the full board position.",
+            "The reason for that is because the board is mostly empty at the beginning, so it's not that surprising we see the same position more than once.",
+            "Also play at the beginning tends to go along standard lines.",
+            "So they go like in chess you have standard opening sequences which people."
+        ],
+        [
+            "Which people play?",
+            "So as I said, we build up happen table by harvesting, then there's a second separate phase which is training how we learn the values of these patterns based on the move decisions made by made by the human players in the game records.",
+            "So we use the same training data for both processes we use.",
+            "We play through the game's harvest, the patterns then separately the second stage runs through the same games again.",
+            "This time we want to learn values for those patterns, so then we can use them to predict expert moves.",
+            "And.",
+            "In the first experiment, I'm going to talk about, we represent, as I said, that every pattern is associated with a vector of patterns.",
+            "But to start off with, we represent and move just by the biggest pattern that matches at that point.",
+            "Now, this might seem like obvious thing you should do, because the bigger pattern contains all of the information of the smaller patterns.",
+            "All of all of the smaller patterns are subsumed within it, but actually will see the feature.",
+            "You can get better performance by taking into account the small."
+        ],
+        [
+            "Happens as well.",
+            "Search to make this concrete for thinking about moving.",
+            "Here we have a table of patterns we want to try and find the biggest patterns.",
+            "That way we do this first.",
+            "See is the whole board position in patent able?",
+            "If it's not, then we look for a pattern within smaller template.",
+            "It's not we back off.",
+            "We keep on backing off until we find the pattern.",
+            "Within this area.",
+            "You know hash table and then we can go and look up information in this hash table which is going to tell us whether."
+        ],
+        [
+            "Is it good move or not?",
+            "So that's that's how we do the engineering partners.",
+            "How we we have we do an efficient pattern matching system for go.",
+            "And now I'm going to talk about how this sort of machine learning bit how we, how we learn values for these patterns from the move decisions made by human players in the training data.",
+            "So.",
+            "Every pattern we say is associated with some continuous value you.",
+            "And I'm going to put a Gaussian prior on that and then every move in a particular position has some urgency which I'm going to call X, and that's distributed about the pattern value as a Gaussian.",
+            "Now for the next sort of few slides, I'm going to use quite a bit of fat to graph notation, and I gather that Zubin did cover this yesterday.",
+            "But for people who just need a quick refresh about factor graphs, so the circles are variables, the squares of squares of factors, and what this represents is a function as a product of its factors.",
+            "So each one, if you multiply these factors together, you get the function and the graph is bipartite graph, which just shows how various factors depend on which variables.",
+            "The reason this is useful is 'cause it allows you to do efficient inference."
+        ],
+        [
+            "So this is 1.",
+            "This is our sort of model of a value of a single move, so this value is the urgency of a move value of a pattern.",
+            "Annina position we don't just have one, one move being played well.",
+            "We have one move that's being played, but there's a whole move whole lot of other moves which could have been played but were not played.",
+            "So training example for our model is chosen move which is associated with the pattern and then a whole set of other boots.",
+            "All the other legal moves which could have been played by the human player, but they decided not to play them.",
+            "Then we can learn from that and what we learn is what we actually do is we make the observation Now the urgency of the pattern which was played, which I'm going to assume now is the pattern number one is higher than the urgency of all of the other patterns, so that's equivalent to just observing a set of constraints.",
+            "X1 must be bigger than each of the other axis and you can put this in a factor graph by adding in factors which.",
+            "So this is an indicator function.",
+            "This is 1 if this logical proposition is true, so this is 1 if X one is bigger than XN.",
+            "If you take the product of all these factors, you can see that if we violate any of the constraints, then the whole product will be equal to 0.",
+            "So that's how you can observe constraints."
+        ],
+        [
+            "So this kind of represents the joint distribution of the variables.",
+            "The pattern values on the X variables, the move urgencies given a particular move decision being made in particular."
+        ],
+        [
+            "And what we want to do is to learn, determine a posterior distribution over EU variables.",
+            "Given these observing these constraints.",
+            "So we have to integrate out the X variables and I guess from yesterday and maybe anyway."
+        ],
+        [
+            "You know that this is done by message passing on the factor graph, so.",
+            "These are the update equations for message passing and I'm not going to attempt to give a tutorial about this now, just just say these are.",
+            "This is how you calculate the message from factor to variable.",
+            "So you calculate a message for variable factors.",
+            "It's the product of the messages going into into the variable from every other factor."
+        ],
+        [
+            "And that you do this.",
+            "So then you can calculate marginal distributions of the variables in your model and do that by taking the product of messages."
+        ],
+        [
+            "Yeah.",
+            "And in order to make this whole learning scheme tractable, so we can so we can play through the 180,000 games and keep the same representation for distributions as we go through, we assume that they always Gaussian.",
+            "So that means that we assume that all the messages we propagate on this graph, a Gaussian.",
+            "That means that we will get a Gaussian posterior 'cause product of Gaussians gives a Gaussian.",
+            "And because most of the factors are Gaussian in this model, it's generally true that all the message calculations are exactly Gaussian, but some of them are not, so the messages out of the after the constraints.",
+            "The ordering factors.",
+            "I called them there on the right are not going to be Gaussian.",
+            "If you calculate them exactly, so you calculate those messages by the top equation here.",
+            "If you do that, integration for those factors which observe those sign constraints, you're not going to get Gaussians coming out, and so we have to approximate those by Gaussian.",
+            "We do that using expectation propagation, sort of, as it's as it's defined for for a graph, and the way that works is like this.",
+            "So the true distribution of the marginal distribution of a variable is given by product of the factor variable message going in times the product of that variable.",
+            "The same variable to the same factor going out.",
+            "So you can see that from this equation and this equation here.",
+            "And.",
+            "Because because.",
+            "We have a problem.",
+            "This factor to variable message here is not Gaussian.",
+            "We want to approximate it by Gaussian so so that.",
+            "So if we assume that this one is Gaussian and we want to approximate this one by Gaussian.",
+            "So that will give us a Gaussian approximate marginal distribution there.",
+            "And we do that by moment matching.",
+            "So we find the marginal which which is closest to the true marginal in sense of KL divergent, which is the same as just finding a Gaussian with the same moments.",
+            "So we just we just calculate the moments of the true distribution.",
+            "Then we choose the Gaussian with that same distribution and to get the message going out, we divide out the message going in but.",
+            "Now, whether that's quite a quick sketch of that, and it's not really that important if you don't understand all of that because I'm going to give you a sort of high level view next this question.",
+            "Are you saying that you have?",
+            "Yeah yeah.",
+            "So also last year that's on the next slide, so."
+        ],
+        [
+            "So what happens is the sort of schedule for doing all this is that you start with.",
+            "You have a Gaussian.",
+            "You put Gaussian prior, which is, which is what these factors represent on the left.",
+            "So you start off with.",
+            "You know this Gaussian messages coming out of those factors.",
+            "They just pass through this.",
+            "You variables calculate the message out of this factor.",
+            "It's just a convolution with the Gaussian.",
+            "It's actually just you just add this noise to that Sigma and then.",
+            "You can calculate the messages and at this point, well almost all of these messages are Gaussian.",
+            "Actually, this one is not Gaussian 'cause it depends on the message from there, but most of these are Gaussian.",
+            "But the problem is that these ones out of.",
+            "All these factors are not Gaussian.",
+            "If you calculate them exact."
+        ],
+        [
+            "So what you do at this point is so you stick.",
+            "You keep these messages going in here.",
+            "You've cashed them in there and you iterate this EP approximations.",
+            "You're approximating these marginals and calculation that message is going out until it converges to some fixed point and then."
+        ],
+        [
+            "Nothing converges.",
+            "You can propagate messages back and then calculate the posterior distribution on the on the variables.",
+            "And you do that just by taking the product of the messages going in there does that?",
+            "Does that answer the question?",
+            "OK, I don't mind also answering now if you want this."
+        ],
+        [
+            "OK.",
+            "So say that.",
+            "So that's what we do.",
+            "So we play through this same 181 thousand games and we use them to learn the values of these patterns based on the move decision.",
+            "So by observing this constraint that the urgency of the pattern that played of the move that's played must be higher than the urgency of the other patterns, and this shows results on test data.",
+            "So the way we do the test actually to produce this graph is just to rank the moves on the board in the test data according to the means of their values.",
+            "And that's pretty much the same as ordering them by their probabilities of being played and.",
+            "Well, what we can see is that we predict so.",
+            "This is a cumulative density function of the expert move rank.",
+            "So the rank we give to the expert move and you can read this as we predict 34% of expert moves correctly and we get a like 66% of expert moves in our top five, 78% in our top 10 and sort of 88% in our top 20.",
+            "So you can kind of this kind of tells you it tells you a bit about under this model.",
+            "What is the real branching factor ago I said there's 200 legal moves each turn.",
+            "Using a model like this, you can you know you can get down most of that too within about 20 legal moves, so you reduce the search space significantly.",
+            "This just compares with with another.",
+            "Another result for this so that at the time we did this work, which is about a year and a half ago.",
+            "We were we were quite a lot stronger than the than the best other result recently.",
+            "Someone actually has published a paper which does a little bit better than us on this on this red line they use a very similar, very similar pattern matching system.",
+            "But the great thing about this system is that it can be done very fast, so we can.",
+            "We can actually generate going moves at a rate of 100 millisecond with if we full pattern system.",
+            "If we reduce the size of the maximum patterns then we can do it 1000 or 10,000 meters second.",
+            "So that means it can be used in the inner loop of research.",
+            "So say we are searching the game tree, we can actually use this to prune, removes fast enough to do that.",
+            "The earlier neural network models are not fast enough to do that."
+        ],
+        [
+            "And this shows a floor of the system, which is that as we go through the game, the error increases, so this is rank.",
+            "Error is just the rank of the expert move divided by the number of legal moves."
+        ],
+        [
+            "High Risk high was worse and this shows why is because the bigger the pattern, the lower the error.",
+            "The smaller the pattern, the higher the error at the end of the game matching smaller patterns."
+        ],
+        [
+            "So one way of dealing with that is to use a hierarchical Gaussian model of the move values instead of just taking the maximum pattern only.",
+            "So I'm just I think I'm just going to go through this very quickly and I want to get on to some other stuff.",
+            "The idea is that if we make him move, it might be worth using all of the patterns that match the location, not just the biggest one, because although the though of course the larger pattern contains all of the information of the smaller patterns, so the evidence from the larger passenger dominate.",
+            "The larger patterns have been seen less frequently than the smaller patterns, so in cases where we're actually quite uncertain about the value of a large packing 'cause it hasn't been seen very often, we should allow information from the smaller patterns to have influence.",
+            "So this is a bit like a language model.",
+            "If people are familiar with with with N gram language models of smoothing and that kind of thing is very similar to that and the way we do it is to use a hierarchical model."
+        ],
+        [
+            "Often these valleys, so the patterns actually do form a hierarchy with.",
+            "This is just the move vertex, the point in which we're moving.",
+            "These are the smallest size patterns which could match this, just obviously a subset of the path which could match for that move, and then for each of those a bunch of patterns which could match one level up for the one size.",
+            "Bigger patterns.",
+            "And we actually have a hierarchy of 13 levels and right at the top would be the values of the actual moves that are played in the expert games."
+        ],
+        [
+            "The model is just to make it all Gaussian, so but a Gaussian prior on the value of the single size vertex make all of these other arrows conditional Gaussian distributions, so we can use exactly the same ranking model that we used before, just using this to provide the prior of the pattern values instead of just sticking a separate Gaussian on the value."
+        ],
+        [
+            "Biggest pattern that matches and if we try if we train on a small amount of training data, this gives slightly improved performance."
+        ],
+        [
+            "On the previous graph.",
+            "And this shows the predicted probability of the expert moves are different phases of the game.",
+            "So you can see that the predicted probability is a bit higher if we use a hierarchical model later on in the game where we matching smaller patterns right at the beginning of the game, we're matching big patterns.",
+            "Then actually using the Max pattern wins slightly at the beginning, and then the difference is small.",
+            "But later on in the game we get a big advantage by using the hierarchical."
+        ],
+        [
+            "So that's how you move prediction.",
+            "And.",
+            "There's another big piece of information in these expert games which we didn't use.",
+            "The tool in that, so you might be wondering.",
+            "We didn't, why didn't you use the final outcome?",
+            "Why are you interested in the final outcomes of the games?",
+            "Well, this model is something which is all about predicting the final outcomes of ago game and trained from."
+        ],
+        [
+            "Expert games.",
+            "Maybe I should ask is just anyone have any quick questions on the move prediction stuff at this point?",
+            "For may be fun, yeah?",
+            "Can we predict amateur players?",
+            "Is that so?",
+            "So yeah, it's a good question.",
+            "It's obviously bad because it's trained in expert games.",
+            "It's better at predicting expert moves.",
+            "So one thing we did, So what we wanted, one motivation for doing this is we actually wanted something to generate good moves.",
+            "So one thing we did was to train it in games where you have an expert player playing an amateur and then you train just from the expert moves.",
+            "But in that way you learn the correct response is to weak moves so so.",
+            "So you kind of get the you get the right responses, but we haven't actually tried learning from directly to emulate amateur play.",
+            "I think amateur players.",
+            "Much less, it's much more erratic.",
+            "They playlist along with standard lines.",
+            "It might be harder, might be harder to predict.",
+            "So this shows the position mid game position actually is this is the end game position.",
+            "Small board and what I mean by territory.",
+            "As I said before, is it the empty regions surrounded by each player?",
+            "So why it has the bottom of the board?",
+            "Black has the top of the board.",
+            "Notice that there's one black stone here which I've counted as part of whites territory, and the reason for that is because in agreed to end the game.",
+            "At this point the players kind of implicitly agreed that that Blackstone would have been captured.",
+            "If they disagree, they would have played on, and eventually white would have probably captured it, so they would just pass at this point and say.",
+            "OK, I'll give you that stone.",
+            "And we use so that stones called dead, by the way.",
+            "And we use what's called the Chinese method of scoring, which means we also count the stones themselves as part of the as part of the players territory.",
+            "So the white stones part of White Star in the blackstones part of Blacks territory.",
+            "So just should have said that in this diagram the squares are the territory outcome and the circles of the stones, and obviously the score of the game is just the sum of the each player is just the sum of this."
+        ],
+        [
+            "Yes, some of the territory outcome.",
+            "So the role.",
+            "So the goal of our territory predictor is to take a good position from the middle of the game.",
+            "AD predict while the territory outcome if that is so.",
+            "This diagram shows the position in conjunction with the territory outcome and this is this is a hypothesis about what the territory outcome might be.",
+            "Black owns the bottom of the board.",
+            "White owns the top."
+        ],
+        [
+            "The board coming to another hypothesis, well, maybe Black owns the right hand side of the board, and in this case they've captured this stone.",
+            "So is there a question?",
+            "That's right, yeah, yeah.",
+            "Exactly, and that's what I'm going to talk about it in the last part of the talk, so that's good point.",
+            "Say."
+        ],
+        [
+            "So.",
+            "So, so another hypothesis."
+        ],
+        [
+            "Is that black owns the whole board and the goal?"
+        ],
+        [
+            "Kind of model is to do some sort of probability distribution."
+        ],
+        [
+            "These hypothesis.",
+            "So to make this a bit more mathematical, we represent a position by vector C with each element can be black, white or empty.",
+            "We represented territory outcome by vector S, where each element is plus one or minus 1 + 1 for black terror.",
+            "She minus one for white territory.",
+            "We want to model the distribution of probability of territory outcome given the current board positions.",
+            "So PFS given, see this is useful for a bunch of reasons.",
+            "In computer go.",
+            "One reason is that.",
+            "You can use it as an evaluation function, so the sum of the expected value of each of the vertices is the expected score of the black.",
+            "And.",
+            "The model that we use is a Boltzmann machine is actually a conditional random field because it's a conditional distribution on features and.",
+            "This this this ass parables format the grid topology so they connected in the grid topology of the go board.",
+            "Factors that can connect them determine the coupling between the variables, or how strongly correlated the territory outcome is for pairs of adjacent points on the board.",
+            "And these squares here biases.",
+            "So they say, how likely is this particular point going to be?",
+            "Black or white?",
+            "This depends locally on the board position that's present so.",
+            "Said by system depend on the state of the board at that point, and the couplings depend on the state of the border at the two points where we're trying to predict."
+        ],
+        [
+            "Before.",
+            "So the model itself just just quickly summarize it.",
+            "It's both machine, so you can write it instead of writing as a product of factors, you can write it as exponential to the sum of bunch of potential functions.",
+            "And each one of those is contains the sum of two types of terms.",
+            "You have your biasing terms and you have coupling terms.",
+            "And again, by things that biased terms are functions of the local board position.",
+            "So for example, if the position is black, that says, given that the point on the board is black.",
+            "The value of H says how likely is that point going to be black territory or white territory and.",
+            "The coupling tile is also conditioned on the local position or the couplings are determined by these parameters W and they say OK, so for example to Blackstone's next to each other how, how strongly correlated do we think the final territory outcome is going to be for those two points and?",
+            "We think we would think it would be a very high correlation because of the common fate property of chains.",
+            "I said right at the start of the talk change.",
+            "The stones are captured all together or not at all.",
+            "So so either this is going to be both black territory or both white territory.",
+            "Yep.",
+            "The only thing that I need to count there is the nearest.",
+            "Yes, that's the actually the direct local.",
+            "The position underneath the point.",
+            "This is a very simple.",
+            "This is very simple model at this point."
+        ],
+        [
+            "Say so say we got lots of training data.",
+            "Here's an example position from one of those one of those games on that corresponds to the C vector, their position."
+        ],
+        [
+            "Vector.",
+            "This is the final position from that game, so we just we know the final position of the game.",
+            "We got the game rec."
+        ],
+        [
+            "We can we know how to score a goal position so we can get the score."
+        ],
+        [
+            "We can get the territory outcome of that game.",
+            "Now we can roll back to the mid game position.",
+            "So now we have a pair of the final game outcome and the mid.",
+            "Game position, and that's an example of a training instance for our model.",
+            "So it's the S in."
+        ],
+        [
+            "With a C. So we do this.",
+            "We train, we train our model by maximum likelihood from I think we for this experiment we just 600 games because you don't need to use a million games.",
+            "It's quite a simple model and use.",
+            "We have to use a thing called where we say we use GIFs.",
+            "Gibbs sampling for inference you have to use Gibbs sampling for inference.",
+            "If you do maximum likelihood and we use a particular type of Gibbs sampling called Spencer Wang, which I'm not going to talk about today.",
+            "But that's also something that people might be interested in looking up.",
+            "Ads.",
+            "This shows the position and this shows a sample from the model.",
+            "So this represents a hypothesis about what the territory outcome might be from this game.",
+            "According to the model.",
+            "And things like it says things like these things are not going to be captured 'cause they're part of their own territory.",
+            "These stones are going to be captured 'cause they're part of the opponents territory.",
+            "This area is owned by White and this area is owned by Black."
+        ],
+        [
+            "And that type of thing.",
+            "Here's another sample media sample.",
+            "These days actually are captured this air."
+        ],
+        [
+            "So by black and so on.",
+            "As we could also take an expectation over a whole bunch of these samples and the sort of overall statistics of these is actually probably more useful for ago program, and in this diagram the size of the square indicates the degree of certainty in the prediction, and the color indicates the sign.",
+            "So so black means that territory, and if this sort of small small squares or no squares, then that means that the model doesn't really know what's going to happen in that in that part of the board and its hypothesising that these stones will be captured, for example.",
+            "'cause they're quite surrounded by by opponents tones and in fact they are.",
+            "They are."
+        ],
+        [
+            "They are captured.",
+            "But there's something else that I should point out about.",
+            "The samples from this model, which is that they're not actually legal, necessarily legal.",
+            "Territory outcomes of Go games so so sure that broad statistics of these samples is useful and we can use them to evaluate go positions.",
+            "Each individual sample contains parts which are not actually possible.",
+            "So for example you have these four points on the left hand side of the Board of White territory in go.",
+            "You can't have such a small region of territory because as I said at the start, in order to make a Living Group a group which can't be captured, you have to have two of these.",
+            "I points you have to have two spaces in it.",
+            "You can't there where you can build a build.",
+            "Agree with two spaces in there.",
+            "It needs to be at least that big so so this.",
+            "So this hypothesis couldn't.",
+            "Actually, it couldn't be true.",
+            "And in order to produce the model.",
+            "Which produces legal hypothesis guarantee, produce legal hypothesis turns out to be really, really difficult, but we spend a lot of time sort of coming up with really, really complicated models to try and do that."
+        ],
+        [
+            "And.",
+            "Turns out that a completely different approach works a lot better.",
+            "We're going to talk about that in the last part, one question.",
+            "Wondering?",
+            "I don't, I don't think so.",
+            "I that's not something I've seen.",
+            "I think that.",
+            "I mean, so generally the model is pretty poor at predicting life and death, so it can't.",
+            "So if you, if you're at the end of the game and you want to score a final game position, usually in go, players will finish the game before everything is determined completely.",
+            "I mean, they know it's determined, they know if they play on what will happen, but to a computer they would have to play the game forward to predict what's going to happen.",
+            "And this model can't.",
+            "Can't identify if a particular group would inevitably captured, like it gets it right.",
+            "Sometimes it gets it wrong, other times and part of the reason for that is because it doesn't actually know that a group has to have enough space to make eyes, which is a really important concept in scoring."
+        ],
+        [
+            "Scoring these positions so as.",
+            "With pointed out, this model gives one way of generating hypothesis and has the unfortunate feature that some points are illegal."
+        ],
+        [
+            "Put another way, you can generate a distribution over the final territory.",
+            "Outcome of games is to play the game forward from the current position to the end of the game.",
+            "At the end of the game, you know how to score it because you know the rules, and then you can.",
+            "You can make a territory prediction and if the way you choose your moves as he played the game forward is according to some sort of probability distribution, then that gives you a probability distribution over the final outcomes of go games.",
+            "This is much better at determining life and death of groups and stuff on the board then these sort of static approaches.",
+            "The Boltzmann machine approaches, so that's kind of LED us to more or less drop the earlier type approach and focus more on this type of thing and in fact.",
+            "This is called not a Monte Carlo planning and for.",
+            "Engo recently since about 2006.",
+            "People have had a lot of success with applying this type of thing to go, and there's been a go program called Mogo written by GEICO Sylvain Gelly.",
+            "But on the small go boards on a 9 by 9 board place at almost not expert level but strong club level play on the big board, it doesn't work at all at the moment, but but there's there's hope that it might be possible to make it work."
+        ],
+        [
+            "And in the future.",
+            "So, just to summarize, the idea is that you have a starting position.",
+            "You play stochastic games from the starting position to the end of the game.",
+            "You can score those ends of those gusts, stochastic games, and you can use information from that to value the starting position."
+        ],
+        [
+            "Ads.",
+            "The new technique which everyone is interested in computer go at.",
+            "The moment is to make this adaptive.",
+            "So instead of just learning about the value of the starting position, you can also use this observation.",
+            "Use this observation to learn about the value of all of the positions you saw along the way and you can if you store values for move positions you've seen before, you can actually install the game tree in memory as you explore it, and you can bootstrap the policy if you use too.",
+            "Generate these least castec games, so the more you learn about playing go the better random games your playing till eventually you're playing perfectly and the algorithm which is used to do this is called UCT, and it's been proved that this will converge eventually towards the minimax solution to the same solution you would get from actually searching the whole the whole the whole game tree.",
+            "And this, as I said, yield very strong play on small go boards.",
+            "So if you're interested in this area, I think looking at Mogo and you can actually download Moga and play it is really, really worthwhile.",
+            "And also it's really easy to understand the way that these programs work is remarkable thing.",
+            "It's gone away, go used to be require so much expert knowledge you should be all good programs are written by expert players, sylvaine is probably played about five games of going his entire life like this.",
+            "System is completely knowledge."
+        ],
+        [
+            "Free.",
+            "So what I've been interested in very recently is Bayesian.",
+            "Alternatives to this UCT algorithm, and I'm just very briefly going to sketch what we've been doing on this, and I think part of the reason this is interesting is 'cause it means we can maybe understand better what's going on with UCT.",
+            "Now really understands quite why it works so well and also.",
+            "Because it enables us to use prior information in a principled way so we get to choose how we assign the priors on the values of moves and that way we can bring knowledge into into.",
+            "This process is at the moment, like a program like Mogo has to learn how to play, go from scratch with every position it sees, which seems a bit wasteful.",
+            "I mean, humans drawn a lot of experience to do it to play, so I think we can do better than that.",
+            "And this.",
+            "This just gives another quick view of what's going on, just in case it wasn't clear before so.",
+            "You have a starting position.",
+            "There's a bunch of moves that you can play, so I'm going to build a sort."
+        ],
+        [
+            "Gametree you play random games from those moves and at the end of each one you get a result.",
+            "So is it a win or a loss can play some more random games?",
+            "This ones are loss and you keep on playing and as you as you keep doing this there are positions which you start to see more than once in your when you start building."
+        ],
+        [
+            "Tree.",
+            "And you can see the sort of tree the tree emerging."
+        ],
+        [
+            "The top and you can learn about about these positions from what you observe of the leaves of this tree.",
+            "So for example, this node has been seen 3 times and 2/3 of those times were wins.",
+            "Tell us something you can learn from and that's that's all of the information that you see T uses in order to guide search.",
+            "We think we can probably do better if we actually use the full outcomes of these unused information about the structure of the tree, but at the moment people would do."
+        ],
+        [
+            "Not at all.",
+            "So I approach is to store a model for each node of its value, and by doing this we can we can get a search algorithm which performs very similarly to ECT.",
+            "So the way that it works is that you have this little model, so the graphical model this variable is the result of the roll out the play out the random game from starting.",
+            "Position this node.",
+            "So that's the binary.",
+            "That's that's a win loss result.",
+            "This is the X variable is the underlying value of that position, and the Y is kind of like the observed value.",
+            "So we observe we observe why by observing.",
+            "W because.",
+            "We OK. Well, I should say that we put a Gaussian prior on X and we say that why is distributed about X as a Gaussian like in the models we were looking at before.",
+            "And what what, what W represents a sign of Y?",
+            "So if if we win the game, we say that the value of that, if that that position must be greater than zero, we lose the game.",
+            "The value of the position must so noisy value of the position 'cause you're introducing noise in here must be must be less than 0.",
+            "So you do that by putting in this this constraint here.",
+            "But once all it's important is instead of observing the value of why you're observing its sign.",
+            "So in in it.",
+            "So that's a model of the outcome of a single roll out.",
+            "So a single random game from from this position.",
+            "But we don't just have one roll out passing through that position.",
+            "One random game passing through that position."
+        ],
+        [
+            "You have a sequence of them, and as you make more observations of the value of the position, you can update the value of the of the position.",
+            "But you can't just tile these X variables together because.",
+            "As as you're making more observations, your policy for exploring the tree is changing, so that means that this is not a stationary distribution.",
+            "You have to track a moving target, then the way you do that is by putting in a dynamic factor here.",
+            "So you just say that you had a bit of noise at each stage, which allows the which allows the value have to drift with time."
+        ],
+        [
+            "And the way we turned it, so this is a model for the value of a position given observations off of outcomes of random games and the way we turn this into an algorithm for actually exploring a game tree is.",
+            "In a position where we're thinking about what move to make, each move has a Gaussian distribution associated with it, which comes out of the model.",
+            "We just take a sample from each of those, and then we pick the best one.",
+            "And then we always do that and that, and that seems to balance quite well.",
+            "Exploitation and exploration, the game tree and it automatically adapts how you explore and you exploit what you know based on what it seemed before."
+        ],
+        [
+            "So just to make clearer, OK, we're thinking about making two moves.",
+            "Vacuum even approve we are uncertain about the value of the red move, but we think it's probably less valuable than the blue move.",
+            "Where is the blue move?",
+            "Looks like.",
+            "It's pretty valuable.",
+            "It looks like it's probably a winner.",
+            "So the way we choose which move to make, we take a sample from each of these distributions and this time the blue one comes out top.",
+            "OK, we make that move and that's what we call exploitation because we're exploiting what we know in learning about the game."
+        ],
+        [
+            "Tree.",
+            "But we could draw two samples in this distribution from these distributions, and it's possible that this time the red one will come out top, and then we would actually make this move.",
+            "This is useful because we don't actually know if this move is less valuable than this one.",
+            "It could turn out with this movie is more valuable than this one, so we do need to invest a little bit of time in exploring this possibility, and so that's exploration.",
+            "And as we learn more about about the values of different moves, this will converge towards eventually always just exploring.",
+            "The best move, because the distribution of the one which we eventually always seem to be good, we'll just move right over to the to the right and we will always be making that move and this should converge to minimax, so that we have no, we have no proof of that, and it may.",
+            "It may not do.",
+            "No, no, that that estimates no yes, sorry, you're right now.",
+            "They are decimated by a different number of samples potentially yes, yeah.",
+            "Yeah, so that's why this this one is broader because it's been seen less.",
+            "And and if you're if you're in a, is that mean that yeah, that's sorry that I mean, that is the point of it, right?",
+            "So so for in a position.",
+            "We don't want to explore all of the moves the same amount we want to invest all over.",
+            "We have limited computational resources.",
+            "We want to invest them on the moves which are either definitely known to be good or which might be good.",
+            "And once we know it's not going to be good for them, we don't wanna spend anymore time looking at it.",
+            "And then it will just be if Red turns out to be bad.",
+            "This at the next observation.",
+            "This distribution will move over to the left and it will become more narrow."
+        ],
+        [
+            "So this graph kind of shows this tradeoff between computational effort.",
+            "You can make an accuracy of your search, and that's that's one of the nice things about this type of algorithm, rather than like minimax search and minimax search.",
+            "You have to search a certain amount, otherwise you get nonsense out, but with with Monte Carlo you can stop at any point and accept the current accuracy of your prediction.",
+            "So what this shows is that so we take 2000, we generate 2000 game trees.",
+            "These are synthetic game trees, not from a real game, but there from a model which is supposed to represent the standard model which is supposed to represent game trees like go game trees.",
+            "Then we try and find the best move to make in each of these trees.",
+            "No one after the other, and this shows the percentage of these we get.",
+            "We get wrong as a function of the number of iterations we run our algorithm.",
+            "So at the beginning all of the algorithms are getting it wrong.",
+            "Not quite a lot of the time like this, just random.",
+            "Basically whether they make the right move or not.",
+            "And then at the end, most of the algorithms eventually will find the right move to make.",
+            "So this red curve is Alpha beta search, so that's the algorithm which is used for computer chess and what you see is that it finds the right answer, but it takes a long time before it learns anything at all.",
+            "I mean, for each one, and this is some is an average over lots of different game trees.",
+            "So the different game trees have different properties.",
+            "That's why you get a curve in there.",
+            "But for each tree this is like an average of lots of just step.",
+            "Just step functions because it would be to search just runs up to a point that I guess the right answer, and then that's it, there's no.",
+            "There's no less that should be no curvature in there.",
+            "Property so this is UCT, which is this algorithm which has been working really well for computer going small boards and that that converges quite a lot faster than Alpha beta up to a certain amount of computation.",
+            "You do.",
+            "Eventually I'll be to be set at the end, but you know, with a realistic computer playing go we're probably operating in this kind of region.",
+            "We can't, we can't.",
+            "We can't actually solve go, and this is the Bayesian algorithm which that I've been talking about, so at least on this.",
+            "On these synthetic game trees, it seems that it seems to work pretty well, but we haven't.",
+            "We haven't found a way of testing how how well it converges the go 'cause you can't really measure that very easily, so.",
+            "Currently I'm working on implementing a sort of version of Mogo of that right, trying to reverse engineer Mogo, basically to produce that and then put in this algorithm in place of ECT and see how well it does in there.",
+            "But that's quite a difficult challenge to figure out exactly what they're doing with some parts of that.",
+            "So, so the moment we haven't got experiments on Go MC is.",
+            "The original form of multi car logo which is just you have a position and evaluate just by playing lots of random games.",
+            "But you don't bootstrap their policy so it's always always has a bias.",
+            "It can never converge to the correct solution, but initially it works kind of well as a approximate evaluation function.",
+            "And it actually works pretty well at scoring final game."
+        ],
+        [
+            "Positions.",
+            "So in conclusion, addressed bunch of models for for computer go Move prediction, territory prediction and a bit about Monte Carlo go.",
+            "I would like to.",
+            "Say that I believe that probabilities are good for dealing with this kind of problem.",
+            "And.",
+            "I'd also like to advertise go as a good testbed for machine learning algorithms.",
+            "I think that it allows you to use it as it contains a wide range of subtasks which you can apply machine learning approaches all different machine learning approaches.",
+            "So I did my PhD on computer go and that meant I could use any machine learning.",
+            "Do any machine learning I wanted really as long as it was on go.",
+            "So there's there's actually a hugely broad range of stuff you can you can apply to it.",
+            "The game is incredibly complex to play, but the rules are very simple.",
+            "There's nothing there's one rule which I missed out from this talk, but that's a very simple rule.",
+            "It just says you can't repeat an earlier position.",
+            "Think now I've told you all of the rules of go, so I don't think you could teach someone chess that quickly.",
+            "You know you probably used it using the slides of this talk.",
+            "You could program a legal go move generator yet again that emerges from the simple rules is very complex, so it gives a good challenge.",
+            "Huge amounts of training data because all these games that are played online on Internet go servers.",
+            "And.",
+            "Finally, humans play go very easily and they learn how to play it very easily and after a couple of months of play you can play better than the strongest go programs.",
+            "So that provides this kind of tantalizing.",
+            "Evidence that we must be able to get a computer to play ago?",
+            "Well, this is sort of, it's it's what makes it exciting as this is challenge.",
+            "And that's it, thanks.",
+            "Yep.",
+            "Original approach.",
+            "No, you know so.",
+            "Part of the motivation of doing this work on Monte Carlo's that we can use the pattern system.",
+            "That's not the patterns.",
+            "The pattern system which I did at the start is in a way, in a way, the ideal proposal distribution for these random games.",
+            "The ideal prior distribution for how to make your moods.",
+            "So the goal is to eventually combine that, so use.",
+            "That's why we want to use the user sort of this sort of Gaussian model, so we can use the Gaussian predictions from that Model 2.",
+            "Just plug in and and predict the massive.",
+            "Yes.",
+            "Yep.",
+            "Yep.",
+            "Yes, yes.",
+            "Yeah, I think there is.",
+            "I think there is a sort of there is a crossover with the Boltzmann machine.",
+            "I mean I think the process of sampling from from the balsam machine is kind of like a cellular cellular autonoma.",
+            "And actually I was kind of a sort of in a sort of amateur interest in that that led to working on that model.",
+            "I don't think anyone's actually try to write a cellular.",
+            "Automata too.",
+            "Not to do any part of go, but people have talked about it, so definitely there's definitely.",
+            "That sounds like that.",
+            "Sounds like it could well be.",
+            "Be applied here.",
+            "It sounds like something that could be done.",
+            "Don't know how well it would work, but it would be interesting academically, definitely."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Right say?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, this is going to be quite different from what you've been hearing about so far this morning, but I hope that it's interesting for people, and I think the great thing about this application is that there's a huge range of ways that machine learning can be applied.",
+                    "label": 0
+                },
+                {
+                    "sent": "I hope that I can carry that across a bit in this talk, so a lot of this work was done in collaboration with Torah and David who supervised my PhD and a lot of it also with Ralph, who works at Microsoft.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I'm going to talk about the game, go what it is for people who don't haven't heard of it before.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going to talk about why it's interesting for machine learning researchers because of the complexity that results from the 'cause of the uncertainty that results from the complexity of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to talk about models to predict the moves of human players models to predict the final outcomes of games, and finally a little bit if I have time about Monte Carlo Go, which is something that has been has raised a lot of interest recently in the in the go field because it's been applied very successfully.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Small boats say go is a game.",
+                    "label": 0
+                },
+                {
+                    "sent": "It started being played about 4000 years ago in ancient China and it's currently played by about 60 million people worldwide, mostly in the Far East.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's a game of two players, black and white, and they play using a board which is a 19 by 19 grid like this and they take it in turns to place stones on the vertices of the grid, and one stone is placed.",
+                    "label": 1
+                },
+                {
+                    "sent": "It is not moved, but it can be captured.",
+                    "label": 0
+                },
+                {
+                    "sent": "And a study is captured by being surrounded by opponents stones.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like this, so white stone there black surrounded it on the outside.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finally captures by moving there.",
+                    "label": 1
+                },
+                {
+                    "sent": "If there's a chain of stones connected together, like these three white stones, they're connected because they are adjacent in the horizontal and vertical directions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then their captured all together or not at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Black captures them by moving around the outside.",
+                    "label": 1
+                },
+                {
+                    "sent": "Finally moved here and then they captured.",
+                    "label": 0
+                },
+                {
+                    "sent": "The name of the game is to make territory by surrounding regions of the board.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here White House, this area on the left black has this area on the right and you count the score by summing up these areas.",
+                    "label": 0
+                },
+                {
+                    "sent": "The player with the most score wins.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Say that's pretty much all of the rules of the game, but that really is it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And he might ask, how can this game work because?",
+                    "label": 0
+                },
+                {
+                    "sent": "Surely OK Black say surrounds a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why can't white just go round on the outside and then moving there and capture the Blackstone from the game?",
+                    "label": 0
+                },
+                {
+                    "sent": "Will just go on forever?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the reason that it works?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's because there's certain configurations of stones you can make, like this one, which can never be captured, so white goes round on the outside, but now what can they do?",
+                    "label": 0
+                },
+                {
+                    "sent": "They can't move into either of these points, because neither of those points they would already be captured.",
+                    "label": 0
+                },
+                {
+                    "sent": "They would already be surrounded and you can only place one stone at a time, and these are called eyes this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's all of the rules of go.",
+                    "label": 0
+                },
+                {
+                    "sent": "And don't worry if you didn't completely follow that you don't actually need to know how to play the game to understand this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what I'd like to do now is, say why I think go is interesting because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everyone here probably knows that computer chess is now at the level of grandmasters, so Kasparov was beaten back in 97 and now desktop computers can beat Grandmaster chess players.",
+                    "label": 0
+                },
+                {
+                    "sent": "But at the same time the best go programmers, at least on the full board, can't beat week amateur go players.",
+                    "label": 0
+                },
+                {
+                    "sent": "People have just been playing for maybe a few months.",
+                    "label": 0
+                },
+                {
+                    "sent": "And guys becoming recognize this big challenge in AI and machine learning as well recently.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you want to read more about going computer go and stuff then I suggest having a look at this survey by Martin Miller.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm just going to give a very quick summary of what I think that one of the reasons why it's difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's two reasons really.",
+                    "label": 0
+                },
+                {
+                    "sent": "So is to do with the reason why we see chess as being easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason that we computers play chess is because the uses brute force minimax search, which involves just expanding a tree of future games.",
+                    "label": 0
+                },
+                {
+                    "sent": "You play move sequences from the current position into the future.",
+                    "label": 0
+                },
+                {
+                    "sent": "You evaluate the resulting positions and you can propagate back information which allows you to decide where to move.",
+                    "label": 0
+                },
+                {
+                    "sent": "So requires this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look ahead and evaluating the resulting in positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Both of these can't be done for go so very easily, so the branching factor could go the number of legal moves each turn is about 200 compared to about 35 legal moves each turn.",
+                    "label": 0
+                },
+                {
+                    "sent": "In chess on average, and more importantly, the evaluation of the positions at the leaves of this tree is much more difficult for ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no fast function to estimate the value.",
+                    "label": 0
+                },
+                {
+                    "sent": "Her position in chess you can sum up the points of the pieces that gives you a.",
+                    "label": 0
+                },
+                {
+                    "sent": "A good estimate of who's ahead and who's behind, but in go, all of the pieces that each player has their identical, so you have to value them based on the configuration of stones around them.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's and that's slow to do so you can't use it in conjunction with this kind of brute force search where you have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to evaluate millions of positions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "2nd.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say that means if you can't search, you have to use knowledge instead.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's something that people have people have known in AI for a long time.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a tradeoff between search and knowledge, and most current go programs use a great deal of handcrafted knowledge.",
+                    "label": 1
+                },
+                {
+                    "sent": "The problem with this is that it's very slow to program all this handcrafted knowledge into a program.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of these programs took decades to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Be developed and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hand tuning them all.",
+                    "label": 0
+                },
+                {
+                    "sent": "These hand crafted heuristics pieces of knowledge to work together well is very difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "It takes a long time and you get diminishing returns.",
+                    "label": 0
+                },
+                {
+                    "sent": "The more complex system is, the harder it is to tune it together to work well.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this led to people looking at machine learning approaches to to automating this sort of knowledge acquisition by go programs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Eric Vanderwerf did a PhD thesis where he applied neural networks to all different aspects of Go territory prediction, move prediction, all kinds of things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, people have looked at using machine learning in conjunction with pattern matching and the first part of the talk I'm going to talk about move prediction system that we worked on using pattern matching and this was very much inspired by the work done by Frank Degroote.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And I'd just like to briefly make the point that although go is a game of perfect information, there's no throwing of the dice.",
+                    "label": 1
+                },
+                {
+                    "sent": "There shouldn't be any uncertainty.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is uncertainty because our brains or computers only have limited computational speed.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in conjunction with the complexity of the game tree, you can't predict what's going to happen in the future and go.",
+                    "label": 0
+                },
+                {
+                    "sent": "Players refer to have all kinds of words which refer to this one is aji taken literally, that means taste.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it's used to refer to the lingering effect lingering in for influence of stones on the board, even if it looks like they're going to be captured because of the uncertainty about their future influence, and I guess the theme of this talk is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think it's a good idea to represent this uncertainty using Prop.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Ilities so to start off with going to talk about a model for predicting moves of human places, where on the board the plane is going to go and this model is trained from records of historical expert games.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when another good thing about working on go is that we have a huge amount of training data, so there's this Internet ghost because go players are relatively dispersed across the world, there's a lot of people that play online and a lot of very strong people that play online and every single one of these games is recorded so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Vast amounts of training data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a million games between various.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Human go players.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way that we choose to represent a move in order to build a model to predict moves is as a pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "So every move is actually associated with a set of patterns and a pattern is the exact arrangement of stones centered on the point where we're thinking about moving within a sequence of nested templates with.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Which we are matching patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to make that a bit clearer, we're thinking about moving at this location and this movie is can be associated.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "With a bunch of patterns, for example this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a template.",
+                    "label": 0
+                },
+                {
+                    "sent": "This blue line and the exact arrangement arrangement is tones within that template is the pattern, but it's showing up there and you can draw.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "A number of templates for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And each one year.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Different pattern so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even move is associated with a vector of these paths.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now we actually defined 13 different pattern sizes, so we have a vector of 13 different patents for every move.",
+                    "label": 0
+                },
+                {
+                    "sent": "The biggest one is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually big enough to contain the full board position, so it's actually a 38 by 38 patterns, so you can always see the whole board even if you're right in the corner and the smallest is just the point at which we are moving.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now, if he slides with how we do the engineering of this to make it efficient, because I think this is actually really important to make this model useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "The pattern information is stored in a hash table.",
+                    "label": 0
+                },
+                {
+                    "sent": "Obviously this gives constant time access and it means we don't need to store the state.",
+                    "label": 0
+                },
+                {
+                    "sent": "The shape of the patterns explicitly.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in order to make this pattern matching efficient, we need a rapid incremental hash function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to achieve this incremental property, we want it to be commutative and reversible.",
+                    "label": 0
+                },
+                {
+                    "sent": "This means that as we place stones on the board, we can cash the keys of the patterns corresponding to the different moves on the board and update those cache key.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This incrementally.",
+                    "label": 0
+                },
+                {
+                    "sent": "The method used to do this is called Zobrist hashing and it works by Store 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of four use one of four possible 64 bit random numbers for each point in the pattern.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in this pattern you would use a random number for black at this particular location relative to the center, and you choose the number for empty at this location relative to the center, and in order to generate the hash key for this pattern, you take the X or of all those numbers together.",
+                    "label": 0
+                },
+                {
+                    "sent": "Add.",
+                    "label": 0
+                },
+                {
+                    "sent": "The case the meaning of one of these patterns doesn't change if you rotate it or if you reflected patterns invariant to April symmetry of the square, and it's also invariant to reversing the colors of all the stones and reversing the color of the move.",
+                    "label": 0
+                },
+                {
+                    "sent": "We generate the hash keys for all of those 16 variants, and then we take the minimum, and that's how we that's how we generate the hash key to be invariant to these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Summations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way we build the table of patterns which we're going to, we're going to use to to build our MOVE predictor is to automatically harvest them from records of historical games.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I said we have a million games for this experiment.",
+                    "label": 0
+                },
+                {
+                    "sent": "We used 180,000 games because they're the strongest ones in the data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each one has about 250 moves, and as I say, we define 13 pattern sizes, so we harvest.",
+                    "label": 0
+                },
+                {
+                    "sent": "The past all the patterns for every move played by the human players in these games.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then that gives us 600 million patterns that are disposal.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now OK, yeah, you could store that many patterns in memory if you really wanted to, but if you want to store useful information with those patterns and that starts to become a bit difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "So partly for space, and also because you want to be able to generalize, there's no point in storing patterns that are never going to be seen.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to limit the number of patterns we store.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way we choose to do that, it is just to store the patterns that were played more than a certain number of times in the training data and the method to do this as Bloom filter, which is a smart way of giving an approximate test for set membership with very minimal memory footprint so you don't have to build a big hash table size of.",
+                    "label": 0
+                },
+                {
+                    "sent": "A million to to see if you've seen them before, and I'm not going to go into how that works now 'cause I don't have time, but I I do think that it's a really useful thing for lots of areas of machine learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if people are interested, there's this reference that she invented back in 1970.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We play through these 181 thousand games.",
+                    "label": 0
+                },
+                {
+                    "sent": "We still all patterns in fact, see in three or more times.",
+                    "label": 0
+                },
+                {
+                    "sent": "Add this shows the relative frequencies of the occurrence of the different pattern sizes at different phases of the game, so these are the phases of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each 1:30 moves, so at the later in the game we tend to be matching smaller patterns, so these these are the smaller patterns up here, the size 14 is actually the full size.",
+                    "label": 0
+                },
+                {
+                    "sent": "The full board pattern, so the beginning of the game we actually frequently matched the full board position.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason for that is because the board is mostly empty at the beginning, so it's not that surprising we see the same position more than once.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also play at the beginning tends to go along standard lines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they go like in chess you have standard opening sequences which people.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Which people play?",
+                    "label": 0
+                },
+                {
+                    "sent": "So as I said, we build up happen table by harvesting, then there's a second separate phase which is training how we learn the values of these patterns based on the move decisions made by made by the human players in the game records.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we use the same training data for both processes we use.",
+                    "label": 0
+                },
+                {
+                    "sent": "We play through the game's harvest, the patterns then separately the second stage runs through the same games again.",
+                    "label": 0
+                },
+                {
+                    "sent": "This time we want to learn values for those patterns, so then we can use them to predict expert moves.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the first experiment, I'm going to talk about, we represent, as I said, that every pattern is associated with a vector of patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "But to start off with, we represent and move just by the biggest pattern that matches at that point.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, this might seem like obvious thing you should do, because the bigger pattern contains all of the information of the smaller patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of all of the smaller patterns are subsumed within it, but actually will see the feature.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can get better performance by taking into account the small.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Happens as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Search to make this concrete for thinking about moving.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we have a table of patterns we want to try and find the biggest patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "That way we do this first.",
+                    "label": 0
+                },
+                {
+                    "sent": "See is the whole board position in patent able?",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's not, then we look for a pattern within smaller template.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not we back off.",
+                    "label": 0
+                },
+                {
+                    "sent": "We keep on backing off until we find the pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "Within this area.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know hash table and then we can go and look up information in this hash table which is going to tell us whether.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is it good move or not?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's that's how we do the engineering partners.",
+                    "label": 0
+                },
+                {
+                    "sent": "How we we have we do an efficient pattern matching system for go.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now I'm going to talk about how this sort of machine learning bit how we, how we learn values for these patterns from the move decisions made by human players in the training data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every pattern we say is associated with some continuous value you.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm going to put a Gaussian prior on that and then every move in a particular position has some urgency which I'm going to call X, and that's distributed about the pattern value as a Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now for the next sort of few slides, I'm going to use quite a bit of fat to graph notation, and I gather that Zubin did cover this yesterday.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for people who just need a quick refresh about factor graphs, so the circles are variables, the squares of squares of factors, and what this represents is a function as a product of its factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So each one, if you multiply these factors together, you get the function and the graph is bipartite graph, which just shows how various factors depend on which variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason this is useful is 'cause it allows you to do efficient inference.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is our sort of model of a value of a single move, so this value is the urgency of a move value of a pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "Annina position we don't just have one, one move being played well.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have one move that's being played, but there's a whole move whole lot of other moves which could have been played but were not played.",
+                    "label": 0
+                },
+                {
+                    "sent": "So training example for our model is chosen move which is associated with the pattern and then a whole set of other boots.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the other legal moves which could have been played by the human player, but they decided not to play them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can learn from that and what we learn is what we actually do is we make the observation Now the urgency of the pattern which was played, which I'm going to assume now is the pattern number one is higher than the urgency of all of the other patterns, so that's equivalent to just observing a set of constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "X1 must be bigger than each of the other axis and you can put this in a factor graph by adding in factors which.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is an indicator function.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is 1 if this logical proposition is true, so this is 1 if X one is bigger than XN.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you take the product of all these factors, you can see that if we violate any of the constraints, then the whole product will be equal to 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's how you can observe constraints.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this kind of represents the joint distribution of the variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "The pattern values on the X variables, the move urgencies given a particular move decision being made in particular.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And what we want to do is to learn, determine a posterior distribution over EU variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given these observing these constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have to integrate out the X variables and I guess from yesterday and maybe anyway.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You know that this is done by message passing on the factor graph, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are the update equations for message passing and I'm not going to attempt to give a tutorial about this now, just just say these are.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is how you calculate the message from factor to variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you calculate a message for variable factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's the product of the messages going into into the variable from every other factor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And that you do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then you can calculate marginal distributions of the variables in your model and do that by taking the product of messages.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in order to make this whole learning scheme tractable, so we can so we can play through the 180,000 games and keep the same representation for distributions as we go through, we assume that they always Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that means that we assume that all the messages we propagate on this graph, a Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "That means that we will get a Gaussian posterior 'cause product of Gaussians gives a Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "And because most of the factors are Gaussian in this model, it's generally true that all the message calculations are exactly Gaussian, but some of them are not, so the messages out of the after the constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "The ordering factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "I called them there on the right are not going to be Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you calculate them exactly, so you calculate those messages by the top equation here.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do that, integration for those factors which observe those sign constraints, you're not going to get Gaussians coming out, and so we have to approximate those by Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do that using expectation propagation, sort of, as it's as it's defined for for a graph, and the way that works is like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the true distribution of the marginal distribution of a variable is given by product of the factor variable message going in times the product of that variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same variable to the same factor going out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can see that from this equation and this equation here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because because.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "This factor to variable message here is not Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to approximate it by Gaussian so so that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we assume that this one is Gaussian and we want to approximate this one by Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that will give us a Gaussian approximate marginal distribution there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we do that by moment matching.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we find the marginal which which is closest to the true marginal in sense of KL divergent, which is the same as just finding a Gaussian with the same moments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we just we just calculate the moments of the true distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we choose the Gaussian with that same distribution and to get the message going out, we divide out the message going in but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, whether that's quite a quick sketch of that, and it's not really that important if you don't understand all of that because I'm going to give you a sort of high level view next this question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are you saying that you have?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So also last year that's on the next slide, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what happens is the sort of schedule for doing all this is that you start with.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "You put Gaussian prior, which is, which is what these factors represent on the left.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you start off with.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know this Gaussian messages coming out of those factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "They just pass through this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You variables calculate the message out of this factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just a convolution with the Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's actually just you just add this noise to that Sigma and then.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can calculate the messages and at this point, well almost all of these messages are Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, this one is not Gaussian 'cause it depends on the message from there, but most of these are Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the problem is that these ones out of.",
+                    "label": 0
+                },
+                {
+                    "sent": "All these factors are not Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you calculate them exact.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what you do at this point is so you stick.",
+                    "label": 0
+                },
+                {
+                    "sent": "You keep these messages going in here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You've cashed them in there and you iterate this EP approximations.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're approximating these marginals and calculation that message is going out until it converges to some fixed point and then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Nothing converges.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can propagate messages back and then calculate the posterior distribution on the on the variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you do that just by taking the product of the messages going in there does that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Does that answer the question?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I don't mind also answering now if you want this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So say that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's what we do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we play through this same 181 thousand games and we use them to learn the values of these patterns based on the move decision.",
+                    "label": 0
+                },
+                {
+                    "sent": "So by observing this constraint that the urgency of the pattern that played of the move that's played must be higher than the urgency of the other patterns, and this shows results on test data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way we do the test actually to produce this graph is just to rank the moves on the board in the test data according to the means of their values.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's pretty much the same as ordering them by their probabilities of being played and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, what we can see is that we predict so.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a cumulative density function of the expert move rank.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the rank we give to the expert move and you can read this as we predict 34% of expert moves correctly and we get a like 66% of expert moves in our top five, 78% in our top 10 and sort of 88% in our top 20.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can kind of this kind of tells you it tells you a bit about under this model.",
+                    "label": 0
+                },
+                {
+                    "sent": "What is the real branching factor ago I said there's 200 legal moves each turn.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using a model like this, you can you know you can get down most of that too within about 20 legal moves, so you reduce the search space significantly.",
+                    "label": 0
+                },
+                {
+                    "sent": "This just compares with with another.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another result for this so that at the time we did this work, which is about a year and a half ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were we were quite a lot stronger than the than the best other result recently.",
+                    "label": 0
+                },
+                {
+                    "sent": "Someone actually has published a paper which does a little bit better than us on this on this red line they use a very similar, very similar pattern matching system.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the great thing about this system is that it can be done very fast, so we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can actually generate going moves at a rate of 100 millisecond with if we full pattern system.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we reduce the size of the maximum patterns then we can do it 1000 or 10,000 meters second.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that means it can be used in the inner loop of research.",
+                    "label": 0
+                },
+                {
+                    "sent": "So say we are searching the game tree, we can actually use this to prune, removes fast enough to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The earlier neural network models are not fast enough to do that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this shows a floor of the system, which is that as we go through the game, the error increases, so this is rank.",
+                    "label": 0
+                },
+                {
+                    "sent": "Error is just the rank of the expert move divided by the number of legal moves.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "High Risk high was worse and this shows why is because the bigger the pattern, the lower the error.",
+                    "label": 0
+                },
+                {
+                    "sent": "The smaller the pattern, the higher the error at the end of the game matching smaller patterns.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So one way of dealing with that is to use a hierarchical Gaussian model of the move values instead of just taking the maximum pattern only.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm just I think I'm just going to go through this very quickly and I want to get on to some other stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea is that if we make him move, it might be worth using all of the patterns that match the location, not just the biggest one, because although the though of course the larger pattern contains all of the information of the smaller patterns, so the evidence from the larger passenger dominate.",
+                    "label": 0
+                },
+                {
+                    "sent": "The larger patterns have been seen less frequently than the smaller patterns, so in cases where we're actually quite uncertain about the value of a large packing 'cause it hasn't been seen very often, we should allow information from the smaller patterns to have influence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a bit like a language model.",
+                    "label": 0
+                },
+                {
+                    "sent": "If people are familiar with with with N gram language models of smoothing and that kind of thing is very similar to that and the way we do it is to use a hierarchical model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Often these valleys, so the patterns actually do form a hierarchy with.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just the move vertex, the point in which we're moving.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are the smallest size patterns which could match this, just obviously a subset of the path which could match for that move, and then for each of those a bunch of patterns which could match one level up for the one size.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bigger patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we actually have a hierarchy of 13 levels and right at the top would be the values of the actual moves that are played in the expert games.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The model is just to make it all Gaussian, so but a Gaussian prior on the value of the single size vertex make all of these other arrows conditional Gaussian distributions, so we can use exactly the same ranking model that we used before, just using this to provide the prior of the pattern values instead of just sticking a separate Gaussian on the value.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Biggest pattern that matches and if we try if we train on a small amount of training data, this gives slightly improved performance.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "On the previous graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this shows the predicted probability of the expert moves are different phases of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can see that the predicted probability is a bit higher if we use a hierarchical model later on in the game where we matching smaller patterns right at the beginning of the game, we're matching big patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then actually using the Max pattern wins slightly at the beginning, and then the difference is small.",
+                    "label": 0
+                },
+                {
+                    "sent": "But later on in the game we get a big advantage by using the hierarchical.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that's how you move prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's another big piece of information in these expert games which we didn't use.",
+                    "label": 0
+                },
+                {
+                    "sent": "The tool in that, so you might be wondering.",
+                    "label": 0
+                },
+                {
+                    "sent": "We didn't, why didn't you use the final outcome?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why are you interested in the final outcomes of the games?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, this model is something which is all about predicting the final outcomes of ago game and trained from.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Expert games.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe I should ask is just anyone have any quick questions on the move prediction stuff at this point?",
+                    "label": 0
+                },
+                {
+                    "sent": "For may be fun, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can we predict amateur players?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that so?",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, it's a good question.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's obviously bad because it's trained in expert games.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's better at predicting expert moves.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one thing we did, So what we wanted, one motivation for doing this is we actually wanted something to generate good moves.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one thing we did was to train it in games where you have an expert player playing an amateur and then you train just from the expert moves.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in that way you learn the correct response is to weak moves so so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you kind of get the you get the right responses, but we haven't actually tried learning from directly to emulate amateur play.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think amateur players.",
+                    "label": 0
+                },
+                {
+                    "sent": "Much less, it's much more erratic.",
+                    "label": 0
+                },
+                {
+                    "sent": "They playlist along with standard lines.",
+                    "label": 0
+                },
+                {
+                    "sent": "It might be harder, might be harder to predict.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this shows the position mid game position actually is this is the end game position.",
+                    "label": 0
+                },
+                {
+                    "sent": "Small board and what I mean by territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said before, is it the empty regions surrounded by each player?",
+                    "label": 0
+                },
+                {
+                    "sent": "So why it has the bottom of the board?",
+                    "label": 0
+                },
+                {
+                    "sent": "Black has the top of the board.",
+                    "label": 0
+                },
+                {
+                    "sent": "Notice that there's one black stone here which I've counted as part of whites territory, and the reason for that is because in agreed to end the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "At this point the players kind of implicitly agreed that that Blackstone would have been captured.",
+                    "label": 0
+                },
+                {
+                    "sent": "If they disagree, they would have played on, and eventually white would have probably captured it, so they would just pass at this point and say.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I'll give you that stone.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we use so that stones called dead, by the way.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we use what's called the Chinese method of scoring, which means we also count the stones themselves as part of the as part of the players territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the white stones part of White Star in the blackstones part of Blacks territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just should have said that in this diagram the squares are the territory outcome and the circles of the stones, and obviously the score of the game is just the sum of the each player is just the sum of this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yes, some of the territory outcome.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the role.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the goal of our territory predictor is to take a good position from the middle of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "AD predict while the territory outcome if that is so.",
+                    "label": 0
+                },
+                {
+                    "sent": "This diagram shows the position in conjunction with the territory outcome and this is this is a hypothesis about what the territory outcome might be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Black owns the bottom of the board.",
+                    "label": 0
+                },
+                {
+                    "sent": "White owns the top.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The board coming to another hypothesis, well, maybe Black owns the right hand side of the board, and in this case they've captured this stone.",
+                    "label": 0
+                },
+                {
+                    "sent": "So is there a question?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right, yeah, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly, and that's what I'm going to talk about it in the last part of the talk, so that's good point.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, so another hypothesis.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is that black owns the whole board and the goal?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Kind of model is to do some sort of probability distribution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "These hypothesis.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to make this a bit more mathematical, we represent a position by vector C with each element can be black, white or empty.",
+                    "label": 0
+                },
+                {
+                    "sent": "We represented territory outcome by vector S, where each element is plus one or minus 1 + 1 for black terror.",
+                    "label": 0
+                },
+                {
+                    "sent": "She minus one for white territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to model the distribution of probability of territory outcome given the current board positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So PFS given, see this is useful for a bunch of reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "In computer go.",
+                    "label": 0
+                },
+                {
+                    "sent": "One reason is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can use it as an evaluation function, so the sum of the expected value of each of the vertices is the expected score of the black.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "The model that we use is a Boltzmann machine is actually a conditional random field because it's a conditional distribution on features and.",
+                    "label": 0
+                },
+                {
+                    "sent": "This this this ass parables format the grid topology so they connected in the grid topology of the go board.",
+                    "label": 0
+                },
+                {
+                    "sent": "Factors that can connect them determine the coupling between the variables, or how strongly correlated the territory outcome is for pairs of adjacent points on the board.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these squares here biases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they say, how likely is this particular point going to be?",
+                    "label": 0
+                },
+                {
+                    "sent": "Black or white?",
+                    "label": 0
+                },
+                {
+                    "sent": "This depends locally on the board position that's present so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Said by system depend on the state of the board at that point, and the couplings depend on the state of the border at the two points where we're trying to predict.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Before.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the model itself just just quickly summarize it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's both machine, so you can write it instead of writing as a product of factors, you can write it as exponential to the sum of bunch of potential functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And each one of those is contains the sum of two types of terms.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have your biasing terms and you have coupling terms.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, by things that biased terms are functions of the local board position.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example, if the position is black, that says, given that the point on the board is black.",
+                    "label": 0
+                },
+                {
+                    "sent": "The value of H says how likely is that point going to be black territory or white territory and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The coupling tile is also conditioned on the local position or the couplings are determined by these parameters W and they say OK, so for example to Blackstone's next to each other how, how strongly correlated do we think the final territory outcome is going to be for those two points and?",
+                    "label": 0
+                },
+                {
+                    "sent": "We think we would think it would be a very high correlation because of the common fate property of chains.",
+                    "label": 0
+                },
+                {
+                    "sent": "I said right at the start of the talk change.",
+                    "label": 0
+                },
+                {
+                    "sent": "The stones are captured all together or not at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so either this is going to be both black territory or both white territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only thing that I need to count there is the nearest.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, that's the actually the direct local.",
+                    "label": 0
+                },
+                {
+                    "sent": "The position underneath the point.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is very simple model at this point.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_51": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Say so say we got lots of training data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's an example position from one of those one of those games on that corresponds to the C vector, their position.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the final position from that game, so we just we know the final position of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "We got the game rec.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We can we know how to score a goal position so we can get the score.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_54": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We can get the territory outcome of that game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we can roll back to the mid game position.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we have a pair of the final game outcome and the mid.",
+                    "label": 0
+                },
+                {
+                    "sent": "Game position, and that's an example of a training instance for our model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's the S in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_55": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "With a C. So we do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "We train, we train our model by maximum likelihood from I think we for this experiment we just 600 games because you don't need to use a million games.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's quite a simple model and use.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to use a thing called where we say we use GIFs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gibbs sampling for inference you have to use Gibbs sampling for inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do maximum likelihood and we use a particular type of Gibbs sampling called Spencer Wang, which I'm not going to talk about today.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that's also something that people might be interested in looking up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ads.",
+                    "label": 0
+                },
+                {
+                    "sent": "This shows the position and this shows a sample from the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this represents a hypothesis about what the territory outcome might be from this game.",
+                    "label": 0
+                },
+                {
+                    "sent": "According to the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And things like it says things like these things are not going to be captured 'cause they're part of their own territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "These stones are going to be captured 'cause they're part of the opponents territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "This area is owned by White and this area is owned by Black.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And that type of thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's another sample media sample.",
+                    "label": 0
+                },
+                {
+                    "sent": "These days actually are captured this air.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_57": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So by black and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "As we could also take an expectation over a whole bunch of these samples and the sort of overall statistics of these is actually probably more useful for ago program, and in this diagram the size of the square indicates the degree of certainty in the prediction, and the color indicates the sign.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so black means that territory, and if this sort of small small squares or no squares, then that means that the model doesn't really know what's going to happen in that in that part of the board and its hypothesising that these stones will be captured, for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause they're quite surrounded by by opponents tones and in fact they are.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_58": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "They are captured.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's something else that I should point out about.",
+                    "label": 0
+                },
+                {
+                    "sent": "The samples from this model, which is that they're not actually legal, necessarily legal.",
+                    "label": 0
+                },
+                {
+                    "sent": "Territory outcomes of Go games so so sure that broad statistics of these samples is useful and we can use them to evaluate go positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each individual sample contains parts which are not actually possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example you have these four points on the left hand side of the Board of White territory in go.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't have such a small region of territory because as I said at the start, in order to make a Living Group a group which can't be captured, you have to have two of these.",
+                    "label": 1
+                },
+                {
+                    "sent": "I points you have to have two spaces in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't there where you can build a build.",
+                    "label": 0
+                },
+                {
+                    "sent": "Agree with two spaces in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "It needs to be at least that big so so this.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this hypothesis couldn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, it couldn't be true.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in order to produce the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which produces legal hypothesis guarantee, produce legal hypothesis turns out to be really, really difficult, but we spend a lot of time sort of coming up with really, really complicated models to try and do that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_59": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turns out that a completely different approach works a lot better.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to talk about that in the last part, one question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Wondering?",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't, I don't think so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I that's not something I've seen.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, so generally the model is pretty poor at predicting life and death, so it can't.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you, if you're at the end of the game and you want to score a final game position, usually in go, players will finish the game before everything is determined completely.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, they know it's determined, they know if they play on what will happen, but to a computer they would have to play the game forward to predict what's going to happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this model can't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can't identify if a particular group would inevitably captured, like it gets it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes it gets it wrong, other times and part of the reason for that is because it doesn't actually know that a group has to have enough space to make eyes, which is a really important concept in scoring.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_60": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Scoring these positions so as.",
+                    "label": 0
+                },
+                {
+                    "sent": "With pointed out, this model gives one way of generating hypothesis and has the unfortunate feature that some points are illegal.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_61": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Put another way, you can generate a distribution over the final territory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Outcome of games is to play the game forward from the current position to the end of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the end of the game, you know how to score it because you know the rules, and then you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can make a territory prediction and if the way you choose your moves as he played the game forward is according to some sort of probability distribution, then that gives you a probability distribution over the final outcomes of go games.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is much better at determining life and death of groups and stuff on the board then these sort of static approaches.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Boltzmann machine approaches, so that's kind of LED us to more or less drop the earlier type approach and focus more on this type of thing and in fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is called not a Monte Carlo planning and for.",
+                    "label": 1
+                },
+                {
+                    "sent": "Engo recently since about 2006.",
+                    "label": 0
+                },
+                {
+                    "sent": "People have had a lot of success with applying this type of thing to go, and there's been a go program called Mogo written by GEICO Sylvain Gelly.",
+                    "label": 0
+                },
+                {
+                    "sent": "But on the small go boards on a 9 by 9 board place at almost not expert level but strong club level play on the big board, it doesn't work at all at the moment, but but there's there's hope that it might be possible to make it work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_62": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And in the future.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, just to summarize, the idea is that you have a starting position.",
+                    "label": 0
+                },
+                {
+                    "sent": "You play stochastic games from the starting position to the end of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can score those ends of those gusts, stochastic games, and you can use information from that to value the starting position.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_63": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Ads.",
+                    "label": 0
+                },
+                {
+                    "sent": "The new technique which everyone is interested in computer go at.",
+                    "label": 0
+                },
+                {
+                    "sent": "The moment is to make this adaptive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So instead of just learning about the value of the starting position, you can also use this observation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Use this observation to learn about the value of all of the positions you saw along the way and you can if you store values for move positions you've seen before, you can actually install the game tree in memory as you explore it, and you can bootstrap the policy if you use too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Generate these least castec games, so the more you learn about playing go the better random games your playing till eventually you're playing perfectly and the algorithm which is used to do this is called UCT, and it's been proved that this will converge eventually towards the minimax solution to the same solution you would get from actually searching the whole the whole the whole game tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this, as I said, yield very strong play on small go boards.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you're interested in this area, I think looking at Mogo and you can actually download Moga and play it is really, really worthwhile.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also it's really easy to understand the way that these programs work is remarkable thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's gone away, go used to be require so much expert knowledge you should be all good programs are written by expert players, sylvaine is probably played about five games of going his entire life like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "System is completely knowledge.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_64": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Free.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I've been interested in very recently is Bayesian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alternatives to this UCT algorithm, and I'm just very briefly going to sketch what we've been doing on this, and I think part of the reason this is interesting is 'cause it means we can maybe understand better what's going on with UCT.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now really understands quite why it works so well and also.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because it enables us to use prior information in a principled way so we get to choose how we assign the priors on the values of moves and that way we can bring knowledge into into.",
+                    "label": 0
+                },
+                {
+                    "sent": "This process is at the moment, like a program like Mogo has to learn how to play, go from scratch with every position it sees, which seems a bit wasteful.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, humans drawn a lot of experience to do it to play, so I think we can do better than that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This just gives another quick view of what's going on, just in case it wasn't clear before so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a starting position.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a bunch of moves that you can play, so I'm going to build a sort.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_65": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Gametree you play random games from those moves and at the end of each one you get a result.",
+                    "label": 0
+                },
+                {
+                    "sent": "So is it a win or a loss can play some more random games?",
+                    "label": 0
+                },
+                {
+                    "sent": "This ones are loss and you keep on playing and as you as you keep doing this there are positions which you start to see more than once in your when you start building.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_66": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see the sort of tree the tree emerging.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_67": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The top and you can learn about about these positions from what you observe of the leaves of this tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, this node has been seen 3 times and 2/3 of those times were wins.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tell us something you can learn from and that's that's all of the information that you see T uses in order to guide search.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think we can probably do better if we actually use the full outcomes of these unused information about the structure of the tree, but at the moment people would do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_68": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Not at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I approach is to store a model for each node of its value, and by doing this we can we can get a search algorithm which performs very similarly to ECT.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way that it works is that you have this little model, so the graphical model this variable is the result of the roll out the play out the random game from starting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Position this node.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the binary.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's a win loss result.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the X variable is the underlying value of that position, and the Y is kind of like the observed value.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we observe we observe why by observing.",
+                    "label": 0
+                },
+                {
+                    "sent": "W because.",
+                    "label": 0
+                },
+                {
+                    "sent": "We OK. Well, I should say that we put a Gaussian prior on X and we say that why is distributed about X as a Gaussian like in the models we were looking at before.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what what, what W represents a sign of Y?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if if we win the game, we say that the value of that, if that that position must be greater than zero, we lose the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "The value of the position must so noisy value of the position 'cause you're introducing noise in here must be must be less than 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you do that by putting in this this constraint here.",
+                    "label": 0
+                },
+                {
+                    "sent": "But once all it's important is instead of observing the value of why you're observing its sign.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's a model of the outcome of a single roll out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a single random game from from this position.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we don't just have one roll out passing through that position.",
+                    "label": 0
+                },
+                {
+                    "sent": "One random game passing through that position.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_69": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You have a sequence of them, and as you make more observations of the value of the position, you can update the value of the of the position.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you can't just tile these X variables together because.",
+                    "label": 0
+                },
+                {
+                    "sent": "As as you're making more observations, your policy for exploring the tree is changing, so that means that this is not a stationary distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to track a moving target, then the way you do that is by putting in a dynamic factor here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you just say that you had a bit of noise at each stage, which allows the which allows the value have to drift with time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_70": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the way we turned it, so this is a model for the value of a position given observations off of outcomes of random games and the way we turn this into an algorithm for actually exploring a game tree is.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a position where we're thinking about what move to make, each move has a Gaussian distribution associated with it, which comes out of the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just take a sample from each of those, and then we pick the best one.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we always do that and that, and that seems to balance quite well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exploitation and exploration, the game tree and it automatically adapts how you explore and you exploit what you know based on what it seemed before.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_71": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So just to make clearer, OK, we're thinking about making two moves.",
+                    "label": 0
+                },
+                {
+                    "sent": "Vacuum even approve we are uncertain about the value of the red move, but we think it's probably less valuable than the blue move.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where is the blue move?",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's pretty valuable.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks like it's probably a winner.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way we choose which move to make, we take a sample from each of these distributions and this time the blue one comes out top.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, we make that move and that's what we call exploitation because we're exploiting what we know in learning about the game.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_72": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we could draw two samples in this distribution from these distributions, and it's possible that this time the red one will come out top, and then we would actually make this move.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is useful because we don't actually know if this move is less valuable than this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could turn out with this movie is more valuable than this one, so we do need to invest a little bit of time in exploring this possibility, and so that's exploration.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as we learn more about about the values of different moves, this will converge towards eventually always just exploring.",
+                    "label": 0
+                },
+                {
+                    "sent": "The best move, because the distribution of the one which we eventually always seem to be good, we'll just move right over to the to the right and we will always be making that move and this should converge to minimax, so that we have no, we have no proof of that, and it may.",
+                    "label": 0
+                },
+                {
+                    "sent": "It may not do.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, no, that that estimates no yes, sorry, you're right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are decimated by a different number of samples potentially yes, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so that's why this this one is broader because it's been seen less.",
+                    "label": 0
+                },
+                {
+                    "sent": "And and if you're if you're in a, is that mean that yeah, that's sorry that I mean, that is the point of it, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So so for in a position.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't want to explore all of the moves the same amount we want to invest all over.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have limited computational resources.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to invest them on the moves which are either definitely known to be good or which might be good.",
+                    "label": 0
+                },
+                {
+                    "sent": "And once we know it's not going to be good for them, we don't wanna spend anymore time looking at it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it will just be if Red turns out to be bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "This at the next observation.",
+                    "label": 0
+                },
+                {
+                    "sent": "This distribution will move over to the left and it will become more narrow.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_73": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this graph kind of shows this tradeoff between computational effort.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can make an accuracy of your search, and that's that's one of the nice things about this type of algorithm, rather than like minimax search and minimax search.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to search a certain amount, otherwise you get nonsense out, but with with Monte Carlo you can stop at any point and accept the current accuracy of your prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what this shows is that so we take 2000, we generate 2000 game trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are synthetic game trees, not from a real game, but there from a model which is supposed to represent the standard model which is supposed to represent game trees like go game trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we try and find the best move to make in each of these trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "No one after the other, and this shows the percentage of these we get.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get wrong as a function of the number of iterations we run our algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at the beginning all of the algorithms are getting it wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not quite a lot of the time like this, just random.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically whether they make the right move or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then at the end, most of the algorithms eventually will find the right move to make.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this red curve is Alpha beta search, so that's the algorithm which is used for computer chess and what you see is that it finds the right answer, but it takes a long time before it learns anything at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, for each one, and this is some is an average over lots of different game trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the different game trees have different properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's why you get a curve in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for each tree this is like an average of lots of just step.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just step functions because it would be to search just runs up to a point that I guess the right answer, and then that's it, there's no.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no less that should be no curvature in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Property so this is UCT, which is this algorithm which has been working really well for computer going small boards and that that converges quite a lot faster than Alpha beta up to a certain amount of computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "You do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Eventually I'll be to be set at the end, but you know, with a realistic computer playing go we're probably operating in this kind of region.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can't, we can't.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can't actually solve go, and this is the Bayesian algorithm which that I've been talking about, so at least on this.",
+                    "label": 0
+                },
+                {
+                    "sent": "On these synthetic game trees, it seems that it seems to work pretty well, but we haven't.",
+                    "label": 0
+                },
+                {
+                    "sent": "We haven't found a way of testing how how well it converges the go 'cause you can't really measure that very easily, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Currently I'm working on implementing a sort of version of Mogo of that right, trying to reverse engineer Mogo, basically to produce that and then put in this algorithm in place of ECT and see how well it does in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that's quite a difficult challenge to figure out exactly what they're doing with some parts of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, so the moment we haven't got experiments on Go MC is.",
+                    "label": 0
+                },
+                {
+                    "sent": "The original form of multi car logo which is just you have a position and evaluate just by playing lots of random games.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you don't bootstrap their policy so it's always always has a bias.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can never converge to the correct solution, but initially it works kind of well as a approximate evaluation function.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it actually works pretty well at scoring final game.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_74": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in conclusion, addressed bunch of models for for computer go Move prediction, territory prediction and a bit about Monte Carlo go.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would like to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say that I believe that probabilities are good for dealing with this kind of problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd also like to advertise go as a good testbed for machine learning algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that it allows you to use it as it contains a wide range of subtasks which you can apply machine learning approaches all different machine learning approaches.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I did my PhD on computer go and that meant I could use any machine learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do any machine learning I wanted really as long as it was on go.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's there's actually a hugely broad range of stuff you can you can apply to it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The game is incredibly complex to play, but the rules are very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's nothing there's one rule which I missed out from this talk, but that's a very simple rule.",
+                    "label": 0
+                },
+                {
+                    "sent": "It just says you can't repeat an earlier position.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think now I've told you all of the rules of go, so I don't think you could teach someone chess that quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know you probably used it using the slides of this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could program a legal go move generator yet again that emerges from the simple rules is very complex, so it gives a good challenge.",
+                    "label": 0
+                },
+                {
+                    "sent": "Huge amounts of training data because all these games that are played online on Internet go servers.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finally, humans play go very easily and they learn how to play it very easily and after a couple of months of play you can play better than the strongest go programs.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that provides this kind of tantalizing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Evidence that we must be able to get a computer to play ago?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, this is sort of, it's it's what makes it exciting as this is challenge.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's it, thanks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "Original approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, you know so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Part of the motivation of doing this work on Monte Carlo's that we can use the pattern system.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not the patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "The pattern system which I did at the start is in a way, in a way, the ideal proposal distribution for these random games.",
+                    "label": 0
+                },
+                {
+                    "sent": "The ideal prior distribution for how to make your moods.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the goal is to eventually combine that, so use.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's why we want to use the user sort of this sort of Gaussian model, so we can use the Gaussian predictions from that Model 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just plug in and and predict the massive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, I think there is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think there is a sort of there is a crossover with the Boltzmann machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean I think the process of sampling from from the balsam machine is kind of like a cellular cellular autonoma.",
+                    "label": 0
+                },
+                {
+                    "sent": "And actually I was kind of a sort of in a sort of amateur interest in that that led to working on that model.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think anyone's actually try to write a cellular.",
+                    "label": 0
+                },
+                {
+                    "sent": "Automata too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not to do any part of go, but people have talked about it, so definitely there's definitely.",
+                    "label": 0
+                },
+                {
+                    "sent": "That sounds like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sounds like it could well be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Be applied here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It sounds like something that could be done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't know how well it would work, but it would be interesting academically, definitely.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

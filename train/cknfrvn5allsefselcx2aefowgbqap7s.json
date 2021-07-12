@@ -1,0 +1,873 @@
+{
+    "id": "cknfrvn5allsefselcx2aefowgbqap7s",
+    "title": "Fast Global Registration",
+    "info": {
+        "author": [
+            "Vladlen Koltun, Intel Labs Seattle"
+        ],
+        "published": "Oct. 24, 2016",
+        "recorded": "October 2016",
+        "category": [
+            "Top->Computer Science->Computer Vision"
+        ]
+    },
+    "url": "http://videolectures.net/eccv2016_koltun_global_registration/",
+    "segmentation": [
+        [
+            "Consider an object such as this."
+        ],
+        [
+            "Dog.",
+            "And can."
+        ],
+        [
+            "Twitter at Point set that covers part of this object.",
+            "This point set is incomplete and it's noisy.",
+            "Such a point set can be produced by 3D imaging device, such as a 3D scanner or a depth camera of some sort, and I'll consider."
+        ],
+        [
+            "Another point set that also covers this object partially.",
+            "It's also incomplete.",
+            "It's also noisy and it covers a different part of this object."
+        ],
+        [
+            "And now consider that you get these two points in completely different coordinate systems.",
+            "You don't know how they fit you.",
+            "Don't know how they align and your goal is to align them.",
+            "This is the problem of global registration.",
+            "It's encountered in many settings in robotics, computer graphics, an 3D vision.",
+            "In particular, we often need to do this to reconstruct the unknown object scene or map that is partially imaged by a 3D image Ng device.",
+            "I will now."
+        ],
+        [
+            "Review a basic algorithm, a basic component that's used inside many global registration pipelines.",
+            "This is why of interest of introducing our new algorithm and how it differs."
+        ],
+        [
+            "So let's take the iterative closest points algorithm, AICP, perhaps the best known algorithm in registration, and perhaps in geometry processing as a whole."
+        ],
+        [
+            "I see does not solve the global registration problem that I posed because it needs an initialization.",
+            "It needs these two point sets to be approximately aligned to begin with.",
+            "When you get these two point sets that are almost aligned, icy computes nearest neighbors across the two point sets.",
+            "It takes these nearest neighbor correspondences and minimizes distances between these corresponding pairs.",
+            "Here's what that looks like."
+        ],
+        [
+            "Now that we changed the pose to bring the corresponding pairs as close as possible together, the nearest neighbors may have changed, so we recompute."
+        ],
+        [
+            "Nearest neighbors, this establishes different correspondence pairs and we iterate.",
+            "We again minimize distances."
+        ],
+        [
+            "Between these corresponding pairs and we go on like this, iterating changing the correspondence pairs using nearest neighbor search an, bringing them together for as many iterations as we want."
+        ],
+        [
+            "To do global registration, you can first get a course alignment by a fairly brute force sampling based scheme such as ransack, sawran.",
+            "Second similar schemes.",
+            "Just sample couples of points using some heuristics an see if the alignment induced by this simple tuple is good and we repeat this until we get a tuple that's good.",
+            "The course alignment.",
+            "This initial alignment induced by this tuple is fine, and then we run any CP for local refinement.",
+            "So we have two stages here.",
+            "Course alignment and local refinement."
+        ],
+        [
+            "Perhaps surprisingly, this two stage scheme in practice is the best current approach to global registration, as we and others have discovered, in practice with big data, real data produced by noisy depth cameras and other 3D imaging devices on the large scale, this scheme of works as well as any other, despite a tremendous amount of work on this problem, and this two stage scheme that I just presented.",
+            "Is used at the very core of high Fidelity scenery.",
+            "Construction pipelines such as the pipeline that we presented at CPR last year."
+        ],
+        [
+            "It is, however, deeply dissatisfying.",
+            "First, it's computationally expensive.",
+            "Their nearest neighbor queries in the inner loop in each of the two stages, thousands and thousands of times we need to traverse spatial data structures to find nearest neighbor pairs.",
+            "This is in the inner loop, and it slows down both stages of the pipeline.",
+            "Second, this decomposition of the problem that I posed into two stages.",
+            "Is in itself dissatisfying.",
+            "It seems inelegant.",
+            "Why do we have two stages?",
+            "The problem in itself is very natural.",
+            "You have two points that align them.",
+            "There are no two stages in the definition of the problem.",
+            "Why do we need to do course alignment and then fine fine refinement?",
+            "Why not just align the two point sets directly and good get a good refinement directly?",
+            "Today I will present an algorithm that does just that."
+        ],
+        [
+            "The algorithm operates on correspondences that are established once, once and for all.",
+            "There are no correspondence re computations in the inner loop.",
+            "The correspondences are established by feature matching by matching local geometric descriptors.",
+            "These local geometric descriptors are akin to the SIFT descriptor for images, but they operate on point clouds in three dimensions.",
+            "There are fairly standard they reviewed in the paper, and I will not review them here.",
+            "Just think about sift and matching keypoints across images.",
+            "This is how it works.",
+            "But in Point Cloud what you get is a set of correspondence pairs across the two point sets.",
+            "Some of these correspondents pairs are good.",
+            "This is where the feature descriptors retrieved the correct correspondence.",
+            "Some of them are bad, the bad ones are shown here as faint Gray lines.",
+            "The good ones are shown as black lines.",
+            "I am showing you here which ones are good but in reality we don't know which ones are good.",
+            "We just get a very very noisy set of correspondences.",
+            "In fact, most of the correspondences are generally bad and we need to deal."
+        ],
+        [
+            "This in order to deal with this, we optimize a robust objective.",
+            "This correspondence term that before in the AICP objective was inside an L2 penalty is now inside a robust estimator denoted here by RO.",
+            "K is the set of correspondences.",
+            "Row is the robust estimator.",
+            "We use the given McClure estimator.",
+            "Here you see the graph of the demon McClure estimator for different values of the constant that controls.",
+            "The sharpness and non convexity of the estimator."
+        ],
+        [
+            "To optimize this very nonconvex objective, we use the duality between robust estimation and line process is described by Michael Black and an undrawn garage and 20 years ago.",
+            "There is an equivalent objective to the objective that I showed you that's shown here on the first line and it's shown on the second line.",
+            "It's a lifted objective where we added an extra variable for each correspondence term.",
+            "This variable LPQ is.",
+            "A sort of confidence.",
+            "It's a confidence in this correspondence term, and it's going to be optimized jointly as part of this single continuous objective.",
+            "There is also a second prior term, an additive prior term that was added to the objective in the second line that is just on these line process variables.",
+            "It doesn't include the pose T. Now the great thing about this knew lifted objective.",
+            "That is, mathematically as can be shown equivalent to the first objective when you minimize all the variables is that it can be optimized in an alternating fashion.",
+            "You can optimize for the post T and then the line process variables L when you hold a little the line process L fixed the objective and oppose the objective on T becomes a very standard least squares objective that we are very familiar with and can be.",
+            "Can optimize extremely efficiently using schemes like Gauss Newton when they opposed T is fixed.",
+            "The line process variables D couple and can be solved in closed form immediately, so this is a continuous numerical optimization.",
+            "There is no discrete reconfiguration of the objective during the optimization process.",
+            "The points are not reconnected.",
+            "The correspondences are not updated, its direct.",
+            "Optimization of a single continuous objective that is set up once and then optimized and that's it.",
+            "This is how."
+        ],
+        [
+            "It looks you start out with all the correspondences an the confidences are high on all of them.",
+            "We assume that all of them are good.",
+            "The line process variables are high.",
+            "All the correspondences are active.",
+            "Here's one iteration of the objective that updates the pose and the line process variables."
+        ],
+        [
+            "You see that the pose changed the same pairs of points are still connected, but some of the connections are now weaker because the line process variables decreased.",
+            "In particular, the points that are very close the correspondents pairs that are fulfilled are still strong because the they are satisfied by the objective.",
+            "The points that the point pairs that are now violated are weaker.",
+            "The confidence in them has.",
+            "Weekend he."
+        ],
+        [
+            "The second iteration of the objective again, the line process variables updated.",
+            "The strength of the connections has changed, has adapted to the new pose.",
+            "Here's a third."
+        ],
+        [
+            "Duration of the objective and we simply do several of these extremely efficient iterations.",
+            "Again, no reconnection, no discrete reconfiguration of the objective.",
+            "No nearest neighbor search in the inner loop, and we're done."
+        ],
+        [
+            "This works extremely well.",
+            "I will only give you a glimpse of the results.",
+            "All the experiments on many datasets are in the paper here.",
+            "Experiments on one data set when there's no noise.",
+            "This algorithm works as well as the best performing prior, geometric registration, global geometric registration pipeline when there is a lot of noise, our algorithm works much better in has two times higher.",
+            "Accuracy on average than the best than the most accurate prior global pipeline an the maximal error on this data set is more than five times lower by our algorithm."
+        ],
+        [
+            "Perhaps even more exciting is that this algorithm is 50 times faster on this data set than the fastest prior global registration method."
+        ],
+        [
+            "Now let's compare to local algorithms such as the famous AICP algorithm.",
+            "Here you see graphs where on the horizontal axis is the degree of perturbation away from the ground truth pose.",
+            "So what we're going to do is we're going to initialize different algorithms, in particular different flavors of the AICP algorithm at the ground truth pose or away from the ground truth pose.",
+            "We're going to perturb the rotation or the translation.",
+            "On the right, away from the ground truth pose and the magnitude of the perturbation is controlled on the horizontal axis and you see the different curves going up.",
+            "That means that the error of the AICP algorithms D increases, so the AICP algorithms progressively breakdown when you initialize them farther and farther away from the ground truth pose.",
+            "Our algorithm is the flat line at the bottom that looks like the horizontal axis.",
+            "It's completely insensitive to the initialization, but it gets the accuracy that AICP gets when it's initialized near the ground truth pose, so our algorithm doesn't need an initialization, but it gives you the accuracy that I see gives you when it's initialized by the ground truth pose."
+        ],
+        [
+            "Furthermore, our algorithm is faster on this data set.",
+            "Our global algorithm that doesn't need an initialization is about 3 times faster than AICP, which does.",
+            "The reason is that we don't have this nearest neighbor computation in the inner loop.",
+            "The correspondences are never re computed.",
+            "That is the key.",
+            "Icy wastes a tremendous amount of time, relatively speaking one reconfiguring.",
+            "The correspondences, whereas we never do this."
+        ],
+        [
+            "In summary, I told you about and you fast algorithm for global registration of partially overlapping 3D surfaces.",
+            "It's more than an order of magnitude faster than the prior global registration algorithms an it either matches or exceeds their accuracy, particularly when there is noise in the data and fairly surprisingly it matches the accuracy of icy style algorithms which need an initialization.",
+            "Without needing an initialization an, it's faster."
+        ],
+        [
+            "Thank you very much."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Consider an object such as this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Dog.",
+                    "label": 0
+                },
+                {
+                    "sent": "And can.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Twitter at Point set that covers part of this object.",
+                    "label": 0
+                },
+                {
+                    "sent": "This point set is incomplete and it's noisy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Such a point set can be produced by 3D imaging device, such as a 3D scanner or a depth camera of some sort, and I'll consider.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Another point set that also covers this object partially.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's also incomplete.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's also noisy and it covers a different part of this object.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And now consider that you get these two points in completely different coordinate systems.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't know how they fit you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't know how they align and your goal is to align them.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the problem of global registration.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's encountered in many settings in robotics, computer graphics, an 3D vision.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, we often need to do this to reconstruct the unknown object scene or map that is partially imaged by a 3D image Ng device.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Review a basic algorithm, a basic component that's used inside many global registration pipelines.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is why of interest of introducing our new algorithm and how it differs.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's take the iterative closest points algorithm, AICP, perhaps the best known algorithm in registration, and perhaps in geometry processing as a whole.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I see does not solve the global registration problem that I posed because it needs an initialization.",
+                    "label": 0
+                },
+                {
+                    "sent": "It needs these two point sets to be approximately aligned to begin with.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you get these two point sets that are almost aligned, icy computes nearest neighbors across the two point sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "It takes these nearest neighbor correspondences and minimizes distances between these corresponding pairs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's what that looks like.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now that we changed the pose to bring the corresponding pairs as close as possible together, the nearest neighbors may have changed, so we recompute.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Nearest neighbors, this establishes different correspondence pairs and we iterate.",
+                    "label": 0
+                },
+                {
+                    "sent": "We again minimize distances.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Between these corresponding pairs and we go on like this, iterating changing the correspondence pairs using nearest neighbor search an, bringing them together for as many iterations as we want.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To do global registration, you can first get a course alignment by a fairly brute force sampling based scheme such as ransack, sawran.",
+                    "label": 0
+                },
+                {
+                    "sent": "Second similar schemes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just sample couples of points using some heuristics an see if the alignment induced by this simple tuple is good and we repeat this until we get a tuple that's good.",
+                    "label": 0
+                },
+                {
+                    "sent": "The course alignment.",
+                    "label": 0
+                },
+                {
+                    "sent": "This initial alignment induced by this tuple is fine, and then we run any CP for local refinement.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have two stages here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Course alignment and local refinement.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Perhaps surprisingly, this two stage scheme in practice is the best current approach to global registration, as we and others have discovered, in practice with big data, real data produced by noisy depth cameras and other 3D imaging devices on the large scale, this scheme of works as well as any other, despite a tremendous amount of work on this problem, and this two stage scheme that I just presented.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is used at the very core of high Fidelity scenery.",
+                    "label": 0
+                },
+                {
+                    "sent": "Construction pipelines such as the pipeline that we presented at CPR last year.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It is, however, deeply dissatisfying.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, it's computationally expensive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Their nearest neighbor queries in the inner loop in each of the two stages, thousands and thousands of times we need to traverse spatial data structures to find nearest neighbor pairs.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is in the inner loop, and it slows down both stages of the pipeline.",
+                    "label": 0
+                },
+                {
+                    "sent": "Second, this decomposition of the problem that I posed into two stages.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is in itself dissatisfying.",
+                    "label": 0
+                },
+                {
+                    "sent": "It seems inelegant.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why do we have two stages?",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem in itself is very natural.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have two points that align them.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are no two stages in the definition of the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why do we need to do course alignment and then fine fine refinement?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why not just align the two point sets directly and good get a good refinement directly?",
+                    "label": 0
+                },
+                {
+                    "sent": "Today I will present an algorithm that does just that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The algorithm operates on correspondences that are established once, once and for all.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are no correspondence re computations in the inner loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "The correspondences are established by feature matching by matching local geometric descriptors.",
+                    "label": 0
+                },
+                {
+                    "sent": "These local geometric descriptors are akin to the SIFT descriptor for images, but they operate on point clouds in three dimensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are fairly standard they reviewed in the paper, and I will not review them here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just think about sift and matching keypoints across images.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in Point Cloud what you get is a set of correspondence pairs across the two point sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of these correspondents pairs are good.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is where the feature descriptors retrieved the correct correspondence.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of them are bad, the bad ones are shown here as faint Gray lines.",
+                    "label": 0
+                },
+                {
+                    "sent": "The good ones are shown as black lines.",
+                    "label": 0
+                },
+                {
+                    "sent": "I am showing you here which ones are good but in reality we don't know which ones are good.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just get a very very noisy set of correspondences.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, most of the correspondences are generally bad and we need to deal.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This in order to deal with this, we optimize a robust objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "This correspondence term that before in the AICP objective was inside an L2 penalty is now inside a robust estimator denoted here by RO.",
+                    "label": 0
+                },
+                {
+                    "sent": "K is the set of correspondences.",
+                    "label": 0
+                },
+                {
+                    "sent": "Row is the robust estimator.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use the given McClure estimator.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here you see the graph of the demon McClure estimator for different values of the constant that controls.",
+                    "label": 0
+                },
+                {
+                    "sent": "The sharpness and non convexity of the estimator.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To optimize this very nonconvex objective, we use the duality between robust estimation and line process is described by Michael Black and an undrawn garage and 20 years ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is an equivalent objective to the objective that I showed you that's shown here on the first line and it's shown on the second line.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a lifted objective where we added an extra variable for each correspondence term.",
+                    "label": 0
+                },
+                {
+                    "sent": "This variable LPQ is.",
+                    "label": 0
+                },
+                {
+                    "sent": "A sort of confidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a confidence in this correspondence term, and it's going to be optimized jointly as part of this single continuous objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is also a second prior term, an additive prior term that was added to the objective in the second line that is just on these line process variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't include the pose T. Now the great thing about this knew lifted objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, mathematically as can be shown equivalent to the first objective when you minimize all the variables is that it can be optimized in an alternating fashion.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can optimize for the post T and then the line process variables L when you hold a little the line process L fixed the objective and oppose the objective on T becomes a very standard least squares objective that we are very familiar with and can be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can optimize extremely efficiently using schemes like Gauss Newton when they opposed T is fixed.",
+                    "label": 0
+                },
+                {
+                    "sent": "The line process variables D couple and can be solved in closed form immediately, so this is a continuous numerical optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is no discrete reconfiguration of the objective during the optimization process.",
+                    "label": 0
+                },
+                {
+                    "sent": "The points are not reconnected.",
+                    "label": 0
+                },
+                {
+                    "sent": "The correspondences are not updated, its direct.",
+                    "label": 0
+                },
+                {
+                    "sent": "Optimization of a single continuous objective that is set up once and then optimized and that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is how.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It looks you start out with all the correspondences an the confidences are high on all of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "We assume that all of them are good.",
+                    "label": 0
+                },
+                {
+                    "sent": "The line process variables are high.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the correspondences are active.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's one iteration of the objective that updates the pose and the line process variables.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You see that the pose changed the same pairs of points are still connected, but some of the connections are now weaker because the line process variables decreased.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, the points that are very close the correspondents pairs that are fulfilled are still strong because the they are satisfied by the objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "The points that the point pairs that are now violated are weaker.",
+                    "label": 0
+                },
+                {
+                    "sent": "The confidence in them has.",
+                    "label": 0
+                },
+                {
+                    "sent": "Weekend he.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The second iteration of the objective again, the line process variables updated.",
+                    "label": 0
+                },
+                {
+                    "sent": "The strength of the connections has changed, has adapted to the new pose.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's a third.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Duration of the objective and we simply do several of these extremely efficient iterations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, no reconnection, no discrete reconfiguration of the objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "No nearest neighbor search in the inner loop, and we're done.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This works extremely well.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will only give you a glimpse of the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the experiments on many datasets are in the paper here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Experiments on one data set when there's no noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "This algorithm works as well as the best performing prior, geometric registration, global geometric registration pipeline when there is a lot of noise, our algorithm works much better in has two times higher.",
+                    "label": 0
+                },
+                {
+                    "sent": "Accuracy on average than the best than the most accurate prior global pipeline an the maximal error on this data set is more than five times lower by our algorithm.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Perhaps even more exciting is that this algorithm is 50 times faster on this data set than the fastest prior global registration method.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now let's compare to local algorithms such as the famous AICP algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "Here you see graphs where on the horizontal axis is the degree of perturbation away from the ground truth pose.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to do is we're going to initialize different algorithms, in particular different flavors of the AICP algorithm at the ground truth pose or away from the ground truth pose.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to perturb the rotation or the translation.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the right, away from the ground truth pose and the magnitude of the perturbation is controlled on the horizontal axis and you see the different curves going up.",
+                    "label": 0
+                },
+                {
+                    "sent": "That means that the error of the AICP algorithms D increases, so the AICP algorithms progressively breakdown when you initialize them farther and farther away from the ground truth pose.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our algorithm is the flat line at the bottom that looks like the horizontal axis.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's completely insensitive to the initialization, but it gets the accuracy that AICP gets when it's initialized near the ground truth pose, so our algorithm doesn't need an initialization, but it gives you the accuracy that I see gives you when it's initialized by the ground truth pose.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Furthermore, our algorithm is faster on this data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our global algorithm that doesn't need an initialization is about 3 times faster than AICP, which does.",
+                    "label": 1
+                },
+                {
+                    "sent": "The reason is that we don't have this nearest neighbor computation in the inner loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "The correspondences are never re computed.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is the key.",
+                    "label": 0
+                },
+                {
+                    "sent": "Icy wastes a tremendous amount of time, relatively speaking one reconfiguring.",
+                    "label": 0
+                },
+                {
+                    "sent": "The correspondences, whereas we never do this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In summary, I told you about and you fast algorithm for global registration of partially overlapping 3D surfaces.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's more than an order of magnitude faster than the prior global registration algorithms an it either matches or exceeds their accuracy, particularly when there is noise in the data and fairly surprisingly it matches the accuracy of icy style algorithms which need an initialization.",
+                    "label": 1
+                },
+                {
+                    "sent": "Without needing an initialization an, it's faster.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thank you very much.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

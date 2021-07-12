@@ -1,0 +1,884 @@
+{
+    "id": "cqqrtpqveoljsnwkr5ggxmwyrqpexlu7",
+    "title": "Learning a Region-based Scene Segmentation Model",
+    "info": {
+        "author": [
+            "Pawan Kumar Mudigonda, Department of Engineering Science, University of Oxford"
+        ],
+        "published": "Jan. 19, 2010",
+        "recorded": "December 2009",
+        "category": [
+            "Top->Computer Science->Computer Vision"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops09_kumar_lrbssm/",
+    "segmentation": [
+        [
+            "So in the next 10 minutes I'm actually going to talk about work that I really know about because I did it so this is really focused on a particular application in computer vision.",
+            "Rather than looking at this general problem of trying to learn log likelihood log linear models."
+        ],
+        [
+            "So here's our aim.",
+            "Our aim is we have an image.",
+            "And we want to get here.",
+            "We want to label every pixel as belonging to a semantic class.",
+            "And the way we do it is to divide the image into non overlapping regions and extract features from these regions and use spatial priors and then assign every region a semantic class."
+        ],
+        [
+            "So by regions, well, if you want to look at a pixel based model.",
+            "If I look at this pixel for example and look at a tiny Patch around it, zoom it out where it turns out what I get out of it is this blackish brownish sort of a Patch and I have absolutely no idea what the shape of the object was from which I was extracting this Patch, so I'm using.",
+            "I'm not using any of these good cues that will tell me what the semantic class for that pixel was."
+        ],
+        [
+            "And if I want to run my algorithm, there's like a lot of bleeding of the segmentation.",
+            "Sometimes, like the Pixel gets marked as water in the middle of a car for example, so it's obviously not not a good good model to use."
+        ],
+        [
+            "But if somebody gave me regions like these somehow magically?",
+            "Yeah, if I look at this particular region here, I can use information like I see two concentric circles, the inner one has a metallic texture, the outer one has this black color, right?",
+            "So I use all these really nice cues and then I sort of label that as belonging to a car because it looks like a tire."
+        ],
+        [
+            "So which region should I use for once?",
+            "Again, if you were to go back to David's work and just sort of use one bottom up over segmentation that I obtained by say, mean shifts.",
+            "Well, regions aren't good enough, right?",
+            "So the problem is that the regions are really, really small.",
+            "They don't actually capture like very useful cues and.",
+            "They're also not faithful to the boundaries that I was seeing in the in the scene, because it's just the bottom up over.",
+            "Segmentation is not really looking at the high level structure here."
+        ],
+        [
+            "OK, so our idea has always been to use regions that actually minimize a global energy function, right?",
+            "So not just use not just optimize over the semantic labels, but also optimize over the regions that you're going to use.",
+            "And if the energy function vertical respond to the accuracy of the method, then of course I should get a much better result than I was getting with the pixelwise segmentation."
+        ],
+        [
+            "OK, so here's the outline of the talk.",
+            "First, describe very briefly, the model that we're using for this problem, then describe how it's a really difficult learning problem and how we solve it by using approximate inference."
+        ],
+        [
+            "So the model is you have these random variables that are pixels, they they get mapped onto regions and then you have these.",
+            "Regions that get mapped on the class is pretty simple."
+        ],
+        [
+            "It has an energy function that looks like that so you have region features.",
+            "It gets multiplied by some W gives you some unary potential.",
+            "Then you have some pairwise features which gets multiplied by another W gives you these pairwise potentials in sort of minimize that.",
+            "W are the para meters to be learned, so that's pretty much our aim.",
+            "Given a lot of training data, we want the good W."
+        ],
+        [
+            "OK, so why is this?",
+            "Why is the learning hard here?",
+            "Where it turns out if you give this image to say some guy working for Amazon Mechanical Turk, he's going to give you back a segmentation that looks like one.",
+            "Now it's really good pixelwise segmentation, but these are really not the regions that I would like to use.",
+            "The reason is that the car is 1 big region here.",
+            "It actually contains a transparent top half sort of solid bottom half and all these tier regions here.",
+            "Now I have no features which will actually sort of work on that one region together and give me a really good semantic loss.",
+            "Similarly, if I have a tree, I would actually like to divide it up into this Crown, which is this leafy portion and this this trunk, which is are Brown in color.",
+            "Or use these two cues to say that this entire thing is going to be a tree."
+        ],
+        [
+            "OK so I wanted some ground truth F star and what I get is this coarser version of it and I would like to learn my parameters from that."
+        ],
+        [
+            "So of course there is a refined labeling that I do want which is faithful to the Coast label.",
+            "And if I was given that, then I could actually try sort of maximizing the likelihood.",
+            "Of course, maximizing likelihood at this huge summation like we saw it has some approximations, so maybe we can use those approximations to actually marginalized out all the refined labelings that are faithful to to the coast one.",
+            "Well.",
+            "Turns out no.",
+            "Vision is really, really hard.",
+            "Our models are very, very difficult to do inference on.",
+            "Even AP estimation is quite hard, so we just have to sort of stick to that and to make the most of it.",
+            "So if we have an AP estimation algorithm, we sort of go back to the left side there, and so it complete.",
+            "The segmentation has been given to us.",
+            "Once we have the complete segmentation, we can use all our standard algorithms to do the learning.",
+            "Of course, if you want to complete it using garbage, well, garbage in garbage out so you really need a very very accurate map estimation algorithm."
+        ],
+        [
+            "OK, so just to sort of summarize, we're going to use Max margin learning framework.",
+            "At each iteration, will not only find the most violated constraint, will also complete the ground truth.",
+            "Both the tasks are going to be approximate map imprints."
+        ],
+        [
+            "And for the interest of time, I'm just going to concentrate on the first bit here."
+        ],
+        [
+            "OK.",
+            "So inferences say I have this.",
+            "This region generation process, so I have one region there.",
+            "I know from the human annotation what its labeling should be.",
+            "I have another region, another region are the region so on.",
+            "So I have this.",
+            "Really any big Dictionary of possibly overlapping regions and what I would like to."
+        ],
+        [
+            "Who is take their intersection called those guys super pixels and then select some subset of regions which will exactly cover my entire image.",
+            "So every superpixel gets assigned to one region 1 selected region."
+        ],
+        [
+            "So now we're in the domain of like, you know, combinatorial optimization.",
+            "I really like convex relaxation, so I'm going to populate this entire problem as an integer program.",
+            "Sort of relax it to get a linear program.",
+            "So I have binary variables by R0.",
+            "Means are from my dictionary was not selected, Yr 1 equal 1 means are from my region was selected.",
+            "OK, minimize the energy.",
+            "Assign only one label to our.",
+            "Make sure the marginalization constraints are satisfied.",
+            "Make sure that every other covers superpixel U for only one of them is selected in this entire set.",
+            "Make sure your variables are binary."
+        ],
+        [
+            "Forget the binarization.",
+            "Get a linear program, solve it, and there you have it.",
+            "You have a complete version of your ground truth."
+        ],
+        [
+            "OK, just a slight caveat.",
+            "It turns out that if you do this, you get lots and lots of frustrations and the way you actually resolve it is by looking at cliques which are formed by neighboring regions in your dictionary and overlapping regions, right?",
+            "And they have to satisfy these mutual exclusivity and covering constraint.",
+            "So everything has to be covered.",
+            "Everything has to be covered only once.",
+            "So by adding these things, it might be that you actually get a computationally expensive algorithm, But it turns out that you can actually solve it quite efficiently by using dual decomposition."
+        ],
+        [
+            "I'm not going to go into the details.",
+            "Maybe offline would be the best time to discuss it.",
+            "To summarize, if you're given a course labeling and occurrence of parameters, you complete your labeling.",
+            "You find the most violated constraint, which means you complete your labeling and also assign labels to the regions that you selected, which is yet another LP that you can solve quite efficiently and you continue this in a Max margin learning framework and you get."
+        ],
+        [
+            "Your your cerebellum."
+        ],
+        [
+            "OK, so just some results.",
+            "Here's the data set that we use every one of these 715 images has been marked as 7 background classes or one programming class and it's all."
+        ],
+        [
+            "Labeled using mechanical Turk.",
+            "So if we now go back and complete the images in our in our training set, you see it actually divides up a human, say into two parts.",
+            "Upper half looks really different from the lower half and I think it's a good compl."
+        ],
+        [
+            "And of the ground truth.",
+            "Tires get separated from 'cause.",
+            "If there's like a lot of spectral.",
+            "Sort of, you know two brighter an image that it sort of separates out that bit and say it's just.",
+            "You know, learn is completely."
+        ],
+        [
+            "Different thing for it.",
+            "And this example here shows that you can never ever train a human to give you the regions that are the best for actually learning a good thing.",
+            "I cannot actually could not have come up with this myself, let alone a Mechanical Turk worker."
+        ],
+        [
+            "OK, so if I compare with baseline pixelwise methods, give me about 67% accuracy.",
+            "Human label regions.",
+            "If I just sort of use it as a as a supervised learning algorithm, gives me about 65% accuracy.",
+            "So this is classic case garbage in, garbage out.",
+            "And our approach gives a really big boost by the by the completion of ground truth at every."
+        ],
+        [
+            "So here are some examples.",
+            "So we're running those experiments actually, but it beats superpixel approaches, and it beats sort of overlapping super pixels as well.",
+            "Yes, yes."
+        ],
+        [
+            "OK, so."
+        ],
+        [
+            "OK, I'm being I'm being bad and showing you only the the incorrect examples here.",
+            "It turns out that you actually get good segments out sometimes, but you know that cow is being labeled as grass.",
+            "It really means we have to work on our features a bit more.",
+            "We also have to sort of make sure that we can actually zoom into an image and so get the get the small humans out."
+        ],
+        [
+            "So, just to summarize, we envision cannot actually marginalized, even though we would love to be bajans.",
+            "So we use our approximate inference algorithms to come up with good MoD."
+        ],
+        [
+            "In the future, of course, I think what I'm really excited about is learning from different types of labelings that vision people provide us.",
+            "So bounding boxes, bounding boxes of parts, and so on, and I think this framework actually will allow me to complete the ground truth at each stage and learn a good model from all of these things.",
+            "So Yep, that's it.",
+            "If there are any."
+        ],
+        [
+            "Happy birthday"
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So in the next 10 minutes I'm actually going to talk about work that I really know about because I did it so this is really focused on a particular application in computer vision.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rather than looking at this general problem of trying to learn log likelihood log linear models.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's our aim.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our aim is we have an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we want to get here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to label every pixel as belonging to a semantic class.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the way we do it is to divide the image into non overlapping regions and extract features from these regions and use spatial priors and then assign every region a semantic class.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So by regions, well, if you want to look at a pixel based model.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I look at this pixel for example and look at a tiny Patch around it, zoom it out where it turns out what I get out of it is this blackish brownish sort of a Patch and I have absolutely no idea what the shape of the object was from which I was extracting this Patch, so I'm using.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not using any of these good cues that will tell me what the semantic class for that pixel was.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And if I want to run my algorithm, there's like a lot of bleeding of the segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes, like the Pixel gets marked as water in the middle of a car for example, so it's obviously not not a good good model to use.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But if somebody gave me regions like these somehow magically?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, if I look at this particular region here, I can use information like I see two concentric circles, the inner one has a metallic texture, the outer one has this black color, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "So I use all these really nice cues and then I sort of label that as belonging to a car because it looks like a tire.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So which region should I use for once?",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, if you were to go back to David's work and just sort of use one bottom up over segmentation that I obtained by say, mean shifts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, regions aren't good enough, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem is that the regions are really, really small.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't actually capture like very useful cues and.",
+                    "label": 1
+                },
+                {
+                    "sent": "They're also not faithful to the boundaries that I was seeing in the in the scene, because it's just the bottom up over.",
+                    "label": 1
+                },
+                {
+                    "sent": "Segmentation is not really looking at the high level structure here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so our idea has always been to use regions that actually minimize a global energy function, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "So not just use not just optimize over the semantic labels, but also optimize over the regions that you're going to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if the energy function vertical respond to the accuracy of the method, then of course I should get a much better result than I was getting with the pixelwise segmentation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so here's the outline of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, describe very briefly, the model that we're using for this problem, then describe how it's a really difficult learning problem and how we solve it by using approximate inference.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the model is you have these random variables that are pixels, they they get mapped onto regions and then you have these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Regions that get mapped on the class is pretty simple.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It has an energy function that looks like that so you have region features.",
+                    "label": 1
+                },
+                {
+                    "sent": "It gets multiplied by some W gives you some unary potential.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then you have some pairwise features which gets multiplied by another W gives you these pairwise potentials in sort of minimize that.",
+                    "label": 1
+                },
+                {
+                    "sent": "W are the para meters to be learned, so that's pretty much our aim.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given a lot of training data, we want the good W.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so why is this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is the learning hard here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Where it turns out if you give this image to say some guy working for Amazon Mechanical Turk, he's going to give you back a segmentation that looks like one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now it's really good pixelwise segmentation, but these are really not the regions that I would like to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason is that the car is 1 big region here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It actually contains a transparent top half sort of solid bottom half and all these tier regions here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I have no features which will actually sort of work on that one region together and give me a really good semantic loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, if I have a tree, I would actually like to divide it up into this Crown, which is this leafy portion and this this trunk, which is are Brown in color.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or use these two cues to say that this entire thing is going to be a tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK so I wanted some ground truth F star and what I get is this coarser version of it and I would like to learn my parameters from that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So of course there is a refined labeling that I do want which is faithful to the Coast label.",
+                    "label": 1
+                },
+                {
+                    "sent": "And if I was given that, then I could actually try sort of maximizing the likelihood.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, maximizing likelihood at this huge summation like we saw it has some approximations, so maybe we can use those approximations to actually marginalized out all the refined labelings that are faithful to to the coast one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turns out no.",
+                    "label": 0
+                },
+                {
+                    "sent": "Vision is really, really hard.",
+                    "label": 1
+                },
+                {
+                    "sent": "Our models are very, very difficult to do inference on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even AP estimation is quite hard, so we just have to sort of stick to that and to make the most of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we have an AP estimation algorithm, we sort of go back to the left side there, and so it complete.",
+                    "label": 0
+                },
+                {
+                    "sent": "The segmentation has been given to us.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once we have the complete segmentation, we can use all our standard algorithms to do the learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, if you want to complete it using garbage, well, garbage in garbage out so you really need a very very accurate map estimation algorithm.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so just to sort of summarize, we're going to use Max margin learning framework.",
+                    "label": 0
+                },
+                {
+                    "sent": "At each iteration, will not only find the most violated constraint, will also complete the ground truth.",
+                    "label": 1
+                },
+                {
+                    "sent": "Both the tasks are going to be approximate map imprints.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And for the interest of time, I'm just going to concentrate on the first bit here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So inferences say I have this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This region generation process, so I have one region there.",
+                    "label": 0
+                },
+                {
+                    "sent": "I know from the human annotation what its labeling should be.",
+                    "label": 1
+                },
+                {
+                    "sent": "I have another region, another region are the region so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I have this.",
+                    "label": 1
+                },
+                {
+                    "sent": "Really any big Dictionary of possibly overlapping regions and what I would like to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Who is take their intersection called those guys super pixels and then select some subset of regions which will exactly cover my entire image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So every superpixel gets assigned to one region 1 selected region.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now we're in the domain of like, you know, combinatorial optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "I really like convex relaxation, so I'm going to populate this entire problem as an integer program.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of relax it to get a linear program.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I have binary variables by R0.",
+                    "label": 1
+                },
+                {
+                    "sent": "Means are from my dictionary was not selected, Yr 1 equal 1 means are from my region was selected.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, minimize the energy.",
+                    "label": 1
+                },
+                {
+                    "sent": "Assign only one label to our.",
+                    "label": 1
+                },
+                {
+                    "sent": "Make sure the marginalization constraints are satisfied.",
+                    "label": 0
+                },
+                {
+                    "sent": "Make sure that every other covers superpixel U for only one of them is selected in this entire set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Make sure your variables are binary.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Forget the binarization.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get a linear program, solve it, and there you have it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a complete version of your ground truth.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, just a slight caveat.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that if you do this, you get lots and lots of frustrations and the way you actually resolve it is by looking at cliques which are formed by neighboring regions in your dictionary and overlapping regions, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "And they have to satisfy these mutual exclusivity and covering constraint.",
+                    "label": 1
+                },
+                {
+                    "sent": "So everything has to be covered.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everything has to be covered only once.",
+                    "label": 0
+                },
+                {
+                    "sent": "So by adding these things, it might be that you actually get a computationally expensive algorithm, But it turns out that you can actually solve it quite efficiently by using dual decomposition.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I'm not going to go into the details.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe offline would be the best time to discuss it.",
+                    "label": 0
+                },
+                {
+                    "sent": "To summarize, if you're given a course labeling and occurrence of parameters, you complete your labeling.",
+                    "label": 1
+                },
+                {
+                    "sent": "You find the most violated constraint, which means you complete your labeling and also assign labels to the regions that you selected, which is yet another LP that you can solve quite efficiently and you continue this in a Max margin learning framework and you get.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Your your cerebellum.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so just some results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the data set that we use every one of these 715 images has been marked as 7 background classes or one programming class and it's all.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Labeled using mechanical Turk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we now go back and complete the images in our in our training set, you see it actually divides up a human, say into two parts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Upper half looks really different from the lower half and I think it's a good compl.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And of the ground truth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tires get separated from 'cause.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there's like a lot of spectral.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of, you know two brighter an image that it sort of separates out that bit and say it's just.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, learn is completely.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Different thing for it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this example here shows that you can never ever train a human to give you the regions that are the best for actually learning a good thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "I cannot actually could not have come up with this myself, let alone a Mechanical Turk worker.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so if I compare with baseline pixelwise methods, give me about 67% accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Human label regions.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I just sort of use it as a as a supervised learning algorithm, gives me about 65% accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is classic case garbage in, garbage out.",
+                    "label": 0
+                },
+                {
+                    "sent": "And our approach gives a really big boost by the by the completion of ground truth at every.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here are some examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're running those experiments actually, but it beats superpixel approaches, and it beats sort of overlapping super pixels as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, I'm being I'm being bad and showing you only the the incorrect examples here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that you actually get good segments out sometimes, but you know that cow is being labeled as grass.",
+                    "label": 0
+                },
+                {
+                    "sent": "It really means we have to work on our features a bit more.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also have to sort of make sure that we can actually zoom into an image and so get the get the small humans out.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So, just to summarize, we envision cannot actually marginalized, even though we would love to be bajans.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we use our approximate inference algorithms to come up with good MoD.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In the future, of course, I think what I'm really excited about is learning from different types of labelings that vision people provide us.",
+                    "label": 0
+                },
+                {
+                    "sent": "So bounding boxes, bounding boxes of parts, and so on, and I think this framework actually will allow me to complete the ground truth at each stage and learn a good model from all of these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Yep, that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there are any.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Happy birthday",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

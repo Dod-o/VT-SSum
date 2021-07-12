@@ -1,0 +1,3576 @@
+{
+    "id": "jojr6oalzbcjuh6doe5rzay45thyvshj",
+    "title": "Lock-Free Approaches to Parallelizing Stochastic Gradient Descent",
+    "info": {
+        "author": [
+            "Benjamin Recht, Department of Statistics, UC Berkeley"
+        ],
+        "published": "Jan. 25, 2012",
+        "recorded": "December 2011",
+        "category": [
+            "Top->Computer Science->Optimization Methods->Stochastic Optimization"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2011_recht_lockfree/",
+    "segmentation": [
+        [
+            "I really need a better title for this talk 'cause it's just not catching or exciting at all, but I think that I think that I will make up for it with some pyrotechnics that super actually planned very, very generously.",
+            "This is joint work with saying new Christopher Wray and Steven Wright, and all of us are actually here except for Fang and.",
+            "Let's all I don't know.",
+            "I feel a little bit bad, but not that bad.",
+            "Not that bad, so any of the mistakes I make today, those are all things fault."
+        ],
+        [
+            "So I'm going to talk about a very simple problem that we all know and love in machine learning, and that we have been stuck.",
+            "That basically sums up almost all the problems that we like to study, which is minimizing a function F which can be written as a sum of many other functions, and we're here.",
+            "This big N is hundreds of thousands or millions or billions or maybe even trillions if we want to go there.",
+            "And the algorithm going to talk about is everybody's favorite algorithm at NIPS right now, which is still in this case.",
+            "What you do is usually have to explain this algorithm to people that I think everybody here knows you pick one of these FIS, you take their gradient and you pick some step size or that go.",
+            "You pick some step size, take a step along the negative of that gradient that one increment, and update.",
+            "Now this this algorithm just like the method of multipliers.",
+            "We heard in the last talk, this algorithm has a very long history and was first proposed in the 50s.",
+            "It's always good when everything comes back to the 50s and then it's been successively forgotten about pretty much every decade and then reinvented.",
+            "So the 2nd place, where huge heyday was in least mean squares estimators.",
+            "Kind of building on the success of common filtering.",
+            "Had a huge influence on neural networks, neural Nets, and in NIPS back in the back in the 80s because essentially backpropagation one example out of time is just stochastic gradient descent, and then it went out of favor for whatever reason.",
+            "I actually find that it's really interesting that you could see my colleague Oly Oly Mangasarian at Wisconsin was writing papers about backpropagation all the way up until 1993, at which point he published a paper about doing support vector machines with linear programming.",
+            "And then they never heard of paper about backpropagation again, and this community had a similar reaction where up until very recently we were only talking about batch convex solvers.",
+            "It was very hard to get a paper published, but then sometimes in 2007 we decided maybe was good to go back to the 80s, or rather the 50s and come back to this very nice very powerful algorithm now.",
+            "Really I am not going to talk about the full power stochastic gradient descent today.",
+            "I'm really interested in the incremental gradient descent, which is actually probably the most commonly used.",
+            "At NIPS in that case that we really talk about a function here which we can write as a sum of terms and were individually following the increments.",
+            "Stochastic gradient descent has more power.",
+            "Typically is talking bout noisy gradients and all that stuff.",
+            "But I'm really interested in these increments.",
+            "How we order these increments and then how we can use that to build really fast big software?",
+            "OK, so why does this work?",
+            "Why is this incremental algorithm work?",
+            "And what exactly do you need to be stochastic so the bottom line is actually?",
+            "For incremental gradient where I could just go through these in orders, you can be guaranteed that that will converge no matter what order you do.",
+            "You don't need any red."
+        ],
+        [
+            "So for example, if I want to compute the mean, I could start at X0, take a step along the first term with the step size of 1 / 2 K and I will get the average of the first term and take a step along the second term.",
+            "I get the average of the first 2, continuing that on four steps, each time decreasing my step size.",
+            "I actually do find the globally optimal solution after one Passover, the data with no randomness.",
+            "And in general, obviously you minimize the sum of all the squares of the terms you actually will get the mean doing this.",
+            "But randomness helps a lot.",
+            "There's a reason that we've been looking at these stochastic gradient algorithms.",
+            "Are these incremental gradient algorithms asked a Cassegrain?"
+        ],
+        [
+            "And that can be illustrated very simply just going 2D.",
+            "So here's a.",
+            "Pretty simple problem, it's just a quadratic in X1 and X2, and if you expand it out and remember trigonometry, this is just the.",
+            "XX 1 ^2 + X two squared.",
+            "So this is a funny way of writing the square dial tuner.",
+            "In contrast, for that look like this.",
+            "But let's imagine we want to minimize this using incremental gradient descent and doing those great increments in order.",
+            "So what happens?",
+            "Well, you start, let's say, at a particularly nasty point that I picked an.",
+            "I'll just pick a constant step size in this case.",
+            "And the gradient step looks like this is basically you take X and multiplied by a matrix where CJ denotes the cosine of the J TH angle and SJ denotes the sign of the death angle and that would be the step that you take.",
+            "And if you basically choose these directions in order, you go very very very slowly to the optimal solution.",
+            "You can prove this will converge, but it's just going to get there in a very, very long time.",
+            "And how many steps am I going to take?",
+            "OK, actually I'll stop at 8.",
+            "We keep going now.",
+            "What happens if I just sample randomly?",
+            "So I'm going to sample a term uniformly with replacement.",
+            "Well in this case it's really hard to come up with an adverse aerial sampling.",
+            "I mean you could generate a bunch of these things and pretty much they all have this property where we walked down to zero very quickly.",
+            "So the stochastic this helps."
+        ],
+        [
+            "In fact, you could prove then the standard standard assumptions that were going today for this incremental gradient are as follows.",
+            "If the global function is strongly convex and we don't need that, but it makes the equations look a little bit nicer if it's the passion of the global function is Lipschitz continuous if the individual increments have bounded magnitude, and if we are some distance away from the optimal solution, then by picking this step size were able to achieve a 1 / K learning rate and this step size is given by some Theta parameter.",
+            "Divided by the curvature times K using that stepsize.",
+            "This was shown by Nemerofsky, probably even earlier, but this was shown by Nemerofsky and in 1983 an recently appeared in a survey paper by Nemerofsky on stochastic average approximation with some other Co authors, and it's actually really simple.",
+            "One page derivation that gets you this rate.",
+            "And in fact, you could actually even show with a little bit of work, maybe a little bit more complicated work that you could also get away with constant stepsize like we had in that last step.",
+            "So if you sample IID.",
+            "We're going to sample constant stepsize again divided by the curvature.",
+            "Now they will be less than one.",
+            "These guys pick big steps.",
+            "We pick little steps that you also get a 1 / K rate.",
+            "As long as you diminish the stepsize slowly overtime.",
+            "So it doesn't have to be every iteration, but maybe every batch of letters that you will diminish the step size."
+        ],
+        [
+            "OK, so it's nice it converges and the reason of course that we love this algorithm.",
+            "Machine learning is because even though our friend, the Newton algorithm converges quadratically and gradient descent converges linearly.",
+            "Our poor stochastic gradient descent converges as a 1 / T rate.",
+            "When this end is huge.",
+            "When this end is 100 million.",
+            "But after just going one Passover, the entire data set the time it would take to maybe compute one of the gradients or take one Newton step.",
+            "You already have a pretty good estimate of the optimal solution.",
+            "So very, very quickly you get very close to the optimal solution in this.",
+            "And since in machine learning we typically don't need more than one or two digits of accuracy for anything that's good, and we're done, so maybe one or two passes over the data we get to have an excellent solution."
+        ],
+        [
+            "So I want to talk about today is how do we actually now bring this algorithm, which we understand which we we know and love to bigger applications to real big applications.",
+            "This is kind of an ideal problem for solving big data for big data analysis and.",
+            "My colleague and Co.",
+            "Author Chris Ray is going to give a talk about in the Big Data Workshop tomorrow about more of these kind of systems issues with putting machine learning on industry scale systems and the reason why these guys like it.",
+            "Of course, the reason why Chris liked it when we first started talking about it was well of course we got these.",
+            "We have these robustness guarantees that I've just discussed.",
+            "We know that the learning rates are rapid, but also it has a really nice data access pattern.",
+            "We know what we're going to get every time when we do a gradient increment.",
+            "We just go look at one of our entries in our big data table.",
+            "And we're going to do very very particular thing, and so we can organize that.",
+            "However, we might like, and we can take advantage of a lot of the infrastructure to really just be geared towards that one.",
+            "Very simple atomic operation.",
+            "So one of the questions we first looked at was just how do we take advantage of the fact that almost all of our systems are now multicore?",
+            "The question is, is stochastic gradient inherently a serial algorithm?",
+            "'cause it has this Markov process that we have built in?",
+            "We take picking a gradient step.",
+            "We take a step, we pick a gradient.",
+            "We take a step."
+        ],
+        [
+            "How can we make this parallel and take advantage of the fact that multicore architectures are available for very little amounts of money?",
+            "Now there are a lot of proposals, and in fact at NIPS there have been several and even this year there were several different proposals for how one might paralyze stochastic gradient descent.",
+            "If you go back to the 80s, there are actually several different proposals.",
+            "Not all of the master worker, but most of them asynchronous proposals by Porticus in sequence for actually paralyzing this algorithm.",
+            "In most of these, you have one processor that's going to take in the gradients, and then all the other ones are just compute gradients.",
+            "This is all going to happen asynchronously.",
+            "And this guy will write to the memory.",
+            "And there are several other different proposals, including some by folks in the room, so hopefully I won't say anything too insulting or incorrect.",
+            "But the one thing about all of these procedures that have been previously proposed is they require overhead because of lock contention.",
+            "When you're writing this threaded code, you have to somehow coordinate between these processors to say, hey, I need that memory now or you should have this gradient now or I need to talk to you now.",
+            "And for a lot of problems and a lot of problems I'll be talking about that.",
+            "Communication dwarfs all the computation time for the gradients.",
+            "So in fact, even though you can have a theoretical speedup with no architecture in mind, and you see that you are getting a linear speedup in theory because of this lock contention, your code actually slows down as you add course.",
+            "So it actually takes longer than it would have taken if you would just ran the serial protocol.",
+            "So the question is, how do you not lock?",
+            "Actually this is.",
+            "This is pervasive, even us.",
+            "Yes Sir, if you look at the mini batching approach then basically if you take the mini batch would be large enough.",
+            "The period of time in which you actually have to communicate and have the locking and so on is like a vanishingly small part of your time.",
+            "Most of the time you just test right aggregates.",
+            "That's right, an actually if you go back and look at the parallel computation literature from the 90s, I think this has been discovered many times as well.",
+            "That slow things are easy to synchronize their you know, slow things are.",
+            "Easy to parallelize.",
+            "So if you are willing to go and do these batches then of course if you're willing to go do large mini batches you might as well just.",
+            "You could also do batch gradient.",
+            "Which would then be also very easy to parallelize.",
+            "But if we want to take advantage of the fact that we are getting a lot of bang for the Buck of having very small mini batches or even not know batches at all, just one step the gradient time does in fact is a lot faster than all.",
+            "Then resolving the lock contention.",
+            "Now show examples of that, but maybe.",
+            "Statement is, you know, also the kind of thing that is realized in numerical linear algebra.",
+            "Every sort of unit of price that you pay for communication.",
+            "You'd better be doing enough computation to match up with that payment.",
+            "That's right, if you balance those, then you can kind of get a good tradeoff.",
+            "That's that's behind the Liptak hierarchy, and I was going to say this idea is pervasive.",
+            "If you go and actually I took this idea.",
+            "I took this exact!",
+            "Sentence from a talk by Jim Demo.",
+            "All the lapack guys are now trying to come up with algorithms for both Blast N for lapack that minimize the number of computation calls.",
+            "Sorry communication costs.",
+            "Communication calls, obviously the computation they've poured over forever, but you want to minimize the amount of communication because that ends up having eating up most of your overhead.",
+            "And in fact, the question is, can we just do this with no communication?",
+            "That might be, I mean, what happens if we do it with no communication?",
+            "Is that limit even possible to look at?",
+            "Yes, Sir.",
+            "Run on your hardware a few tests and then you figure out what is the right balance in the batch size and then just figure out that for this particular hardware and this particular data set, this would be optimal combination that you should let me show you the results and 'cause what's really surprising and I'll show you when we get to the experiments and this bear with me for about 10 minutes, but when we get to the results what you're going to see an actual what you'll see as well, no locking actually is quite surprising.",
+            "No locking actually is almost always better.",
+            "It will get there.",
+            "That's the punchline.",
+            "The punchline is actually the communication time is serious, and any amount of locking.",
+            "And while it might make things a little bit more stable, actually does degrade computation time.",
+            "And we'll get there.",
+            "Not only is it is the same error, I'll get."
+        ],
+        [
+            "OK, so but that motivates our first algorithm, which is called the Hog wild algorithm.",
+            "Let's let our processors run hog Wild without talking to each other.",
+            "And and the code.",
+            "Another advantage of this code is is actually even.",
+            "I could write this with P threads.",
+            "I don't have to.",
+            "I mean, come on, you know there's no mutexes to write.",
+            "All you have to do is write your standard grading code, know how to actually assign the threads, and you don't have to worry about all the synchronization.",
+            "So the simplicity also argues that this is easier for people to engineer.",
+            "So what do you do?",
+            "You sample an edge?",
+            "Sorry, I forgot I rearranged.",
+            "I'll tell you what this means.",
+            "This used to be an index.",
+            "You sample one of your terms.",
+            "I note that it just changed ordering of certain things, but that's alright.",
+            "You sample one year terms.",
+            "You read the current state of the gradient and then you take a gradient step and the only thing that we're going to assume in our analysis is that we can do atomic updates of 1 component at a time.",
+            "No no, only atomic only atomic scaling, right?",
+            "I mean the reads are atomic.",
+            "But you don't have that.",
+            "There's no, you don't have to do a lot to do eredia.",
+            "Oh, so that that I really I move this around just just five seconds ago in my room 'cause of.",
+            "But I realized that now I've missed it.",
+            "I failed."
+        ],
+        [
+            "Define some notation.",
+            "Let me come back to this.",
+            "OK, let's look at this.",
+            "I have our function.",
+            "I'm going to write it in this particular way.",
+            "I have a function is the sum of the bunch of terms over my a set of E. And each variable H function Fe only depends on a subset of the actual variables.",
+            "OK, and that's called.",
+            "EXE and the reason I'm using the notation E is because I want to think of this like a graph V or just all of my coordinates East.",
+            "The set here you can think of it as examples in machine learning or as edges in a hyper graph.",
+            "A vertex is in one of these edges.",
+            "If the function FY depends on that vertex, so I have a set of memory locations and each of these rings and I'm blocking off here.",
+            "Are the vertices that actually depend on?",
+            "That particular function in my inquiry.",
+            "Now let me just discuss so, so now actually will make a little bit more sense about what."
+        ],
+        [
+            "We're doing on the slide before that.",
+            "Sorry that I failed to find that you read one of your edges.",
+            "You read the current state only on those edges.",
+            "You don't read the whole specter.",
+            "Don't read the whole vector, just the state.",
+            "Only on those edges for each vertex in the edge you do a gradient update.",
+            "And we only seem at the time part is doing one of these, right?"
+        ],
+        [
+            "OK, so now there are a couple of things that we need to say.",
+            "First of all, most of the time and a lot of these are a lot of examples.",
+            "We've looked at the actual.",
+            "Data access only requires looking at a few edges at a time.",
+            "Afew vertices at a time.",
+            "So let's define a couple of things.",
+            "First, what is the maximum size of an edge?",
+            "And I'll call that Omega second.",
+            "What is the maximum degree in the hypergraph, and the maximum degree is just going to be the number of edges that touch a particular vertex.",
+            "And then I'm going to normalize it by the total number of edges.",
+            "So this goes up to one.",
+            "Well, there hyperedges, so their sets.",
+            "DD, here is the maximum.",
+            "Is the maximum degree of one of these vertices, and again normalized so that goes zero to 1 and then row is the maximum size edge degree, which is basically the maximum intersection size between one of the edges forgiven, hyperedge how many other edges doesn't intersect.",
+            "OK, so those are the coordinates that we need for our analysis.",
+            "The point is that these things basically are telling us how much do these individual terms interact.",
+            "If I'm going to just pull two of 'em out of a hat?"
+        ],
+        [
+            "And it turns out that they don't interact too much in a lot of cases, those parameters are very, very small, so let's look at, for example, the support vector machine.",
+            "OK, don't have to tell anybody in the room, but this guy.",
+            "The cost function looks like this.",
+            "We have some examples what pairs Z, Alpha, Y, Alpha and here he can be thought of as the set of all the examples.",
+            "We're looking from some separating hyperplane X and we have this cost now.",
+            "Often times like in text processing, these alphas are super sparse.",
+            "So we have sparse vectors and now we can define edges basically on.",
+            "The support of the Alpha.",
+            "'cause those are the only variables of X that will be involved in that dot product and so we get one of these big hyper hyper graphs.",
+            "And each of these guys is the support set for each of the examples.",
+            "Now let me rewrite this suggestively.",
+            "If I just count how many times a particular X occurs in one of the examples, I could normalize it and basically get a stochastic gradient form that for this for this function.",
+            "Now in each of these terms we have these particular parameters that we can compute and basically Omega is now the maximum sparsity level of.",
+            "Example Delta is just going to be the maximum size divided by the total dimension and this space and then row will just be some number between zero and one will be interesting.",
+            "We can see actually that row might be quite large actually for these problems will see that in a little bit."
+        ],
+        [
+            "Let me do a couple more examples where you can actually show that these numbers are super small.",
+            "OK matrix completion.",
+            "So in this one we want to find a low rank approximation to some matrix M. Let's say we want that matrix to have rank R and the entries are now specified on the set.",
+            "Some subset of the entries E. And the.",
+            "A problem I've been quite fond of is solving this particular problem where we would like to minimize the difference between the specified edges M and the unknown matrix that we're looking for.",
+            "So M is given on these entries in.",
+            "EX is our decision variable and we're going to penalize the trace norm of X.",
+            "Now this is completely equivalent if I squint a little bit and approximate L by LR transpose.",
+            "To this optimization problem.",
+            "Where?",
+            "And it is a little bit funny.",
+            "We basically replaced a nice convex formulation with a non convex formulation.",
+            "Here we have the dot product between a row of this matrix L and a column of this matrix V for particular entry MUV.",
+            "And here again, by counting degrees I can renormalize these regularization parameters to multiply the Frobenius norm of that row and the Frobenius norm of that row.",
+            "OK. And so the graph here is actually pretty simple to look at.",
+            "I just have a bipartite graph, and each of these guys contains either A roll of L or roll of R and the edges are here.",
+            "If that entry has been observed.",
+            "Now, in this case, the maximum edge size is the size of our approximate rank approximation Delta.",
+            "Now if we assume the entries are sampled uniformly at random, Delta is going to be about login over North Anro office will be logged over, and so rather small."
+        ],
+        [
+            "So, as one further example, there are lots of graph problems that we see in machine learning all the time.",
+            "I'm going to focus on one, and that's the idea of doing minimum cuts.",
+            "Minimum cuts have a lot of different applications, even for segmentation and topic modeling, and they're very popular in the vision community, and you can actually formulate this as an L1 minimization problem, so WV will be one of the edge weights X -- X V is going to be there.",
+            "Difference for the normal minimum cut problem where you want two sets.",
+            "These guys are just going to be in 01 and we're going to be guaranteed to get a integral solution, but you could also just extend it so that these guys are in a simplex is still going to be convex problem and people have actually used that as a kind of way to do.",
+            "Convex formulation of a topic model.",
+            "Now, in this case the statistics are kind of obvious.",
+            "I have a graph.",
+            "The maximum the size of Omega is just going to be however many however big of a simplex.",
+            "I'm choosing to optimize over Delta.",
+            "Here is just the maximum degree divided by E. So if I have a relatively low degree then this will be small and rose is going to be 2 * D. The maximum degree over the number of edges.",
+            "So there those are.",
+            "The three problems that will focus on today.",
+            "We can obviously come up with others, but you really see that we do have these statistics where the data access is sparse."
+        ],
+        [
+            "So what happens if these numbers are small?",
+            "What is our convergence theory?",
+            "So you have to come back to the earlier slide we want to get a 1 / K rate.",
+            "OK, so we have the standard assumptions that people like to put on these incremental gradient problems.",
+            "We assume again, the Hessian is positive definite and has a curvature C. It has a maximum eigenvalue upper bounded by L Everywhere, which basically means that the gradient of F is Lipschitz.",
+            "The individual gradients have to have bounded norm.",
+            "And the distance the optimal solution is given by D0, and so we need one more fudge factor.",
+            "I'm going to call that.",
+            "Tao Tao is basically going to be the longest delay.",
+            "The longest number of updates that I can do where one processor is going to read the memory.",
+            "There is a gradient and right back the memory everybody else is doing some hog wild thing.",
+            "While I'm doing that particular company computation and Tao is going to be that delay.",
+            "And I don't know how to model Tao exactly.",
+            "I don't have any graphs and modeling tell it kind of is going to suck up a lot of the architectural specificity of my multicore system.",
+            "So OK, putting all those parameters together and we pick our number of iterations to be bigger than this awful disgusting mess.",
+            "It's not actually that discussing will get back to that.",
+            "Looks discussing though then we can guarantee that we can get to within epsilon after K grading updates.",
+            "We get to within epsilon now.",
+            "What are all these numbers?",
+            "So first look at the first.",
+            "This log term comes because I'm taking a constant step size.",
+            "You can eliminate it.",
+            "As I said at the very beginning, by slowly making the step size smaller so it's not real.",
+            "This is just what happens when we actually do the constant step size.",
+            "The second term has all these new things that come from the row that dealt in the Omega.",
+            "Now, if we ignore that parentheses entirely, then we just have M ^2 / C squared over epsilon, which is exactly what is the rate that is reported by Nemerofsky judis quiche appear on land, and there are 2009 paper, so this is what we expect, and then we're asking you, this is exactly the same rate that they have given us.",
+            "In an Inter inside, the parentheses are particular parameters.",
+            "Now Tao is the number of the longest delay, row is the maximum edge degree, and Delta is the maximum degree, and we see that if Delta in row go to zero, the number of updates that we need is exactly the same as it would be in the serial case.",
+            "But we can run faster.",
+            "We can run number of processors times faster, so we essentially get a linear speedup provided these two terms vanish.",
+            "Or relatively bad.",
+            "OK, so that's the theoretical component.",
+            "Now the real question is, does it actually bear itself out in practice?"
+        ],
+        [
+            "OK, so here's an awful table, but will actually.",
+            "It's not that bad there only 66 rows.",
+            "That's not terrible.",
+            "We looked at a bunch of different datasets, I'll just have them all reported here again.",
+            "They fall into three classes.",
+            "You have the support vector machine, the matrix completion problem, and the problem of graph cuts, and we got some datasets ranging in size from very, very small to rather large 30 gigabyte.",
+            "Dataset.",
+            "And then after this is a huge deal 'cause it's an experiment, but like SVM doesn't fit your assumptions right?",
+            "Because because.",
+            "Because it's not differential yeah, and matrix completion doesn't fit our assumptions because it's not convex.",
+            "Also not differentiable.",
+            "Yeah yeah it's OK.",
+            "It's good results right?",
+            "Yeah yeah, I could have generated some synthetic data where we could have run Ridge regression or something that would have worked.",
+            "Yeah.",
+            "So even though it actually assumed so, actually that's kind of what that's kind of the point of."
+        ],
+        [
+            "Of this stuff I get my 1 / K rate which I wanted with some assumptions, But then I could still run it anyway."
+        ],
+        [
+            "Violating all my assumptions and actually see that works better than even if they were differentiable like in this first line in MCV, one the Delta which is the maximum degree is 1.",
+            "Which is coming from the bias term.",
+            "That's OK, apparently Bystrom doesn't matter too much, but even row is pretty large.",
+            "And we still get a 5 fold speedup over the serial rate.",
+            "On the matrix completion problem, there are, as I said, small real data has much larger values than is predicted by the theory.",
+            "The jumbo data set we just made this Big 30 gigabyte random matrix completion problem sampling entries at random and we could actually these numbers were actually very small and we get a better speed up there too.",
+            "And then we have these two cut examples where we also have an 18 gigabyte file.",
+            "All these examples we had on the same 12 core machine we use 10 cores for gradients and we actually dedicate two cores just to moving data around.",
+            "Two of the cores were just there to figure out which Core was going to optimize this next increment and they would just move the data around, put it closer to the actual processors.",
+            "Think about this year.",
+            "OK anyway?"
+        ],
+        [
+            "So let me give now that.",
+            "So how does this scale or how does it look like?",
+            "It's scale.",
+            "So here we have the number of threads that are devoted just degrading computation, which we're calling splits and on this axis is speed up over a serial implementation.",
+            "We have three different algorithms we looked at and this is getting back to your question.",
+            "So now we're finally getting back to your question and actually will have some too.",
+            "So we have three different algorithms.",
+            "We looked at.",
+            "The first was a round Robin scheme that was proposed by Langford and some of his collaborators.",
+            "The second scheme we called AIG, which stands for Atomic incremental gradient.",
+            "And this is always good to have acronyms of failed companies so they don't need it anymore.",
+            "We can take it so AIG, what it does is actually lock all of the variables involved with the particular gradient updates.",
+            "Remember we have this edge what it's going to do when it does right is right.",
+            "It's going to say I want all the variables in this edge and I'm going to write that back.",
+            "So that's what the IG does an then the Blues hog wild no locking at all, so it seems like this innocuous amount of locking shouldn't do anything.",
+            "But actually in these two cases is actually significantly worse.",
+            "In this case is just a little bit worse.",
+            "The matrix completion problem is just a little bit worse.",
+            "Yes, Sir.",
+            "She.",
+            "You totally disregard any locking mechanism.",
+            "Also note that this is just a little bit of locking, so the idea here is this is a lot of locking and processor communication 'cause basically in the round Robin scheme.",
+            "What happens is somebody updates the memory and then tells everybody else that is or tells the next guy that his turn.",
+            "So every time you update the gradient you have to you tell your buddy that they can update the memory.",
+            "Next black line here is.",
+            "Just locking the the variables that are associated with the current thing I'm updating, but I'm not talking otherwise, so it's just saying if I want to write, I'm going to lock those small locations in memory, and even that does cause a performance degradation.",
+            "OK.",
+            "So in how well you don't even block the individual coordinates?",
+            "Then it might happen that you actually overwrite things.",
+            "Exactly, so in our theory, we actually assume that we lock the individual coordinates, but we've implemented without it.",
+            "And yeah, it still works again.",
+            "We move away from the implementation.",
+            "We have a theory that promises us this should work, at least in this very special case, and then we ran a bunch of experiments that seem like it does even better than that."
+        ],
+        [
+            "So I will move on to another algorithm and maybe not everybody's heard about, but also has a nice fun for.",
+            "Actually satisfies the assumption.",
+            "With locking the memory for example.",
+            "Any version worth?",
+            "Where you at?",
+            "OK, so you're just saying so that's only a function.",
+            "Alright, let me just.",
+            "If you actually.",
+            "Logistic regression for example, yes.",
+            "Yes, and actually in retrospect that probably would have been a more well, I don't know if it wouldn't anymore compelling you would see the same thing.",
+            "It looks the same.",
+            "Yeah, yeah, it looks the same.",
+            "Yeah.",
+            "No, we did due diligence aggressively shooting at.",
+            "Would you put that in next time?",
+            "That's good.",
+            "Yeah, something that's actually nice and smooth.",
+            "We can even do something where the individual guys are strongly convex, but we have to come up with a good example for that.",
+            "OK, but let me get back to this matrix completion where we totally cheated.",
+            "We actually took a nice convex problem and then we made it non convex and.",
+            "We messed around so don't satisfy any of the assumptions of the theorem, but hey, it works really well.",
+            "So so it works really well.",
+            "Rather than trying to understand maybe why it works really well, we're like, well, let's make it work even better, so we'll just go down the road of let's make it even faster.",
+            "Application was only to please the trace now, right?",
+            "That's correct, that's correct.",
+            "So again, we have this formulation with the trace norm.",
+            "The trace norm is completely equivalent once you factored it as the sum of the squares of the factors.",
+            "These are equivalent however, is a non convex formulation.",
+            "There's some theory to show actually that if you have enough.",
+            "Measurements E you have enough observations of entries that actually this is going to wash out all the stationary points, and that's by by Bureau Montero.",
+            "They've actually be able to show that it's kind of washed out a lot of the stationary points to do this, but you just have to pick the rank bigger than the rank of the optimal solution.",
+            "And we know the rank of the optimal solution is low rank by using other theory.",
+            "If you do the SGD on this, what are the gradient updates look like?",
+            "You pick some entry IJ or actually UV, and you set E to be equal to Lu times RV transpose minus ZUV.",
+            "So OK, so this should be MI apologize for that too.",
+            "So we have F we have.",
+            "We have their two bags here.",
+            "Yes bad?",
+            "Alright?",
+            "So this is M this is MZ or equivalent will just do a method of multipliers.",
+            "Thing here to now make them equivalent.",
+            "OK, so again, what does this mean?",
+            "This is just how wrong is my prediction for the entry Z UV given my current state.",
+            "Ellen you and based on that the gradient step says I multiply to get my gradient update for Li, multiply R by the error vector.",
+            "There are number just a scalar and then I slightly shrink Li take a combination of L and a combination of are dictated by my step size.",
+            "The regularization parameter and whatever this current error is.",
+            "Simple straight 4."
+        ],
+        [
+            "And in fact.",
+            "Just going back to when where this matrix completion stuff kind of got got rolling on the Netflix prize problem.",
+            "The first algorithm that anybody published about what they made work was actually that really simple.",
+            "2 lines of code.",
+            "And this was on that guy.",
+            "Simon Funks web log or live Journal.",
+            "His live Journal.",
+            "And of course the winning solution.",
+            "Also use these FDR."
+        ],
+        [
+            "So basically this matrix completion algorithm, which is these three lines of code.",
+            "Does a good job on real collaborative filtering problems."
+        ],
+        [
+            "So what we want to do with the matrix completion problem is actually even enhanced.",
+            "Some of the problems that we encountered with Hog Wild.",
+            "Now, one of the problems with the.",
+            "IID sampling from the data is that you might have poor locality of reference.",
+            "You might have access.",
+            "You might be trying 1 processor might be trying to access an entry of matrix that's over here and then an entry in the matrix.",
+            "This over here, very far distant parts of memory and that actual memory contention could end up causing more slowdowns.",
+            "So the question is, could you actually move all of the data where that one processor wanted touch to the much more local part of memory and then only operate there?",
+            "Which is also might help.",
+            "Well, here's some.",
+            "Let's try this instead of mini batches, we're going to something else which is biased.",
+            "The ordering that we run through our gradients.",
+            "Move away from an IID ordering and move towards a very biased ordering.",
+            "OK, so the biased ordering is actually pretty simple to see from just this picture.",
+            "If I look at the matrix L * R. Then these three diagonal blocks.",
+            "If all the entries, let's say, occur down, these 3 diagonal blocks, those 3 diagonal blocks can be processed completely in parallel.",
+            "If I were somehow lucky that I only had a block diagonal problem, I could ignore these guys process these three guys.",
+            "They never have to talk at all.",
+            "They never have to lock or synchronize.",
+            "Similarly, the ones that are in the dotted lines can be processed independently and the other white box can be processed independently and so the algorithm would just be this.",
+            "We're going to mix up all of our data, shuffling all the rows and columns, move, have our helper threads move the data to the appropriate parts of memory, process these guys in parallel.",
+            "Then these guys in parallel, and then these guys in parallel.",
+            "And the wind here is not only do we have no locks, we don't have any of the overwrites problem with wild 'cause these guys are only are individually running in order on one particular part of data.",
+            "These guys are not running on anything even close to this, so they're not even talking to the same shared memory anymore.",
+            "And you have the strong locality that we can move the data closer to the processor is going to process this block this block in that block."
+        ],
+        [
+            "So again, this is how it works.",
+            "We have our data laid out in this square and so now we have our rows and columns and we apply a random permutation.",
+            "Just shuffle the rows and columns and then you can process the data in this block.",
+            "Then in that block and then in this block and then you would just repeat the process.",
+            "You shuffle the data again, maybe while those while all the other guys are going and running their static gradient code.",
+            "One of the processors can now be dedicated to doing a new permutation and moving a second copy of the data you apply these things again in parallel."
+        ],
+        [
+            "And repeat.",
+            "OK, so when we did this we did this shortly after a. I wrote some Matlab code for last year's NIPS, and in last years we had a bunch of matrix completion experiments were comparing different kinds of implementations of Trace, Norman Max Norman.",
+            "This was with not history bro, and so we had a nice curves that we put in the paper that looked like this that just running in Matlab with mini batches with momentum with a bunch of different stuff we can get to.",
+            "We could get it to finish in four hours or so using our 12 core machine, again with two cores for shuffling and 10 cores doing gradient updates and doing this.",
+            "Funky Latin squares type update and the jellyfish were able to do that in two minutes.",
+            "Which is a huge win.",
+            "And again, all of these speedups are now coming well.",
+            "One of the pieces coming 'cause we're running into MATLAB obviously not writing in Matlab.",
+            "We're doing this in C, but all these other speeds are coming because we're respecting the memory, respecting data access, and we're not locking.",
+            "Thing is happening happening concurrently to the other stuff.",
+            "That's correct.",
+            "That's right, that's right.",
+            "And we were doing that in hog wild too.",
+            "But the difference is really important here.",
+            "Could be moving that data around is really providing better locality for those for the individual processors.",
+            "And what's crazy is that it gives you a 25% speedup over hog wild on our 12 core machine and on the 44 machine it just gets better because again now you have if you have 40 quarters all contending for the same shared memory, you're going to have even more memory contention.",
+            "Press Black, a cache coherence."
+        ],
+        [
+            "Excellent so I have 18 minutes.",
+            "But perhaps I'm going to go over and I would like to just ask a theoretical question to the crowd.",
+            "That was brought up by this jellyfish idea.",
+            "So as John said, I presented experiments that didn't match our theory that we're doing stuff that was breaking all the rules and the assumptions of our theorems.",
+            "And then when I went to the jellyfish, we actually now have something where we don't have any analysis for it all.",
+            "We did bias sampling.",
+            "Of stochastic gradients, not only we're not sampling IID, we're assembling in very particular biased orders that were obtained together.",
+            "Now, here in this plot we have three different implementations on the Netflix data set, and this is just going to be the number of passes over the data set on the X axis on the Y axis is going to be the error of the cost function.",
+            "That's not really important other than lower is better, and then we'll see what happens overtime over passes over the data set.",
+            "And here's three different algorithms.",
+            "The Red one is just running over in the order that Netflix gives you.",
+            "I think it's either by user or maybe it's my movie just doing in that order.",
+            "It slow is getting down to a convergence rate, but it's not converging.",
+            "The blue one is doing the IID sampling.",
+            "The Green one is doing this jellyfish.",
+            "So it's doing this biased ordering, and surprisingly now this is nothing to do with computation time.",
+            "This is just number of actual gradient updates that Green one is lower than the blue one.",
+            "So all the theory trait treats with without replacement sampling as exactly the same as deterministic sampling for these incremental gradient problems.",
+            "And in practice, and it's not just on this Netflix thing is pretty much almost everyone we've tried that with without replacement sampling is always faster.",
+            "Without replacement sampling means this.",
+            "Let's just say I have my list of increments rather than sampling one at a time.",
+            "I'm going to come up with a random order and go over each of them.",
+            "Now there's some advantages there.",
+            "You're guaranteed that you're going to touch every single data item on every pass through the data.",
+            "But then the question is, is that enough to explain exactly what's going on here?",
+            "Why is that going on?",
+            "So we have some ideas and for this we actually went back to a."
+        ],
+        [
+            "Very, very simple problem.",
+            "Probably the problem we should've gone with before at least squares.",
+            "Why not least squares?",
+            "And actually we're going to not even just least squares.",
+            "We're going to assume that this is over determined Lee squares, so we have a set of linear equations.",
+            "We're going to assume that there actually exists an optimal solution that makes all these equations equal to 0.",
+            "And then compare the difference between a with replacement and without replacement sample.",
+            "OK, the fixed order sample looks like this is actually pretty easy.",
+            "What's nice about the least squares thing is you could pretty much write out everything analytically and the face replacement sample just looks like this you take.",
+            "Your starting position X 0X off is where we're going and we just look at this this.",
+            "That matrix multiplied for each K. That's where we are after N steps.",
+            "The with replacement sample is.",
+            "We take.",
+            "Basically it's treating since his ID every update we're doing N steps.",
+            "Every update is equivalent to each other in expectation.",
+            "OK, and now which is better?",
+            "Which one is closer to X out?",
+            "Yeah, I don't know, so I don't know the answer.",
+            "I'm asking you guys if you guys have a clear answer.",
+            "And.",
+            "Did not necessary projectors their projectors when gamma is one.",
+            "Yeah, but there could be.",
+            "Maybe maybe they have.",
+            "They have one non unit singular value that's slightly less than one.",
+            "That's it.",
+            "Who's there?",
+            "Let's abstract even more than that, let's say."
+        ],
+        [
+            "OK, if I have N positive definite matrices right there, D by D matrices, I have any of them.",
+            "Is it true that the product of any of them in order?",
+            "Is less than or equal to the norm of the average to the 1 / N?",
+            "That's basically the same thing.",
+            "Nice why?",
+            "From the geometric mean.",
+            "If it's reading my mind, that's awesome, yes, so if they're scalars if they're not matrices.",
+            "Because the next to metric mean is operator smaller than the matrix.",
+            "What we will see.",
+            "For positive matrices this is true.",
+            "Matrices I'd be happy with strictly positive definite matrices, strictly positive, positive, positive, definite positive.",
+            "I mean positive.",
+            "OK, cool, because the matrix geometric mean is operator smaller than the matrix arithmetic mean, which would imply this because if you use a monotonic mean like this to normal, OK, OK. OK.",
+            "I hate to tell you secret, but you're wrong, but that's OK.",
+            "There is absolutely no.",
+            "It's true for two, and that's where you can have an arithmetic geometric mean.",
+            "It's true for two, but it is true for more than two.",
+            "Yes, for two it's true.",
+            "If it is true for N. No, OK, let me show you what is true and then when it's not true will come will come to two cases.",
+            "It turns out that is really not true and it could be really.",
+            "This gap can be exponentially big.",
+            "I'm ruining the punch line just because I thought you had.",
+            "I was getting very excited first second but no.",
+            "Well, let's go.",
+            "Let's actually go through why it's not true.",
+            "So it turns out, for two, this is true.",
+            "There is a matrix arithmetic, geometric mean inequality for two matrices there is not one for three, and in fact that makes you can even have a counterexample with three."
+        ],
+        [
+            "Alright, let me get to that.",
+            "OK, actually let me get to that first do."
+        ],
+        [
+            "I'm going to.",
+            "I'm skipping around just because super task is the true this no, here's our counterexample, and this works for any K bigger than two.",
+            "OK, I'm going to take this matrix.",
+            "That's my a case.",
+            "So the problem is because you're not really taking the matrix geometric mean, it is multiplying matrices and the matrix geometric because you have non commutative variables.",
+            "You need to actually take the correct geometric mean, then it will hold.",
+            "I think I would probably agree with that.",
+            "I would probably agree with that.",
+            "Let's look at how bad that actually that actually work.",
+            "This actually holds if you multiply these things out, you can actually compute the norm of this matrix.",
+            "It's two to the end.",
+            "If you multiply, if you look at the average is the identity, so the gap between these two is to the end and that actually satisfies a straightforward bound which I can go through if I have a little time that this product is less than or equal to D / N to the end so it's at worst day to the end times worse, but Dean is a big number.",
+            "OK, so the question is.",
+            "I could give.",
+            "We can construct similar counterexamples for all N faraldi."
+        ],
+        [
+            "What?",
+            "Which one?",
+            "You were using it to analyze this.",
+            "So remember, this is the example I gave at the beginning that was kind of curious and weird, which was this funny rewriting of the identity operator as a sum of increments.",
+            "So if you go in deterministic order, you go far slower than if you go on random order.",
+            "That turns out to be the case.",
+            "Now."
+        ],
+        [
+            "Let's go back 'cause because let's go over it.",
+            "So it had me jumping ahead a little bit too much.",
+            "Let me do a couple other examples where maybe it is true.",
+            "So let's just say I pick them randomly.",
+            "I didn't pick that terrible ordering.",
+            "Why aligned everybody to be as bad as possible?",
+            "Let's say pick them randomly.",
+            "AI is just going to be rank one random Gaussian matrices, so I take a random Gaussian.",
+            "I take us out of product.",
+            "I look at this.",
+            "In this case, the expected value of the product is just due to the minus 10 times the identity.",
+            "Very very very small and then the expected value of the arithmetic mean.",
+            "If I go through and compute it for random thing is QN.",
+            "Define this into QN.",
+            "So this definition doesn't tell us anything yet.",
+            "Let's look at the norm of QN multiplied or divided by the number of the geometric mean.",
+            "In this case, people have actually studied this a lot.",
+            "This is one of those things that comes up all the time when you're trying to compute the eigenvalue of random matrices, and so if you just lower bound it by pulling out a D and then taking a trace.",
+            "Someones actually computed the exact expression.",
+            "Lots of people have computed.",
+            "This actually appears in the original Marchenko Pastur analysis computes this kind of combinatorial expression for that walk, and that's essentially a hypergeometric function.",
+            "If you ignore this old 1 / N term and you could lower bound that by this nasty exponential.",
+            "So on random data.",
+            "On random data this.",
+            "It's exponentially better to do this fixed ordering rather than sample.",
+            "Uncontrived data is exponentially better to do a with replacement sample so."
+        ],
+        [
+            "The best of both worlds here I'm going to come in to do.",
+            "What's the best of both worlds here?",
+            "This was it.",
+            "Yes, Sir.",
+            "Yeah.",
+            "So with the Gaussian case just made a little bit difficult, but you can actually the Gaussian case you can analyze even in that particular week I minus the identity, but it involves a little bit more.",
+            "It's not easy to go through, is just that analysis.",
+            "They are, but you're right in this example where I got that awful violation, we get the exponential violation.",
+            "They are actually rank deficient the projection operators.",
+            "Yes, even if they are definitely not true.",
+            "We have examples where there definitely is not as pretty.",
+            "They're just not as pretty."
+        ],
+        [
+            "We went through all these now.",
+            "Here's The funny thing.",
+            "What if I randomize so super had addressing comment?",
+            "He said if we picked the right geometric mean of matrices.",
+            "Then maybe we could do better.",
+            "Now the problem is there is no there is no chosen.",
+            "Do you think there's one that's really good Navy Duffy?",
+            "There are several different ways to write the geometric mean, and actually there's a paper by Mondo which has 10 different proposals for what the right version of the geometric mean would be.",
+            "Considering that we really care about the ordering in terms of like one of these stochastic gradient type algorithms.",
+            "Really what we care about is let's just randomize overall orders.",
+            "That does seem like the reasonable one for our case, so let's look at the case where we just randomize over all the permutations.",
+            "So rather than having one ordering, we look at all the permutations in the symmetric group.",
+            "And then we take all the orderings and divide by 1 / N. So is this one true?",
+            "Yeah, now I've made the problem look disgusting, but that's alright.",
+            "I have no idea, but if we take this nasty counterexample then.",
+            "Chris likes to do late at night combinatorics so late at night, torques gives you another hypergeometric function and it's it's peculiar and weird and basically again you just have to count paths by using trig identities.",
+            "So similar to the analysis that you would use when you're trying to prove the martinko past or distribution, and that guy is old.",
+            "1 / N. This hypergeometric is all of 1 / N so remember.",
+            "The mean is actually norm one and then this geometric mean is all 1 / N. So it turns out that in this case.",
+            "The inequality is true and we have not found any counterexample.",
+            "And we've done a lot of brutal force servers looking for these things, and I've still yet to find a counterexample to this inequality.",
+            "So it looks pretty right, so so I invite you all to help me out.",
+            "It could even be possible that this is not what we need to understand the difference between without and with replacement sampling for stochastic gradient, But this would be one step in the direction and so there are lots of interesting open questions left based on that.",
+            "Is there a reasonable version of a non noncommutative arithmetic geometric mean inequality for many matrices?"
+        ],
+        [
+            "There is one, but need not be one network.",
+            "That's probably true and you should show me that one that does work.",
+            "Alright, so the practical summary is this so.",
+            "Locking in lock contention can cause terrible problems with performance and can actually cause parallel algorithms to slow down as you add course, so don't lock and don't worry about it.",
+            "It's usually not a problem.",
+            "Locality, however, is something that maybe you should worry about, but if you implement that, it does seem to also make a big difference.",
+            "So now the question is, how can we understand what the right way to optimize locality is?",
+            "What the right way to assign shuffle in order data is.",
+            "It seems like what's nice about that is interesting math comes out.",
+            "There's a lot of cool problems to work on just based on trying to understand the combinatorics of what happens when we do orderings.",
+            "So plenty of good problems to work on, even in a non theoretical sense.",
+            "If we could come up with if I give you some SG problem to work on what the right way to spread out the data to individual processors to avoid lock contention, to avoid memory contention to avoid cache contention, I think that in itself is a nice interesting thing to look at and we have some ideas, but we're not quite there yet in general.",
+            "Alright, thanks again for your attention for some great questions.",
+            "Or the SBMC sweat.",
+            "Surprisingly, it still works, and Chris and I and Steve were just talking about this at the poster session while we were there.",
+            "I actually think there's a different way to do our analysis that would make it a little bit more transparent as to what's going on when you're really the only problem that you have with these things, because the only thing that's going to have trouble if is if 2.",
+            "Processors try to write the same memory at the same time, right?",
+            "But if there?",
+            "If you have a big vector, you were really big vector and you're running your SVM update.",
+            "They're not actually touching the memory at the same time, right?",
+            "So this guy might be like 3/4 of the way through before the next guy starts writing, and so if you have, let's say 10 cores, and your data is 100,000 dimensional, well, then they're probably not going to actually overwrite each other, so we're hoping to do a better refund analysis that will actually explain that away.",
+            "I think we're really only at the beginning of that understanding.",
+            "The worst case happened all the time.",
+            "Oh that's also true, right?",
+            "Slower assuming.",
+            "Right, right?",
+            "So yeah, just repeat with Steve says.",
+            "So it comes up.",
+            "Make sure it comes up on camera.",
+            "The original analysis that we use from Steve if they are dense, you can show that they are not slower than serial.",
+            "But as you go in the limit of density going to one the you don't get to speed up but don't get slowed down either."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I really need a better title for this talk 'cause it's just not catching or exciting at all, but I think that I think that I will make up for it with some pyrotechnics that super actually planned very, very generously.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is joint work with saying new Christopher Wray and Steven Wright, and all of us are actually here except for Fang and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's all I don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "I feel a little bit bad, but not that bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not that bad, so any of the mistakes I make today, those are all things fault.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I'm going to talk about a very simple problem that we all know and love in machine learning, and that we have been stuck.",
+                    "label": 0
+                },
+                {
+                    "sent": "That basically sums up almost all the problems that we like to study, which is minimizing a function F which can be written as a sum of many other functions, and we're here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This big N is hundreds of thousands or millions or billions or maybe even trillions if we want to go there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the algorithm going to talk about is everybody's favorite algorithm at NIPS right now, which is still in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you do is usually have to explain this algorithm to people that I think everybody here knows you pick one of these FIS, you take their gradient and you pick some step size or that go.",
+                    "label": 0
+                },
+                {
+                    "sent": "You pick some step size, take a step along the negative of that gradient that one increment, and update.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this this algorithm just like the method of multipliers.",
+                    "label": 0
+                },
+                {
+                    "sent": "We heard in the last talk, this algorithm has a very long history and was first proposed in the 50s.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's always good when everything comes back to the 50s and then it's been successively forgotten about pretty much every decade and then reinvented.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the 2nd place, where huge heyday was in least mean squares estimators.",
+                    "label": 1
+                },
+                {
+                    "sent": "Kind of building on the success of common filtering.",
+                    "label": 0
+                },
+                {
+                    "sent": "Had a huge influence on neural networks, neural Nets, and in NIPS back in the back in the 80s because essentially backpropagation one example out of time is just stochastic gradient descent, and then it went out of favor for whatever reason.",
+                    "label": 0
+                },
+                {
+                    "sent": "I actually find that it's really interesting that you could see my colleague Oly Oly Mangasarian at Wisconsin was writing papers about backpropagation all the way up until 1993, at which point he published a paper about doing support vector machines with linear programming.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then they never heard of paper about backpropagation again, and this community had a similar reaction where up until very recently we were only talking about batch convex solvers.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was very hard to get a paper published, but then sometimes in 2007 we decided maybe was good to go back to the 80s, or rather the 50s and come back to this very nice very powerful algorithm now.",
+                    "label": 1
+                },
+                {
+                    "sent": "Really I am not going to talk about the full power stochastic gradient descent today.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm really interested in the incremental gradient descent, which is actually probably the most commonly used.",
+                    "label": 0
+                },
+                {
+                    "sent": "At NIPS in that case that we really talk about a function here which we can write as a sum of terms and were individually following the increments.",
+                    "label": 0
+                },
+                {
+                    "sent": "Stochastic gradient descent has more power.",
+                    "label": 1
+                },
+                {
+                    "sent": "Typically is talking bout noisy gradients and all that stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I'm really interested in these increments.",
+                    "label": 0
+                },
+                {
+                    "sent": "How we order these increments and then how we can use that to build really fast big software?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so why does this work?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is this incremental algorithm work?",
+                    "label": 0
+                },
+                {
+                    "sent": "And what exactly do you need to be stochastic so the bottom line is actually?",
+                    "label": 0
+                },
+                {
+                    "sent": "For incremental gradient where I could just go through these in orders, you can be guaranteed that that will converge no matter what order you do.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't need any red.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So for example, if I want to compute the mean, I could start at X0, take a step along the first term with the step size of 1 / 2 K and I will get the average of the first term and take a step along the second term.",
+                    "label": 0
+                },
+                {
+                    "sent": "I get the average of the first 2, continuing that on four steps, each time decreasing my step size.",
+                    "label": 0
+                },
+                {
+                    "sent": "I actually do find the globally optimal solution after one Passover, the data with no randomness.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in general, obviously you minimize the sum of all the squares of the terms you actually will get the mean doing this.",
+                    "label": 1
+                },
+                {
+                    "sent": "But randomness helps a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a reason that we've been looking at these stochastic gradient algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are these incremental gradient algorithms asked a Cassegrain?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And that can be illustrated very simply just going 2D.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Pretty simple problem, it's just a quadratic in X1 and X2, and if you expand it out and remember trigonometry, this is just the.",
+                    "label": 0
+                },
+                {
+                    "sent": "XX 1 ^2 + X two squared.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is a funny way of writing the square dial tuner.",
+                    "label": 0
+                },
+                {
+                    "sent": "In contrast, for that look like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "But let's imagine we want to minimize this using incremental gradient descent and doing those great increments in order.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what happens?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you start, let's say, at a particularly nasty point that I picked an.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll just pick a constant step size in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the gradient step looks like this is basically you take X and multiplied by a matrix where CJ denotes the cosine of the J TH angle and SJ denotes the sign of the death angle and that would be the step that you take.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you basically choose these directions in order, you go very very very slowly to the optimal solution.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can prove this will converge, but it's just going to get there in a very, very long time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And how many steps am I going to take?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, actually I'll stop at 8.",
+                    "label": 0
+                },
+                {
+                    "sent": "We keep going now.",
+                    "label": 0
+                },
+                {
+                    "sent": "What happens if I just sample randomly?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to sample a term uniformly with replacement.",
+                    "label": 1
+                },
+                {
+                    "sent": "Well in this case it's really hard to come up with an adverse aerial sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean you could generate a bunch of these things and pretty much they all have this property where we walked down to zero very quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the stochastic this helps.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In fact, you could prove then the standard standard assumptions that were going today for this incremental gradient are as follows.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the global function is strongly convex and we don't need that, but it makes the equations look a little bit nicer if it's the passion of the global function is Lipschitz continuous if the individual increments have bounded magnitude, and if we are some distance away from the optimal solution, then by picking this step size were able to achieve a 1 / K learning rate and this step size is given by some Theta parameter.",
+                    "label": 0
+                },
+                {
+                    "sent": "Divided by the curvature times K using that stepsize.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was shown by Nemerofsky, probably even earlier, but this was shown by Nemerofsky and in 1983 an recently appeared in a survey paper by Nemerofsky on stochastic average approximation with some other Co authors, and it's actually really simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "One page derivation that gets you this rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, you could actually even show with a little bit of work, maybe a little bit more complicated work that you could also get away with constant stepsize like we had in that last step.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you sample IID.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to sample constant stepsize again divided by the curvature.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now they will be less than one.",
+                    "label": 0
+                },
+                {
+                    "sent": "These guys pick big steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "We pick little steps that you also get a 1 / K rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "As long as you diminish the stepsize slowly overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it doesn't have to be every iteration, but maybe every batch of letters that you will diminish the step size.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so it's nice it converges and the reason of course that we love this algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Machine learning is because even though our friend, the Newton algorithm converges quadratically and gradient descent converges linearly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our poor stochastic gradient descent converges as a 1 / T rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "When this end is huge.",
+                    "label": 0
+                },
+                {
+                    "sent": "When this end is 100 million.",
+                    "label": 0
+                },
+                {
+                    "sent": "But after just going one Passover, the entire data set the time it would take to maybe compute one of the gradients or take one Newton step.",
+                    "label": 0
+                },
+                {
+                    "sent": "You already have a pretty good estimate of the optimal solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So very, very quickly you get very close to the optimal solution in this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And since in machine learning we typically don't need more than one or two digits of accuracy for anything that's good, and we're done, so maybe one or two passes over the data we get to have an excellent solution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I want to talk about today is how do we actually now bring this algorithm, which we understand which we we know and love to bigger applications to real big applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is kind of an ideal problem for solving big data for big data analysis and.",
+                    "label": 1
+                },
+                {
+                    "sent": "My colleague and Co.",
+                    "label": 0
+                },
+                {
+                    "sent": "Author Chris Ray is going to give a talk about in the Big Data Workshop tomorrow about more of these kind of systems issues with putting machine learning on industry scale systems and the reason why these guys like it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, the reason why Chris liked it when we first started talking about it was well of course we got these.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have these robustness guarantees that I've just discussed.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know that the learning rates are rapid, but also it has a really nice data access pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know what we're going to get every time when we do a gradient increment.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just go look at one of our entries in our big data table.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're going to do very very particular thing, and so we can organize that.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, we might like, and we can take advantage of a lot of the infrastructure to really just be geared towards that one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very simple atomic operation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of the questions we first looked at was just how do we take advantage of the fact that almost all of our systems are now multicore?",
+                    "label": 1
+                },
+                {
+                    "sent": "The question is, is stochastic gradient inherently a serial algorithm?",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause it has this Markov process that we have built in?",
+                    "label": 0
+                },
+                {
+                    "sent": "We take picking a gradient step.",
+                    "label": 0
+                },
+                {
+                    "sent": "We take a step, we pick a gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "We take a step.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "How can we make this parallel and take advantage of the fact that multicore architectures are available for very little amounts of money?",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there are a lot of proposals, and in fact at NIPS there have been several and even this year there were several different proposals for how one might paralyze stochastic gradient descent.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you go back to the 80s, there are actually several different proposals.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not all of the master worker, but most of them asynchronous proposals by Porticus in sequence for actually paralyzing this algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "In most of these, you have one processor that's going to take in the gradients, and then all the other ones are just compute gradients.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is all going to happen asynchronously.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this guy will write to the memory.",
+                    "label": 1
+                },
+                {
+                    "sent": "And there are several other different proposals, including some by folks in the room, so hopefully I won't say anything too insulting or incorrect.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the one thing about all of these procedures that have been previously proposed is they require overhead because of lock contention.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you're writing this threaded code, you have to somehow coordinate between these processors to say, hey, I need that memory now or you should have this gradient now or I need to talk to you now.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for a lot of problems and a lot of problems I'll be talking about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Communication dwarfs all the computation time for the gradients.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in fact, even though you can have a theoretical speedup with no architecture in mind, and you see that you are getting a linear speedup in theory because of this lock contention, your code actually slows down as you add course.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it actually takes longer than it would have taken if you would just ran the serial protocol.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question is, how do you not lock?",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is pervasive, even us.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes Sir, if you look at the mini batching approach then basically if you take the mini batch would be large enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "The period of time in which you actually have to communicate and have the locking and so on is like a vanishingly small part of your time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of the time you just test right aggregates.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right, an actually if you go back and look at the parallel computation literature from the 90s, I think this has been discovered many times as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "That slow things are easy to synchronize their you know, slow things are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Easy to parallelize.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you are willing to go and do these batches then of course if you're willing to go do large mini batches you might as well just.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could also do batch gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which would then be also very easy to parallelize.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if we want to take advantage of the fact that we are getting a lot of bang for the Buck of having very small mini batches or even not know batches at all, just one step the gradient time does in fact is a lot faster than all.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then resolving the lock contention.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now show examples of that, but maybe.",
+                    "label": 0
+                },
+                {
+                    "sent": "Statement is, you know, also the kind of thing that is realized in numerical linear algebra.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every sort of unit of price that you pay for communication.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'd better be doing enough computation to match up with that payment.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right, if you balance those, then you can kind of get a good tradeoff.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's behind the Liptak hierarchy, and I was going to say this idea is pervasive.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you go and actually I took this idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "I took this exact!",
+                    "label": 0
+                },
+                {
+                    "sent": "Sentence from a talk by Jim Demo.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the lapack guys are now trying to come up with algorithms for both Blast N for lapack that minimize the number of computation calls.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry communication costs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Communication calls, obviously the computation they've poured over forever, but you want to minimize the amount of communication because that ends up having eating up most of your overhead.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, the question is, can we just do this with no communication?",
+                    "label": 0
+                },
+                {
+                    "sent": "That might be, I mean, what happens if we do it with no communication?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that limit even possible to look at?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, Sir.",
+                    "label": 0
+                },
+                {
+                    "sent": "Run on your hardware a few tests and then you figure out what is the right balance in the batch size and then just figure out that for this particular hardware and this particular data set, this would be optimal combination that you should let me show you the results and 'cause what's really surprising and I'll show you when we get to the experiments and this bear with me for about 10 minutes, but when we get to the results what you're going to see an actual what you'll see as well, no locking actually is quite surprising.",
+                    "label": 0
+                },
+                {
+                    "sent": "No locking actually is almost always better.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will get there.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the punchline.",
+                    "label": 0
+                },
+                {
+                    "sent": "The punchline is actually the communication time is serious, and any amount of locking.",
+                    "label": 0
+                },
+                {
+                    "sent": "And while it might make things a little bit more stable, actually does degrade computation time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we'll get there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not only is it is the same error, I'll get.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so but that motivates our first algorithm, which is called the Hog wild algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's let our processors run hog Wild without talking to each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "And and the code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another advantage of this code is is actually even.",
+                    "label": 0
+                },
+                {
+                    "sent": "I could write this with P threads.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, come on, you know there's no mutexes to write.",
+                    "label": 0
+                },
+                {
+                    "sent": "All you have to do is write your standard grading code, know how to actually assign the threads, and you don't have to worry about all the synchronization.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the simplicity also argues that this is easier for people to engineer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what do you do?",
+                    "label": 0
+                },
+                {
+                    "sent": "You sample an edge?",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, I forgot I rearranged.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll tell you what this means.",
+                    "label": 0
+                },
+                {
+                    "sent": "This used to be an index.",
+                    "label": 0
+                },
+                {
+                    "sent": "You sample one of your terms.",
+                    "label": 0
+                },
+                {
+                    "sent": "I note that it just changed ordering of certain things, but that's alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "You sample one year terms.",
+                    "label": 0
+                },
+                {
+                    "sent": "You read the current state of the gradient and then you take a gradient step and the only thing that we're going to assume in our analysis is that we can do atomic updates of 1 component at a time.",
+                    "label": 0
+                },
+                {
+                    "sent": "No no, only atomic only atomic scaling, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean the reads are atomic.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you don't have that.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no, you don't have to do a lot to do eredia.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, so that that I really I move this around just just five seconds ago in my room 'cause of.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I realized that now I've missed it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I failed.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Define some notation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me come back to this.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, let's look at this.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have our function.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to write it in this particular way.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have a function is the sum of the bunch of terms over my a set of E. And each variable H function Fe only depends on a subset of the actual variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and that's called.",
+                    "label": 0
+                },
+                {
+                    "sent": "EXE and the reason I'm using the notation E is because I want to think of this like a graph V or just all of my coordinates East.",
+                    "label": 0
+                },
+                {
+                    "sent": "The set here you can think of it as examples in machine learning or as edges in a hyper graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "A vertex is in one of these edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the function FY depends on that vertex, so I have a set of memory locations and each of these rings and I'm blocking off here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are the vertices that actually depend on?",
+                    "label": 0
+                },
+                {
+                    "sent": "That particular function in my inquiry.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now let me just discuss so, so now actually will make a little bit more sense about what.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We're doing on the slide before that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry that I failed to find that you read one of your edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "You read the current state only on those edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't read the whole specter.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't read the whole vector, just the state.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only on those edges for each vertex in the edge you do a gradient update.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we only seem at the time part is doing one of these, right?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so now there are a couple of things that we need to say.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, most of the time and a lot of these are a lot of examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've looked at the actual.",
+                    "label": 0
+                },
+                {
+                    "sent": "Data access only requires looking at a few edges at a time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Afew vertices at a time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's define a couple of things.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, what is the maximum size of an edge?",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll call that Omega second.",
+                    "label": 0
+                },
+                {
+                    "sent": "What is the maximum degree in the hypergraph, and the maximum degree is just going to be the number of edges that touch a particular vertex.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then I'm going to normalize it by the total number of edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this goes up to one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, there hyperedges, so their sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "DD, here is the maximum.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the maximum degree of one of these vertices, and again normalized so that goes zero to 1 and then row is the maximum size edge degree, which is basically the maximum intersection size between one of the edges forgiven, hyperedge how many other edges doesn't intersect.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so those are the coordinates that we need for our analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "The point is that these things basically are telling us how much do these individual terms interact.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I'm going to just pull two of 'em out of a hat?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And it turns out that they don't interact too much in a lot of cases, those parameters are very, very small, so let's look at, for example, the support vector machine.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, don't have to tell anybody in the room, but this guy.",
+                    "label": 0
+                },
+                {
+                    "sent": "The cost function looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have some examples what pairs Z, Alpha, Y, Alpha and here he can be thought of as the set of all the examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're looking from some separating hyperplane X and we have this cost now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Often times like in text processing, these alphas are super sparse.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have sparse vectors and now we can define edges basically on.",
+                    "label": 1
+                },
+                {
+                    "sent": "The support of the Alpha.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause those are the only variables of X that will be involved in that dot product and so we get one of these big hyper hyper graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "And each of these guys is the support set for each of the examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now let me rewrite this suggestively.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I just count how many times a particular X occurs in one of the examples, I could normalize it and basically get a stochastic gradient form that for this for this function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now in each of these terms we have these particular parameters that we can compute and basically Omega is now the maximum sparsity level of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Example Delta is just going to be the maximum size divided by the total dimension and this space and then row will just be some number between zero and one will be interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can see actually that row might be quite large actually for these problems will see that in a little bit.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let me do a couple more examples where you can actually show that these numbers are super small.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK matrix completion.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this one we want to find a low rank approximation to some matrix M. Let's say we want that matrix to have rank R and the entries are now specified on the set.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some subset of the entries E. And the.",
+                    "label": 0
+                },
+                {
+                    "sent": "A problem I've been quite fond of is solving this particular problem where we would like to minimize the difference between the specified edges M and the unknown matrix that we're looking for.",
+                    "label": 0
+                },
+                {
+                    "sent": "So M is given on these entries in.",
+                    "label": 0
+                },
+                {
+                    "sent": "EX is our decision variable and we're going to penalize the trace norm of X.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this is completely equivalent if I squint a little bit and approximate L by LR transpose.",
+                    "label": 0
+                },
+                {
+                    "sent": "To this optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where?",
+                    "label": 0
+                },
+                {
+                    "sent": "And it is a little bit funny.",
+                    "label": 0
+                },
+                {
+                    "sent": "We basically replaced a nice convex formulation with a non convex formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we have the dot product between a row of this matrix L and a column of this matrix V for particular entry MUV.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here again, by counting degrees I can renormalize these regularization parameters to multiply the Frobenius norm of that row and the Frobenius norm of that row.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. And so the graph here is actually pretty simple to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just have a bipartite graph, and each of these guys contains either A roll of L or roll of R and the edges are here.",
+                    "label": 0
+                },
+                {
+                    "sent": "If that entry has been observed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, in this case, the maximum edge size is the size of our approximate rank approximation Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if we assume the entries are sampled uniformly at random, Delta is going to be about login over North Anro office will be logged over, and so rather small.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So, as one further example, there are lots of graph problems that we see in machine learning all the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to focus on one, and that's the idea of doing minimum cuts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Minimum cuts have a lot of different applications, even for segmentation and topic modeling, and they're very popular in the vision community, and you can actually formulate this as an L1 minimization problem, so WV will be one of the edge weights X -- X V is going to be there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Difference for the normal minimum cut problem where you want two sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "These guys are just going to be in 01 and we're going to be guaranteed to get a integral solution, but you could also just extend it so that these guys are in a simplex is still going to be convex problem and people have actually used that as a kind of way to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Convex formulation of a topic model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, in this case the statistics are kind of obvious.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have a graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "The maximum the size of Omega is just going to be however many however big of a simplex.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm choosing to optimize over Delta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is just the maximum degree divided by E. So if I have a relatively low degree then this will be small and rose is going to be 2 * D. The maximum degree over the number of edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there those are.",
+                    "label": 0
+                },
+                {
+                    "sent": "The three problems that will focus on today.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can obviously come up with others, but you really see that we do have these statistics where the data access is sparse.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what happens if these numbers are small?",
+                    "label": 0
+                },
+                {
+                    "sent": "What is our convergence theory?",
+                    "label": 1
+                },
+                {
+                    "sent": "So you have to come back to the earlier slide we want to get a 1 / K rate.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so we have the standard assumptions that people like to put on these incremental gradient problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "We assume again, the Hessian is positive definite and has a curvature C. It has a maximum eigenvalue upper bounded by L Everywhere, which basically means that the gradient of F is Lipschitz.",
+                    "label": 0
+                },
+                {
+                    "sent": "The individual gradients have to have bounded norm.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the distance the optimal solution is given by D0, and so we need one more fudge factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to call that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Tao Tao is basically going to be the longest delay.",
+                    "label": 0
+                },
+                {
+                    "sent": "The longest number of updates that I can do where one processor is going to read the memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a gradient and right back the memory everybody else is doing some hog wild thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "While I'm doing that particular company computation and Tao is going to be that delay.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I don't know how to model Tao exactly.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have any graphs and modeling tell it kind of is going to suck up a lot of the architectural specificity of my multicore system.",
+                    "label": 1
+                },
+                {
+                    "sent": "So OK, putting all those parameters together and we pick our number of iterations to be bigger than this awful disgusting mess.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not actually that discussing will get back to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks discussing though then we can guarantee that we can get to within epsilon after K grading updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get to within epsilon now.",
+                    "label": 0
+                },
+                {
+                    "sent": "What are all these numbers?",
+                    "label": 0
+                },
+                {
+                    "sent": "So first look at the first.",
+                    "label": 0
+                },
+                {
+                    "sent": "This log term comes because I'm taking a constant step size.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can eliminate it.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said at the very beginning, by slowly making the step size smaller so it's not real.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just what happens when we actually do the constant step size.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second term has all these new things that come from the row that dealt in the Omega.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, if we ignore that parentheses entirely, then we just have M ^2 / C squared over epsilon, which is exactly what is the rate that is reported by Nemerofsky judis quiche appear on land, and there are 2009 paper, so this is what we expect, and then we're asking you, this is exactly the same rate that they have given us.",
+                    "label": 0
+                },
+                {
+                    "sent": "In an Inter inside, the parentheses are particular parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now Tao is the number of the longest delay, row is the maximum edge degree, and Delta is the maximum degree, and we see that if Delta in row go to zero, the number of updates that we need is exactly the same as it would be in the serial case.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we can run faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can run number of processors times faster, so we essentially get a linear speedup provided these two terms vanish.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or relatively bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's the theoretical component.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the real question is, does it actually bear itself out in practice?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so here's an awful table, but will actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not that bad there only 66 rows.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not terrible.",
+                    "label": 0
+                },
+                {
+                    "sent": "We looked at a bunch of different datasets, I'll just have them all reported here again.",
+                    "label": 0
+                },
+                {
+                    "sent": "They fall into three classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have the support vector machine, the matrix completion problem, and the problem of graph cuts, and we got some datasets ranging in size from very, very small to rather large 30 gigabyte.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dataset.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then after this is a huge deal 'cause it's an experiment, but like SVM doesn't fit your assumptions right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because it's not differential yeah, and matrix completion doesn't fit our assumptions because it's not convex.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also not differentiable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah it's OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's good results right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah, I could have generated some synthetic data where we could have run Ridge regression or something that would have worked.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So even though it actually assumed so, actually that's kind of what that's kind of the point of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Of this stuff I get my 1 / K rate which I wanted with some assumptions, But then I could still run it anyway.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Violating all my assumptions and actually see that works better than even if they were differentiable like in this first line in MCV, one the Delta which is the maximum degree is 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is coming from the bias term.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's OK, apparently Bystrom doesn't matter too much, but even row is pretty large.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we still get a 5 fold speedup over the serial rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the matrix completion problem, there are, as I said, small real data has much larger values than is predicted by the theory.",
+                    "label": 0
+                },
+                {
+                    "sent": "The jumbo data set we just made this Big 30 gigabyte random matrix completion problem sampling entries at random and we could actually these numbers were actually very small and we get a better speed up there too.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we have these two cut examples where we also have an 18 gigabyte file.",
+                    "label": 0
+                },
+                {
+                    "sent": "All these examples we had on the same 12 core machine we use 10 cores for gradients and we actually dedicate two cores just to moving data around.",
+                    "label": 1
+                },
+                {
+                    "sent": "Two of the cores were just there to figure out which Core was going to optimize this next increment and they would just move the data around, put it closer to the actual processors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think about this year.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK anyway?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let me give now that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how does this scale or how does it look like?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we have the number of threads that are devoted just degrading computation, which we're calling splits and on this axis is speed up over a serial implementation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have three different algorithms we looked at and this is getting back to your question.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we're finally getting back to your question and actually will have some too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have three different algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "We looked at.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first was a round Robin scheme that was proposed by Langford and some of his collaborators.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second scheme we called AIG, which stands for Atomic incremental gradient.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is always good to have acronyms of failed companies so they don't need it anymore.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can take it so AIG, what it does is actually lock all of the variables involved with the particular gradient updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Remember we have this edge what it's going to do when it does right is right.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to say I want all the variables in this edge and I'm going to write that back.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's what the IG does an then the Blues hog wild no locking at all, so it seems like this innocuous amount of locking shouldn't do anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "But actually in these two cases is actually significantly worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case is just a little bit worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "The matrix completion problem is just a little bit worse.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, Sir.",
+                    "label": 0
+                },
+                {
+                    "sent": "She.",
+                    "label": 0
+                },
+                {
+                    "sent": "You totally disregard any locking mechanism.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also note that this is just a little bit of locking, so the idea here is this is a lot of locking and processor communication 'cause basically in the round Robin scheme.",
+                    "label": 0
+                },
+                {
+                    "sent": "What happens is somebody updates the memory and then tells everybody else that is or tells the next guy that his turn.",
+                    "label": 0
+                },
+                {
+                    "sent": "So every time you update the gradient you have to you tell your buddy that they can update the memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Next black line here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just locking the the variables that are associated with the current thing I'm updating, but I'm not talking otherwise, so it's just saying if I want to write, I'm going to lock those small locations in memory, and even that does cause a performance degradation.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in how well you don't even block the individual coordinates?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it might happen that you actually overwrite things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly, so in our theory, we actually assume that we lock the individual coordinates, but we've implemented without it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, it still works again.",
+                    "label": 0
+                },
+                {
+                    "sent": "We move away from the implementation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a theory that promises us this should work, at least in this very special case, and then we ran a bunch of experiments that seem like it does even better than that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So I will move on to another algorithm and maybe not everybody's heard about, but also has a nice fun for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually satisfies the assumption.",
+                    "label": 0
+                },
+                {
+                    "sent": "With locking the memory for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any version worth?",
+                    "label": 0
+                },
+                {
+                    "sent": "Where you at?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so you're just saying so that's only a function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, let me just.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "Logistic regression for example, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, and actually in retrospect that probably would have been a more well, I don't know if it wouldn't anymore compelling you would see the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah, it looks the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, we did due diligence aggressively shooting at.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would you put that in next time?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's good.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, something that's actually nice and smooth.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can even do something where the individual guys are strongly convex, but we have to come up with a good example for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, but let me get back to this matrix completion where we totally cheated.",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually took a nice convex problem and then we made it non convex and.",
+                    "label": 0
+                },
+                {
+                    "sent": "We messed around so don't satisfy any of the assumptions of the theorem, but hey, it works really well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so it works really well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rather than trying to understand maybe why it works really well, we're like, well, let's make it work even better, so we'll just go down the road of let's make it even faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Application was only to please the trace now, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's correct, that's correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, we have this formulation with the trace norm.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trace norm is completely equivalent once you factored it as the sum of the squares of the factors.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are equivalent however, is a non convex formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some theory to show actually that if you have enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "Measurements E you have enough observations of entries that actually this is going to wash out all the stationary points, and that's by by Bureau Montero.",
+                    "label": 0
+                },
+                {
+                    "sent": "They've actually be able to show that it's kind of washed out a lot of the stationary points to do this, but you just have to pick the rank bigger than the rank of the optimal solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we know the rank of the optimal solution is low rank by using other theory.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do the SGD on this, what are the gradient updates look like?",
+                    "label": 0
+                },
+                {
+                    "sent": "You pick some entry IJ or actually UV, and you set E to be equal to Lu times RV transpose minus ZUV.",
+                    "label": 0
+                },
+                {
+                    "sent": "So OK, so this should be MI apologize for that too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have F we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have their two bags here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes bad?",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is M this is MZ or equivalent will just do a method of multipliers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thing here to now make them equivalent.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so again, what does this mean?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just how wrong is my prediction for the entry Z UV given my current state.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ellen you and based on that the gradient step says I multiply to get my gradient update for Li, multiply R by the error vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are number just a scalar and then I slightly shrink Li take a combination of L and a combination of are dictated by my step size.",
+                    "label": 0
+                },
+                {
+                    "sent": "The regularization parameter and whatever this current error is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Simple straight 4.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And in fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just going back to when where this matrix completion stuff kind of got got rolling on the Netflix prize problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first algorithm that anybody published about what they made work was actually that really simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "2 lines of code.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this was on that guy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Simon Funks web log or live Journal.",
+                    "label": 0
+                },
+                {
+                    "sent": "His live Journal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course the winning solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also use these FDR.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So basically this matrix completion algorithm, which is these three lines of code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Does a good job on real collaborative filtering problems.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what we want to do with the matrix completion problem is actually even enhanced.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of the problems that we encountered with Hog Wild.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, one of the problems with the.",
+                    "label": 0
+                },
+                {
+                    "sent": "IID sampling from the data is that you might have poor locality of reference.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might have access.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might be trying 1 processor might be trying to access an entry of matrix that's over here and then an entry in the matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "This over here, very far distant parts of memory and that actual memory contention could end up causing more slowdowns.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question is, could you actually move all of the data where that one processor wanted touch to the much more local part of memory and then only operate there?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is also might help.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, here's some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's try this instead of mini batches, we're going to something else which is biased.",
+                    "label": 0
+                },
+                {
+                    "sent": "The ordering that we run through our gradients.",
+                    "label": 0
+                },
+                {
+                    "sent": "Move away from an IID ordering and move towards a very biased ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the biased ordering is actually pretty simple to see from just this picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I look at the matrix L * R. Then these three diagonal blocks.",
+                    "label": 0
+                },
+                {
+                    "sent": "If all the entries, let's say, occur down, these 3 diagonal blocks, those 3 diagonal blocks can be processed completely in parallel.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I were somehow lucky that I only had a block diagonal problem, I could ignore these guys process these three guys.",
+                    "label": 0
+                },
+                {
+                    "sent": "They never have to talk at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "They never have to lock or synchronize.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, the ones that are in the dotted lines can be processed independently and the other white box can be processed independently and so the algorithm would just be this.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to mix up all of our data, shuffling all the rows and columns, move, have our helper threads move the data to the appropriate parts of memory, process these guys in parallel.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then these guys in parallel, and then these guys in parallel.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the wind here is not only do we have no locks, we don't have any of the overwrites problem with wild 'cause these guys are only are individually running in order on one particular part of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "These guys are not running on anything even close to this, so they're not even talking to the same shared memory anymore.",
+                    "label": 1
+                },
+                {
+                    "sent": "And you have the strong locality that we can move the data closer to the processor is going to process this block this block in that block.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So again, this is how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have our data laid out in this square and so now we have our rows and columns and we apply a random permutation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just shuffle the rows and columns and then you can process the data in this block.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then in that block and then in this block and then you would just repeat the process.",
+                    "label": 0
+                },
+                {
+                    "sent": "You shuffle the data again, maybe while those while all the other guys are going and running their static gradient code.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the processors can now be dedicated to doing a new permutation and moving a second copy of the data you apply these things again in parallel.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And repeat.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so when we did this we did this shortly after a. I wrote some Matlab code for last year's NIPS, and in last years we had a bunch of matrix completion experiments were comparing different kinds of implementations of Trace, Norman Max Norman.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was with not history bro, and so we had a nice curves that we put in the paper that looked like this that just running in Matlab with mini batches with momentum with a bunch of different stuff we can get to.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could get it to finish in four hours or so using our 12 core machine, again with two cores for shuffling and 10 cores doing gradient updates and doing this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Funky Latin squares type update and the jellyfish were able to do that in two minutes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is a huge win.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, all of these speedups are now coming well.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the pieces coming 'cause we're running into MATLAB obviously not writing in Matlab.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're doing this in C, but all these other speeds are coming because we're respecting the memory, respecting data access, and we're not locking.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thing is happening happening concurrently to the other stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right, that's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we were doing that in hog wild too.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the difference is really important here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Could be moving that data around is really providing better locality for those for the individual processors.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what's crazy is that it gives you a 25% speedup over hog wild on our 12 core machine and on the 44 machine it just gets better because again now you have if you have 40 quarters all contending for the same shared memory, you're going to have even more memory contention.",
+                    "label": 1
+                },
+                {
+                    "sent": "Press Black, a cache coherence.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Excellent so I have 18 minutes.",
+                    "label": 0
+                },
+                {
+                    "sent": "But perhaps I'm going to go over and I would like to just ask a theoretical question to the crowd.",
+                    "label": 0
+                },
+                {
+                    "sent": "That was brought up by this jellyfish idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as John said, I presented experiments that didn't match our theory that we're doing stuff that was breaking all the rules and the assumptions of our theorems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then when I went to the jellyfish, we actually now have something where we don't have any analysis for it all.",
+                    "label": 0
+                },
+                {
+                    "sent": "We did bias sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of stochastic gradients, not only we're not sampling IID, we're assembling in very particular biased orders that were obtained together.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, here in this plot we have three different implementations on the Netflix data set, and this is just going to be the number of passes over the data set on the X axis on the Y axis is going to be the error of the cost function.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not really important other than lower is better, and then we'll see what happens overtime over passes over the data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here's three different algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Red one is just running over in the order that Netflix gives you.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it's either by user or maybe it's my movie just doing in that order.",
+                    "label": 0
+                },
+                {
+                    "sent": "It slow is getting down to a convergence rate, but it's not converging.",
+                    "label": 0
+                },
+                {
+                    "sent": "The blue one is doing the IID sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Green one is doing this jellyfish.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's doing this biased ordering, and surprisingly now this is nothing to do with computation time.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just number of actual gradient updates that Green one is lower than the blue one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So all the theory trait treats with without replacement sampling as exactly the same as deterministic sampling for these incremental gradient problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in practice, and it's not just on this Netflix thing is pretty much almost everyone we've tried that with without replacement sampling is always faster.",
+                    "label": 1
+                },
+                {
+                    "sent": "Without replacement sampling means this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's just say I have my list of increments rather than sampling one at a time.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to come up with a random order and go over each of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there's some advantages there.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're guaranteed that you're going to touch every single data item on every pass through the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then the question is, is that enough to explain exactly what's going on here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is that going on?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have some ideas and for this we actually went back to a.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Very, very simple problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably the problem we should've gone with before at least squares.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why not least squares?",
+                    "label": 0
+                },
+                {
+                    "sent": "And actually we're going to not even just least squares.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to assume that this is over determined Lee squares, so we have a set of linear equations.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to assume that there actually exists an optimal solution that makes all these equations equal to 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then compare the difference between a with replacement and without replacement sample.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, the fixed order sample looks like this is actually pretty easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's nice about the least squares thing is you could pretty much write out everything analytically and the face replacement sample just looks like this you take.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your starting position X 0X off is where we're going and we just look at this this.",
+                    "label": 0
+                },
+                {
+                    "sent": "That matrix multiplied for each K. That's where we are after N steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "The with replacement sample is.",
+                    "label": 1
+                },
+                {
+                    "sent": "We take.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically it's treating since his ID every update we're doing N steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every update is equivalent to each other in expectation.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and now which is better?",
+                    "label": 1
+                },
+                {
+                    "sent": "Which one is closer to X out?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, I don't know, so I don't know the answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm asking you guys if you guys have a clear answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Did not necessary projectors their projectors when gamma is one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, but there could be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe maybe they have.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have one non unit singular value that's slightly less than one.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Who's there?",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's abstract even more than that, let's say.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, if I have N positive definite matrices right there, D by D matrices, I have any of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it true that the product of any of them in order?",
+                    "label": 1
+                },
+                {
+                    "sent": "Is less than or equal to the norm of the average to the 1 / N?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's basically the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nice why?",
+                    "label": 0
+                },
+                {
+                    "sent": "From the geometric mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's reading my mind, that's awesome, yes, so if they're scalars if they're not matrices.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because the next to metric mean is operator smaller than the matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we will see.",
+                    "label": 1
+                },
+                {
+                    "sent": "For positive matrices this is true.",
+                    "label": 0
+                },
+                {
+                    "sent": "Matrices I'd be happy with strictly positive definite matrices, strictly positive, positive, positive, definite positive.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean positive.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, cool, because the matrix geometric mean is operator smaller than the matrix arithmetic mean, which would imply this because if you use a monotonic mean like this to normal, OK, OK. OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "I hate to tell you secret, but you're wrong, but that's OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is absolutely no.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's true for two, and that's where you can have an arithmetic geometric mean.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's true for two, but it is true for more than two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, for two it's true.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it is true for N. No, OK, let me show you what is true and then when it's not true will come will come to two cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that is really not true and it could be really.",
+                    "label": 0
+                },
+                {
+                    "sent": "This gap can be exponentially big.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm ruining the punch line just because I thought you had.",
+                    "label": 0
+                },
+                {
+                    "sent": "I was getting very excited first second but no.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, let's go.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's actually go through why it's not true.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it turns out, for two, this is true.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a matrix arithmetic, geometric mean inequality for two matrices there is not one for three, and in fact that makes you can even have a counterexample with three.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, let me get to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, actually let me get to that first do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I'm going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm skipping around just because super task is the true this no, here's our counterexample, and this works for any K bigger than two.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I'm going to take this matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's my a case.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem is because you're not really taking the matrix geometric mean, it is multiplying matrices and the matrix geometric because you have non commutative variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need to actually take the correct geometric mean, then it will hold.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think I would probably agree with that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would probably agree with that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's look at how bad that actually that actually work.",
+                    "label": 0
+                },
+                {
+                    "sent": "This actually holds if you multiply these things out, you can actually compute the norm of this matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's two to the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you multiply, if you look at the average is the identity, so the gap between these two is to the end and that actually satisfies a straightforward bound which I can go through if I have a little time that this product is less than or equal to D / N to the end so it's at worst day to the end times worse, but Dean is a big number.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the question is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I could give.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can construct similar counterexamples for all N faraldi.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which one?",
+                    "label": 0
+                },
+                {
+                    "sent": "You were using it to analyze this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So remember, this is the example I gave at the beginning that was kind of curious and weird, which was this funny rewriting of the identity operator as a sum of increments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you go in deterministic order, you go far slower than if you go on random order.",
+                    "label": 0
+                },
+                {
+                    "sent": "That turns out to be the case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let's go back 'cause because let's go over it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it had me jumping ahead a little bit too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me do a couple other examples where maybe it is true.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's just say I pick them randomly.",
+                    "label": 0
+                },
+                {
+                    "sent": "I didn't pick that terrible ordering.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why aligned everybody to be as bad as possible?",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say pick them randomly.",
+                    "label": 0
+                },
+                {
+                    "sent": "AI is just going to be rank one random Gaussian matrices, so I take a random Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "I take us out of product.",
+                    "label": 0
+                },
+                {
+                    "sent": "I look at this.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, the expected value of the product is just due to the minus 10 times the identity.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very very very small and then the expected value of the arithmetic mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I go through and compute it for random thing is QN.",
+                    "label": 0
+                },
+                {
+                    "sent": "Define this into QN.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this definition doesn't tell us anything yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's look at the norm of QN multiplied or divided by the number of the geometric mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, people have actually studied this a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is one of those things that comes up all the time when you're trying to compute the eigenvalue of random matrices, and so if you just lower bound it by pulling out a D and then taking a trace.",
+                    "label": 0
+                },
+                {
+                    "sent": "Someones actually computed the exact expression.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lots of people have computed.",
+                    "label": 0
+                },
+                {
+                    "sent": "This actually appears in the original Marchenko Pastur analysis computes this kind of combinatorial expression for that walk, and that's essentially a hypergeometric function.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you ignore this old 1 / N term and you could lower bound that by this nasty exponential.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on random data.",
+                    "label": 0
+                },
+                {
+                    "sent": "On random data this.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's exponentially better to do this fixed ordering rather than sample.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uncontrived data is exponentially better to do a with replacement sample so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The best of both worlds here I'm going to come in to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the best of both worlds here?",
+                    "label": 0
+                },
+                {
+                    "sent": "This was it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, Sir.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with the Gaussian case just made a little bit difficult, but you can actually the Gaussian case you can analyze even in that particular week I minus the identity, but it involves a little bit more.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not easy to go through, is just that analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are, but you're right in this example where I got that awful violation, we get the exponential violation.",
+                    "label": 0
+                },
+                {
+                    "sent": "They are actually rank deficient the projection operators.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, even if they are definitely not true.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have examples where there definitely is not as pretty.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're just not as pretty.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We went through all these now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's The funny thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "What if I randomize so super had addressing comment?",
+                    "label": 0
+                },
+                {
+                    "sent": "He said if we picked the right geometric mean of matrices.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then maybe we could do better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the problem is there is no there is no chosen.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you think there's one that's really good Navy Duffy?",
+                    "label": 0
+                },
+                {
+                    "sent": "There are several different ways to write the geometric mean, and actually there's a paper by Mondo which has 10 different proposals for what the right version of the geometric mean would be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Considering that we really care about the ordering in terms of like one of these stochastic gradient type algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really what we care about is let's just randomize overall orders.",
+                    "label": 0
+                },
+                {
+                    "sent": "That does seem like the reasonable one for our case, so let's look at the case where we just randomize over all the permutations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So rather than having one ordering, we look at all the permutations in the symmetric group.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we take all the orderings and divide by 1 / N. So is this one true?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, now I've made the problem look disgusting, but that's alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have no idea, but if we take this nasty counterexample then.",
+                    "label": 0
+                },
+                {
+                    "sent": "Chris likes to do late at night combinatorics so late at night, torques gives you another hypergeometric function and it's it's peculiar and weird and basically again you just have to count paths by using trig identities.",
+                    "label": 0
+                },
+                {
+                    "sent": "So similar to the analysis that you would use when you're trying to prove the martinko past or distribution, and that guy is old.",
+                    "label": 0
+                },
+                {
+                    "sent": "1 / N. This hypergeometric is all of 1 / N so remember.",
+                    "label": 1
+                },
+                {
+                    "sent": "The mean is actually norm one and then this geometric mean is all 1 / N. So it turns out that in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "The inequality is true and we have not found any counterexample.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we've done a lot of brutal force servers looking for these things, and I've still yet to find a counterexample to this inequality.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it looks pretty right, so so I invite you all to help me out.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could even be possible that this is not what we need to understand the difference between without and with replacement sampling for stochastic gradient, But this would be one step in the direction and so there are lots of interesting open questions left based on that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is there a reasonable version of a non noncommutative arithmetic geometric mean inequality for many matrices?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "There is one, but need not be one network.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's probably true and you should show me that one that does work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so the practical summary is this so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Locking in lock contention can cause terrible problems with performance and can actually cause parallel algorithms to slow down as you add course, so don't lock and don't worry about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's usually not a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Locality, however, is something that maybe you should worry about, but if you implement that, it does seem to also make a big difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now the question is, how can we understand what the right way to optimize locality is?",
+                    "label": 0
+                },
+                {
+                    "sent": "What the right way to assign shuffle in order data is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It seems like what's nice about that is interesting math comes out.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a lot of cool problems to work on just based on trying to understand the combinatorics of what happens when we do orderings.",
+                    "label": 0
+                },
+                {
+                    "sent": "So plenty of good problems to work on, even in a non theoretical sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we could come up with if I give you some SG problem to work on what the right way to spread out the data to individual processors to avoid lock contention, to avoid memory contention to avoid cache contention, I think that in itself is a nice interesting thing to look at and we have some ideas, but we're not quite there yet in general.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, thanks again for your attention for some great questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or the SBMC sweat.",
+                    "label": 0
+                },
+                {
+                    "sent": "Surprisingly, it still works, and Chris and I and Steve were just talking about this at the poster session while we were there.",
+                    "label": 0
+                },
+                {
+                    "sent": "I actually think there's a different way to do our analysis that would make it a little bit more transparent as to what's going on when you're really the only problem that you have with these things, because the only thing that's going to have trouble if is if 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Processors try to write the same memory at the same time, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But if there?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a big vector, you were really big vector and you're running your SVM update.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're not actually touching the memory at the same time, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this guy might be like 3/4 of the way through before the next guy starts writing, and so if you have, let's say 10 cores, and your data is 100,000 dimensional, well, then they're probably not going to actually overwrite each other, so we're hoping to do a better refund analysis that will actually explain that away.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think we're really only at the beginning of that understanding.",
+                    "label": 0
+                },
+                {
+                    "sent": "The worst case happened all the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh that's also true, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Slower assuming.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, just repeat with Steve says.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it comes up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Make sure it comes up on camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "The original analysis that we use from Steve if they are dense, you can show that they are not slower than serial.",
+                    "label": 0
+                },
+                {
+                    "sent": "But as you go in the limit of density going to one the you don't get to speed up but don't get slowed down either.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

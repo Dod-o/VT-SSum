@@ -1,0 +1,1143 @@
+{
+    "id": "3emiivqay6iic3ov6iwtnpf355t7qbve",
+    "title": "30Hz Object Detection with DPM V5",
+    "info": {
+        "author": [
+            "David Forsyth, Department of Computer Science, University of Illinois at Urbana-Champaign"
+        ],
+        "published": "Oct. 29, 2014",
+        "recorded": "September 2014",
+        "category": [
+            "Top->Computer Science->Computer Vision"
+        ]
+    },
+    "url": "http://videolectures.net/eccv2014_forsyth_object_detection/",
+    "segmentation": [
+        [
+            "Morning I'm David Forsyth.",
+            "I'm in couldn't be here because of visa problems.",
+            "I'm going to talk about 30 Hertz object detection with DPM V5 an in conversations in the corridor and the like.",
+            "There was a little confusion about what we meant by 30 Hertz.",
+            "What I mean is all 20 Pascal templates are evaluated at in three 3030 milliseconds per frame, all of them, not each one.",
+            "Right?"
+        ],
+        [
+            "So why would you speed up DPM?",
+            "Well, it's worth doing because DPM is effective.",
+            "It's mature and it's stable there.",
+            "I know there are more accurate things.",
+            "Many people have told me this.",
+            "I'm very well aware, but they keep changing.",
+            "Somebody does this.",
+            "Somebody does that.",
+            "Somebody does the next thing.",
+            "Everything is different, whereas in DPM you really know what it's going to do and you know what it's supposed to do.",
+            "If you have very fast DPM and it's important to look at which version of DPM is fast, you can open the door to a bunch of applications, mobile devices, large datasets, unreasonable numbers of templates, all that sort of stuff.",
+            "And of course you'd like to have a constraint which is no weird hardware.",
+            "We don't really want to be doing this with something that costs $100,000 and takes 15 Watts.",
+            "Would really like it to be doing it.",
+            "Would really like to be doing it with conventional CPU's."
+        ],
+        [
+            "So we had a NIPS paper about this and for the people who don't have that at their fingertips, I'm going to just review the key idea because we have to do some accounting to do things really fast.",
+            "You have to ask what needs to be done to evaluate templates quickly or to do DPM V5 quickly.",
+            "And there are two things.",
+            "One is you've got to get the hog features out of the image and that used to be thought of as being something that was relatively fast.",
+            "And then the other thing is you've got to apply the templates and that used to be thought of as being slow.",
+            "And the crucial step in applying the templates is you form a linear function of a whole bunch of cells and the NIPS paper basically says make apply templates faster by vector.",
+            "Quantizing the hog cells and the reason you want to do that is I can replace a whole bunch of multiply and add with a table look up.",
+            "So I'm going to vector quantized the cell that gives me a bit string.",
+            "The bit string just goes into a table and it tells me how much, rather than having to add and subtract, add, multiply.",
+            "There is a cost and the first cost is you get less accurate template values, but that isn't that big a deal as I'll show you in the next slide.",
+            "The next cost is you've got a constructive enter vector quantization, but you're going to do that offline, so that doesn't matter very much, and the final cost is you've got to find the nearest neighbors for each hog cell and we'll get to that."
+        ],
+        [
+            "So if I were to vector quantizer template and compute the value of the template just by look up, then what I'm going to find is an estimation error and that graph shows the absolute value of that estimation error absolute value rather than squared error.",
+            "And what I've done is I've plotted two different ways of compressing templates and the extent of the compression against computation time and the short answer is if you vector quantized the templates if you go to fewer.",
+            "Or more centers that centers rather number of bids you get more or less error but very little change in the computation time, which is very fast.",
+            "If you do a natural or reasonable alternative compression which is principle components, it turns out A to give you quite a lot of estimation error when it's fast and B when it gives you less estimation error tends to be slow.",
+            "So the vector quantization's are good."
+        ],
+        [
+            "Yeah, OK, now imagine we've done that.",
+            "Then we can look at a little time budget for what happens and the time budget here.",
+            "This I've just copied from the NIPS paper the thing to attend to in this table is there's some stuff that you have to do on a per image basis, which is rack up the hog features and a bunch of housekeeping.",
+            "And there's a bunch of stuff that you have to do per image plus category by times category basis, which is basically a valuating templates.",
+            "Evaluating templates is now fast but there's about 116 milliseconds of stuff you've gotta do before you can do that.",
+            "So our problem now is to make that faster."
+        ],
+        [
+            "So what do we want to have from an approach for making things faster?",
+            "Well, there are four things to them are similar, but not the same.",
+            "One of them is I really, really want to work on legacy templates.",
+            "Not much sense in saying we can make your code, we can make your template evaluation faster if you completely relearn different templates that are totally unfamiliar.",
+            "You'd really like this just to be in a valuation thing.",
+            "The second thing we want is random access to the image.",
+            "Why do we want that?",
+            "Because everything we know about speeding up computations.",
+            "Says don't do things you don't have to do, and one thing you might not have to do is evaluate a template in some parts of the picture so you really, really want your method to respond to that.",
+            "You want to be able to say I'm going to evaluate here, but not there.",
+            "And then there are two others, which is sort of related to each other.",
+            "You'd really like to be able to say to someone that if they're willing to pay a little accuracy, they can be faster.",
+            "You'd like to you like that tradeoff to be available and you'd like to happen anytime property.",
+            "If the algorithm gets.",
+            "Interrupted because somebody doesn't feel like waiting for the results.",
+            "It still produces something coherent.",
+            "And those two properties are tide up, as you'll see.",
+            "We get that tradeoff by having an anytime property, but they're not quite the same thing."
+        ],
+        [
+            "So what are we going to do to speed up the really 3 tricks here?",
+            "One of them is continue accepting loss of numerical precision and instead of."
+        ],
+        [
+            "After quantizing the cells in one go will do it hierarchically.",
+            "Now this is kind of a facepalm moment.",
+            "We really should have done it with the NIPS paper.",
+            "We just didn't think about it.",
+            "What do we get if we do it?",
+            "Well, instead of having to take a hog cell and find its nearest neighbor in 256 centers, we're going to find its nearest neighbor in 16 centers and then once we found that there will be another 16.",
+            "Depending on the 1st 16, that makes things about 8 times faster with totally trivial loss of mean average precision, which is really nice.",
+            "We should have thought of it."
+        ],
+        [
+            "There's a second one, which is kind of important.",
+            "You've got to manage scale fairly carefully, so I want templates are now fast, so I want to do more templates.",
+            "Hog features are slow, so I want to have fewer hog features.",
+            "So what I'm going to do?"
+        ],
+        [
+            "Who or what infinus amended is?",
+            "Instead of having a single template applied to a pyramid of features over scales, what I'm going to do is have relatively few feature scales and a pyramid of templates.",
+            "Because those templates I can do quickly.",
+            "So I'll have a range of different templates at relatively few feature scales and to get those templates I'll just use an interpolation process."
+        ],
+        [
+            "And then my third trick is more than anything else.",
+            "I don't want to evaluate every template at every location, because that way lies madness.",
+            "So I'm going to peek and hash."
+        ],
+        [
+            "What do I mean by that?",
+            "Well, when I want to evaluate a template, you can think about it as sticking it on top of a piece of the image.",
+            "So I got a little great template there over a dark image and what I'm going to do is instead of looking at everything in the first round, I'm just going to expose four cells inside that template and see what I see in the image under that template at that location, and I'll take that information."
+        ],
+        [
+            "And I will hash with it.",
+            "And living in each cell of the hash table is a list of templates with priority scores.",
+            "They say if you hit this particular hash, so it is worth evaluating that template at this location with this priority.",
+            "And then what I'm going to do is, once I've picked for everybody, I've got a priority list.",
+            "Which templates are worth looking at, and I'm going to process that priority."
+        ],
+        [
+            "Q And evaluate the templates on the queue.",
+            "Now the nice thing about that in turn is I pay very little time to evaluate hog very little time to vector quantized and then I get to generate a bunch of object proposals and process the proposals.",
+            "Now that process of generating proposals I can interrupted anytime the process of evaluating the proposals, I can interrupt at anytime.",
+            "If we set this rather artificial threshold of 30 milliseconds.",
+            "Then I'm going to run the whole thing for 30 milliseconds.",
+            "I get about 20 milliseconds to split up between proposal and detection and what we do is we just split that in half.",
+            "Is that the best thing to do?",
+            "We don't know.",
+            "It might not be optimal and you might do better if you did more time on proposal and less on detection or less time on detection and more on proposal.",
+            "And then you just stop when time is up."
+        ],
+        [
+            "So that gives me what happens when we do this.",
+            "Here's what happens.",
+            "Well, if you go through that little table, I've got original DPM which was running with a mean average precision of .3 three and about 13 seconds in frame.",
+            "Our nips paper.",
+            "There are a bunch of others.",
+            "There are nips paper, which is the 2nd last line, is .331 mean average precision.",
+            "I wouldn't want to make a living on that .001.",
+            "I'm not making a noise about it.",
+            "An half a second per frame.",
+            "Now we got a .261 and 30 milliseconds of frame.",
+            "Again, this is for all of these times.",
+            "It's time to complete the detection of all twenty categories starting at a raw image.",
+            "It's the whole thing, right on a Z on whatever processor."
+        ],
+        [
+            "We get a bunch of sort of fairly typical recall precision curves here, which are kind of informative, so if you understood the way I set my process up, if I want to run this thing at 100 Hertz, I can.",
+            "I get to do very very few insertions into the priority queue and I get to do very, very few evaluations of templates on the priority queue, but I can still do it.",
+            "I'd expect to pay an accuracy and you see this, so I've got recall and precision curves here.",
+            "For six categories, the wrestler in the paper or on the website they are plotted in different colors for baseline, 15 Hertz, 30 Hertz, Anna, 100 Hertz, and you can see on that green thing.",
+            "When you start running this thing at 100 Hertz because you make very few proposals and you evaluate very few of them, you lose accuracy.",
+            "Now, in cases, in some cases the falloff in accuracy seems to be quite well behaved, so going from baseline to 30 Hertz in the case of bicycle or airplane doesn't really do all that much damage, but going to 100 Hertz really causes catastrophe in the case of boat, you can't do terribly well with boat, and when you do both very fast, it doesn't work at all, that's just.",
+            "Part of the game.",
+            "You'll notice that when I'm running this thing at 100 Hertz, as I can show from the horizontal slide, really there are very few proposals and very few evaluations."
+        ],
+        [
+            "Now the other thing I could do is plot mean average precision against time, which is what I've done over here.",
+            "Time to complete the detection of all twenty categories from Raw image.",
+            "Horizontal dashed line is mean average precision.",
+            "Blue line is what our thing does.",
+            "You can see I've broken out 15 Hertz, 30 Hertz and 100 Hertz as good places to be operating and you can see we pay some penalty for just doing it our way and then after that the cost gets is not that great until we hit a knee somewhere around about 50 Hertz and by 100 Hertz things start falling off and you can run it even faster, but you're not.",
+            "Usually going to be very happy with the answers."
+        ],
+        [
+            "OK, now for most categories, the AP against time behaves really quite well.",
+            "the IT doesn't fall off very fast and then it falls off dramatically somewhere around about 100 Hertz I've shown over here person and TV monitor, and that's really very nice behavior if you care about finding people or you care about finding TV monitors, you can do it really quite fast.",
+            "And if you go too fast then it then it's a catastrophe, but in other cases you get slightly different behavior."
+        ],
+        [
+            "So what are the desirable features?",
+            "Well, I listed them and there's a 2."
+        ],
+        [
+            "People that you can look at offline on the PDF linking the desirable features with who have 'em.",
+            "Why did we put the table in 'cause we've got all of them and nobody else has.",
+            "In some formulations it's actually impossible to get them in other formulations you probably could get them, but nobody actually implemented them."
+        ],
+        [
+            "So what are we going to do next?",
+            "Well, the one thing I want to draw your attention to is for some categories like sheep, which I've plotted up here.",
+            "Pushing up the speed gives some very very odd behavior indeed, right?",
+            "So going from 50 milliseconds to 10 milliseconds causes all such a strange stuff to happen in the sheep M AP, and that's probably evidence that we haven't quite got the hashing right, or we haven't quite got the priority values right?",
+            "So if you would, if you sat down and collected a set of templates that you wanted to use and you wanted to use them very fast indeed, you would probably spend a fair amount of time doing.",
+            "A form of autotuning, you try and get the hashing to get the best performance for those templates you try and get the priority values to get the best performance for those templates you try and set up various other and internal parameters like how much time is put into setting up the priority queues versus how much time is put into evaluating templates.",
+            "You'd want to get that exactly right, and then you could get very good behavior or we hope you could get very good behavior for a fixed set of templates.",
+            "It's a process you can think of as being a bit like tuning code as it's compiled.",
+            "We think you can do it.",
+            "We think you can do it well, but we haven't got it working yet.",
+            "If you look at the hog evaluation that I talked about, there's another tempting.",
+            "Improvement that might be available there.",
+            "Which is there maybe hog sales that you never look at?",
+            "In which case you may not need to compute the gradient either and you could do a kind of lazy evaluation caching thing to make things even faster.",
+            "And then of course what we'd like to do is to take a bunch of these ideas and drop them on the currently fashionable convolutional neural networks and see if we can get faster valuations for those as well.",
+            "We just it would be nice to have that settled down a little bit and we'd like to have some of this machinery have a career application.",
+            "But there's a big question that comes up in the.",
+            "Agenda at this point is now if I can evaluate templates really fast, what could I do with a ton of templates and we were thinking about that very clear."
+        ],
+        [
+            "OK, final comments.",
+            "It's fast and it's fast for quite simple reasons.",
+            "I've shown you a series of fairly simple accounting steps that allow you to proceed quite quickly.",
+            "There is a code.",
+            "The code URL will be on the poster I got.",
+            "It's supposed to be up on the on a website today.",
+            "Some people have worked with it.",
+            "I got panicky email from him in saying that one image caused it to crash.",
+            "What do we do now?",
+            "But with any luck, by the end of the day, all fast codes should have these four properties.",
+            "And we think as well as fast detection, the code that we've produced is likely good for proposal processes, high precision resumes and mobile applications, and the little red light is flashing, which means I'm done.",
+            "I was wondering if you make use of any of the vector instructions on the CPU or is it just straight serial execution?",
+            "I was standing there I thought it was off the hook.",
+            "You know the number is going to ask me a question then nobody would know that I didn't write that out code myself.",
+            "I'm in, wrote it and he's better at this sort of thing than I am.",
+            "I believe the answer to your question is yes.",
+            "Right, because he's talked to me about vector instructions, but I do not know whether the current code has vector instructions in it, so I think you know I'd rather refer the question to him than than actually guess.",
+            "I believe the answer is yes, and I believe there's been some thought about versions.",
+            "He's discussed it with me, but I haven't been very much used to him about versions using different vector instruction sets.",
+            "He knows this stuff and I don't is the short answer the question.",
+            "Petra last question.",
+            "Yeah, so there is another line of work of people who try to make detection fast category level and it's based on boosting from Viola.",
+            "And then recently petrodollar, right, right?",
+            "So conceptually, what is the connection between the two?",
+            "If you can see any, OK.",
+            "So yes, there is.",
+            "So the basic drive behind those is don't do work that you don't have to do right.",
+            "You can see that what we're doing when we do the priority queue stuff is a version of that stuff, right?",
+            "Because what's happening is we're going to each location were saying, cook up a hash code, go into the priority queue, stick it in the queue.",
+            "Now if it goes in the queue with a very low value of priority, you probably never going to get there.",
+            "Right, we're fast.",
+            "We operated a speed because we know that in 30 milliseconds something's going to happen.",
+            "That says, stop doing that.",
+            "Which means that after some number of milliseconds, we just evaluate the queue.",
+            "And if we never get to it, it never gets done.",
+            "The possibly one contrast I could draw is in our case, if you were willing to wait at some point, we'd eventually get to the end of the queue, but in practice it's the same conceptual approach which is don't do things you don't need to do.",
+            "Right, we just.",
+            "We just have the priority machinery.",
+            "I think something that you could think about very carefully here is precisely how you tune that machinery.",
+            "You could argue that Viola and Jones were spent about bunch of time on that question, but it's still a fairly tricky thing to do.",
+            "OK, let's thank the speaker and have the next one come up."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Morning I'm David Forsyth.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm in couldn't be here because of visa problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to talk about 30 Hertz object detection with DPM V5 an in conversations in the corridor and the like.",
+                    "label": 1
+                },
+                {
+                    "sent": "There was a little confusion about what we meant by 30 Hertz.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I mean is all 20 Pascal templates are evaluated at in three 3030 milliseconds per frame, all of them, not each one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So why would you speed up DPM?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, it's worth doing because DPM is effective.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's mature and it's stable there.",
+                    "label": 1
+                },
+                {
+                    "sent": "I know there are more accurate things.",
+                    "label": 1
+                },
+                {
+                    "sent": "Many people have told me this.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm very well aware, but they keep changing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Somebody does this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Somebody does that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Somebody does the next thing.",
+                    "label": 1
+                },
+                {
+                    "sent": "Everything is different, whereas in DPM you really know what it's going to do and you know what it's supposed to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have very fast DPM and it's important to look at which version of DPM is fast, you can open the door to a bunch of applications, mobile devices, large datasets, unreasonable numbers of templates, all that sort of stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course you'd like to have a constraint which is no weird hardware.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't really want to be doing this with something that costs $100,000 and takes 15 Watts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would really like it to be doing it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would really like to be doing it with conventional CPU's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we had a NIPS paper about this and for the people who don't have that at their fingertips, I'm going to just review the key idea because we have to do some accounting to do things really fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to ask what needs to be done to evaluate templates quickly or to do DPM V5 quickly.",
+                    "label": 1
+                },
+                {
+                    "sent": "And there are two things.",
+                    "label": 1
+                },
+                {
+                    "sent": "One is you've got to get the hog features out of the image and that used to be thought of as being something that was relatively fast.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then the other thing is you've got to apply the templates and that used to be thought of as being slow.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the crucial step in applying the templates is you form a linear function of a whole bunch of cells and the NIPS paper basically says make apply templates faster by vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quantizing the hog cells and the reason you want to do that is I can replace a whole bunch of multiply and add with a table look up.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to vector quantized the cell that gives me a bit string.",
+                    "label": 0
+                },
+                {
+                    "sent": "The bit string just goes into a table and it tells me how much, rather than having to add and subtract, add, multiply.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a cost and the first cost is you get less accurate template values, but that isn't that big a deal as I'll show you in the next slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next cost is you've got a constructive enter vector quantization, but you're going to do that offline, so that doesn't matter very much, and the final cost is you've got to find the nearest neighbors for each hog cell and we'll get to that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So if I were to vector quantizer template and compute the value of the template just by look up, then what I'm going to find is an estimation error and that graph shows the absolute value of that estimation error absolute value rather than squared error.",
+                    "label": 1
+                },
+                {
+                    "sent": "And what I've done is I've plotted two different ways of compressing templates and the extent of the compression against computation time and the short answer is if you vector quantized the templates if you go to fewer.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or more centers that centers rather number of bids you get more or less error but very little change in the computation time, which is very fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do a natural or reasonable alternative compression which is principle components, it turns out A to give you quite a lot of estimation error when it's fast and B when it gives you less estimation error tends to be slow.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the vector quantization's are good.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, OK, now imagine we've done that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can look at a little time budget for what happens and the time budget here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This I've just copied from the NIPS paper the thing to attend to in this table is there's some stuff that you have to do on a per image basis, which is rack up the hog features and a bunch of housekeeping.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's a bunch of stuff that you have to do per image plus category by times category basis, which is basically a valuating templates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Evaluating templates is now fast but there's about 116 milliseconds of stuff you've gotta do before you can do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So our problem now is to make that faster.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what do we want to have from an approach for making things faster?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, there are four things to them are similar, but not the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of them is I really, really want to work on legacy templates.",
+                    "label": 1
+                },
+                {
+                    "sent": "Not much sense in saying we can make your code, we can make your template evaluation faster if you completely relearn different templates that are totally unfamiliar.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'd really like this just to be in a valuation thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second thing we want is random access to the image.",
+                    "label": 1
+                },
+                {
+                    "sent": "Why do we want that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because everything we know about speeding up computations.",
+                    "label": 0
+                },
+                {
+                    "sent": "Says don't do things you don't have to do, and one thing you might not have to do is evaluate a template in some parts of the picture so you really, really want your method to respond to that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want to be able to say I'm going to evaluate here, but not there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there are two others, which is sort of related to each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'd really like to be able to say to someone that if they're willing to pay a little accuracy, they can be faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'd like to you like that tradeoff to be available and you'd like to happen anytime property.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the algorithm gets.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interrupted because somebody doesn't feel like waiting for the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "It still produces something coherent.",
+                    "label": 1
+                },
+                {
+                    "sent": "And those two properties are tide up, as you'll see.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get that tradeoff by having an anytime property, but they're not quite the same thing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what are we going to do to speed up the really 3 tricks here?",
+                    "label": 0
+                },
+                {
+                    "sent": "One of them is continue accepting loss of numerical precision and instead of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "After quantizing the cells in one go will do it hierarchically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this is kind of a facepalm moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "We really should have done it with the NIPS paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just didn't think about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "What do we get if we do it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, instead of having to take a hog cell and find its nearest neighbor in 256 centers, we're going to find its nearest neighbor in 16 centers and then once we found that there will be another 16.",
+                    "label": 1
+                },
+                {
+                    "sent": "Depending on the 1st 16, that makes things about 8 times faster with totally trivial loss of mean average precision, which is really nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "We should have thought of it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "There's a second one, which is kind of important.",
+                    "label": 0
+                },
+                {
+                    "sent": "You've got to manage scale fairly carefully, so I want templates are now fast, so I want to do more templates.",
+                    "label": 1
+                },
+                {
+                    "sent": "Hog features are slow, so I want to have fewer hog features.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what I'm going to do?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Who or what infinus amended is?",
+                    "label": 0
+                },
+                {
+                    "sent": "Instead of having a single template applied to a pyramid of features over scales, what I'm going to do is have relatively few feature scales and a pyramid of templates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because those templates I can do quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll have a range of different templates at relatively few feature scales and to get those templates I'll just use an interpolation process.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then my third trick is more than anything else.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't want to evaluate every template at every location, because that way lies madness.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to peek and hash.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What do I mean by that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, when I want to evaluate a template, you can think about it as sticking it on top of a piece of the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I got a little great template there over a dark image and what I'm going to do is instead of looking at everything in the first round, I'm just going to expose four cells inside that template and see what I see in the image under that template at that location, and I'll take that information.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And I will hash with it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And living in each cell of the hash table is a list of templates with priority scores.",
+                    "label": 0
+                },
+                {
+                    "sent": "They say if you hit this particular hash, so it is worth evaluating that template at this location with this priority.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then what I'm going to do is, once I've picked for everybody, I've got a priority list.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which templates are worth looking at, and I'm going to process that priority.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Q And evaluate the templates on the queue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the nice thing about that in turn is I pay very little time to evaluate hog very little time to vector quantized and then I get to generate a bunch of object proposals and process the proposals.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that process of generating proposals I can interrupted anytime the process of evaluating the proposals, I can interrupt at anytime.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we set this rather artificial threshold of 30 milliseconds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I'm going to run the whole thing for 30 milliseconds.",
+                    "label": 0
+                },
+                {
+                    "sent": "I get about 20 milliseconds to split up between proposal and detection and what we do is we just split that in half.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that the best thing to do?",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "It might not be optimal and you might do better if you did more time on proposal and less on detection or less time on detection and more on proposal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you just stop when time is up.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So that gives me what happens when we do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's what happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if you go through that little table, I've got original DPM which was running with a mean average precision of .3 three and about 13 seconds in frame.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our nips paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are a bunch of others.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are nips paper, which is the 2nd last line, is .331 mean average precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "I wouldn't want to make a living on that .001.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not making a noise about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "An half a second per frame.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we got a .261 and 30 milliseconds of frame.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, this is for all of these times.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's time to complete the detection of all twenty categories starting at a raw image.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's the whole thing, right on a Z on whatever processor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We get a bunch of sort of fairly typical recall precision curves here, which are kind of informative, so if you understood the way I set my process up, if I want to run this thing at 100 Hertz, I can.",
+                    "label": 0
+                },
+                {
+                    "sent": "I get to do very very few insertions into the priority queue and I get to do very, very few evaluations of templates on the priority queue, but I can still do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd expect to pay an accuracy and you see this, so I've got recall and precision curves here.",
+                    "label": 0
+                },
+                {
+                    "sent": "For six categories, the wrestler in the paper or on the website they are plotted in different colors for baseline, 15 Hertz, 30 Hertz, Anna, 100 Hertz, and you can see on that green thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you start running this thing at 100 Hertz because you make very few proposals and you evaluate very few of them, you lose accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, in cases, in some cases the falloff in accuracy seems to be quite well behaved, so going from baseline to 30 Hertz in the case of bicycle or airplane doesn't really do all that much damage, but going to 100 Hertz really causes catastrophe in the case of boat, you can't do terribly well with boat, and when you do both very fast, it doesn't work at all, that's just.",
+                    "label": 0
+                },
+                {
+                    "sent": "Part of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll notice that when I'm running this thing at 100 Hertz, as I can show from the horizontal slide, really there are very few proposals and very few evaluations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now the other thing I could do is plot mean average precision against time, which is what I've done over here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Time to complete the detection of all twenty categories from Raw image.",
+                    "label": 1
+                },
+                {
+                    "sent": "Horizontal dashed line is mean average precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "Blue line is what our thing does.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see I've broken out 15 Hertz, 30 Hertz and 100 Hertz as good places to be operating and you can see we pay some penalty for just doing it our way and then after that the cost gets is not that great until we hit a knee somewhere around about 50 Hertz and by 100 Hertz things start falling off and you can run it even faster, but you're not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Usually going to be very happy with the answers.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, now for most categories, the AP against time behaves really quite well.",
+                    "label": 0
+                },
+                {
+                    "sent": "the IT doesn't fall off very fast and then it falls off dramatically somewhere around about 100 Hertz I've shown over here person and TV monitor, and that's really very nice behavior if you care about finding people or you care about finding TV monitors, you can do it really quite fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you go too fast then it then it's a catastrophe, but in other cases you get slightly different behavior.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what are the desirable features?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I listed them and there's a 2.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "People that you can look at offline on the PDF linking the desirable features with who have 'em.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why did we put the table in 'cause we've got all of them and nobody else has.",
+                    "label": 0
+                },
+                {
+                    "sent": "In some formulations it's actually impossible to get them in other formulations you probably could get them, but nobody actually implemented them.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what are we going to do next?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the one thing I want to draw your attention to is for some categories like sheep, which I've plotted up here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Pushing up the speed gives some very very odd behavior indeed, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So going from 50 milliseconds to 10 milliseconds causes all such a strange stuff to happen in the sheep M AP, and that's probably evidence that we haven't quite got the hashing right, or we haven't quite got the priority values right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you would, if you sat down and collected a set of templates that you wanted to use and you wanted to use them very fast indeed, you would probably spend a fair amount of time doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "A form of autotuning, you try and get the hashing to get the best performance for those templates you try and get the priority values to get the best performance for those templates you try and set up various other and internal parameters like how much time is put into setting up the priority queues versus how much time is put into evaluating templates.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'd want to get that exactly right, and then you could get very good behavior or we hope you could get very good behavior for a fixed set of templates.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's a process you can think of as being a bit like tuning code as it's compiled.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think you can do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think you can do it well, but we haven't got it working yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at the hog evaluation that I talked about, there's another tempting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Improvement that might be available there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is there maybe hog sales that you never look at?",
+                    "label": 0
+                },
+                {
+                    "sent": "In which case you may not need to compute the gradient either and you could do a kind of lazy evaluation caching thing to make things even faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then of course what we'd like to do is to take a bunch of these ideas and drop them on the currently fashionable convolutional neural networks and see if we can get faster valuations for those as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just it would be nice to have that settled down a little bit and we'd like to have some of this machinery have a career application.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's a big question that comes up in the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Agenda at this point is now if I can evaluate templates really fast, what could I do with a ton of templates and we were thinking about that very clear.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, final comments.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's fast and it's fast for quite simple reasons.",
+                    "label": 1
+                },
+                {
+                    "sent": "I've shown you a series of fairly simple accounting steps that allow you to proceed quite quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a code.",
+                    "label": 0
+                },
+                {
+                    "sent": "The code URL will be on the poster I got.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's supposed to be up on the on a website today.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some people have worked with it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I got panicky email from him in saying that one image caused it to crash.",
+                    "label": 0
+                },
+                {
+                    "sent": "What do we do now?",
+                    "label": 1
+                },
+                {
+                    "sent": "But with any luck, by the end of the day, all fast codes should have these four properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we think as well as fast detection, the code that we've produced is likely good for proposal processes, high precision resumes and mobile applications, and the little red light is flashing, which means I'm done.",
+                    "label": 1
+                },
+                {
+                    "sent": "I was wondering if you make use of any of the vector instructions on the CPU or is it just straight serial execution?",
+                    "label": 0
+                },
+                {
+                    "sent": "I was standing there I thought it was off the hook.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the number is going to ask me a question then nobody would know that I didn't write that out code myself.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm in, wrote it and he's better at this sort of thing than I am.",
+                    "label": 0
+                },
+                {
+                    "sent": "I believe the answer to your question is yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, because he's talked to me about vector instructions, but I do not know whether the current code has vector instructions in it, so I think you know I'd rather refer the question to him than than actually guess.",
+                    "label": 0
+                },
+                {
+                    "sent": "I believe the answer is yes, and I believe there's been some thought about versions.",
+                    "label": 0
+                },
+                {
+                    "sent": "He's discussed it with me, but I haven't been very much used to him about versions using different vector instruction sets.",
+                    "label": 0
+                },
+                {
+                    "sent": "He knows this stuff and I don't is the short answer the question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Petra last question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so there is another line of work of people who try to make detection fast category level and it's based on boosting from Viola.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then recently petrodollar, right, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So conceptually, what is the connection between the two?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you can see any, OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yes, there is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the basic drive behind those is don't do work that you don't have to do right.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see that what we're doing when we do the priority queue stuff is a version of that stuff, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because what's happening is we're going to each location were saying, cook up a hash code, go into the priority queue, stick it in the queue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if it goes in the queue with a very low value of priority, you probably never going to get there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, we're fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "We operated a speed because we know that in 30 milliseconds something's going to happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "That says, stop doing that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which means that after some number of milliseconds, we just evaluate the queue.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we never get to it, it never gets done.",
+                    "label": 0
+                },
+                {
+                    "sent": "The possibly one contrast I could draw is in our case, if you were willing to wait at some point, we'd eventually get to the end of the queue, but in practice it's the same conceptual approach which is don't do things you don't need to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, we just.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just have the priority machinery.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think something that you could think about very carefully here is precisely how you tune that machinery.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could argue that Viola and Jones were spent about bunch of time on that question, but it's still a fairly tricky thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, let's thank the speaker and have the next one come up.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

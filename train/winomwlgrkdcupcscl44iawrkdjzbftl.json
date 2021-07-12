@@ -1,0 +1,1961 @@
+{
+    "id": "winomwlgrkdcupcscl44iawrkdjzbftl",
+    "title": "Latent Variable Models for Content-Based Image Retrieval and Structure Prediction",
+    "info": {
+        "author": [
+            "Ariadna Quattoni, Universitat Polit\u00e8cnica de Catalunya"
+        ],
+        "published": "Oct. 9, 2012",
+        "recorded": "September 2012",
+        "category": [
+            "Top->Computer Science->Computer Vision->Image & Video Retrieval"
+        ]
+    },
+    "url": "http://videolectures.net/bmvc2012_quattoni_structure_prediction/",
+    "segmentation": [
+        [
+            "So the work that I'm going to be talking about issan learning latent variable models, and in particular I'm going to focus on two tasks.",
+            "One is a structured prediction and the other one is content based image retrieval.",
+            "An what I discuss is joint work with some people at the UPC and Antonio Torralba at MIT."
+        ],
+        [
+            "OK, so these are two of the typical examples that vision researchers would like to solve.",
+            "So one example is the problem of scene classification, where we have scenes and you want to be able to say what kind of seen the image contains.",
+            "An another example, which in this case would be example of structure prediction is that you have some video sequence and you want to be able to predict each point in time, what gestures?",
+            "Are being performed."
+        ],
+        [
+            "So we all know that image spaces are very complex and high dimensional.",
+            "An in order to be able to learn mappings from this complex spaces to semantic categories, one of the approaches that we can take is using latent variables."
+        ],
+        [
+            "So why do you use hidden variables?",
+            "Well, you are probably familiar with the classic mixture model, so there the idea is that you have some complex distribution and you want to model it as a mixture of simpler distributions.",
+            "So today I will talk about a little bit more general view of this mixture model where.",
+            "In fact, what you want to learn is some function of some input, and perhaps the label and what we are going to assume is that this function is also a mixture of simpler functions."
+        ],
+        [
+            "And then the latent variables also play an important role in a structure prediction problems.",
+            "So for example, if you have a gesture recognition problem, you can imagine that there is a latent space of pose that is actually explaining your labels.",
+            "And in fact, the when you use latent variables in the context of structure, prediction is not that different from the classic mixture model way in which we use latent variables because what we are doing is that when you want to predict some label at some point in your sequence, then what you're actually doing is predicting that label as a mixture of simpler distributions.",
+            "OK so here is."
+        ],
+        [
+            "The road map for what I'm going to discuss.",
+            "So first there there's two big sections on the talk, so the first one is on structure prediction, and in particular I'm going to focus on sort of knew or at least rediscovered approach to learn latent variable models in the context of this problem, and then I'm going to talk about the different problem, but also show how we can use latent variables.",
+            "And this problem is content based image retrieval."
+        ],
+        [
+            "OK, So what do I actually mean by structure prediction so that we're all in the same page?",
+            "So you are probably all familiar with the classic binary or multiclass prediction, so there there is a single input and this Anna single label.",
+            "So in the case of structure prediction, the input itself is somehow complex or structured.",
+            "So for example, your input might be a sequence and your output will also be a sequence of labels.",
+            "And so, in fact, in the rest of the talk, I'm going to be focused in, particularly on sequence prediction.",
+            "So you can think well why not to model a sequence prediction problem as she has multiple isolated binary or multiclass classification problems, and the idea in modeling as a structure prediction problem is that there might be important interactions between the labels that you might want to capture."
+        ],
+        [
+            "In your model.",
+            "So typical examples over structure prediction problems.",
+            "So in natural language processing we have part of speech tagging, while here what you have is a sequence of words and what you want to predict is a sequence of semantic tags for these words.",
+            "So here you could imagine sorry, a sequence of you want to predict for each word what is the role that it plays in this sentence.",
+            "So here you can imagine that there's multiple interactions between the.",
+            "Labels becausw if you know what was the role of the previous word in the sentence, maybe that will help you figure out what is the role of the current word in the sentence.",
+            "And you can think that in gesture recognition it's also we're also having similar relations between the labels that we want to predict.",
+            "Because if I know the label of the gesture that was performed just before or just after, that might help me in deciding was the label of the current frame.",
+            "So the."
+        ],
+        [
+            "One examples of sequence prediction problems, but in vision we have also seen examples of of more general structure prediction problems where the underlying graph is not necessarily a sequence.",
+            "So for example in image annotation you might want to tag regions in an image with some semantic labels, and they are actually.",
+            "It seems quite critical that you need to take into account the labels of.",
+            "Of surrounding areas an we have seen multiple applications of these in Indovision commun."
+        ],
+        [
+            "OK, but I'm going to focus on sequence prediction models.",
+            "So what is the role of latent variables here?",
+            "Well, I like to think about latent variables as summarizing everything that I should remember about what I have already seen in order to predict the future.",
+            "So they will allow me to have a way of compactly modeling a lot of dependencies in the data.",
+            "Um?",
+            "OK, so when I describe the structure prediction problem, it's really about modeling pair sequences of inputs and outputs.",
+            "But in order to introduce the learning algorithm that I'm going to present, I will actually start by focusing on a much simpler problem, which is just learning distributions over."
+        ],
+        [
+            "Single over single strings over.",
+            "Sorry over single sequences.",
+            "Furthermore, I'm also just for the beginning.",
+            "Going to assume that my space of observations is discrete.",
+            "So instead of actually having some continuous observation, I have every observation is a member in some in some alphabet.",
+            "OK, this might seem unrealistic."
+        ],
+        [
+            "But actually there are cases where you could even apply this kind of model to vision problems.",
+            "So if you are doing gesture recognition, then what you could do is train from segmented sequences and you could train one sequence model for different for each of the different gestures.",
+            "And then if you want to predict the label of a sequence, you should speak the model that gives the highest probability.",
+            "With respect to working with discrete observations, I think we are all very familiar with the process of taking a continuous distribution and doing some vector quantization so that we actually map that continuous vector to some discrete label.",
+            "OK."
+        ],
+        [
+            "So in order to explain the algorithm, what I'm going to do.",
+            "Is a first introduced at a way of representing distributions over sequences that is going to be useful in understanding and deriving how the learning algorithm."
+        ],
+        [
+            "Rex OK, so for those some of you may have seen in the literature what are called operator models representations.",
+            "So they are more or less well known in the signal processing community.",
+            "I call them weighted automata representations, but they are more or less the same.",
+            "So OK, I have some distribution or where sequences remember that each of my observations belongs to some discrete alphabet.",
+            "So I have here some K symbols and the way I'm going to parameterized this distribution is by having some initial state vector which is going to be N dimensional, where N is the number of states that I'm going to use to model this distribution.",
+            "And then for each symbol in my alphabet, I'm going to have an operator and the operator is a matrix which is of size.",
+            "The number of states by the number of States and you can think about the operator as a function that when I applied to a state.",
+            "So if I observe something, if I get an observation, I apply the corresponding transformation to the current state vector.",
+            "Can I get a knew and I get a new estate vector?",
+            "So the way that the distribution is represented or is computed is by using these operators essentially as a linear dynamic process.",
+            "So."
+        ],
+        [
+            "How would we map from example from the standard HMM representation to the weighted automata representation?",
+            "Well, in this case you can think that the operators essentially are combining transition and emission probabilities, so you will have an operator for each symbol where the entry corresponding to the East, Rose and Jade: is the probability of transitioning from state I to a state J.",
+            "An immediate sun symbol Sigma Ann.",
+            "Once you look at it in this way, you realize that the equation that defines the weighted automata representation is essentially a way of writing the forward backward equation in matrix form.",
+            "Uh."
+        ],
+        [
+            "OK, So what is this spectral learning about?"
+        ],
+        [
+            "Well, so essentially spectral learning algorithms.",
+            "What they try to do is exploit the Markovian Iti of the process so that you can compute all the model parameters from only observes statistics of your distribution.",
+            "And they they have recently become quite popular in the machine learning community and you may ask, well why there are multiple reasons?",
+            "Well, one reason that for me is quite appealing is that they are very fast and they can scale very easily too large datasets.",
+            "But then there's also another justification, which is that these methods are easier to analyze.",
+            "In a theoretical sense and you can give guarantees about them.",
+            "So I would like to add something sort of disclaimer.",
+            "So for those of you who are familiar with subspace learning methods for the linear dynamic systems, you will see that a lot of ideas of the spectral learning methods to learn distributions over sequences are essentially very similar, so the ideas themselves are not knew.",
+            "But is there application to learn distributions over over sequences or over structure objects in general?",
+            "OK."
+        ],
+        [
+            "So in order to describe the main concepts of the algorithm is going to be useful to define some matrix that is going to represent our distribution.",
+            "And this is the Hankel matrix.",
+            "So how we define a Hankel matrix is that for every possible prefix string we will have a corresponding row an for every possible.",
+            "An suffix string.",
+            "We will have a corresponding column, so as.",
+            "Since we are modeling the distributions as sorry and the entry that corresponds to a prefix and a suffix is simply the probability that the distribution gives to the concatenation of those two strings.",
+            "So as you as you could see, this is in fact an infinite matrix because we are modeling distributions over infinite sequences.",
+            "But the reason why it's important to think about this matrix is because we know that if the probability distribution that was used to compute this Hankel matrix is generated by a weighted automata with.",
+            "And states then it must be the case that the rank of this matrix is is N. An OK, this might seem not very useful becausw.",
+            "Anyways, we cannot estimate this infinite matrix, but as it turns out by you can show that if you just have some sub block of this matrix whereas a block, it will be defined by subset of of prefixes and suffixes.",
+            "Then you can also guarantee that this a black sub block.",
+            "We also have rank N. OK, so now we will always be working with some sub block age of our Hankel matrix."
+        ],
+        [
+            "So one the one nice.",
+            "Property of the of this sub block which we're going to exploit is that it can be factorized in terms of two matrices.",
+            "So here if you take the role corresponding sorry the entry in age corresponding to the P prefix and the suffix and you actually write down the equation for that probability.",
+            "What you will see is that you can write that probability as the product of two vectors.",
+            "So one vector, which I called the forward vector, which essentially corresponds to running the process until you finish until you see the last element of the prefix, and then you will have some state vector.",
+            "Similarly, we can run the process from the end of the sequence to the beginning.",
+            "Sorry from the end of the sequence to the beginning of the suffix.",
+            "And you will also get a state vector, so the final probability that we get for the concatenation of these two strings is the product of two vectors of dimensionality N. And if you do this for all your prefixes and suffixes in the sub block, you see that you can arrange them as the product of two matrices forward matrix, where the rows correspond to forward vectors for each prefix and a backward matrix where the columns correspond to the backward backward vector for each suffix.",
+            "So we can see that this.",
+            "Is in fact I rank an factorisation of these hankers sub block.",
+            "OK, so why do I care about this?",
+            "Well now."
+        ],
+        [
+            "Imagine that I did find another Hankel matrix, which I call Hankel Sigma, where the growth that the entry corresponding to the the ropy and Sapphic as an sorry and column as is now going to be the probability of the prefix of some symbol Sigma in the middle and the suffix.",
+            "So it's going to be the probability of these strings that puts the prefix and suffix together.",
+            "An some symbol of Sigma in the middle.",
+            "So if again if you just write down the expression for that probability, you will see that you can write it as the product of 1 vector times matrix, which in this case this matrix is the operator matrix that we want to recover and some and some other vector.",
+            "So the main trick of how to recover?",
+            "The operators of the distribution from observable quantities is exploiting this factorization, and the relation between age Sigma an the operator.",
+            "So here we see that if someone will tell me what the bug was on the forward matrices are I could, I could recover the operators of the model.",
+            "But OK, this might not be very useful because I don't really know what VFR but the."
+        ],
+        [
+            "Key.",
+            "The key idea behind the spectral method is that we don't need that particular BNF, but actually any or almost any Rankin factorisation of age will also allow us to recover the parameters of the model.",
+            "So here is an sketch well on in particular, the spectral meter is called a spectral becauses it uses.",
+            "The thing is, we did a composition of H. As this factory station that we exploit to recover the operators, so here is.",
+            "His sketch of the general algorithm, so we will assume that we have a way of choosing prefixes and suffixes.",
+            "I'm not going to give details on that, but once we chose that then we can compute estimate the values of this Hankel matrix by shot sampling sequences from the distribution.",
+            "Then we can also estimate H Sigma for every symbol and then all that we do is compute the SVD.",
+            "Of age and we can recover the operators of the model.",
+            "So in the case."
+        ],
+        [
+            "That is 1 sort of well known algorithm for discrete Hmm's an in this case the actual study observable statistics that you compute are statistics about bigram, so here H at IJ is the probability of observing some particular pair of symbols and statistics about trigrams an.",
+            "From that you can recover your model.",
+            "Parameters."
+        ],
+        [
+            "OK, but here I started motivating this discussion by introducing the problem of structure prediction.",
+            "So in a structured prediction, what we want to do we know is model pair pair input output sequences.",
+            "So in that case we can also derive spectral algorithms that will retrieve the parameters of the model.",
+            "But notice that in this case and.",
+            "The actual operators will now be indexed by two symbols because we have two sequences, but in essence the way in which the spectral method works is is the same As for the previous case.",
+            "It's just that the observable statistics that we compute will now look both at the input and output distribution.",
+            "OK here are."
+        ],
+        [
+            "Some experiments, just we loose straight how you could apply the spectral method to some to some vision problem.",
+            "So here the task is that you have a video sequence of some tennis game and you want to predict the you want to predict the action that is being performed.",
+            "The actual sperimentale setting is that we have sequences from different games.",
+            "We cut them into sub sequences and then we partition these data into some training sequences and test sequences.",
+            "I an evaluation metric that we're going to use is the F1 measure, which give us a notion of the precision and recall for a recovering each of these action labels.",
+            "OK, in terms of."
+        ],
+        [
+            "Features what we use is for every.",
+            "So for every frame, we can compute hogs 3D and descriptors which are computed around player bounded boxes and then we'll have two representations, one in which we map this descriptor to some discrete set, while essentially what we do is take the descriptor and take the codebook entry that is more similar to it.",
+            "But we will also consider a representation.",
+            "Where when we take it a script or into instead of Chaz mapping it to 1 two it's close as code code.",
+            "Book entry will actually get a distribution over codebook entries which is proportional to how similar that the descriptor is to each of the code books.",
+            "An obviously I don't have time to go into it, but you can derive a spectral method for both.",
+            "That can exploit either repres."
+        ],
+        [
+            "Station.",
+            "Anne.",
+            "OK, So what are the goals of the experiment where it is just simply to show that by adding a latent variables and using the spectral method to recover the parameters, you could actually perform better than if you would have a vanilla model that models the pair sequences but has not latent variables.",
+            "So here we compare against a standard conditional random field.",
+            "And what we see is that for both representations.",
+            "So here the what I have is.",
+            "Is the performance of the different models as a function of the number of hidden States and we see that for both representations, adding latent variables always improves, or where the model that doesn't have latent variables.",
+            "So here the model without latent variables.",
+            "Is this straight lines?",
+            "'cause well, they don't have state, so it's always the same.",
+            "OK.",
+            "Uh, well now we're going to switch."
+        ],
+        [
+            "To the second part, so we're going to stop talking about structure prediction and move to a different problem where we are also going to be exploiting latent variables.",
+            "An.",
+            "In this case, the problem is content based image retrieval."
+        ],
+        [
+            "So then for those who are not familiar with the problem.",
+            "So here what you have is that you are give you have some database of images and you are given a query image an what you want to do is find images in your database that are most relevant to that query."
+        ],
+        [
+            "OK, so again the same story.",
+            "Images are complex an you might have database that is very diverse.",
+            "So for example if you have if your database consists of images of scenes, well it might be that there are.",
+            "We know that there are many different types of scenes that are indoor scenes, outdoor scenes and you need somehow to be able to capture all this variability in your model.",
+            "And so, for example, in my."
+        ],
+        [
+            "Maybe the case that if you have a query and imagine that this queries off an outdoor image and I want to find relevant images in my database.",
+            "Well maybe for that type of query.",
+            "We really want.",
+            "Their database image to have a similar color distribution because we know that that is what is relevant for this type of query.",
+            "But perhaps if you have, sorry if you have an indoor image which is the query, then maybe color is not that important and there should be other features that I should be focusing on when I'm computing the relevance function between a query and database.",
+            "Image."
+        ],
+        [
+            "So OK, what are we going to do?",
+            "We're going to use latent classes to model all these variability in the in the query space."
+        ],
+        [
+            "OK, so first I'm going to give you a little bit of background on what I think is one of the standard ways of learning ranking functions from some form of supervision."
+        ],
+        [
+            "I. OK, so the setting is that again we have database and what we want.",
+            "We have database and training queries.",
+            "So what we want to do is learn a relevant function that given a query an image from the database.",
+            "It tells me how relevant is that image to this query.",
+            "An one common setting is to assume that.",
+            "For every for every pair of images I have some way of computing elementary relevance functions.",
+            "So what could be an elementary relevant function?",
+            "So, for example, I can take two images and say, well, if both images have the same color distribution, then I will under this.",
+            "Under this particular relevance function.",
+            "I will give a high score so you can imagine that you have automatic ways of computing these dis elementary functions.",
+            "And then when you want to do when you are learning ranking function is to be able to weight these different elementary elementary relevant functions.",
+            "So that means that.",
+            "You want your final relevant function to be some combination of the elementary ones and the way that you want to decide the importance of each of these elementary functions is by exploiting some particular form of supervision that I'm going to describe."
+        ],
+        [
+            "So the most general way in which we can think of providing supervision to learn this ranking model is to assume that we have some set of triplet constraints.",
+            "So what is a triplet constraint?",
+            "Well, essentially we will be will be a set of three image.",
+            "Of well, So what the triple constraint says.",
+            "So here if I had a triple constraint QAB, it means that I want my relevant function, the one that I will try to learn to rank the image A as more relevant to the query Q than another image be.",
+            "So essentially the triple constraints that I'm going to give to my training algorithm are partial orderings.",
+            "That I want my final relevant function to satisfy.",
+            "So once you have these constraints, the standard thing to do is to set up some optimization so that you can find relevant function that agrees with those constraints.",
+            "So here for example common loss to use in this optimization is analogues to the hinge loss for classification and all that you are doing is that you are saying.",
+            "If my relevance function order the points order, the points in the triplet correctly, then I will pay no penalty, otherwise I will pay a penalty which is proportional to how wrong I got it.",
+            "An well.",
+            "Once we have a loss function, we can set up the problem in the standard framework of structural risk minimization, where we will have some regularization.",
+            "And we are going to try to minimize this loss.",
+            "OK, so this is the standard thing.",
+            "These if you choose this particular loss function, then what you will get is a ranking SVM, so this is something that people have been doing for awhile to learn relevant functions.",
+            "So what?"
+        ],
+        [
+            "We are going to do is instead of having OK so.",
+            "Here we are having one global relevant function that independent that regardless of the type of query is always going to evaluate in the same way, there's just one function.",
+            "So what people have proposed is models.",
+            "For example, where instead of having one relevant function, you will have one relevance.",
+            "Sorry, one relevant function for all the queries.",
+            "What you will do is have one relevant function for each test point, for example, so that you get a query annual train, a model just for that query.",
+            "But we're going to do something."
+        ],
+        [
+            "Different, which is to introduce a relevant function that is going to be a mixture of specialized if you want relevant functions.",
+            "So we will have very soon.",
+            "We will have some.",
+            "Set of glasses.",
+            "Discuss is Angie will be latent.",
+            "I won't actually see them at training, but then for each of these classes I'm going to train a different relevance function and then my final relevance function is going to be a combination.",
+            "Oh of these different functions where once I get a query I can.",
+            "Compute the probability that that query belongs to the different classes.",
+            "And that is going to be the weight that I'm going to use to decide how.",
+            "How important a particular relevant function should be for that query?",
+            "So the way to think about this model is that what we're doing in some sense is a course to find ranking model while you first get a query and you make some course decision of OK this type of query is probably an image of an outdoor scene, so once you know that you'll actually use a ranking function that is specialized for images of that class.",
+            "An so.",
+            "The way that we optimize this model, while first now we'll see that in the in the model, we have two sets of parameters, so we have the parameter Z that before this was just a vector that parameterized single ranking function.",
+            "But now it's going to be a matrix because we will have a ranking function for every possible class.",
+            "But then we also have the parameters of the of the distribution that we assign."
+        ],
+        [
+            "An that will assign queries to latent classes so.",
+            "Before we had a nice convex problem.",
+            "Now this is no longer a convex optimization problem.",
+            "So what we're going to do is do some simple alternating optimization strategy where you will fix one set of parameters an optimize for the other ones, and you will alternate this process.",
+            "Anne."
+        ],
+        [
+            "So."
+        ],
+        [
+            "So I just say very little about the actual parameter estimation.",
+            "But when so we use the subgradient method and when we look at when you look at the updates, how is the function changing?",
+            "You'll see that what will happen.",
+            "Is that how the influence of a particular query in their date of ranking function will depend on how probable is that that query belongs to that class given the current parameters of the model?",
+            "And similarly."
+        ],
+        [
+            "That what their base will do is that if you have a ranking function that predicts very well, particularly image, then you will increase the probability that that image corresponds to that class.",
+            "OK."
+        ],
+        [
+            "Also, now I will describe some experiments.",
+            "So what we did is that we work with the sun data set which is big data sets of scenes.",
+            "An when these and I think there were twelve 12,000 images.",
+            "I think today there's many more because Antonio has been adding more and more.",
+            "So the images in the sun datasets are annotated both with the scene labels, but also they are annotated.",
+            "Many of them are annotated with object labels, so there actually tags that tell you what objects are in there.",
+            "Image An why is this relevant for us is because I told you that what you need to learn a ranking function is this set of triple constraints.",
+            "So obvious way of defining triple constraints.",
+            "It would be to have a real user interacting with their retrieval system and you can imagine that from some user feedback.",
+            "Then you can derive constraints that tell you that.",
+            "OK, this this image is more relevant to this query than some other image, but we didn't actually want to have to build a retrieval system.",
+            "So what we did is to derive ground truth constraints.",
+            "From utilizing the object annotations.",
+            "I.",
+            "And so essentially what we do is we have some some way of taking two images that are annotated and looking at the similarity between their tags and in that way we can generate constraints that we know our ranking function must must satisfy.",
+            "So."
+        ],
+        [
+            "So in particular, what we do to generate the constraints is that we take.",
+            "So we had this way of computing distances based on tax.",
+            "So we take an image and we get its nearest neighbors according to this distance based on tag similarity and then we sample other images which are not neighbors and in this way we get we get the triple constraints.",
+            "And in this process, when we do this for many images, we end up with a total of more than 300,000 ranking triplets.",
+            "So one thing that one thing that I have in maybe mention about the learning algorithm is that big cause it's essentially just gradient descent algorithm is very, very scalable.",
+            "And in fact, you can also run it in an online manner, so then it's very easy to have lots of constraints."
+        ],
+        [
+            "So in order to compare, So what are the models were going to compare against?",
+            "So the first thing we compare with is a global SVM, which is what I define at the beginning is a model that learns this global relevance function, and we're also going to compare it with transactive SVM.",
+            "So in this case what happens is that once I get a test query.",
+            "What I do is look at the constraints at the triple constraints that involved images that are similar to that query, and then I train a model only using those constraints.",
+            "So this means that so each time I get some test example, I sort of train model only using the training data from the local neighborhood.",
+            "So this has been tried for different problems.",
+            "I think there's also work on on object recognition using these transitive framework.",
+            "So one of the problems with this is that each time you see a test sample, you actually have to retrain your model.",
+            "OK, and then we have our model and what we report is the precision and recall will show you the precision and recall curves for the task of retreiving the 100 most relevant images for each test query.",
+            "So here we have."
+        ],
+        [
+            "Some results.",
+            "Ann, well, there's two settings.",
+            "I think you.",
+            "You can ignore the distinction between the two settings.",
+            "We can focus on the first one.",
+            "I mean, well, the first thing is that it is a very hard problem.",
+            "So here we see that the mixture model always outperforms the than the other two baselines.",
+            "You might want that OK, but how relevant is that little difference?",
+            "Well, it might be.",
+            "Well, it is a statically significant, but to give a concrete example, if you want to get the 20 most relevant images.",
+            "For one query, so I give you the query and I say I really I know there 100 images there that are relevant and it tell you at least I want to get 20 of those and then what the what this curve shows is that in the if you use the mixture model you only need to look around 220 images before you find those 40.",
+            "Sorry those 20 relevant.",
+            "Images, while if you use the other models, you will need to look at like 280 images so there is significant error reduction in that sense.",
+            "So here are some."
+        ],
+        [
+            "Examples of of the actual output of the system.",
+            "So what I have in the center are the queries an on top.",
+            "I have the true ground truth, neighbors, an on the bottom.",
+            "I have their predicted ground truth neighbors.",
+            "So what we saw is well, something that that we know about this database, which is that outdoor scenes are always match.",
+            "More easy to model than indoor scenes so that the results that you get for getting neighbors for outdoor scenes.",
+            "They all seem pretty good, but when you get to indoor scenes, I mean we can still retrieve similar images, but it seems to be much."
+        ],
+        [
+            "More tricky.",
+            "So you might be wondering.",
+            "OK, so I started the motivation of why to use latent variables by saying that we want to learn some.",
+            "We want to be able to learn that in this space of images there actually some classes, subclasses of images, and in fact when we look at the at the distribution of the hidden variables.",
+            "That is, if I look all the images that were assigned.",
+            "To a particular class, then we see that it actually kind of makes sense becausw it's really modeling the variability that that we would like to model in this data set.",
+            "So for example, we have some some class that what it's doing is clustering together or images of outdoor scenes which are like beach images, and then we have some other class that is clustering.",
+            "Buildings, so it is learning something sensible.",
+            "OK."
+        ],
+        [
+            "So to summarize, I I talk about two quite different applications, But the idea was to show that this approach of using latent variables in fact can be useful for a reality of of problems.",
+            "And the other message that I want you to live with is that a spectral.",
+            "So you are all probably familiar with expectation maximization algorithms for training latent variable models.",
+            "An well, I think you should also consider in spectral learning methods, because they are also a good alternative, and while they have these.",
+            "This property that is very easy to implement.",
+            "This is probably a few lines of code and that you can run it in a very large data set with no with no problem.",
+            "And in terms of future directions.",
+            "Well, one of the things that I would like to do is to.",
+            "To actually test these spectral methods on real vision problems, I mean what I show you was kind of like an illustrative example, but I think it would be very interesting to see what are the potentials of these techniques in in real large scale problems involving in particular sequence prediction.",
+            "An in terms more of the machine learning future directions.",
+            "What would be very nice is if we could exploit these spectral methods, but not so much in the context of a structure prediction.",
+            "An unsupervised learning but more on the barracks used them to in the context of unsupervised learning where what we actually want to do is to model a distribution or where complex structure objects.",
+            "Anne.",
+            "Thanks."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the work that I'm going to be talking about issan learning latent variable models, and in particular I'm going to focus on two tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is a structured prediction and the other one is content based image retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "An what I discuss is joint work with some people at the UPC and Antonio Torralba at MIT.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so these are two of the typical examples that vision researchers would like to solve.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one example is the problem of scene classification, where we have scenes and you want to be able to say what kind of seen the image contains.",
+                    "label": 0
+                },
+                {
+                    "sent": "An another example, which in this case would be example of structure prediction is that you have some video sequence and you want to be able to predict each point in time, what gestures?",
+                    "label": 0
+                },
+                {
+                    "sent": "Are being performed.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we all know that image spaces are very complex and high dimensional.",
+                    "label": 0
+                },
+                {
+                    "sent": "An in order to be able to learn mappings from this complex spaces to semantic categories, one of the approaches that we can take is using latent variables.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So why do you use hidden variables?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, you are probably familiar with the classic mixture model, so there the idea is that you have some complex distribution and you want to model it as a mixture of simpler distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So today I will talk about a little bit more general view of this mixture model where.",
+                    "label": 1
+                },
+                {
+                    "sent": "In fact, what you want to learn is some function of some input, and perhaps the label and what we are going to assume is that this function is also a mixture of simpler functions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then the latent variables also play an important role in a structure prediction problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if you have a gesture recognition problem, you can imagine that there is a latent space of pose that is actually explaining your labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, the when you use latent variables in the context of structure, prediction is not that different from the classic mixture model way in which we use latent variables because what we are doing is that when you want to predict some label at some point in your sequence, then what you're actually doing is predicting that label as a mixture of simpler distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so here is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The road map for what I'm going to discuss.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first there there's two big sections on the talk, so the first one is on structure prediction, and in particular I'm going to focus on sort of knew or at least rediscovered approach to learn latent variable models in the context of this problem, and then I'm going to talk about the different problem, but also show how we can use latent variables.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this problem is content based image retrieval.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what do I actually mean by structure prediction so that we're all in the same page?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you are probably all familiar with the classic binary or multiclass prediction, so there there is a single input and this Anna single label.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the case of structure prediction, the input itself is somehow complex or structured.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, your input might be a sequence and your output will also be a sequence of labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so, in fact, in the rest of the talk, I'm going to be focused in, particularly on sequence prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can think well why not to model a sequence prediction problem as she has multiple isolated binary or multiclass classification problems, and the idea in modeling as a structure prediction problem is that there might be important interactions between the labels that you might want to capture.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In your model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So typical examples over structure prediction problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in natural language processing we have part of speech tagging, while here what you have is a sequence of words and what you want to predict is a sequence of semantic tags for these words.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here you could imagine sorry, a sequence of you want to predict for each word what is the role that it plays in this sentence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here you can imagine that there's multiple interactions between the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Labels becausw if you know what was the role of the previous word in the sentence, maybe that will help you figure out what is the role of the current word in the sentence.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can think that in gesture recognition it's also we're also having similar relations between the labels that we want to predict.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because if I know the label of the gesture that was performed just before or just after, that might help me in deciding was the label of the current frame.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "One examples of sequence prediction problems, but in vision we have also seen examples of of more general structure prediction problems where the underlying graph is not necessarily a sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example in image annotation you might want to tag regions in an image with some semantic labels, and they are actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "It seems quite critical that you need to take into account the labels of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of surrounding areas an we have seen multiple applications of these in Indovision commun.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, but I'm going to focus on sequence prediction models.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what is the role of latent variables here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I like to think about latent variables as summarizing everything that I should remember about what I have already seen in order to predict the future.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they will allow me to have a way of compactly modeling a lot of dependencies in the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so when I describe the structure prediction problem, it's really about modeling pair sequences of inputs and outputs.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in order to introduce the learning algorithm that I'm going to present, I will actually start by focusing on a much simpler problem, which is just learning distributions over.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Single over single strings over.",
+                    "label": 1
+                },
+                {
+                    "sent": "Sorry over single sequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "Furthermore, I'm also just for the beginning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going to assume that my space of observations is discrete.",
+                    "label": 0
+                },
+                {
+                    "sent": "So instead of actually having some continuous observation, I have every observation is a member in some in some alphabet.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, this might seem unrealistic.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But actually there are cases where you could even apply this kind of model to vision problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you are doing gesture recognition, then what you could do is train from segmented sequences and you could train one sequence model for different for each of the different gestures.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then if you want to predict the label of a sequence, you should speak the model that gives the highest probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "With respect to working with discrete observations, I think we are all very familiar with the process of taking a continuous distribution and doing some vector quantization so that we actually map that continuous vector to some discrete label.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So in order to explain the algorithm, what I'm going to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a first introduced at a way of representing distributions over sequences that is going to be useful in understanding and deriving how the learning algorithm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Rex OK, so for those some of you may have seen in the literature what are called operator models representations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they are more or less well known in the signal processing community.",
+                    "label": 0
+                },
+                {
+                    "sent": "I call them weighted automata representations, but they are more or less the same.",
+                    "label": 1
+                },
+                {
+                    "sent": "So OK, I have some distribution or where sequences remember that each of my observations belongs to some discrete alphabet.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I have here some K symbols and the way I'm going to parameterized this distribution is by having some initial state vector which is going to be N dimensional, where N is the number of states that I'm going to use to model this distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then for each symbol in my alphabet, I'm going to have an operator and the operator is a matrix which is of size.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of states by the number of States and you can think about the operator as a function that when I applied to a state.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I observe something, if I get an observation, I apply the corresponding transformation to the current state vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I get a knew and I get a new estate vector?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way that the distribution is represented or is computed is by using these operators essentially as a linear dynamic process.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "How would we map from example from the standard HMM representation to the weighted automata representation?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, in this case you can think that the operators essentially are combining transition and emission probabilities, so you will have an operator for each symbol where the entry corresponding to the East, Rose and Jade: is the probability of transitioning from state I to a state J.",
+                    "label": 0
+                },
+                {
+                    "sent": "An immediate sun symbol Sigma Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once you look at it in this way, you realize that the equation that defines the weighted automata representation is essentially a way of writing the forward backward equation in matrix form.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uh.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what is this spectral learning about?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Well, so essentially spectral learning algorithms.",
+                    "label": 1
+                },
+                {
+                    "sent": "What they try to do is exploit the Markovian Iti of the process so that you can compute all the model parameters from only observes statistics of your distribution.",
+                    "label": 1
+                },
+                {
+                    "sent": "And they they have recently become quite popular in the machine learning community and you may ask, well why there are multiple reasons?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, one reason that for me is quite appealing is that they are very fast and they can scale very easily too large datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then there's also another justification, which is that these methods are easier to analyze.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a theoretical sense and you can give guarantees about them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I would like to add something sort of disclaimer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for those of you who are familiar with subspace learning methods for the linear dynamic systems, you will see that a lot of ideas of the spectral learning methods to learn distributions over sequences are essentially very similar, so the ideas themselves are not knew.",
+                    "label": 0
+                },
+                {
+                    "sent": "But is there application to learn distributions over over sequences or over structure objects in general?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in order to describe the main concepts of the algorithm is going to be useful to define some matrix that is going to represent our distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is the Hankel matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how we define a Hankel matrix is that for every possible prefix string we will have a corresponding row an for every possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "An suffix string.",
+                    "label": 0
+                },
+                {
+                    "sent": "We will have a corresponding column, so as.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since we are modeling the distributions as sorry and the entry that corresponds to a prefix and a suffix is simply the probability that the distribution gives to the concatenation of those two strings.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as you as you could see, this is in fact an infinite matrix because we are modeling distributions over infinite sequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the reason why it's important to think about this matrix is because we know that if the probability distribution that was used to compute this Hankel matrix is generated by a weighted automata with.",
+                    "label": 1
+                },
+                {
+                    "sent": "And states then it must be the case that the rank of this matrix is is N. An OK, this might seem not very useful becausw.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anyways, we cannot estimate this infinite matrix, but as it turns out by you can show that if you just have some sub block of this matrix whereas a block, it will be defined by subset of of prefixes and suffixes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you can also guarantee that this a black sub block.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also have rank N. OK, so now we will always be working with some sub block age of our Hankel matrix.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So one the one nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "Property of the of this sub block which we're going to exploit is that it can be factorized in terms of two matrices.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here if you take the role corresponding sorry the entry in age corresponding to the P prefix and the suffix and you actually write down the equation for that probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you will see is that you can write that probability as the product of two vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one vector, which I called the forward vector, which essentially corresponds to running the process until you finish until you see the last element of the prefix, and then you will have some state vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, we can run the process from the end of the sequence to the beginning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry from the end of the sequence to the beginning of the suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you will also get a state vector, so the final probability that we get for the concatenation of these two strings is the product of two vectors of dimensionality N. And if you do this for all your prefixes and suffixes in the sub block, you see that you can arrange them as the product of two matrices forward matrix, where the rows correspond to forward vectors for each prefix and a backward matrix where the columns correspond to the backward backward vector for each suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we can see that this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is in fact I rank an factorisation of these hankers sub block.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so why do I care about this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Imagine that I did find another Hankel matrix, which I call Hankel Sigma, where the growth that the entry corresponding to the the ropy and Sapphic as an sorry and column as is now going to be the probability of the prefix of some symbol Sigma in the middle and the suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's going to be the probability of these strings that puts the prefix and suffix together.",
+                    "label": 0
+                },
+                {
+                    "sent": "An some symbol of Sigma in the middle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if again if you just write down the expression for that probability, you will see that you can write it as the product of 1 vector times matrix, which in this case this matrix is the operator matrix that we want to recover and some and some other vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the main trick of how to recover?",
+                    "label": 0
+                },
+                {
+                    "sent": "The operators of the distribution from observable quantities is exploiting this factorization, and the relation between age Sigma an the operator.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we see that if someone will tell me what the bug was on the forward matrices are I could, I could recover the operators of the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "But OK, this might not be very useful because I don't really know what VFR but the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Key.",
+                    "label": 0
+                },
+                {
+                    "sent": "The key idea behind the spectral method is that we don't need that particular BNF, but actually any or almost any Rankin factorisation of age will also allow us to recover the parameters of the model.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here is an sketch well on in particular, the spectral meter is called a spectral becauses it uses.",
+                    "label": 0
+                },
+                {
+                    "sent": "The thing is, we did a composition of H. As this factory station that we exploit to recover the operators, so here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "His sketch of the general algorithm, so we will assume that we have a way of choosing prefixes and suffixes.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'm not going to give details on that, but once we chose that then we can compute estimate the values of this Hankel matrix by shot sampling sequences from the distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can also estimate H Sigma for every symbol and then all that we do is compute the SVD.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of age and we can recover the operators of the model.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in the case.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That is 1 sort of well known algorithm for discrete Hmm's an in this case the actual study observable statistics that you compute are statistics about bigram, so here H at IJ is the probability of observing some particular pair of symbols and statistics about trigrams an.",
+                    "label": 0
+                },
+                {
+                    "sent": "From that you can recover your model.",
+                    "label": 0
+                },
+                {
+                    "sent": "Parameters.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, but here I started motivating this discussion by introducing the problem of structure prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in a structured prediction, what we want to do we know is model pair pair input output sequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in that case we can also derive spectral algorithms that will retrieve the parameters of the model.",
+                    "label": 0
+                },
+                {
+                    "sent": "But notice that in this case and.",
+                    "label": 0
+                },
+                {
+                    "sent": "The actual operators will now be indexed by two symbols because we have two sequences, but in essence the way in which the spectral method works is is the same As for the previous case.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just that the observable statistics that we compute will now look both at the input and output distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK here are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Some experiments, just we loose straight how you could apply the spectral method to some to some vision problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here the task is that you have a video sequence of some tennis game and you want to predict the you want to predict the action that is being performed.",
+                    "label": 0
+                },
+                {
+                    "sent": "The actual sperimentale setting is that we have sequences from different games.",
+                    "label": 0
+                },
+                {
+                    "sent": "We cut them into sub sequences and then we partition these data into some training sequences and test sequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "I an evaluation metric that we're going to use is the F1 measure, which give us a notion of the precision and recall for a recovering each of these action labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, in terms of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Features what we use is for every.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for every frame, we can compute hogs 3D and descriptors which are computed around player bounded boxes and then we'll have two representations, one in which we map this descriptor to some discrete set, while essentially what we do is take the descriptor and take the codebook entry that is more similar to it.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we will also consider a representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where when we take it a script or into instead of Chaz mapping it to 1 two it's close as code code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Book entry will actually get a distribution over codebook entries which is proportional to how similar that the descriptor is to each of the code books.",
+                    "label": 0
+                },
+                {
+                    "sent": "An obviously I don't have time to go into it, but you can derive a spectral method for both.",
+                    "label": 0
+                },
+                {
+                    "sent": "That can exploit either repres.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Station.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, So what are the goals of the experiment where it is just simply to show that by adding a latent variables and using the spectral method to recover the parameters, you could actually perform better than if you would have a vanilla model that models the pair sequences but has not latent variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we compare against a standard conditional random field.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we see is that for both representations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here the what I have is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the performance of the different models as a function of the number of hidden States and we see that for both representations, adding latent variables always improves, or where the model that doesn't have latent variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here the model without latent variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is this straight lines?",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause well, they don't have state, so it's always the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uh, well now we're going to switch.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To the second part, so we're going to stop talking about structure prediction and move to a different problem where we are also going to be exploiting latent variables.",
+                    "label": 1
+                },
+                {
+                    "sent": "An.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, the problem is content based image retrieval.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So then for those who are not familiar with the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here what you have is that you are give you have some database of images and you are given a query image an what you want to do is find images in your database that are most relevant to that query.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so again the same story.",
+                    "label": 0
+                },
+                {
+                    "sent": "Images are complex an you might have database that is very diverse.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example if you have if your database consists of images of scenes, well it might be that there are.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know that there are many different types of scenes that are indoor scenes, outdoor scenes and you need somehow to be able to capture all this variability in your model.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so, for example, in my.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Maybe the case that if you have a query and imagine that this queries off an outdoor image and I want to find relevant images in my database.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well maybe for that type of query.",
+                    "label": 0
+                },
+                {
+                    "sent": "We really want.",
+                    "label": 0
+                },
+                {
+                    "sent": "Their database image to have a similar color distribution because we know that that is what is relevant for this type of query.",
+                    "label": 0
+                },
+                {
+                    "sent": "But perhaps if you have, sorry if you have an indoor image which is the query, then maybe color is not that important and there should be other features that I should be focusing on when I'm computing the relevance function between a query and database.",
+                    "label": 0
+                },
+                {
+                    "sent": "Image.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So OK, what are we going to do?",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to use latent classes to model all these variability in the in the query space.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so first I'm going to give you a little bit of background on what I think is one of the standard ways of learning ranking functions from some form of supervision.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I. OK, so the setting is that again we have database and what we want.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have database and training queries.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what we want to do is learn a relevant function that given a query an image from the database.",
+                    "label": 0
+                },
+                {
+                    "sent": "It tells me how relevant is that image to this query.",
+                    "label": 0
+                },
+                {
+                    "sent": "An one common setting is to assume that.",
+                    "label": 0
+                },
+                {
+                    "sent": "For every for every pair of images I have some way of computing elementary relevance functions.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what could be an elementary relevant function?",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, I can take two images and say, well, if both images have the same color distribution, then I will under this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Under this particular relevance function.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will give a high score so you can imagine that you have automatic ways of computing these dis elementary functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then when you want to do when you are learning ranking function is to be able to weight these different elementary elementary relevant functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that means that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want your final relevant function to be some combination of the elementary ones and the way that you want to decide the importance of each of these elementary functions is by exploiting some particular form of supervision that I'm going to describe.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the most general way in which we can think of providing supervision to learn this ranking model is to assume that we have some set of triplet constraints.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what is a triplet constraint?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, essentially we will be will be a set of three image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of well, So what the triple constraint says.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here if I had a triple constraint QAB, it means that I want my relevant function, the one that I will try to learn to rank the image A as more relevant to the query Q than another image be.",
+                    "label": 0
+                },
+                {
+                    "sent": "So essentially the triple constraints that I'm going to give to my training algorithm are partial orderings.",
+                    "label": 0
+                },
+                {
+                    "sent": "That I want my final relevant function to satisfy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So once you have these constraints, the standard thing to do is to set up some optimization so that you can find relevant function that agrees with those constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here for example common loss to use in this optimization is analogues to the hinge loss for classification and all that you are doing is that you are saying.",
+                    "label": 0
+                },
+                {
+                    "sent": "If my relevance function order the points order, the points in the triplet correctly, then I will pay no penalty, otherwise I will pay a penalty which is proportional to how wrong I got it.",
+                    "label": 0
+                },
+                {
+                    "sent": "An well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once we have a loss function, we can set up the problem in the standard framework of structural risk minimization, where we will have some regularization.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we are going to try to minimize this loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is the standard thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "These if you choose this particular loss function, then what you will get is a ranking SVM, so this is something that people have been doing for awhile to learn relevant functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We are going to do is instead of having OK so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we are having one global relevant function that independent that regardless of the type of query is always going to evaluate in the same way, there's just one function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what people have proposed is models.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, where instead of having one relevant function, you will have one relevance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, one relevant function for all the queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you will do is have one relevant function for each test point, for example, so that you get a query annual train, a model just for that query.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're going to do something.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Different, which is to introduce a relevant function that is going to be a mixture of specialized if you want relevant functions.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we will have very soon.",
+                    "label": 0
+                },
+                {
+                    "sent": "We will have some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Set of glasses.",
+                    "label": 0
+                },
+                {
+                    "sent": "Discuss is Angie will be latent.",
+                    "label": 0
+                },
+                {
+                    "sent": "I won't actually see them at training, but then for each of these classes I'm going to train a different relevance function and then my final relevance function is going to be a combination.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh of these different functions where once I get a query I can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Compute the probability that that query belongs to the different classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that is going to be the weight that I'm going to use to decide how.",
+                    "label": 0
+                },
+                {
+                    "sent": "How important a particular relevant function should be for that query?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way to think about this model is that what we're doing in some sense is a course to find ranking model while you first get a query and you make some course decision of OK this type of query is probably an image of an outdoor scene, so once you know that you'll actually use a ranking function that is specialized for images of that class.",
+                    "label": 0
+                },
+                {
+                    "sent": "An so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The way that we optimize this model, while first now we'll see that in the in the model, we have two sets of parameters, so we have the parameter Z that before this was just a vector that parameterized single ranking function.",
+                    "label": 0
+                },
+                {
+                    "sent": "But now it's going to be a matrix because we will have a ranking function for every possible class.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then we also have the parameters of the of the distribution that we assign.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "An that will assign queries to latent classes so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Before we had a nice convex problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this is no longer a convex optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're going to do is do some simple alternating optimization strategy where you will fix one set of parameters an optimize for the other ones, and you will alternate this process.",
+                    "label": 1
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I just say very little about the actual parameter estimation.",
+                    "label": 1
+                },
+                {
+                    "sent": "But when so we use the subgradient method and when we look at when you look at the updates, how is the function changing?",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll see that what will happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that how the influence of a particular query in their date of ranking function will depend on how probable is that that query belongs to that class given the current parameters of the model?",
+                    "label": 1
+                },
+                {
+                    "sent": "And similarly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That what their base will do is that if you have a ranking function that predicts very well, particularly image, then you will increase the probability that that image corresponds to that class.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_42": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Also, now I will describe some experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we did is that we work with the sun data set which is big data sets of scenes.",
+                    "label": 0
+                },
+                {
+                    "sent": "An when these and I think there were twelve 12,000 images.",
+                    "label": 1
+                },
+                {
+                    "sent": "I think today there's many more because Antonio has been adding more and more.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the images in the sun datasets are annotated both with the scene labels, but also they are annotated.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many of them are annotated with object labels, so there actually tags that tell you what objects are in there.",
+                    "label": 1
+                },
+                {
+                    "sent": "Image An why is this relevant for us is because I told you that what you need to learn a ranking function is this set of triple constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "So obvious way of defining triple constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would be to have a real user interacting with their retrieval system and you can imagine that from some user feedback.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you can derive constraints that tell you that.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, this this image is more relevant to this query than some other image, but we didn't actually want to have to build a retrieval system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we did is to derive ground truth constraints.",
+                    "label": 1
+                },
+                {
+                    "sent": "From utilizing the object annotations.",
+                    "label": 0
+                },
+                {
+                    "sent": "I.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so essentially what we do is we have some some way of taking two images that are annotated and looking at the similarity between their tags and in that way we can generate constraints that we know our ranking function must must satisfy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in particular, what we do to generate the constraints is that we take.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we had this way of computing distances based on tax.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we take an image and we get its nearest neighbors according to this distance based on tag similarity and then we sample other images which are not neighbors and in this way we get we get the triple constraints.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in this process, when we do this for many images, we end up with a total of more than 300,000 ranking triplets.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one thing that one thing that I have in maybe mention about the learning algorithm is that big cause it's essentially just gradient descent algorithm is very, very scalable.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, you can also run it in an online manner, so then it's very easy to have lots of constraints.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in order to compare, So what are the models were going to compare against?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first thing we compare with is a global SVM, which is what I define at the beginning is a model that learns this global relevance function, and we're also going to compare it with transactive SVM.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this case what happens is that once I get a test query.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I do is look at the constraints at the triple constraints that involved images that are similar to that query, and then I train a model only using those constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this means that so each time I get some test example, I sort of train model only using the training data from the local neighborhood.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this has been tried for different problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think there's also work on on object recognition using these transitive framework.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of the problems with this is that each time you see a test sample, you actually have to retrain your model.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and then we have our model and what we report is the precision and recall will show you the precision and recall curves for the task of retreiving the 100 most relevant images for each test query.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here we have.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Some results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ann, well, there's two settings.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think you.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can ignore the distinction between the two settings.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can focus on the first one.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, well, the first thing is that it is a very hard problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we see that the mixture model always outperforms the than the other two baselines.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might want that OK, but how relevant is that little difference?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it might be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, it is a statically significant, but to give a concrete example, if you want to get the 20 most relevant images.",
+                    "label": 0
+                },
+                {
+                    "sent": "For one query, so I give you the query and I say I really I know there 100 images there that are relevant and it tell you at least I want to get 20 of those and then what the what this curve shows is that in the if you use the mixture model you only need to look around 220 images before you find those 40.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry those 20 relevant.",
+                    "label": 0
+                },
+                {
+                    "sent": "Images, while if you use the other models, you will need to look at like 280 images so there is significant error reduction in that sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here are some.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Examples of of the actual output of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I have in the center are the queries an on top.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have the true ground truth, neighbors, an on the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have their predicted ground truth neighbors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we saw is well, something that that we know about this database, which is that outdoor scenes are always match.",
+                    "label": 0
+                },
+                {
+                    "sent": "More easy to model than indoor scenes so that the results that you get for getting neighbors for outdoor scenes.",
+                    "label": 0
+                },
+                {
+                    "sent": "They all seem pretty good, but when you get to indoor scenes, I mean we can still retrieve similar images, but it seems to be much.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "More tricky.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you might be wondering.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so I started the motivation of why to use latent variables by saying that we want to learn some.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to be able to learn that in this space of images there actually some classes, subclasses of images, and in fact when we look at the at the distribution of the hidden variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, if I look all the images that were assigned.",
+                    "label": 0
+                },
+                {
+                    "sent": "To a particular class, then we see that it actually kind of makes sense becausw it's really modeling the variability that that we would like to model in this data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, we have some some class that what it's doing is clustering together or images of outdoor scenes which are like beach images, and then we have some other class that is clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "Buildings, so it is learning something sensible.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to summarize, I I talk about two quite different applications, But the idea was to show that this approach of using latent variables in fact can be useful for a reality of of problems.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the other message that I want you to live with is that a spectral.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you are all probably familiar with expectation maximization algorithms for training latent variable models.",
+                    "label": 1
+                },
+                {
+                    "sent": "An well, I think you should also consider in spectral learning methods, because they are also a good alternative, and while they have these.",
+                    "label": 0
+                },
+                {
+                    "sent": "This property that is very easy to implement.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is probably a few lines of code and that you can run it in a very large data set with no with no problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in terms of future directions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, one of the things that I would like to do is to.",
+                    "label": 0
+                },
+                {
+                    "sent": "To actually test these spectral methods on real vision problems, I mean what I show you was kind of like an illustrative example, but I think it would be very interesting to see what are the potentials of these techniques in in real large scale problems involving in particular sequence prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "An in terms more of the machine learning future directions.",
+                    "label": 0
+                },
+                {
+                    "sent": "What would be very nice is if we could exploit these spectral methods, but not so much in the context of a structure prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "An unsupervised learning but more on the barracks used them to in the context of unsupervised learning where what we actually want to do is to model a distribution or where complex structure objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

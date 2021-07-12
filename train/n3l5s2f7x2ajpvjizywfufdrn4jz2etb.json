@@ -1,0 +1,1394 @@
+{
+    "id": "n3l5s2f7x2ajpvjizywfufdrn4jz2etb",
+    "title": "Predicting Diverse Subsets Using Structural SVMs",
+    "info": {
+        "author": [
+            "Yisong Yue, Department of Computing and Mathematical Sciences, California Institute of Technology (Caltech)"
+        ],
+        "published": "Aug. 4, 2008",
+        "recorded": "July 2008",
+        "category": [
+            "Top->Computer Science->Machine Learning->Kernel Methods->Support Vector Machines"
+        ]
+    },
+    "url": "http://videolectures.net/icml08_yue_pds/",
+    "segmentation": [
+        [
+            "Thank you as as was just stated, the title is predicting diverse subsets using structural SVM's and this is joint work with."
+        ],
+        [
+            "Source the new albums so I'll start off with a motivating example.",
+            "So here's a query for Jaguar on Google.",
+            "A few a few months ago and you'll see that the top 2 results are references to the automobile company.",
+            "The 3rd result is a reference to the feline at the bottom of the first page is a link to the American football team, and somewhere down in the second page is a reference to the Apple operating system.",
+            "Now the take away message.",
+            "I wanted you to get from this slide is that clearly this query has many different.",
+            "Very disjointed."
+        ],
+        [
+            "Meetings and in a sense it's ambiguous, so in information retrieval there's been noted that there's a need for diversity in the retrieve results, and I'll just highlight two such instances where this is clearly the case.",
+            "The first is ambiguous queries where users with different information needs issue the exact same textual queries.",
+            "So for example Jaguar, and in this case one might have.",
+            "One might think that perhaps we should return at least one relevant result to each of these different information needs, say in the top 10 results now.",
+            "I'm being a little fuzzy here because it's not entirely clear how we should define this.",
+            "The second case is for learning queries where a user is instruit interested in a specific detail or the entire breadth of knowledge for a specific query.",
+            "Now, in this case, you might want to return as many new information as much new information as possible.",
+            "So again we want high information diversity."
+        ],
+        [
+            "Now I was I was touched upon in the previous two talks, conventional methods in learning to rank.",
+            "They learn a retrieval.",
+            "They learn a compatibility function F such that this competitive function is run on each of the query and each of the candidate documents D and after computing this compatibility score for each of the documents, ranking is obtained by sorting on this compatibility score.",
+            "Now there are certain benefits and drawbacks to this approach.",
+            "The benefits are well, this is a well studied problem.",
+            "So we.",
+            "Know how to perform learning.",
+            "We can even optimize for various rank based performance measures used in information retrieval communities such as average precision and in DCG and this approach typically outperforms traditional IR methods which do not use learning now.",
+            "The drawbacks of course.",
+            "Are that it cannot account for these methods cannot account for diversity, and in particular, during prediction.",
+            "This function considers the compatibility of each document independently of the other documents."
+        ],
+        [
+            "It's been noted recently in many studies and information retrieval that we need diversity in our retrieve results.",
+            "In particular, all of these previous studies stated the need to model Inter document dependencies in order to fully model and obtain diversity and retrieve results an as I also mentioned, there's no real consensus how we met."
+        ],
+        [
+            "Diversity, so our contribution is to formulate this problem is that of predicting diverse subsets, we're going to use training data with explicitly labeled subtopics.",
+            "I'll get into details about this later, and we use the loss function to encode subtopic loss, and I'll get explain this later on to talk, and finally using this setup will perform training using structural SVM's, although in principle any training method can be used."
+        ],
+        [
+            "So we're going to use datasets with manually labeled subtopics.",
+            "So for example, here the query use of robots in the world today, a human judge might determine subtopics such as nano robots, space, mission robots, underwater robots, and so on and so forth.",
+            "You could think of this as a manual partitioning of the total information available regarding this query, and for the purposes of this work, we're going to think of that as relatively reliable, since it is human human generated labels."
+        ],
+        [
+            "So here's an abstract example of our prediction problem.",
+            "Think of each of these.",
+            "Think of this big set as the total information regarding some query.",
+            "Think of each of these shaded sets as a document in the area covered by each of these documents.",
+            "Is the information covered by that document now.",
+            "So suppose let's suppose we want to retrieve three documents which collectively cover as much information as possible.",
+            "In this case, that would be D1D2 and D10.",
+            "Now, as I mentioned before, we're going to represent the informational information using subtopics.",
+            "And you also notice the documents overlap.",
+            "In the information that they cover, and they also overlap in the sub topics that they cover and therefore therefore you can see that this is essentially a set covering problem."
+        ],
+        [
+            "So here's the goal.",
+            "Suppose we know the subtopic mappings of documents.",
+            "The subtopics then, if we want to select the K documents which collectively cover as much as many subtopics as possible, then this is a set covering problem.",
+            "Now, perfect prediction would then require N choose K time, but as we know a greedy approximation, the greedy algorithm gives a good approximation, so this is actually a fairly easy problem to solve affect."
+        ],
+        [
+            "Of course, in practice we don't actually know the subtopic mappings.",
+            "In fact, for any arbitrary query at Test time, we don't even know what the subtopics are 'cause those are generated specifically for each of the queries in the training set.",
+            "But we actually do have a different representation of the information available for forgiven query and that is and those are the words of the documents of the candidate documents for that query.",
+            "Now intuitively covering slugging documents, cover as many distinct words as possible should result in covering more information.",
+            "Now, of course not all words are created equal.",
+            "Some words are more discriminative than others.",
+            "So we need some sort of weighting function to compute the relative importance of each of the words.",
+            "And but the nice thing is.",
+            "If we have we have we have this representation is automatically generated and if we could find an appropriate weighting function then we have a representation that does not depend on human labels that we can use over and over again at Test time.",
+            "So the goal then is to select K documents which collectively cover as many weighted words distinct as possible.",
+            "This is also set covering problem.",
+            "So we have a good weighting function.",
+            "Greedy selection also yield a good product.",
+            "Good approximation bound.",
+            "And so the learning goal really is to find a good weighting function."
+        ],
+        [
+            "So let me give you a an illustrative example of this prediction problem.",
+            "So suppose here we have three documents D1 through D3 with the vocabulary of five words of 135.",
+            "Suppose we already know the benefit the weighting function of covering each of the words and those are simply one through 5.",
+            "Then let's run through a couple of iterations of the greedy prediction problem.",
+            "So in an iteration, we're just going to compute the benefit of covering each of these documents will simply sum up the benefits of the words that these documents contain.",
+            "So in this case, D1 is our choice, and the first iteration you notice that if we model each of the documents independently, we might just simply produce this ranking D1D2D3."
+        ],
+        [
+            "But it turns out that after we've.",
+            "Selected the one in our first iteration, then the marginal gain.",
+            "Of conditional selecting the one, if you compute the marginal gain, then actually D3 turns out to be better than D2, and this is exactly that that intersection of that set covering problem dilemma that I touched on earlier.",
+            "But again, the greedy algorithm still gives a good approximation."
+        ],
+        [
+            "So there's been some related work on using words.",
+            "As the using words as the using, sorry.",
+            "As using weighted word coverage as a proxy for diversity and that the work is called Essential Pages and it was the primary motivation for our work.",
+            "But in central pages they use the fixed function that was not learn for a particular data center will actually use learn a word weighting function in contrast.",
+            "So our method directly learns the word benefit function.",
+            "We're going to use a feature space that depends on word frequency.",
+            "Again, this is inspired from the essential pages work, where the weighting function was dependent on word frequency.",
+            "And to our knowledge, this is actually the first learning method which directly optimizes for diversity in terms of subtopic coverage."
+        ],
+        [
+            "So here's the formulation of our of our prediction problem.",
+            "Let's denote a candidate set of documents and let Y denote a subset of X.",
+            "Let V of why the note the Union of words from all documents in Y.",
+            "So we're going to use a linear discriminant function of this form.",
+            "Where we where it's linear in a joint feature space of a prediction and a candidate set of documents.",
+            "And it decomposes additively over all the words in the prediction, and each term here.",
+            "Is a feature map that computes the frequency primarily.",
+            "It has other features as well.",
+            "It computes the frequency of that word in these documents.",
+            "For example, is this this word appearing at least 10% of these documents?",
+            "Does this word V appear at least 20%, so on and so forth?",
+            "An and then it turns out that the benefit of covering any given word V is then just this.",
+            "Just this value here and we're going to sum up the total benefit like like that.",
+            "In this formulation, then, the total benefit of predicting any subset is this term or discriminant function will simply pick.",
+            "The Y that maximizes this when we make our prediction.",
+            "And as I'm."
+        ],
+        [
+            "Before this is a set covering problem, an greedy has a nice approximation bound.",
+            "This formulation also does not reward redundancy, which is important because it models Inter document dependencies in this way, in particular if.",
+            "A word appears in two of the documents in X. I'm sorry and Y then it's only counted once in this summation.",
+            "So we don't count words twice if they appear more than one document, and that's exactly how we model the interlocking dependencies in this form.",
+            "And after an also we use a linear linear feature space, so learning this weighting function can be easily implemented in a structural SVM formulation."
+        ],
+        [
+            "Now of course the previous formulation has one major drawback, and it's the sense that documents don't cover words equally.",
+            "So for example.",
+            "Suppose one document has five copies of the word Torsten and another document is 2 cups of water tours.",
+            "And now you, I think we would all expect the document with copies of the word Torsten to cover that word better than the other document copies.",
+            "And this is not this is not captured in the previous formulation, and we're going to use a more actually more sophisticated discriminate in our.",
+            "In our experiments.",
+            "I want to actually have time to go into this in great detail, but the basic idea is that we use multiple word sets in the previous slide, I use, just one will actually use multiple word sets which denote different levels of coverage.",
+            "So for example.",
+            "Visa by might be all the words might be a set of all the words which appear in the titles of the documents and why, for example, and where title is and is an important level and we define many important levels and you can see the details in."
+        ],
+        [
+            "Paper.",
+            "After we define these important levels, we'll define a separate feature function.",
+            "For each of the importance levels and will simply do do a stacking of the features for our joint discriminate joint joint feature map and are joined.",
+            "Discriminative function is then in the same format and we can make predictions in the same way."
+        ],
+        [
+            "As I mentioned we were using, will use structural SVM's to do learning, and I'll just briefly review Conventionalized VM's.",
+            "So here X denotes some high dimensional point, why denotes binary label plus or minus one, and the prediction is made by taking the sign of the weight vector W with the input example.",
+            "The training goal is is A is an optimization problem which tries to minimize a measure of the complexity of the model and a trade off with a measure of the empirical loss of the training set.",
+            "This is a.",
+            "This is an unconstrained problem.",
+            "This is a constrained optimization problem where we have one constraint for each training example, and it turns out that this slack variable CC by it upper bounds, the performance loss of each of the training examples.",
+            "How do we map this?"
+        ],
+        [
+            "Two structural SVM's while we still have the same objective function.",
+            "But it turns out that each input example X is now a candidate set of documents, sort of just a single point.",
+            "And the target label Y is now the subset of X.",
+            "We have the same objective function, but our constraints look a little different.",
+            "Now we're going to use our joint discriminant function as the score as the quality of a prediction, and we want the prediction for the correct Y for any for any input example X to be at least as large as any incorrect prediction.",
+            "Scaled by a scale by the loss of that incorrect prediction.",
+            "So in a sense, it's still a linear SVM, but we're going to use a discriminant function to measure the quality of the score.",
+            "Anfora loss function will use weighted subtopic loss, which I'll describe later.",
+            "So.",
+            "There's actually very many constraints for each input example.",
+            "For each input example in this optimization problem, in particular, there N choose K potentially incorrect incorrect labelings so they rank, choose K potentially incorrect constraints for each input example, and this is.",
+            "Very expensive too."
+        ],
+        [
+            "Numerate exhaustively.",
+            "So one of the one popular approach to training structural SVM is the cutting plane algorithm, which I'll just demonstrate.",
+            "Illustratively, it starts off by considering no constraints from the original optimization problem, where here we have a color gradient, where darker means worse and lighter means better.",
+            "So here's the result that we want the global optimum, and here's the unconstrained optimal.",
+            "We start off with token."
+        ],
+        [
+            "Strengths and literally include the most violated constraint from the entire set of constraints and re optimize to find the global solution in this in the."
+        ],
+        [
+            "Similar problem."
+        ],
+        [
+            "It will continue to do so until no further constraints have been found that there are violated by more than some small tolerance, and in this simple toy example, you see that we actually found the global optimum with just three constraints.",
+            "Now, this approach is pretty fast, and it's it's probably accurate.",
+            "It does require a subroutine which finds the most violated constraint in each iteration out of.",
+            "And very many constraints, and it turns out in our problem this just reduces to another set covering problems which we can solve efficiently."
+        ],
+        [
+            "So as promised from while back, here is the definition of our loss function.",
+            "We use weighted subtopic loss, so here I'll just demonstrate how the loss function works with an example.",
+            "We have three documents X one through X3 that covers 3 potentially three topics, T1 through T3.",
+            "And here we see that topic one is covered by offering the documents topic 2 by 1 topic three by two, and we're going to the subtopic loss for not covering for choosing a subset that doesn't cover topic topic one is going to proportional to the number of documents which cover it, and then we're going to normalize.",
+            "This is going to normalize this summer so that the subtopic loss sums to one in the worst case.",
+            "So this is our loss function.",
+            "The reason we chose this loss function is so that we incur a higher penalty for not covering a popular subtopic, and also this mitigates the effect of label noise in detail.",
+            "In the tail subtopic.",
+            "So there are some inconsistencies in the labelings and for many of the sub topics in detail which with only one relevant document there's a lot of noise in the labeling."
+        ],
+        [
+            "Our experiments.",
+            "Are conducted in the truck 6th grade interactive track.",
+            "Now in this in this data set, documents are labeled into subtopics and manually.",
+            "Now of course, this is an expensive tax, so the task, so there's not a lot of data.",
+            "We have 17 queries and we only consider the relevant documents in these queries.",
+            "Since this decouples the relevance problem from the diversity problem, which is what we're interested in.",
+            "There's 45 documents for queries, 20 subtopics product per query, and 300 words per document."
+        ],
+        [
+            "Our our experiments involve decomposing the 70 queries into 12 or one training validation and test split and this results in approximately 500 documents into each training set.",
+            "This is admittedly very small, but I believe that 500 documents is within the bounds of reason and will permute this split until we've tested each of the each of the queries.",
+            "We set the retrieval size to five since some of the queries have relatively few documents and we used two different models, one called SVM Dev which uses term frequency fresh thresholds to define importance levels, and the second SVM give two in addition also uses TF IDF thresholds."
+        ],
+        [
+            "And here are results.",
+            "We compare it against just randomly selecting 5 documents, okapi, which is a standard information retrieval measure which does not consider diversity and unweighted model which selects as many distinct words as possible and weights all words equally essential pages.",
+            "The previous work that I cited which uses a fixed word weighting function in R2 models and you can see here that of the models which do.",
+            "Noticeably better than random.",
+            "Only essential pages in our two methods actually do significantly better than random, and if we look at the per query comparison, we see that our method, specially SPM dev, does significantly better where the two stars indicate a 95% significance using the two tails sign rank test."
+        ],
+        [
+            "Here is a graph measuring the number of training examples versus the test loss post validation, and we can see that our training error decreases pretty significantly as we increase the number of training examples, so we should be able to expect significant improvement as we increase the number of training examples further pending a larger data set."
+        ],
+        [
+            "Since since the track data set was somewhat limited, we actually generated a synthetic data set, so we can measure how our performance behaves as we vary the retrieval size K. And here we compare SVM did versus essential pages on our synthetic data set, and we see that we consistently outperform essential pages at each retrieval level.",
+            "Now this.",
+            "This is a slightly unfair comparison because Essential Pages was designed for for a specific diversity retrieval problem, but I think this illustrates the benefit of automatically learning a word word weighting function to fit the retrieval problem at hand."
+        ],
+        [
+            "So, so in conclusion, we've formulated diversified retrieval as that are predicting diverse subsets.",
+            "We've shown you efficient training and prediction algorithms, and in particular we use weighted word coverage as a proxy for information coverage.",
+            "We encode diversity using loss function, weighted subtopic loss, but again, I'd like to stress that from the information Community side, there is no real consensus on how we should measure diversity, so this is actually an open question, and it's also an important question because it yields.",
+            "Of.",
+            "It leads to how we should generate larger datasets for learning for diversified retrieval.",
+            "And if you're interested in trying out my method and also and also we have included the training data as well, you can check it out at this link down here.",
+            "Thank you very much.",
+            "Suppose you have another mechanism for relevance ranking.",
+            "So how do you think about combining your result of diversity with relevance ranking?",
+            "Do you have any idea or do it is it is more difficult problem?",
+            "We actually we actually started off thinking, maybe thinking about that problem, but we decided to simplify it.",
+            "I really don't have a very good answer.",
+            "For you on how we can approach that problem at this point.",
+            "Your experiments, what which of the various losses were you using to?",
+            "Give the plot.",
+            "So was that."
+        ],
+        [
+            "Yeah, So what loss is that?",
+            "This is weighted subtopic loss.",
+            "OK."
+        ],
+        [
+            "No this one.",
+            "But the last function we care about."
+        ],
+        [
+            "You seem to have been sort of avoiding it the few times, but.",
+            "If the only thing you had were, you know, sort of a.",
+            "Massive.",
+            "Search logs right?",
+            "Can you you mentioned a few times that there's no consensus on a sort of measure for diversity, but.",
+            "So you had access to tons of search logs.",
+            "You know you have any sort of instinct for what you'd be looking at, so I think.",
+            "I don't think there is.",
+            "I think it's a pretty strong argument here that.",
+            "The weighted work coverage does capture.",
+            "Diversity is a reasonable model for capturing diversity.",
+            "Assuming we can find a good weighting function of some kind.",
+            "In this, in this work, the loss function.",
+            "So the way we represent diversity only appears in the training algorithm.",
+            "So if you look at the."
+        ],
+        [
+            "Look at this prediction method.",
+            "As I mentioned.",
+            "It there's."
+        ],
+        [
+            "The subtopic laws actually appears nowhere in this prediction method, and in fact you can think of it as we have two representations of diversity.",
+            "One is human, human generated, or perhaps generated through click logs or something, or something of that nature.",
+            "One is automatically generated via, say, words, and we have a good in the the, let's say, manually generated version of diversity.",
+            "We have a good notion of loss.",
+            "And here losses simply trying to optimize this weighting function, and we're simply finding a mapping from 1 prediction problem to the other by learning this weighting function.",
+            "So we could actually incorporate.",
+            "Many different kinds of loss functions in our training because it only occurs.",
+            "During training here.",
+            "So if you have.",
+            "A better a bigger data set with with a different formulation of diversity.",
+            "We can easily incorporate it here right here.",
+            "And there's been some, I guess there's been some work in trying to use click logs as a measure of diversity, and if that turns out to be a promising direction, we could actually just incorporate it very easily using a different loss function based on click logs right into this optimization problem.",
+            "And in the end the prediction is still based on word coverage.",
+            "It's independent of the loss function."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thank you as as was just stated, the title is predicting diverse subsets using structural SVM's and this is joint work with.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Source the new albums so I'll start off with a motivating example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a query for Jaguar on Google.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few a few months ago and you'll see that the top 2 results are references to the automobile company.",
+                    "label": 0
+                },
+                {
+                    "sent": "The 3rd result is a reference to the feline at the bottom of the first page is a link to the American football team, and somewhere down in the second page is a reference to the Apple operating system.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now the take away message.",
+                    "label": 0
+                },
+                {
+                    "sent": "I wanted you to get from this slide is that clearly this query has many different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very disjointed.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Meetings and in a sense it's ambiguous, so in information retrieval there's been noted that there's a need for diversity in the retrieve results, and I'll just highlight two such instances where this is clearly the case.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first is ambiguous queries where users with different information needs issue the exact same textual queries.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example Jaguar, and in this case one might have.",
+                    "label": 0
+                },
+                {
+                    "sent": "One might think that perhaps we should return at least one relevant result to each of these different information needs, say in the top 10 results now.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm being a little fuzzy here because it's not entirely clear how we should define this.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second case is for learning queries where a user is instruit interested in a specific detail or the entire breadth of knowledge for a specific query.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now, in this case, you might want to return as many new information as much new information as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again we want high information diversity.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now I was I was touched upon in the previous two talks, conventional methods in learning to rank.",
+                    "label": 0
+                },
+                {
+                    "sent": "They learn a retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "They learn a compatibility function F such that this competitive function is run on each of the query and each of the candidate documents D and after computing this compatibility score for each of the documents, ranking is obtained by sorting on this compatibility score.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there are certain benefits and drawbacks to this approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "The benefits are well, this is a well studied problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we.",
+                    "label": 0
+                },
+                {
+                    "sent": "Know how to perform learning.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can even optimize for various rank based performance measures used in information retrieval communities such as average precision and in DCG and this approach typically outperforms traditional IR methods which do not use learning now.",
+                    "label": 0
+                },
+                {
+                    "sent": "The drawbacks of course.",
+                    "label": 1
+                },
+                {
+                    "sent": "Are that it cannot account for these methods cannot account for diversity, and in particular, during prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "This function considers the compatibility of each document independently of the other documents.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's been noted recently in many studies and information retrieval that we need diversity in our retrieve results.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, all of these previous studies stated the need to model Inter document dependencies in order to fully model and obtain diversity and retrieve results an as I also mentioned, there's no real consensus how we met.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Diversity, so our contribution is to formulate this problem is that of predicting diverse subsets, we're going to use training data with explicitly labeled subtopics.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll get into details about this later, and we use the loss function to encode subtopic loss, and I'll get explain this later on to talk, and finally using this setup will perform training using structural SVM's, although in principle any training method can be used.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we're going to use datasets with manually labeled subtopics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, here the query use of robots in the world today, a human judge might determine subtopics such as nano robots, space, mission robots, underwater robots, and so on and so forth.",
+                    "label": 1
+                },
+                {
+                    "sent": "You could think of this as a manual partitioning of the total information available regarding this query, and for the purposes of this work, we're going to think of that as relatively reliable, since it is human human generated labels.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's an abstract example of our prediction problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think of each of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think of this big set as the total information regarding some query.",
+                    "label": 0
+                },
+                {
+                    "sent": "Think of each of these shaded sets as a document in the area covered by each of these documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the information covered by that document now.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose let's suppose we want to retrieve three documents which collectively cover as much information as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, that would be D1D2 and D10.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, as I mentioned before, we're going to represent the informational information using subtopics.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you also notice the documents overlap.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the information that they cover, and they also overlap in the sub topics that they cover and therefore therefore you can see that this is essentially a set covering problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the goal.",
+                    "label": 0
+                },
+                {
+                    "sent": "Suppose we know the subtopic mappings of documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "The subtopics then, if we want to select the K documents which collectively cover as much as many subtopics as possible, then this is a set covering problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now, perfect prediction would then require N choose K time, but as we know a greedy approximation, the greedy algorithm gives a good approximation, so this is actually a fairly easy problem to solve affect.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Of course, in practice we don't actually know the subtopic mappings.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, for any arbitrary query at Test time, we don't even know what the subtopics are 'cause those are generated specifically for each of the queries in the training set.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we actually do have a different representation of the information available for forgiven query and that is and those are the words of the documents of the candidate documents for that query.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now intuitively covering slugging documents, cover as many distinct words as possible should result in covering more information.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, of course not all words are created equal.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some words are more discriminative than others.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need some sort of weighting function to compute the relative importance of each of the words.",
+                    "label": 0
+                },
+                {
+                    "sent": "And but the nice thing is.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have we have we have this representation is automatically generated and if we could find an appropriate weighting function then we have a representation that does not depend on human labels that we can use over and over again at Test time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the goal then is to select K documents which collectively cover as many weighted words distinct as possible.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is also set covering problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have a good weighting function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Greedy selection also yield a good product.",
+                    "label": 0
+                },
+                {
+                    "sent": "Good approximation bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so the learning goal really is to find a good weighting function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let me give you a an illustrative example of this prediction problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose here we have three documents D1 through D3 with the vocabulary of five words of 135.",
+                    "label": 0
+                },
+                {
+                    "sent": "Suppose we already know the benefit the weighting function of covering each of the words and those are simply one through 5.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then let's run through a couple of iterations of the greedy prediction problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in an iteration, we're just going to compute the benefit of covering each of these documents will simply sum up the benefits of the words that these documents contain.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this case, D1 is our choice, and the first iteration you notice that if we model each of the documents independently, we might just simply produce this ranking D1D2D3.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But it turns out that after we've.",
+                    "label": 0
+                },
+                {
+                    "sent": "Selected the one in our first iteration, then the marginal gain.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of conditional selecting the one, if you compute the marginal gain, then actually D3 turns out to be better than D2, and this is exactly that that intersection of that set covering problem dilemma that I touched on earlier.",
+                    "label": 0
+                },
+                {
+                    "sent": "But again, the greedy algorithm still gives a good approximation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So there's been some related work on using words.",
+                    "label": 0
+                },
+                {
+                    "sent": "As the using words as the using, sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "As using weighted word coverage as a proxy for diversity and that the work is called Essential Pages and it was the primary motivation for our work.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in central pages they use the fixed function that was not learn for a particular data center will actually use learn a word weighting function in contrast.",
+                    "label": 0
+                },
+                {
+                    "sent": "So our method directly learns the word benefit function.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to use a feature space that depends on word frequency.",
+                    "label": 1
+                },
+                {
+                    "sent": "Again, this is inspired from the essential pages work, where the weighting function was dependent on word frequency.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to our knowledge, this is actually the first learning method which directly optimizes for diversity in terms of subtopic coverage.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the formulation of our of our prediction problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's denote a candidate set of documents and let Y denote a subset of X.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let V of why the note the Union of words from all documents in Y.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we're going to use a linear discriminant function of this form.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where we where it's linear in a joint feature space of a prediction and a candidate set of documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it decomposes additively over all the words in the prediction, and each term here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is a feature map that computes the frequency primarily.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has other features as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It computes the frequency of that word in these documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, is this this word appearing at least 10% of these documents?",
+                    "label": 0
+                },
+                {
+                    "sent": "Does this word V appear at least 20%, so on and so forth?",
+                    "label": 1
+                },
+                {
+                    "sent": "An and then it turns out that the benefit of covering any given word V is then just this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just this value here and we're going to sum up the total benefit like like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this formulation, then, the total benefit of predicting any subset is this term or discriminant function will simply pick.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Y that maximizes this when we make our prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as I'm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Before this is a set covering problem, an greedy has a nice approximation bound.",
+                    "label": 1
+                },
+                {
+                    "sent": "This formulation also does not reward redundancy, which is important because it models Inter document dependencies in this way, in particular if.",
+                    "label": 1
+                },
+                {
+                    "sent": "A word appears in two of the documents in X. I'm sorry and Y then it's only counted once in this summation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we don't count words twice if they appear more than one document, and that's exactly how we model the interlocking dependencies in this form.",
+                    "label": 0
+                },
+                {
+                    "sent": "And after an also we use a linear linear feature space, so learning this weighting function can be easily implemented in a structural SVM formulation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now of course the previous formulation has one major drawback, and it's the sense that documents don't cover words equally.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Suppose one document has five copies of the word Torsten and another document is 2 cups of water tours.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now you, I think we would all expect the document with copies of the word Torsten to cover that word better than the other document copies.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this is not this is not captured in the previous formulation, and we're going to use a more actually more sophisticated discriminate in our.",
+                    "label": 0
+                },
+                {
+                    "sent": "In our experiments.",
+                    "label": 1
+                },
+                {
+                    "sent": "I want to actually have time to go into this in great detail, but the basic idea is that we use multiple word sets in the previous slide, I use, just one will actually use multiple word sets which denote different levels of coverage.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Visa by might be all the words might be a set of all the words which appear in the titles of the documents and why, for example, and where title is and is an important level and we define many important levels and you can see the details in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "After we define these important levels, we'll define a separate feature function.",
+                    "label": 0
+                },
+                {
+                    "sent": "For each of the importance levels and will simply do do a stacking of the features for our joint discriminate joint joint feature map and are joined.",
+                    "label": 1
+                },
+                {
+                    "sent": "Discriminative function is then in the same format and we can make predictions in the same way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "As I mentioned we were using, will use structural SVM's to do learning, and I'll just briefly review Conventionalized VM's.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here X denotes some high dimensional point, why denotes binary label plus or minus one, and the prediction is made by taking the sign of the weight vector W with the input example.",
+                    "label": 1
+                },
+                {
+                    "sent": "The training goal is is A is an optimization problem which tries to minimize a measure of the complexity of the model and a trade off with a measure of the empirical loss of the training set.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an unconstrained problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is a constrained optimization problem where we have one constraint for each training example, and it turns out that this slack variable CC by it upper bounds, the performance loss of each of the training examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we map this?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Two structural SVM's while we still have the same objective function.",
+                    "label": 1
+                },
+                {
+                    "sent": "But it turns out that each input example X is now a candidate set of documents, sort of just a single point.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the target label Y is now the subset of X.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have the same objective function, but our constraints look a little different.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now we're going to use our joint discriminant function as the score as the quality of a prediction, and we want the prediction for the correct Y for any for any input example X to be at least as large as any incorrect prediction.",
+                    "label": 1
+                },
+                {
+                    "sent": "Scaled by a scale by the loss of that incorrect prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in a sense, it's still a linear SVM, but we're going to use a discriminant function to measure the quality of the score.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anfora loss function will use weighted subtopic loss, which I'll describe later.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's actually very many constraints for each input example.",
+                    "label": 0
+                },
+                {
+                    "sent": "For each input example in this optimization problem, in particular, there N choose K potentially incorrect incorrect labelings so they rank, choose K potentially incorrect constraints for each input example, and this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very expensive too.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Numerate exhaustively.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of the one popular approach to training structural SVM is the cutting plane algorithm, which I'll just demonstrate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Illustratively, it starts off by considering no constraints from the original optimization problem, where here we have a color gradient, where darker means worse and lighter means better.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the result that we want the global optimum, and here's the unconstrained optimal.",
+                    "label": 0
+                },
+                {
+                    "sent": "We start off with token.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Strengths and literally include the most violated constraint from the entire set of constraints and re optimize to find the global solution in this in the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Similar problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It will continue to do so until no further constraints have been found that there are violated by more than some small tolerance, and in this simple toy example, you see that we actually found the global optimum with just three constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, this approach is pretty fast, and it's it's probably accurate.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does require a subroutine which finds the most violated constraint in each iteration out of.",
+                    "label": 1
+                },
+                {
+                    "sent": "And very many constraints, and it turns out in our problem this just reduces to another set covering problems which we can solve efficiently.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So as promised from while back, here is the definition of our loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use weighted subtopic loss, so here I'll just demonstrate how the loss function works with an example.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have three documents X one through X3 that covers 3 potentially three topics, T1 through T3.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here we see that topic one is covered by offering the documents topic 2 by 1 topic three by two, and we're going to the subtopic loss for not covering for choosing a subset that doesn't cover topic topic one is going to proportional to the number of documents which cover it, and then we're going to normalize.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is going to normalize this summer so that the subtopic loss sums to one in the worst case.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is our loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason we chose this loss function is so that we incur a higher penalty for not covering a popular subtopic, and also this mitigates the effect of label noise in detail.",
+                    "label": 1
+                },
+                {
+                    "sent": "In the tail subtopic.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there are some inconsistencies in the labelings and for many of the sub topics in detail which with only one relevant document there's a lot of noise in the labeling.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Our experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are conducted in the truck 6th grade interactive track.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now in this in this data set, documents are labeled into subtopics and manually.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now of course, this is an expensive tax, so the task, so there's not a lot of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have 17 queries and we only consider the relevant documents in these queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since this decouples the relevance problem from the diversity problem, which is what we're interested in.",
+                    "label": 1
+                },
+                {
+                    "sent": "There's 45 documents for queries, 20 subtopics product per query, and 300 words per document.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Our our experiments involve decomposing the 70 queries into 12 or one training validation and test split and this results in approximately 500 documents into each training set.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is admittedly very small, but I believe that 500 documents is within the bounds of reason and will permute this split until we've tested each of the each of the queries.",
+                    "label": 0
+                },
+                {
+                    "sent": "We set the retrieval size to five since some of the queries have relatively few documents and we used two different models, one called SVM Dev which uses term frequency fresh thresholds to define importance levels, and the second SVM give two in addition also uses TF IDF thresholds.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And here are results.",
+                    "label": 0
+                },
+                {
+                    "sent": "We compare it against just randomly selecting 5 documents, okapi, which is a standard information retrieval measure which does not consider diversity and unweighted model which selects as many distinct words as possible and weights all words equally essential pages.",
+                    "label": 0
+                },
+                {
+                    "sent": "The previous work that I cited which uses a fixed word weighting function in R2 models and you can see here that of the models which do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Noticeably better than random.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only essential pages in our two methods actually do significantly better than random, and if we look at the per query comparison, we see that our method, specially SPM dev, does significantly better where the two stars indicate a 95% significance using the two tails sign rank test.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here is a graph measuring the number of training examples versus the test loss post validation, and we can see that our training error decreases pretty significantly as we increase the number of training examples, so we should be able to expect significant improvement as we increase the number of training examples further pending a larger data set.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Since since the track data set was somewhat limited, we actually generated a synthetic data set, so we can measure how our performance behaves as we vary the retrieval size K. And here we compare SVM did versus essential pages on our synthetic data set, and we see that we consistently outperform essential pages at each retrieval level.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a slightly unfair comparison because Essential Pages was designed for for a specific diversity retrieval problem, but I think this illustrates the benefit of automatically learning a word word weighting function to fit the retrieval problem at hand.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So, so in conclusion, we've formulated diversified retrieval as that are predicting diverse subsets.",
+                    "label": 1
+                },
+                {
+                    "sent": "We've shown you efficient training and prediction algorithms, and in particular we use weighted word coverage as a proxy for information coverage.",
+                    "label": 1
+                },
+                {
+                    "sent": "We encode diversity using loss function, weighted subtopic loss, but again, I'd like to stress that from the information Community side, there is no real consensus on how we should measure diversity, so this is actually an open question, and it's also an important question because it yields.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of.",
+                    "label": 0
+                },
+                {
+                    "sent": "It leads to how we should generate larger datasets for learning for diversified retrieval.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you're interested in trying out my method and also and also we have included the training data as well, you can check it out at this link down here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "Suppose you have another mechanism for relevance ranking.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do you think about combining your result of diversity with relevance ranking?",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you have any idea or do it is it is more difficult problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually we actually started off thinking, maybe thinking about that problem, but we decided to simplify it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I really don't have a very good answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "For you on how we can approach that problem at this point.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your experiments, what which of the various losses were you using to?",
+                    "label": 0
+                },
+                {
+                    "sent": "Give the plot.",
+                    "label": 0
+                },
+                {
+                    "sent": "So was that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, So what loss is that?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is weighted subtopic loss.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "No this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the last function we care about.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "You seem to have been sort of avoiding it the few times, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the only thing you had were, you know, sort of a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Massive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Search logs right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you you mentioned a few times that there's no consensus on a sort of measure for diversity, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you had access to tons of search logs.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know you have any sort of instinct for what you'd be looking at, so I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think there is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it's a pretty strong argument here that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The weighted work coverage does capture.",
+                    "label": 0
+                },
+                {
+                    "sent": "Diversity is a reasonable model for capturing diversity.",
+                    "label": 0
+                },
+                {
+                    "sent": "Assuming we can find a good weighting function of some kind.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this, in this work, the loss function.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the way we represent diversity only appears in the training algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you look at the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Look at this prediction method.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I mentioned.",
+                    "label": 0
+                },
+                {
+                    "sent": "It there's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The subtopic laws actually appears nowhere in this prediction method, and in fact you can think of it as we have two representations of diversity.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is human, human generated, or perhaps generated through click logs or something, or something of that nature.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is automatically generated via, say, words, and we have a good in the the, let's say, manually generated version of diversity.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a good notion of loss.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here losses simply trying to optimize this weighting function, and we're simply finding a mapping from 1 prediction problem to the other by learning this weighting function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we could actually incorporate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many different kinds of loss functions in our training because it only occurs.",
+                    "label": 0
+                },
+                {
+                    "sent": "During training here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "A better a bigger data set with with a different formulation of diversity.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can easily incorporate it here right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's been some, I guess there's been some work in trying to use click logs as a measure of diversity, and if that turns out to be a promising direction, we could actually just incorporate it very easily using a different loss function based on click logs right into this optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in the end the prediction is still based on word coverage.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's independent of the loss function.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,2154 @@
+{
+    "id": "66u5wvgybv7em43b6szyngqqzm24xrz6",
+    "title": "Optimizing the Blur-Noise Tradeoff with Multiple-Photo Capture",
+    "info": {
+        "author": [
+            "Samuel Hasinoff, Computer Science and Artificial Intelligence Laboratory (CSAIL), Massachusetts Institute of Technology, MIT"
+        ],
+        "published": "Jan. 12, 2011",
+        "recorded": "December 2010",
+        "category": [
+            "Top->Computer Science->Computer Vision->Computational Photography"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2010_hasinoff_obn/",
+    "segmentation": [
+        [
+            "Yeah, so the basic problem.",
+            "I'm going to talk about is making efficient use of a time budget, but also addressing the question of of how do we know when it's useful to divide up a time budget and capture multiple photos?",
+            "And this is joint work with my PhD supervisor.",
+            "Curious with Lawson also collaborators at MIT.",
+            "Fred, Rhonda and Bill for."
+        ],
+        [
+            "So just to provide a bit of context, I think like a lot of people I've been been really inspired by this whole this vast sort of zoo.",
+            "This huge family of of new computational cameras that have come out in the last few years, and these are some really strange cameras compared to to what we're used to with the conventional photograph and the main distinction is that the images that these cameras produce are not directly usable.",
+            "They require a form of image processing before we can extract information from them.",
+            "And so, in a standard photography, the image that we get in the end is.",
+            "It is very similar to the image information which is recorded directly on the sensor of the camera.",
+            "But these computational cameras they show up here are quite different than what they do is that they introduce an intermediate step in between, and they do this by manipulating the optics of the camera in some kind of interesting way.",
+            "And what this does is it gives us this intermediate raw image that then requires image processing to get to the final image and the game, so to speak.",
+            "In computational camera design is figuring out the right combination of.",
+            "Optics an image processing that lets us get to that final step and then encodes information that's useful for a particular application for particular imaging task.",
+            "So, so I've been really interested in this and a focus of my work has been trying to understand this vast family of of different computational camera designs.",
+            "Figure out what the tradeoffs are and how we can really compare them in some, some fairway.",
+            "Now in this talk though, I'm going to talk about a really simple extension of this framework that I'm going to argue makes a lot of difference, which is allowing the possibility of not just capturing a single intermediate image with one of these computational cameras, but in a given time budget dividing that time budget up and capturing multiple shots.",
+            "And then what I'm going to show is that in many practical situations, choosing the right number of photographs to capture is or the frame rate equivalently of your video camera is a really crucial decision to make an making that decision properly can fact dominate the kind of games that you get by playing with the optics.",
+            "For some of these imaging problems.",
+            "So that was kind of counter intuitive.",
+            "I'd like to."
+        ],
+        [
+            "Are exposed that now and just to to give the talks on focus.",
+            "I'm going to concentrate on a particular image Ng problem which is which is handling the focus which is trying to get the highest possible quality image in a fixed time budget.",
+            "In the case where we have a large depth of field that we're interested in capturing.",
+            "And remember the depth of field means it's the region in the scene in depth that we can capture in focus.",
+            "Capture sharp images or the optics.",
+            "Allow us to capture images at some acceptable level of sharpness.",
+            "And in the context of these computational cameras, we can think about depth of field as getting an acceptable level of sharpness after we do the image processing after the deblurring and the denoising and so on has been applied."
+        ],
+        [
+            "OK, So what are the issues in doing this?",
+            "Well, so first we obviously need to account for for defocus blur and defocus.",
+            "Blur is a problem if Arsene spans a really large range of depths.",
+            "Are camera may only be able to focus on a small region of depth in the scene?",
+            "And this is particularly a problem.",
+            "Also, if the scene is close to the camera, depth of field becomes really crucial in this context of macro photography and micross."
+        ],
+        [
+            "Speak.",
+            "And the second artifact that we need to contend with is is noise, and this is particularly a problem if I'm going to divide up my time, budget and capture images quickly.",
+            "Capture fast exposures where there's not a lot of light for each shot noise from the sensor becomes more and more dominant, so so these are two main artifacts, then I'm going to need to trade off between each other.",
+            "And then the final artifact that you need to contend with in any kind of photographic scenario is dealing with motion blur, and this is a problem if we're taking shots which are very long exposures, or if the camera or the scene is moving quickly.",
+            "So I'm not going to talk explicitly about motion blur until maybe a few words at the end of the talk, but I just want to point out that the kind of method that I'm using to deal with defocus blur is also going to help us with the problem of motion blur at the same time."
+        ],
+        [
+            "Alright, So what is our approach?",
+            "Well, we saw this in the first talk of of the workshop in microscopy and macro photography are very common approach to dealing with this problem of having a very large depth of field that needs to be captured is to take multiple shots to focus a set of images differently from front to back, obtained a stack of shots and then merge those together to get a single in focus shot.",
+            "And this is sort of focal stack merging.",
+            "And of course, this sort of focal stack merging is doesn't apply just to the microscopy."
+        ],
+        [
+            "Name, but also applies in having more general settings in photography, but here in this talk the key difference and the key novelty is the fact that we're going to be analyzing the space of of these kind of capture strategies under a time constraint.",
+            "So we have a time budget in which we are able to capture a given focal stack.",
+            "So that's our approach and the key questions.",
+            "This is just a few questions right away, and then the first of them is given this time budget.",
+            "How many photos should we be capturing in that time budget to give the best possible results.",
+            "So what's the optimal number of photos to capture?",
+            "And the second question is, well, this approach of capturing focal stacks is quite different than to have a single shot with a strange computational camera.",
+            "And how do these two different approaches compare to each other?",
+            "Which is which is better?",
+            "And we can even generalize this a little bit.",
+            "We can say, well, what if I use the two approaches together at the same time?",
+            "If I have a computational camera in my hand, is it worthwhile for me to use that computational camera, capture multiple shots, use a focal stack, and merge?"
+        ],
+        [
+            "Starting to get a final result.",
+            "So to be more specific, we have time budget.",
+            "We have a range of depths we're interested in capturing.",
+            "We know the brightness of the scene and our goal is to maximize the SNR of the of the final reconstruction of the of the image that we get at the end of this process.",
+            "And this is equivalent to really trading off between these two artifacts of defocus blur in one hand and noise on the other.",
+            "So we know the camera specs.",
+            "I'm going to assume that a bunch of things about the camera fixed the aperture sizes, fixed the gain of the cameras fixed.",
+            "We're not controlling the illumination, and to simplify things in this treatment, there's no motion blur that we have to deal with.",
+            "So, So what is left or what?"
+        ],
+        [
+            "Can I control well so I can control the number of photos to capture and then for each of those photos the question is what is the exposure time I should allocate to each of these shots?",
+            "And then what is the focus setting that I should allocate to each of these shots as well so particular capture strategy can be described in these terms and we can visualize it as a sort of tiling this space of depth versus time we have a given time budget and so one example of that is just to capture a single shot.",
+            "And in this case we have a very large depth of field, so the depth of field of that single shot doesn't span the whole range.",
+            "Most of the scene is going to be out of focus, but this is 1 strategy.",
+            "We could do something else we could do is to divide up that time budget and capturing multiple shots.",
+            "So this is a focal stack is we're visualizing right here, and each of these shots is darker.",
+            "It's under exposed because it's been allocated less time, but now we're spending the depth range and in a more complete way.",
+            "And just as a practical point, I should point out that real cameras have an overhead which is have amount of time between shots were.",
+            "Effectively you can't capture anything and this could be mechanical or could be read out from the sensor or something like that.",
+            "Cameras are getting faster and faster, but we deal with this in the in the paper and kind of analyzing this tradeoff.",
+            "But for this talk I'm going to assume that the amount of time we have the time budget is large compared to the overhead time of the camera, so we could ignore it.",
+            "For the purpose of this talk.",
+            "OK, so the question is going to be what is the focal stack that I should capture?",
+            "But the focal staff by itself is not the final result of course, or the final result is the result of this image restoration problem.",
+            "We want a final photo, which is one that takes these images from the focal stack, merges them together, denoise is, Andy blurs them all at once, and the key question is can we predict the signal to noise ratio of this final photo an what is the focal stack that gives us the highest possible signal to noise ratio?"
+        ],
+        [
+            "OK, so we got a few key results from from our analysis.",
+            "I'll just give him up front first is that went over his small capturing.",
+            "A single shot is usually not the optimal thing to do.",
+            "Capturing a single shot is non optimal, not only for a."
+        ],
+        [
+            "Standard camera, but also surprisingly for these computational cameras as well.",
+            "These are cameras that were designed specifically for a single shot, but they can do better by dividing up the time interval and capturing multiple shots.",
+            "So what we should do?"
+        ],
+        [
+            "Do instead is to capture a focal stack of underexpose shots, but where the number of shots that we capture is optimized.",
+            "To be for the particular capture situation, taking into account the depth range of the scene, the brightness of the scene, and so on.",
+            "All of these concrete."
+        ],
+        [
+            "Actors.",
+            "And the final result is the fact that conventional cameras actually have some surprising ability when you use them properly.",
+            "When you when you capture images at the right frame rate, when you capture the right number of photos for a given time budget, and in fact they can, they can match, or they can even exceed the performance of these computational cameras.",
+            "And the gains that we get from choosing the right number of shots orthogonal innocence to the kind of games we get from modifying."
+        ],
+        [
+            "Optics.",
+            "OK, so I'm just going to talk about what is the space of different focal stacks?",
+            "How do we choose the optimal focal stack and then give?"
+        ],
+        [
+            "Some experimental results, so I think this might be clear already, but the key idea here is that we're looking for the best tradeoff in terms of between blur on one hand and noise on the other hand, and the number of shots to capture.",
+            "The frame rate is a parameter that's going to let us make that tradeoff, so on one hand we have something which is very blurry in general, but is basically a very low noise.",
+            "You can think of this as low as noise free, but very blurry.",
+            "On the other hand, we've divided up the time budget very finely.",
+            "And the images are so dark that they're dominated by noise.",
+            "We have very noisy shots, but the at a given pixel we're going to find a shot that is very low, low blur and we can have sharp but noisy images versus a single."
+        ],
+        [
+            "Sorry, image OK too.",
+            "Here's an example.",
+            "We is a real planar scene which is at the worst case depth and with a single shot it's out of focus.",
+            "This is a blurry image.",
+            "This is on a tripod.",
+            "Yeah?",
+            "So this is 1 capture strategy.",
+            "Here's here's another capture strategy, which is a focal stack of 10 images.",
+            "This is under exposed, so I'll brighten this out by a factor of 10, so multiplying the noise as well, and that multiplication and you can see here the the one of the images in this stack is much more in focus than the.",
+            "The single shot case, but of course the images here in noise that you can see that grain dancing around over the course of this video.",
+            "This is a focal stack, so I've captured 10 images at different focus settings spanning a given depth range.",
+            "Yeah it is cycling through that range and we can do something Similarly, so this is pushing it even further.",
+            "We have more noise, Anna denser sampling, and the key here is that in these with a high enough sampling rate we get images which are going to be sharp and that's going to be a good tradeoff in general."
+        ],
+        [
+            "Against noise OK?"
+        ],
+        [
+            "So how do we compute the optimal focal stack?",
+            "Well, we need.",
+            "We need some models to help us predict what the SNR of the final image is going to be an.",
+            "We use three models for that we have.",
+            "We have model for noise we need a model for how the scene is going to be focused by the optics, and we need a model for the scene itself.",
+            "So for noise we use a standard well, and I should also say that we don't know this scene in advance.",
+            "So to do this analysis we assume that the scenes at the worst case depth that some opponent has placed it somewhere and we also integrate over the appearance of all different scenes.",
+            "OK, so."
+        ],
+        [
+            "The noise model we use a standard noise model from from electrical engineering, which is an affine model of noise, where noise is actually has two components, one is single dependent.",
+            "It depends on the brightness of the scene itself, how many photons we actually collect.",
+            "An one is constant source of noise, which is read noise, which comes above from random fluctuations in the sensor.",
+            "And you can see here I'm plotting how noise actually varies as a function of the intensity of the scene.",
+            "So I'm not going to deal with that here.",
+            "Yeah, so I have.",
+            "Well, I'm dividing up the time budget to the extent that.",
+            "We don't have the thermal noise is not a limiting factor.",
+            "We don't have these very long exposures, but in fact if you took thermal into account, this would sort of push you towards taking even more exposures.",
+            "'cause this is yet another source of noise.",
+            "Which would be kind of this is something which would be ameliorated by going in that direction.",
+            "How do you focus?"
+        ],
+        [
+            "We use a standard of optics or which we look at things in the free domain and we look at the optical transfer function and basically what this tells us is so after some linear transformation of of of the image, we can see how do various frequencies in the image at a particular depth, how are they degraded so defocuses a depth dependent function and is something which also depends on the frequencies in this scene so.",
+            "If we look at something which is in focus, all of the frequencies from low to high are very well preserved.",
+            "If we look at a depth in blue here, which is extremely out of focus, only the DC component is well preserved and all the other frequencies are are basically zeroed out.",
+            "So we're left with almost completely noise in that case.",
+            "So, so this is just a concrete description of how defocus works.",
+            "And then for the scene model that's."
+        ],
+        [
+            "If we assume the scene is can be described as a set of frontal parallel patches which are distributed at random depths over the scene and to describe the appearance of those patches, we use a very simple prior which the kocian prior, which is effectively penalising gradients within within those patches.",
+            "OK, so we have the three components of our model and to combine them together to be able to predict what the signal to noise ratio of the final result is.",
+            "We have a simple Bayesian interpretation which lets us affectively treat our input images.",
+            "And and we have a beige and depth from defocus algorithm that merges all these things together.",
+            "D noises, D blurs and selects at a given pixel how to combine these images.",
+            "What the weights are from this focal stack to get the final image.",
+            "And with this have three with this model with three Gaussian components.",
+            "Gives us is a simple way of estimating depth we have.",
+            "We have evidence for depth at a particular Patch in the scene.",
+            "And and and we can resolve that estimate of depth easily.",
+            "So this is blind deconvolution.",
+            "But it's a mild easy form of blind deconvolution because we have lots of images that help in down with the actual depth of the scene.",
+            "Is it any given place?",
+            "And then, given that depth, everything is closed form because everything is Gaussian, so so so we have clear idea of what the signal to noise ratio should be given a particular set of images that we capture.",
+            "How many images should we capture that lets us predict the SNR?"
+        ],
+        [
+            "OK, so just to recap we have we have specific parameters or camera and Arsene we now have a way of predicting SNR."
+        ],
+        [
+            "And I just show some results.",
+            "Now for the simple example that I showed before, the woman's face with her, her eye.",
+            "So what I'm doing here is I'm predicting singles and noise ratio as a function of how many photos to capture in a given time budget and the red curve here is showing that for a very large time budget.",
+            "So as we would expect when we're well exposed and we have a lot of time, the best thing we can do is to capture a focal stack with a large number of images.",
+            "So when we have the time to fully span the depth of field and all of the photos in my focal stack are in fact well exposed, you should absolutely do that.",
+            "You should capture all of those photos.",
+            "On the other extreme, if we have a time budget which is extremely low, if I have almost no time at all, then the images that we capture very dark there almost completely noise, and dividing up the time budget is counterproductive.",
+            "We hardly have any information in this in this image, except for the very lowest frequencies and the optimal focal stack for me to capture.",
+            "It would be just a single photo.",
+            "So the interesting regime, of course, is everything in between.",
+            "And then we can compute that as well.",
+            "We can, we can predict for all these different time budgets.",
+            "What is the optimal number of photos that we should capture?",
+            "And you can see that the optimal number of photos to capture increases as we have more and more time."
+        ],
+        [
+            "Alright, so let me just provide a little bit of intuition about why these."
+        ],
+        [
+            "Well, why are these under exposed focal stacks so good?",
+            "I mean, even if I'm under exposed by a factor of 100, it still suggesting that I should be captured.",
+            "A lot of photos.",
+            "So so why is this the case?",
+            "Why am I being pushed towards dividing up my time budget and capturing more?"
+        ],
+        [
+            "Shots and the intuition is that let's take a look at the difference between capturing a single shot and capturing two shots in the same time budget.",
+            "And what's going on?",
+            "Is that the difference between one and two shots is that the worst case blur for both cases you can take a look at that in the two photo case, the worst case blur is actually gone down by a factor of 2.",
+            "Let's now take a look at the sensor noise an what's happening on the noise front?",
+            "Well, the photon noise.",
+            "This is the component of noise which depends on the signal.",
+            "It doesn't change at all.",
+            "We have the same total exposure time.",
+            "We're capturing the same total number of photons.",
+            "In both cases, the single shot and Bush and the two shot case an because of that, photon noise is the same in both cases.",
+            "And as you can see in this kind of diagram, the component of noise which depends on the signal itself, is much higher than the component of noise which depends just on unseen independent quantities and just random fluctuations in the sensor.",
+            "So the only price that needs to be paid, we've reduced our worst case blur by a factor of two.",
+            "But the only price that needs to be paid is a doubling of the read noise and the read noise is quite small, so you can see with this kind of comparison.",
+            "The noise is roughly the same in both cases, but by splitting up the time budget into two, we've reduced our blur, and this is going to push us towards capturing multiple shots.",
+            "Who is eggs in each one?",
+            "You have your own signal and it's in its own noise, so.",
+            "Understand correctly the noise model.",
+            "The noise depends on the value.",
+            "But there's also the value that you.",
+            "Detect depends on how much time you took it to.",
+            "The noise is proportional to the system through the time.",
+            "Not well, so one way of thinking about this is to forget about defocus and just think about capturing an image or images and then averaging those images together to get a final result.",
+            "So if.",
+            "If your noise model had only signal dependent noise and no read noise, no constant component there at all, then the noise properties of this averaged final result, whether it be 1 image or N images, would be the same in both cases.",
+            "I mean it's so.",
+            "If right, if the noise variance is linear, which is which is what you have in the photon noise case, you do pay penalty for read noise, but it's what I'm showing is that it's small in this case.",
+            "Sorry.",
+            "Phoenix.",
+            "If you take much better pictures, you get less light.",
+            "Open the sense of the whole time.",
+            "That's right.",
+            "So I mean, in practice you know that going from one to two images is, you know, this is probably a good tradeoff to make.",
+            "It is going to depend on that overhead time, but going from 2 to 200 images, that gets trickier because we're into the region of uh, where read noise is relatively strong and we're also into the region where there's overhead counts more and more times.",
+            "So there are these sort of practical constraints.",
+            "They're going to push you towards towards less images, but it's still going to be a fight between blur in one hand and noise on the other.",
+            "And finding out where the medium point is.",
+            "Two photos.",
+            "Independent.",
+            "So the read noise is is incured twice in this case instead of once in the one image case.",
+            "So even with this averaging.",
+            "You're paying a penalty with read noise being heard multiple times, so.",
+            "Right, I mean ideally you would be able to capture a single shot that captured all of the information about the scene, but we don't have that.",
+            "We don't have a camera like that, so it's sort of the interaction between these imperfect optics and the noise properties of the sensor.",
+            "Potential registration errors between the frames blur that's caused by that.",
+            "I'm not looking at that explicitly here, but I mean that's a.",
+            "It's an important practical point that if you're if you're dealing with a stack of images, then and trying to do the processing.",
+            "I mean it's important to understand this registration."
+        ],
+        [
+            "Alright, I guess it sort of go through."
+        ],
+        [
+            "Some results quickly.",
+            "I see, so here's the example we showed before and on the on the bottom what I'm showing is the result of doing the merging the denoising deconvolution and you can see it even in the one photo case we've gone from a blurry image to a sharper image.",
+            "There's some form of deconvolution which is possible, but we're not able to resolve the very finest details in the scene.",
+            "And we can do much better by by capturing more images.",
+            "Emerging those images together.",
+            "Emerging folk."
+        ],
+        [
+            "Stack together, and since this is a lab experiment that I did I was able to capture ground truth with a very large time budget and small apertures get everything in focus.",
+            "So this is my ground truth.",
+            "Then I can use that to get some numerical answers and figure out for a range of different capture strategies.",
+            "How does SNR vary as a function of number of photos?",
+            "I'd like to point out that our the measured SNR aligns very well with the both the shape and the peak of this predicted SNR, which we get through our our various models for noise and defocus and so on."
+        ],
+        [
+            "Here's a more interesting case.",
+            "This is a seem to actually have some 3D structure to it, and it's not all at the worst case depth, and you don't expect the curve to line up in this case, 'cause we're not.",
+            "Everything is not at worst case, but you can see particularly looking at the hair of this of this feature here.",
+            "That and everything else in the scene that we were able to reconstruct a much better final image as a result of merging together the focal stack as opposed to just trying to deconvolve this.",
+            "Single shot."
+        ],
+        [
+            "OK. Just some I'll go quickly here.",
+            "A comparison between how do we take a look at a standard camera, which is what I've been showing so far."
+        ],
+        [
+            "And this whole family of computational cameras.",
+            "And it turns out the only part of our analysis that changes the specific form of the defocus model.",
+            "So we can describe the focus in terms of this OTF this transfer."
+        ],
+        [
+            "Function and all of these computational cameras have their own depth dependent defocus.",
+            "They have their own depth dependent otf that we can analyze an so we can plug this into our analysis and see what comes out the other end.",
+            "And I should also say that not only do they have their own optical transfer function, we can think about these computational cameras as having their own optimal focal stack.",
+            "I mean normally there used in the single shot context, but we can use these cameras in conjunction with focal stack capture and try and figure out for each of these cameras how many photos should we be capturing."
+        ],
+        [
+            "OK, so this is a similar kind of curve as before, so for a particular time budget we can see how does SNR vary as a function of number of photos captured and for a standard camera you can see that here it's basically it's the full focal stack.",
+            "The optimal focal stack involves capturing a lot of shots 'cause we have a large time budget.",
+            "Now on top of this I'm going to super."
+        ],
+        [
+            "Pose a bunch of curves for computational cameras, so this is a mess."
+        ],
+        [
+            "So I'll go through this step by step and the first thing to see is that for a single shot for capturing a single photograph in the time budget, these computational cameras do a lot better than our conventional camera.",
+            "Conventional cameras.",
+            "The worst thing you can do in this case and.",
+            "And you know this.",
+            "This is consistent with the whole design goals of these computational cameras that were designed to cope well with the focus and do better.",
+            "The result of of capturing an image with a computational camera and then doing the image processing to invert that blur.",
+            "It's succeeding.",
+            "It's doing better.",
+            "The second thing we should observe, though, is that the optimal focal stack with a conventional camera actually does better than all of those.",
+            "So by using a conventional camera.",
+            "In the appropriate way, capturing the right frame rate the right number of shots we can actually dominate the performance there.",
+            "And the third thing to observe is that actually all of these cameras, both computational and conventional.",
+            "They all benefit from capturing more shots and the right number of shots to capture varies depending on which camera we're talking about, but that's a tradeoff that you can make."
+        ],
+        [
+            "And you can see also that even if we let these computational cameras capture the ideal number of shots for the particular capture range, we still do about the same level even with a conventional camera.",
+            "So let's take a look at this for a different time budget we can."
+        ],
+        [
+            "That similar curves for different time budget.",
+            "If I have a reduced time budget, then we can still see these things clustered together.",
+            "Kind of the relative.",
+            "Positions of these curves is pretty constant."
+        ],
+        [
+            "Your time, budget and this is something that which holds the closeness of the conventional camera.",
+            "These computational cameras, even over very reduced."
+        ],
+        [
+            "Time, budgets and and all the way down to time budgets which are so small that you basically get completely noise.",
+            "So over this whole range of different regimes we see that the standard camera does does better than expected.",
+            "The number of shots that we should be capturing changes, but that's something we can adapt to depending on the specific photography situation."
+        ],
+        [
+            "They were in.",
+            "And So what?",
+            "I've tried to argue is that it's important when comparing cameras to keep the time budget fixed in order to make a fair comparison between what's possible, but but also to allow the possibility of capturing multiple shots.",
+            "So this is kind of orthogonal design direction to manipulate the optics in other parts of the camera which have been explored in the last few years, but I think that looking at.",
+            "And multiple shots is just as important and we've seen."
+        ],
+        [
+            "Then in the commercial world of cameras, we've seen new cameras which are coming out which have basically high speed camera functionality.",
+            "An onboard processing which is able to combine together photos an.",
+            "That get results which are the result of emerging together bursts of shots, so this is becoming a reality.",
+            "And the reason why is that the this is really an effective technique in general.",
+            "So.",
+            "So under this basic principle, I think that.",
+            "Looking at defocus in this way.",
+            "Making the right kind of tradeoff between blur and noise is something we need to look at going forward, and just as a final."
+        ],
+        [
+            "Cinemark.",
+            "The same kind of technique of of capturing a focal stack of dividing up the time budget and getting multiple shots.",
+            "It's also something which is very useful as far as reducing motion blur, so this is something that we get through our technique, sort of as a bonus, effectively for free, and I think about motion blur is actually being a much easier problem than defocus in some sense, and the reason is that if I capture burst of images.",
+            "Of 100 shots.",
+            "All 100 of those shots get to contribute to all pixels in the final result compared to defocus blur or only one of those shots is going to be perfectly in focus and the rest can only be used for denoising for very of course frequencies in the image.",
+            "So on that note."
+        ],
+        [
+            "I like to point you to a web page.",
+            "Here you can take a look at the paper and there's also some code and data involved if you're curious.",
+            "Thanks a lot.",
+            "So.",
+            "Question, but first I need a clarification to see the questions reply OK.",
+            "Standing correctly, that you are optimizing the performance based on a particular fixed algorithm for combining the data.",
+            "Is that right?",
+            "That's right, that's right.",
+            "Then I would say it would be interesting to see for a fixed camera.",
+            "What would be the best SNR you could achieve?",
+            "By any other in other ways that lower bound on the performance.",
+            "And then maybe that would help define with the right algorithm.",
+            "So I guess I should qualify that a little bit that I'm not enforcing a particular algorithm so much as.",
+            "I'm describing a very specific model for which the map solution takes a special form, and you can think of that as an algorithm and for the results I've shown to be consistent between kind of the analysis and the results.",
+            "I've done this.",
+            "I've used this this algorithm, which is, which is tantamount to this kind of beige and definitely focus, but I think certainly in practice I think you could push things further as far as the quality of the results.",
+            "Visually by using.",
+            "But all manner of kind of BBM3D sort of approaches using sparsity, and doing this reconstruction, the fact that my image prior is so weak that it just have penalising gradients in a quadratic way.",
+            "You could certainly do better.",
+            "I don't think this changes the results in kind of a qualitative sense of it, just sort of shift the curve up by a few DB, but for the purpose of being consistent and having a kind of cleaner analysis between the.",
+            "Experiments and and the analytical framework.",
+            "I've have kept this to something kind of simple, but yeah, I think that's a great kind of practical question an especially if you think about computational issues on board a camera trying to do these kind of things.",
+            "You know what algorithm you use, it's probably not going to be the one that's implied by my particular map formulation, absolutely.",
+            "Easier problem."
+        ],
+        [
+            "Every image.",
+            "Combining.",
+            "But I think it principle is.",
+            "I think.",
+            "Maybe it's a little unrealistic to keep the aperture fixed, because if I if I want to take a picture of my goal is to have a large depth of field, I would just stop down.",
+            "So then the question would be for me.",
+            "Should I step down off that, take multiple images that I've done stuff down, but have a shorter exposure and I guess.",
+            "Yeah, so I.",
+            "So to answer that when you're dealing with, say, the macro context where depth of field is just such a premium, you've already stopped down.",
+            "I mean, you've already stopped down to 16 or something like you know, as far as you can get before you feel the diffraction is going to kill you in the image, quality is going to be terrible, so you've already done that and the question is just, you know, maybe my insect is moving around, so how should I use that?",
+            "At aperture?",
+            "The best I can.",
+            "So we also had a paper before this, which was explicitly looking at at aperture size and how that influences capture strategy and the answer there is that larger apertures are actually much more efficient.",
+            "And the capsule summary is that although depth and in depth of field is 1D phenomenon, the aperture is 2D and so by doubling the size of the aperture we increase the amount of light that we get by four times.",
+            "But we only sacrifice the depth of field by two times, so it's almost it's almost always a good bet to push the aperture as wide as possible.",
+            "To the limit of maybe your cameras overhead and this is introducing more images now that you need to just expand the depth of field that you're interested in.",
+            "But yeah, those two things.",
+            "I mean this whole thing could be looked at all at the same time.",
+            "You could look at that aperture defocus, motion blur on one big framework, but.",
+            "Assuming the cameras this depression limit is also.",
+            "No, no, that's true.",
+            "So I mean like in this framework is that I showed here is more detailed than just sort of this geometric view.",
+            "You know if you have otf's of any kind you can do this analysis and you know maybe you want to.",
+            "Maybe you care a lot about the corners of your image too.",
+            "So I mean you can talk about operations and things like that.",
+            "But this is kind of the basic formulation.",
+            "Christian.",
+            "Another advantage.",
+            "Exposure setup fees which are not doing right now, but you could do differing in that case or you ship.",
+            "Image and then you can actually get lower noise because the.",
+            "So just tend to have this typical noise pattern is not the same everywhere if you combine them in a clever way to get an additional advantage.",
+            "But I agree any any, absolutely any opportunity to put a kind of nonuniform sampling pattern is going to help you in the end.",
+            "I have also fishing, so how could the moon portal still during that experience?",
+            "So that wasn't there so there was a planer scene.",
+            "I mean that was a. Yeah, there was an image of an image.",
+            "No, I mean the so the crop that I showed of the sort of the Brown Bigfoot toy that's a real 3D toy.",
+            "I mean, that's not.",
+            "That's not an image of an image, but I wanted to have it this a test case that would show.",
+            "As the limit of the method, which is how I plane at the very worst case depth possible.",
+            "I mean, if you knew where that plane was, you would just focus on it, but I'm not knowing anything about this scene.",
+            "That's the kind of worst case you have to deal with.",
+            "More questions."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, so the basic problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to talk about is making efficient use of a time budget, but also addressing the question of of how do we know when it's useful to divide up a time budget and capture multiple photos?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is joint work with my PhD supervisor.",
+                    "label": 0
+                },
+                {
+                    "sent": "Curious with Lawson also collaborators at MIT.",
+                    "label": 0
+                },
+                {
+                    "sent": "Fred, Rhonda and Bill for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So just to provide a bit of context, I think like a lot of people I've been been really inspired by this whole this vast sort of zoo.",
+                    "label": 0
+                },
+                {
+                    "sent": "This huge family of of new computational cameras that have come out in the last few years, and these are some really strange cameras compared to to what we're used to with the conventional photograph and the main distinction is that the images that these cameras produce are not directly usable.",
+                    "label": 0
+                },
+                {
+                    "sent": "They require a form of image processing before we can extract information from them.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so, in a standard photography, the image that we get in the end is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is very similar to the image information which is recorded directly on the sensor of the camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "But these computational cameras they show up here are quite different than what they do is that they introduce an intermediate step in between, and they do this by manipulating the optics of the camera in some kind of interesting way.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what this does is it gives us this intermediate raw image that then requires image processing to get to the final image and the game, so to speak.",
+                    "label": 0
+                },
+                {
+                    "sent": "In computational camera design is figuring out the right combination of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Optics an image processing that lets us get to that final step and then encodes information that's useful for a particular application for particular imaging task.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, so I've been really interested in this and a focus of my work has been trying to understand this vast family of of different computational camera designs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Figure out what the tradeoffs are and how we can really compare them in some, some fairway.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now in this talk though, I'm going to talk about a really simple extension of this framework that I'm going to argue makes a lot of difference, which is allowing the possibility of not just capturing a single intermediate image with one of these computational cameras, but in a given time budget dividing that time budget up and capturing multiple shots.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then what I'm going to show is that in many practical situations, choosing the right number of photographs to capture is or the frame rate equivalently of your video camera is a really crucial decision to make an making that decision properly can fact dominate the kind of games that you get by playing with the optics.",
+                    "label": 0
+                },
+                {
+                    "sent": "For some of these imaging problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that was kind of counter intuitive.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Are exposed that now and just to to give the talks on focus.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to concentrate on a particular image Ng problem which is which is handling the focus which is trying to get the highest possible quality image in a fixed time budget.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the case where we have a large depth of field that we're interested in capturing.",
+                    "label": 1
+                },
+                {
+                    "sent": "And remember the depth of field means it's the region in the scene in depth that we can capture in focus.",
+                    "label": 0
+                },
+                {
+                    "sent": "Capture sharp images or the optics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Allow us to capture images at some acceptable level of sharpness.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in the context of these computational cameras, we can think about depth of field as getting an acceptable level of sharpness after we do the image processing after the deblurring and the denoising and so on has been applied.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what are the issues in doing this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so first we obviously need to account for for defocus blur and defocus.",
+                    "label": 1
+                },
+                {
+                    "sent": "Blur is a problem if Arsene spans a really large range of depths.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are camera may only be able to focus on a small region of depth in the scene?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is particularly a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, if the scene is close to the camera, depth of field becomes really crucial in this context of macro photography and micross.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Speak.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the second artifact that we need to contend with is is noise, and this is particularly a problem if I'm going to divide up my time, budget and capture images quickly.",
+                    "label": 1
+                },
+                {
+                    "sent": "Capture fast exposures where there's not a lot of light for each shot noise from the sensor becomes more and more dominant, so so these are two main artifacts, then I'm going to need to trade off between each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the final artifact that you need to contend with in any kind of photographic scenario is dealing with motion blur, and this is a problem if we're taking shots which are very long exposures, or if the camera or the scene is moving quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm not going to talk explicitly about motion blur until maybe a few words at the end of the talk, but I just want to point out that the kind of method that I'm using to deal with defocus blur is also going to help us with the problem of motion blur at the same time.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, So what is our approach?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we saw this in the first talk of of the workshop in microscopy and macro photography are very common approach to dealing with this problem of having a very large depth of field that needs to be captured is to take multiple shots to focus a set of images differently from front to back, obtained a stack of shots and then merge those together to get a single in focus shot.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is sort of focal stack merging.",
+                    "label": 1
+                },
+                {
+                    "sent": "And of course, this sort of focal stack merging is doesn't apply just to the microscopy.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Name, but also applies in having more general settings in photography, but here in this talk the key difference and the key novelty is the fact that we're going to be analyzing the space of of these kind of capture strategies under a time constraint.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have a time budget in which we are able to capture a given focal stack.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's our approach and the key questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just a few questions right away, and then the first of them is given this time budget.",
+                    "label": 0
+                },
+                {
+                    "sent": "How many photos should we be capturing in that time budget to give the best possible results.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what's the optimal number of photos to capture?",
+                    "label": 0
+                },
+                {
+                    "sent": "And the second question is, well, this approach of capturing focal stacks is quite different than to have a single shot with a strange computational camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "And how do these two different approaches compare to each other?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is which is better?",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can even generalize this a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can say, well, what if I use the two approaches together at the same time?",
+                    "label": 0
+                },
+                {
+                    "sent": "If I have a computational camera in my hand, is it worthwhile for me to use that computational camera, capture multiple shots, use a focal stack, and merge?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Starting to get a final result.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to be more specific, we have time budget.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have a range of depths we're interested in capturing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know the brightness of the scene and our goal is to maximize the SNR of the of the final reconstruction of the of the image that we get at the end of this process.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is equivalent to really trading off between these two artifacts of defocus blur in one hand and noise on the other.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we know the camera specs.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'm going to assume that a bunch of things about the camera fixed the aperture sizes, fixed the gain of the cameras fixed.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not controlling the illumination, and to simplify things in this treatment, there's no motion blur that we have to deal with.",
+                    "label": 1
+                },
+                {
+                    "sent": "So, So what is left or what?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Can I control well so I can control the number of photos to capture and then for each of those photos the question is what is the exposure time I should allocate to each of these shots?",
+                    "label": 1
+                },
+                {
+                    "sent": "And then what is the focus setting that I should allocate to each of these shots as well so particular capture strategy can be described in these terms and we can visualize it as a sort of tiling this space of depth versus time we have a given time budget and so one example of that is just to capture a single shot.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in this case we have a very large depth of field, so the depth of field of that single shot doesn't span the whole range.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of the scene is going to be out of focus, but this is 1 strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could do something else we could do is to divide up that time budget and capturing multiple shots.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a focal stack is we're visualizing right here, and each of these shots is darker.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's under exposed because it's been allocated less time, but now we're spending the depth range and in a more complete way.",
+                    "label": 0
+                },
+                {
+                    "sent": "And just as a practical point, I should point out that real cameras have an overhead which is have amount of time between shots were.",
+                    "label": 0
+                },
+                {
+                    "sent": "Effectively you can't capture anything and this could be mechanical or could be read out from the sensor or something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cameras are getting faster and faster, but we deal with this in the in the paper and kind of analyzing this tradeoff.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for this talk I'm going to assume that the amount of time we have the time budget is large compared to the overhead time of the camera, so we could ignore it.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the purpose of this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the question is going to be what is the focal stack that I should capture?",
+                    "label": 0
+                },
+                {
+                    "sent": "But the focal staff by itself is not the final result of course, or the final result is the result of this image restoration problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "We want a final photo, which is one that takes these images from the focal stack, merges them together, denoise is, Andy blurs them all at once, and the key question is can we predict the signal to noise ratio of this final photo an what is the focal stack that gives us the highest possible signal to noise ratio?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so we got a few key results from from our analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll just give him up front first is that went over his small capturing.",
+                    "label": 0
+                },
+                {
+                    "sent": "A single shot is usually not the optimal thing to do.",
+                    "label": 1
+                },
+                {
+                    "sent": "Capturing a single shot is non optimal, not only for a.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Standard camera, but also surprisingly for these computational cameras as well.",
+                    "label": 1
+                },
+                {
+                    "sent": "These are cameras that were designed specifically for a single shot, but they can do better by dividing up the time interval and capturing multiple shots.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we should do?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Do instead is to capture a focal stack of underexpose shots, but where the number of shots that we capture is optimized.",
+                    "label": 0
+                },
+                {
+                    "sent": "To be for the particular capture situation, taking into account the depth range of the scene, the brightness of the scene, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these concrete.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Actors.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the final result is the fact that conventional cameras actually have some surprising ability when you use them properly.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you when you capture images at the right frame rate, when you capture the right number of photos for a given time budget, and in fact they can, they can match, or they can even exceed the performance of these computational cameras.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the gains that we get from choosing the right number of shots orthogonal innocence to the kind of games we get from modifying.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Optics.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so I'm just going to talk about what is the space of different focal stacks?",
+                    "label": 1
+                },
+                {
+                    "sent": "How do we choose the optimal focal stack and then give?",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Some experimental results, so I think this might be clear already, but the key idea here is that we're looking for the best tradeoff in terms of between blur on one hand and noise on the other hand, and the number of shots to capture.",
+                    "label": 0
+                },
+                {
+                    "sent": "The frame rate is a parameter that's going to let us make that tradeoff, so on one hand we have something which is very blurry in general, but is basically a very low noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can think of this as low as noise free, but very blurry.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, we've divided up the time budget very finely.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the images are so dark that they're dominated by noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have very noisy shots, but the at a given pixel we're going to find a shot that is very low, low blur and we can have sharp but noisy images versus a single.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Sorry, image OK too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "We is a real planar scene which is at the worst case depth and with a single shot it's out of focus.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a blurry image.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is on a tripod.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is 1 capture strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's here's another capture strategy, which is a focal stack of 10 images.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is under exposed, so I'll brighten this out by a factor of 10, so multiplying the noise as well, and that multiplication and you can see here the the one of the images in this stack is much more in focus than the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The single shot case, but of course the images here in noise that you can see that grain dancing around over the course of this video.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a focal stack, so I've captured 10 images at different focus settings spanning a given depth range.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah it is cycling through that range and we can do something Similarly, so this is pushing it even further.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have more noise, Anna denser sampling, and the key here is that in these with a high enough sampling rate we get images which are going to be sharp and that's going to be a good tradeoff in general.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Against noise OK?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So how do we compute the optimal focal stack?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, we need.",
+                    "label": 1
+                },
+                {
+                    "sent": "We need some models to help us predict what the SNR of the final image is going to be an.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use three models for that we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have model for noise we need a model for how the scene is going to be focused by the optics, and we need a model for the scene itself.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for noise we use a standard well, and I should also say that we don't know this scene in advance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to do this analysis we assume that the scenes at the worst case depth that some opponent has placed it somewhere and we also integrate over the appearance of all different scenes.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The noise model we use a standard noise model from from electrical engineering, which is an affine model of noise, where noise is actually has two components, one is single dependent.",
+                    "label": 0
+                },
+                {
+                    "sent": "It depends on the brightness of the scene itself, how many photons we actually collect.",
+                    "label": 0
+                },
+                {
+                    "sent": "An one is constant source of noise, which is read noise, which comes above from random fluctuations in the sensor.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see here I'm plotting how noise actually varies as a function of the intensity of the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm not going to deal with that here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so I have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I'm dividing up the time budget to the extent that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't have the thermal noise is not a limiting factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't have these very long exposures, but in fact if you took thermal into account, this would sort of push you towards taking even more exposures.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause this is yet another source of noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which would be kind of this is something which would be ameliorated by going in that direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you focus?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We use a standard of optics or which we look at things in the free domain and we look at the optical transfer function and basically what this tells us is so after some linear transformation of of of the image, we can see how do various frequencies in the image at a particular depth, how are they degraded so defocuses a depth dependent function and is something which also depends on the frequencies in this scene so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we look at something which is in focus, all of the frequencies from low to high are very well preserved.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we look at a depth in blue here, which is extremely out of focus, only the DC component is well preserved and all the other frequencies are are basically zeroed out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're left with almost completely noise in that case.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, so this is just a concrete description of how defocus works.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then for the scene model that's.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If we assume the scene is can be described as a set of frontal parallel patches which are distributed at random depths over the scene and to describe the appearance of those patches, we use a very simple prior which the kocian prior, which is effectively penalising gradients within within those patches.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so we have the three components of our model and to combine them together to be able to predict what the signal to noise ratio of the final result is.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a simple Bayesian interpretation which lets us affectively treat our input images.",
+                    "label": 0
+                },
+                {
+                    "sent": "And and we have a beige and depth from defocus algorithm that merges all these things together.",
+                    "label": 0
+                },
+                {
+                    "sent": "D noises, D blurs and selects at a given pixel how to combine these images.",
+                    "label": 0
+                },
+                {
+                    "sent": "What the weights are from this focal stack to get the final image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And with this have three with this model with three Gaussian components.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gives us is a simple way of estimating depth we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have evidence for depth at a particular Patch in the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "And and and we can resolve that estimate of depth easily.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is blind deconvolution.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's a mild easy form of blind deconvolution because we have lots of images that help in down with the actual depth of the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it any given place?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then, given that depth, everything is closed form because everything is Gaussian, so so so we have clear idea of what the signal to noise ratio should be given a particular set of images that we capture.",
+                    "label": 0
+                },
+                {
+                    "sent": "How many images should we capture that lets us predict the SNR?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so just to recap we have we have specific parameters or camera and Arsene we now have a way of predicting SNR.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And I just show some results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now for the simple example that I showed before, the woman's face with her, her eye.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I'm doing here is I'm predicting singles and noise ratio as a function of how many photos to capture in a given time budget and the red curve here is showing that for a very large time budget.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as we would expect when we're well exposed and we have a lot of time, the best thing we can do is to capture a focal stack with a large number of images.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when we have the time to fully span the depth of field and all of the photos in my focal stack are in fact well exposed, you should absolutely do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should capture all of those photos.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other extreme, if we have a time budget which is extremely low, if I have almost no time at all, then the images that we capture very dark there almost completely noise, and dividing up the time budget is counterproductive.",
+                    "label": 0
+                },
+                {
+                    "sent": "We hardly have any information in this in this image, except for the very lowest frequencies and the optimal focal stack for me to capture.",
+                    "label": 1
+                },
+                {
+                    "sent": "It would be just a single photo.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the interesting regime, of course, is everything in between.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we can compute that as well.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can, we can predict for all these different time budgets.",
+                    "label": 0
+                },
+                {
+                    "sent": "What is the optimal number of photos that we should capture?",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see that the optimal number of photos to capture increases as we have more and more time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so let me just provide a little bit of intuition about why these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Well, why are these under exposed focal stacks so good?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, even if I'm under exposed by a factor of 100, it still suggesting that I should be captured.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of photos.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so why is this the case?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why am I being pushed towards dividing up my time budget and capturing more?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Shots and the intuition is that let's take a look at the difference between capturing a single shot and capturing two shots in the same time budget.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what's going on?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that the difference between one and two shots is that the worst case blur for both cases you can take a look at that in the two photo case, the worst case blur is actually gone down by a factor of 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's now take a look at the sensor noise an what's happening on the noise front?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, the photon noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the component of noise which depends on the signal.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't change at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have the same total exposure time.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're capturing the same total number of photons.",
+                    "label": 0
+                },
+                {
+                    "sent": "In both cases, the single shot and Bush and the two shot case an because of that, photon noise is the same in both cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as you can see in this kind of diagram, the component of noise which depends on the signal itself, is much higher than the component of noise which depends just on unseen independent quantities and just random fluctuations in the sensor.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the only price that needs to be paid, we've reduced our worst case blur by a factor of two.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the only price that needs to be paid is a doubling of the read noise and the read noise is quite small, so you can see with this kind of comparison.",
+                    "label": 1
+                },
+                {
+                    "sent": "The noise is roughly the same in both cases, but by splitting up the time budget into two, we've reduced our blur, and this is going to push us towards capturing multiple shots.",
+                    "label": 0
+                },
+                {
+                    "sent": "Who is eggs in each one?",
+                    "label": 0
+                },
+                {
+                    "sent": "You have your own signal and it's in its own noise, so.",
+                    "label": 1
+                },
+                {
+                    "sent": "Understand correctly the noise model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The noise depends on the value.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's also the value that you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Detect depends on how much time you took it to.",
+                    "label": 0
+                },
+                {
+                    "sent": "The noise is proportional to the system through the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not well, so one way of thinking about this is to forget about defocus and just think about capturing an image or images and then averaging those images together to get a final result.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if.",
+                    "label": 0
+                },
+                {
+                    "sent": "If your noise model had only signal dependent noise and no read noise, no constant component there at all, then the noise properties of this averaged final result, whether it be 1 image or N images, would be the same in both cases.",
+                    "label": 1
+                },
+                {
+                    "sent": "I mean it's so.",
+                    "label": 0
+                },
+                {
+                    "sent": "If right, if the noise variance is linear, which is which is what you have in the photon noise case, you do pay penalty for read noise, but it's what I'm showing is that it's small in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "Phoenix.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you take much better pictures, you get less light.",
+                    "label": 0
+                },
+                {
+                    "sent": "Open the sense of the whole time.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I mean, in practice you know that going from one to two images is, you know, this is probably a good tradeoff to make.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is going to depend on that overhead time, but going from 2 to 200 images, that gets trickier because we're into the region of uh, where read noise is relatively strong and we're also into the region where there's overhead counts more and more times.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there are these sort of practical constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're going to push you towards towards less images, but it's still going to be a fight between blur in one hand and noise on the other.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finding out where the medium point is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two photos.",
+                    "label": 0
+                },
+                {
+                    "sent": "Independent.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the read noise is is incured twice in this case instead of once in the one image case.",
+                    "label": 1
+                },
+                {
+                    "sent": "So even with this averaging.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're paying a penalty with read noise being heard multiple times, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, I mean ideally you would be able to capture a single shot that captured all of the information about the scene, but we don't have that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't have a camera like that, so it's sort of the interaction between these imperfect optics and the noise properties of the sensor.",
+                    "label": 0
+                },
+                {
+                    "sent": "Potential registration errors between the frames blur that's caused by that.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not looking at that explicitly here, but I mean that's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an important practical point that if you're if you're dealing with a stack of images, then and trying to do the processing.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean it's important to understand this registration.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, I guess it sort of go through.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Some results quickly.",
+                    "label": 0
+                },
+                {
+                    "sent": "I see, so here's the example we showed before and on the on the bottom what I'm showing is the result of doing the merging the denoising deconvolution and you can see it even in the one photo case we've gone from a blurry image to a sharper image.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some form of deconvolution which is possible, but we're not able to resolve the very finest details in the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can do much better by by capturing more images.",
+                    "label": 0
+                },
+                {
+                    "sent": "Emerging those images together.",
+                    "label": 0
+                },
+                {
+                    "sent": "Emerging folk.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Stack together, and since this is a lab experiment that I did I was able to capture ground truth with a very large time budget and small apertures get everything in focus.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is my ground truth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I can use that to get some numerical answers and figure out for a range of different capture strategies.",
+                    "label": 0
+                },
+                {
+                    "sent": "How does SNR vary as a function of number of photos?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to point out that our the measured SNR aligns very well with the both the shape and the peak of this predicted SNR, which we get through our our various models for noise and defocus and so on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here's a more interesting case.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a seem to actually have some 3D structure to it, and it's not all at the worst case depth, and you don't expect the curve to line up in this case, 'cause we're not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everything is not at worst case, but you can see particularly looking at the hair of this of this feature here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That and everything else in the scene that we were able to reconstruct a much better final image as a result of merging together the focal stack as opposed to just trying to deconvolve this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Single shot.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK. Just some I'll go quickly here.",
+                    "label": 0
+                },
+                {
+                    "sent": "A comparison between how do we take a look at a standard camera, which is what I've been showing so far.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this whole family of computational cameras.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it turns out the only part of our analysis that changes the specific form of the defocus model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we can describe the focus in terms of this OTF this transfer.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Function and all of these computational cameras have their own depth dependent defocus.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have their own depth dependent otf that we can analyze an so we can plug this into our analysis and see what comes out the other end.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I should also say that not only do they have their own optical transfer function, we can think about these computational cameras as having their own optimal focal stack.",
+                    "label": 1
+                },
+                {
+                    "sent": "I mean normally there used in the single shot context, but we can use these cameras in conjunction with focal stack capture and try and figure out for each of these cameras how many photos should we be capturing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so this is a similar kind of curve as before, so for a particular time budget we can see how does SNR vary as a function of number of photos captured and for a standard camera you can see that here it's basically it's the full focal stack.",
+                    "label": 1
+                },
+                {
+                    "sent": "The optimal focal stack involves capturing a lot of shots 'cause we have a large time budget.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now on top of this I'm going to super.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Pose a bunch of curves for computational cameras, so this is a mess.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I'll go through this step by step and the first thing to see is that for a single shot for capturing a single photograph in the time budget, these computational cameras do a lot better than our conventional camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "Conventional cameras.",
+                    "label": 0
+                },
+                {
+                    "sent": "The worst thing you can do in this case and.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you know this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is consistent with the whole design goals of these computational cameras that were designed to cope well with the focus and do better.",
+                    "label": 1
+                },
+                {
+                    "sent": "The result of of capturing an image with a computational camera and then doing the image processing to invert that blur.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's succeeding.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's doing better.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second thing we should observe, though, is that the optimal focal stack with a conventional camera actually does better than all of those.",
+                    "label": 1
+                },
+                {
+                    "sent": "So by using a conventional camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the appropriate way, capturing the right frame rate the right number of shots we can actually dominate the performance there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the third thing to observe is that actually all of these cameras, both computational and conventional.",
+                    "label": 0
+                },
+                {
+                    "sent": "They all benefit from capturing more shots and the right number of shots to capture varies depending on which camera we're talking about, but that's a tradeoff that you can make.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And you can see also that even if we let these computational cameras capture the ideal number of shots for the particular capture range, we still do about the same level even with a conventional camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's take a look at this for a different time budget we can.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That similar curves for different time budget.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I have a reduced time budget, then we can still see these things clustered together.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of the relative.",
+                    "label": 0
+                },
+                {
+                    "sent": "Positions of these curves is pretty constant.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Your time, budget and this is something that which holds the closeness of the conventional camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "These computational cameras, even over very reduced.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Time, budgets and and all the way down to time budgets which are so small that you basically get completely noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "So over this whole range of different regimes we see that the standard camera does does better than expected.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of shots that we should be capturing changes, but that's something we can adapt to depending on the specific photography situation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "They were in.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what?",
+                    "label": 0
+                },
+                {
+                    "sent": "I've tried to argue is that it's important when comparing cameras to keep the time budget fixed in order to make a fair comparison between what's possible, but but also to allow the possibility of capturing multiple shots.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is kind of orthogonal design direction to manipulate the optics in other parts of the camera which have been explored in the last few years, but I think that looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "And multiple shots is just as important and we've seen.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Then in the commercial world of cameras, we've seen new cameras which are coming out which have basically high speed camera functionality.",
+                    "label": 0
+                },
+                {
+                    "sent": "An onboard processing which is able to combine together photos an.",
+                    "label": 0
+                },
+                {
+                    "sent": "That get results which are the result of emerging together bursts of shots, so this is becoming a reality.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason why is that the this is really an effective technique in general.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "So under this basic principle, I think that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looking at defocus in this way.",
+                    "label": 0
+                },
+                {
+                    "sent": "Making the right kind of tradeoff between blur and noise is something we need to look at going forward, and just as a final.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Cinemark.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same kind of technique of of capturing a focal stack of dividing up the time budget and getting multiple shots.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's also something which is very useful as far as reducing motion blur, so this is something that we get through our technique, sort of as a bonus, effectively for free, and I think about motion blur is actually being a much easier problem than defocus in some sense, and the reason is that if I capture burst of images.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of 100 shots.",
+                    "label": 0
+                },
+                {
+                    "sent": "All 100 of those shots get to contribute to all pixels in the final result compared to defocus blur or only one of those shots is going to be perfectly in focus and the rest can only be used for denoising for very of course frequencies in the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on that note.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I like to point you to a web page.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here you can take a look at the paper and there's also some code and data involved if you're curious.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Question, but first I need a clarification to see the questions reply OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Standing correctly, that you are optimizing the performance based on a particular fixed algorithm for combining the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right, that's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I would say it would be interesting to see for a fixed camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "What would be the best SNR you could achieve?",
+                    "label": 0
+                },
+                {
+                    "sent": "By any other in other ways that lower bound on the performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then maybe that would help define with the right algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I guess I should qualify that a little bit that I'm not enforcing a particular algorithm so much as.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm describing a very specific model for which the map solution takes a special form, and you can think of that as an algorithm and for the results I've shown to be consistent between kind of the analysis and the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've done this.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've used this this algorithm, which is, which is tantamount to this kind of beige and definitely focus, but I think certainly in practice I think you could push things further as far as the quality of the results.",
+                    "label": 0
+                },
+                {
+                    "sent": "Visually by using.",
+                    "label": 0
+                },
+                {
+                    "sent": "But all manner of kind of BBM3D sort of approaches using sparsity, and doing this reconstruction, the fact that my image prior is so weak that it just have penalising gradients in a quadratic way.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could certainly do better.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't think this changes the results in kind of a qualitative sense of it, just sort of shift the curve up by a few DB, but for the purpose of being consistent and having a kind of cleaner analysis between the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Experiments and and the analytical framework.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've have kept this to something kind of simple, but yeah, I think that's a great kind of practical question an especially if you think about computational issues on board a camera trying to do these kind of things.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know what algorithm you use, it's probably not going to be the one that's implied by my particular map formulation, absolutely.",
+                    "label": 0
+                },
+                {
+                    "sent": "Easier problem.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Every image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Combining.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I think it principle is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe it's a little unrealistic to keep the aperture fixed, because if I if I want to take a picture of my goal is to have a large depth of field, I would just stop down.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then the question would be for me.",
+                    "label": 0
+                },
+                {
+                    "sent": "Should I step down off that, take multiple images that I've done stuff down, but have a shorter exposure and I guess.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so I.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to answer that when you're dealing with, say, the macro context where depth of field is just such a premium, you've already stopped down.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you've already stopped down to 16 or something like you know, as far as you can get before you feel the diffraction is going to kill you in the image, quality is going to be terrible, so you've already done that and the question is just, you know, maybe my insect is moving around, so how should I use that?",
+                    "label": 0
+                },
+                {
+                    "sent": "At aperture?",
+                    "label": 0
+                },
+                {
+                    "sent": "The best I can.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we also had a paper before this, which was explicitly looking at at aperture size and how that influences capture strategy and the answer there is that larger apertures are actually much more efficient.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the capsule summary is that although depth and in depth of field is 1D phenomenon, the aperture is 2D and so by doubling the size of the aperture we increase the amount of light that we get by four times.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we only sacrifice the depth of field by two times, so it's almost it's almost always a good bet to push the aperture as wide as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "To the limit of maybe your cameras overhead and this is introducing more images now that you need to just expand the depth of field that you're interested in.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yeah, those two things.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean this whole thing could be looked at all at the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could look at that aperture defocus, motion blur on one big framework, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Assuming the cameras this depression limit is also.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, no, that's true.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I mean like in this framework is that I showed here is more detailed than just sort of this geometric view.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know if you have otf's of any kind you can do this analysis and you know maybe you want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe you care a lot about the corners of your image too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I mean you can talk about operations and things like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is kind of the basic formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Christian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another advantage.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exposure setup fees which are not doing right now, but you could do differing in that case or you ship.",
+                    "label": 0
+                },
+                {
+                    "sent": "Image and then you can actually get lower noise because the.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just tend to have this typical noise pattern is not the same everywhere if you combine them in a clever way to get an additional advantage.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I agree any any, absolutely any opportunity to put a kind of nonuniform sampling pattern is going to help you in the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have also fishing, so how could the moon portal still during that experience?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that wasn't there so there was a planer scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean that was a. Yeah, there was an image of an image.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, I mean the so the crop that I showed of the sort of the Brown Bigfoot toy that's a real 3D toy.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, that's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not an image of an image, but I wanted to have it this a test case that would show.",
+                    "label": 0
+                },
+                {
+                    "sent": "As the limit of the method, which is how I plane at the very worst case depth possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, if you knew where that plane was, you would just focus on it, but I'm not knowing anything about this scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the kind of worst case you have to deal with.",
+                    "label": 0
+                },
+                {
+                    "sent": "More questions.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

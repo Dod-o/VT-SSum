@@ -1,0 +1,1583 @@
+{
+    "id": "3edu7ly5eazhimnfk3jr2uc7kp4gnkeo",
+    "title": "One-Pass Approximate k-Means Optimization",
+    "info": {
+        "author": [
+            "Claire Monteleoni, Center for Computational Learning Systems, Columbia University"
+        ],
+        "published": "Aug. 26, 2009",
+        "recorded": "June 2009",
+        "category": [
+            "Top->Computer Science->Optimization Methods"
+        ]
+    },
+    "url": "http://videolectures.net/icml09_monteleoni_opakmo/",
+    "segmentation": [
+        [
+            "Thanks so this is joint work with knee rylon at Google Research an ragesh Jaiswal at Columbia.",
+            "And this is a chance for people that are just here to hear about bandits on line learning and regret to take a nap.",
+            "This is the intermission.",
+            "I'm talking about streaming clustering."
+        ],
+        [
+            "So, um.",
+            "The streaming setting is similar to the online learning setting, but the data stream is finite.",
+            "And you only need to output the classifier or the prediction at the end, but it's still motivated by a very large datasets.",
+            "Or maybe your datasets not so large, but your processing capacity is small, 'cause you're a sensor or a mobile robot, or a handheld device.",
+            "And still you want algorithms that are very lightweight in terms of computation and memory.",
+            "And that make only one Passover the data even though it is a finite data set.",
+            "And so this paper is about unsupervised learning in the streaming setting.",
+            "And to relate it a little bit back to this workshop.",
+            "The feedback it is streaming optimization problem.",
+            "The feedback is extremely limited.",
+            "There are no labels, but you can compute intermediate values of the objective function.",
+            "However they may not help you very much because they're on point seen so far.",
+            "We're not making any distributional assumptions on the data, so you could see subsets on which the objective function doesn't tell you much 'cause you have adversarial data, for example.",
+            "And so in the streaming setting, we're going to be studying clustering with respect to the K means clustering objective now.",
+            "First, let me differentiate this from an algorithm that people call K means the hard assignment EM algorithm I'm going to call that Lloyd's algorithm, because here I'm talking about the K means objective.",
+            "An why do you care about clustering objective?"
+        ],
+        [
+            "So you can run a clustering algorithm, and how do you know if it's good?",
+            "Well, you can have a domain experts say I like the way your clusters look, but if you don't have a domain expert and you're designing generic algorithms, how do you judge the output of clustering algorithms without any idea assumptions or well separated means assumptions on the data, so we want no assumptions on the data and one thing you can do is how does the clustering that your algorithm outputs.",
+            "How does it do with respect to some objective function so?",
+            "People talk about the Caymans objective function, and it has some theoretical basis, and so we're going to see that.",
+            "So it's the following.",
+            "You're given a finite point set to cluster in Euclidean space.",
+            "The set X and you want to find K. We're going to column cluster centers C, which is also some subset of Euclidean space.",
+            "It does not have to be a subset of XOK such that the distance between all the points in your.",
+            "Set the L2 distance squared to the closest center in C. That sum is minimized.",
+            "So this Phi Subsea I'm going to refer to both as the K means objective or the K means cost.",
+            "Later, I'm going to also call it a potential.",
+            "So it turns out that if you just want to optimize this, that's NP hard even for small K, and that's due to junious Freeze can Impala.",
+            "Mentioned what we're typically calling that K means algorithm.",
+            "In this talk I'm going to call Lloyd's algorithm.",
+            "He came out with it in terms of vector quantization.",
+            "It's very fast to converge, but it actually lacks any approximation guarantee with respect to the K means objective, OK. And usually it's due to bad initialization when it doesn't do well."
+        ],
+        [
+            "So there's as soon as we talk about the field of streaming or the field of clustering, there's a lot of related work.",
+            "I'm only going to mention 2 pieces of work.",
+            "I know there's been work in the cold, a nice email community on clustering, but really the most related pieces of work for this talk are the following.",
+            "So in the batch setting, there's been a recent algorithm called K means plus plus, which probably approximates the K means objective by a multiplicative factor of O log K. That's in the batch setting and then also guja at all, and this was originally infox 2000.",
+            "Gave 4K meteoroid a slightly different objective way to do streaming clustering.",
+            "So if you have access to batch algorithms that rabs approximation algorithms, meaning they approximate the optimal value of the K means objective by a multiplicative factor of B and they output at most 8 * K centers OK. Then you can get a streaming version using divide and conquer.",
+            "That is also a Navy approximation too.",
+            "Other objective comedian.",
+            "These are the works I'm going to be talking about more in depth and."
+        ],
+        [
+            "Let me just motivate the goal of this work so.",
+            "We don't want to make assumptions on the data, so we're going to evaluate clustering algorithms based on how well they approximate the K means objective.",
+            "There aren't that many algorithms that have such guarantees.",
+            "In particular, the K means algorithm doesn't have one.",
+            "It's hard enough in batch.",
+            "Let's now do it in either the on line or the streaming setting, and we're going to the streaming setting.",
+            "And along the way, we actually contribute to the literature just on batch clustering.",
+            "Because we provide so K means plus plus is an algorithm that outputs exactly K centers with a log K approximation to the objective, we're going to alter the algorithm and its analysis to give a batch algorithm that outputs.",
+            "Log K log K centers but has a constant approximation of the objective.",
+            "And this may suggest future work on sort of how to approach that continuum between trading off between how well you approximate Kayan, how well you approximate the came in subjective.",
+            "So this is what we do.",
+            "We do that extension.",
+            "We show that the analysis works for a be approximate K means clustering for that Guha, divide and conquer.",
+            "And then what we get is a one pass streaming algorithm.",
+            "That's a long day approximation to came in.",
+            "So essentially we take, we matched the positive result of K means plus plus.",
+            "But in the streaming setting.",
+            "And then we also look at tradeoffs between.",
+            "If you really want to save memory, what's your effect on the approximation?",
+            "And we do some experiments, so let me jump in and."
+        ],
+        [
+            "Tell you what K means.",
+            "Plus plus is an first.",
+            "Let me just note the main problem with Lloyd's algorithm.",
+            "What you probably think of the K means algorithm is often due to bad initialization.",
+            "So these folks that invented key means.",
+            "Plus, we're just focusing on how to initialize.",
+            "Kimmins, so their idea was they give a very simple initialization procedure, which Allstate shortly.",
+            "That you want to do before you run Lloyd's algorithm.",
+            "But then when they approve the good approximation guarantee of the combined algorithm.",
+            "You can stop after the seeding procedure.",
+            "All you have to do is seed using this technique and then you get a log K approximations.",
+            "That K means objective and then the idea is Lloyd should only make it better but still can't prove anything about that.",
+            "So for the purposes of this talk, all I'm going to talk about are the seeding procedures.",
+            "With those we can prove good approximation.",
+            "OK, so this is a very simple technique.",
+            "Again, we're back in the batch setting, so you can really forget about online or streaming for this part of the talk.",
+            "Pick one center at random from your point set.",
+            "And let that be the first center and then you choose your next center.",
+            "Just with probability proportional to the points distance to the current subset of centers squared.",
+            "So you're going to recompute this distribution and renormalize every time you add 1 center, OK?",
+            "It's very simple and with that they prove the log K approximation.",
+            "I'm not going to go into their proof.",
+            "But we're going to use a couple of their lemmas and I will go into our proof."
+        ],
+        [
+            "So, OK, we've just seen that.",
+            "You can return case centers with the log K approximation to the objective.",
+            "Can we design A variant that has a constant approximation to the objective, but you return K log K centers?",
+            "OK, so the algorithm is not that much different than theirs.",
+            "OK, we just do everything that they do log K times to keep in mind though.",
+            "We're only going to update, see and therefore this D squared probability after a batch of three log K draws.",
+            "I mean, it should be clear from the way I say the algorithm just want to emphasize that, OK, same thing, but you do everything in rounds of log K of three, OK?"
+        ],
+        [
+            "OK so um.",
+            "So what we can show is that this yields a constant approximation.",
+            "To the Caymans objective, and it outputs OK log K centers is actually only holds the probability of quarter, but we amplify by running it Logn times to get it told with probability 1 -- 1 of them OK.",
+            "So here's the."
+        ],
+        [
+            "Idea?",
+            "So by the way, opt is of course the minimum value of the K means objective for fixed point set X, but I'm going to overload that terminology twice.",
+            "I'm also using up to refer to the set of centers that achieves that minimum, and I'm also going to occasionally use it to refer to the partition induced by that sentence set of centers on the data space.",
+            "So how does this partition work?",
+            "So there are K regions, each of them is the cell containing all points that are assigned to a particular center.",
+            "An assignment is just based on minimizing that L2 squared distance.",
+            "OK, so this is a partition of opt.",
+            "So what if I could show with sufficient probability that for so I have XI don't know what OPT is, but with respect to opt by picking sent?"
+        ],
+        [
+            "Yours, I'm actually hitting."
+        ],
+        [
+            "And covering clusters in opt and what do I mean?"
+        ],
+        [
+            "And by covering I mean I'm choosing points such that when viewed as centers they don't hurt the objective too much.",
+            "They'll still allow us to approve the proof the approximation."
+        ],
+        [
+            "Guarantee So what we show is that after we choose our OK log K centers, we actually cover all K clusters in opt.",
+            "And I'll formalize cover shortly.",
+            "With sufficient probability or were done because we already have reached the approximation guarantee, that's going to be the former prime.",
+            "Actually going to try to walk through it, because I think it's fun and."
+        ],
+        [
+            "Formative.",
+            "So what do I mean by covered?",
+            "So for particular cluster A and opt, remember one of these regions.",
+            "OK, First off, I'm going to consider potential, just restricted to a subset of X, right?",
+            "This is the same potential, but this is on say a cluster, eh?",
+            "If my current cluster in C has potential that's at most 32.",
+            "Oh should I repeat that part?",
+            "OK, it wasn't that important.",
+            "This is the potential defined on any subset A.",
+            "In particular, a cluster in opt OK if my current clustering C has potential on a, that's that's at most 32 times what OPT had on a. I'm calling that cluster covered OK like C is covering a.",
+            "So then I can just partition X into the covered and uncovered clusters.",
+            "So the way the proof is going to work, I have to show that three things hold with sufficient probability.",
+            "First off, in the first round, where we're choosing points uniformly that I'm going to cover, one cluster inop with sufficient probability.",
+            "Then at any other round.",
+            "Based on what is in my set of centres, see either the potential on the uncovered on the covered region is greater than the uncovered region, or the reverse holds.",
+            "So if the potential on the covered region is currently greater, we can actually show that we've already reached the approximation guarantee, and I'll explain that.",
+            "Otherwise, we can show that actually it's likely that in the next draw of log K centers we're going to hit an uncovered cluster and cover it.",
+            "OK, so that that's the style of what we're going to show an eye."
+        ],
+        [
+            "Thought I would jump into it.",
+            "So this is the first step where we're choosing kelan K or three K log K. Sorry, three log K uniform points.",
+            "From X, so if I pick one point now, I'm going to define a as the cluster inop.",
+            "That partition that the point falls in.",
+            "OK here I have to turn to a lemma from the K means folks I'm not going to be proving these, but I can talk about them offline, which is that with respect to one cluster and opt.",
+            "If you draw one point at uniform and say, let that be the center, then in expectation you're still getting a two approximation of the optimal potential.",
+            "So we actually turn everything into probabilities and we just apply Markov's inequality so.",
+            "Um?",
+            "So if we pick log K random points, then with probability 1 -- 1 / K, one of them is going to be good for opt.",
+            "Or sorry, we're going to hit a cluster A with one point that is good for it.",
+            "But this is stronger than covering, so by my definition of covering is that you're at most a factor of 32 from opt, so this property will imply it.",
+            "So after the first round we've already, so I'll just go.",
+            "After the first round, we've already covered one cluster.",
+            "And now I just need to consider 2 cases that cover all the."
+        ],
+        [
+            "Remaining came on this one rounds, so after we've.",
+            "You know, at whatever stage we are, we have, however, many centers already chosen in our sets see either.",
+            "So if the potential of the covered clusters is greater than the potential on the uncovered clusters, then we're actually done.",
+            "Why is that so?",
+            "Remember the covered and uncovered clusters, partition X and the potential is linear, so we can certainly just break it up into the potential on the cover and the potential on the uncovered.",
+            "Here I'm just applying the fact that the covered has greater potential, OK?",
+            "And here I'm just applying the definition of covered, which is this potential is at most 32 times the optimal potential.",
+            "And then finally I finish by noticing that look the covered set is a subset of the entire set, and the potential is just positive, so we wouldn't need to do anything more if this were the case."
+        ],
+        [
+            "But otherwise we're in a situation where the potential on the uncovered set is greater.",
+            "So what I want to show is that at the next round, when I pick log K, more centers that I'm likely to hit an cover an uncovered cluster.",
+            "So first I'm going to analyze the probability of picking a point in the uncovered set in one of my next draws.",
+            "OK, so I'm just going to sum over the uncovered set of the probability that we pick a cluster which is.",
+            "I don't know if I'll go all the way back into the algorithm, but it's simply proportional to this dsquared waiting, so that's only that's just the potential of the uncovered set over the total potential, and again, just by applying this setting, you know I can lower bound this thing by 1/2.",
+            "So the probability that I'm going to hit an uncovered point is 1/2 at least 1/2.",
+            "And now, given that I hit an uncovered cluster, we're again going to rely on a lemma from the K means plus plus argument, and are sort of corollary, applying Markov's inequality, which shows that now adding a new center sampled according to the D squared waiting in that uncovered cluster that we hit the probability that it now covers it.",
+            "This is just the definition of covering can also be lower bounded, so of course OK, so we show a constant probability that we cover a new uncovered cluster.",
+            "And we run it log K times and we get that this holds with probability 1 -- 1 / K."
+        ],
+        [
+            "So in summary, in the first round with probability at least 1 -- 1 / K, I cover a cluster of opt and then I have K -- 1 remaining rounds where either I'm done because I've reached the 64 approximation guarantee.",
+            "Or for each round I have this probability of covering a new cluster.",
+            "So.",
+            "You know, for there to be an uncovered cluster, after all K rounds.",
+            "All the it's 1 minus all the good events happening, so it's at most 3/4.",
+            "So again we get an algorithm that succeeds with probability 1/4 that gives us a 64 approximation and outputs quelaag 3 kalog centers.",
+            "And then we just amplified by running log N times and getting this to hold with probability 1 -- 1 / N instead of 1/4.",
+            "That's in the batch setting.",
+            "That was sort of interesting."
+        ],
+        [
+            "Contribution in the batch setting and to have some relation to this workshop.",
+            "Let's get back to the streaming setting.",
+            "So.",
+            "The streaming divide and conquer clustering is very simple.",
+            "Very simple application of divide and conquer.",
+            "When you have access to clustering algorithms that operate in the batch setting.",
+            "OK, so you partition your stream and so each of these parts is input to a clustering algorithm.",
+            "This is an AB clustering algorithm, so any clustering algorithm that outputs at most 8 times case enters with a B approximation to the objective.",
+            "So these little blocks are of size at most AK, and those are actually centers output by clustering algorithms.",
+            "But you feed those into another clustering algorithm.",
+            "Now this was analyzed for K Mediod.",
+            "So the objective is different.",
+            "But it was also for a weighted version.",
+            "I didn't mention that you can just add weights and if they are integer weights then.",
+            "Weighted K means and K means can be easily trend.",
+            "Can it's?",
+            "It's not a big deal to go between the two just by using the weights as the multiplicity just repeat each point that weight number of times.",
+            "If the weights are integral, so without loss of generality what we're doing, I'm not going to go through weighted K means.",
+            "So.",
+            "At the end we apply.",
+            "It could be the same.",
+            "Maybe clustering algorithm, but it could be a different one, so we'll call it a prime B prime and what they showed is in the streaming version using these batch algorithms you still get.",
+            "A prime BB prime approximation.",
+            "So."
+        ],
+        [
+            "How do we put it all together?",
+            "This is very simple.",
+            "So first we actually had to extend the analysis to show that it worked for the K means objective as well.",
+            "It does and the approximation factors are still a prime BB prime.",
+            "But then what do we do OK?",
+            "At this level, call K means plus plus.",
+            "And at this level call RK means sharp.",
+            "So that means a is olaug.",
+            "KB is a constant, a prime is 1 because remember K means plus plus returns exactly K centers and B prime is O log K. So in the end we simply get exactly K centers with the log K approximation of the objective."
+        ],
+        [
+            "OK, what if I want to use less memory than?",
+            "You know one over the number of partitions times aka.",
+            "So you could keep extending and extending this hierarchy.",
+            "This is a two level version where I keep calling this a be algorithm on the sets of centers input to the next level with weights according to their multiplicities.",
+            "That's the two level one, and as you increase the levels of the hierarchy you're running your batch clustering algorithms on smaller and smaller inputs, so it's good for low."
+        ],
+        [
+            "Memory.",
+            "So to quantify the tradeoff, we have that if you have end to the Alpha memory.",
+            "Then we can provide an algorithm that's this multi level hierarchy such that the approximation has an additional multiplicative factor of C to the one over Alpha, so that quantifies the tradeoff."
+        ],
+        [
+            "So maybe I'll just quickly touch on some experiments.",
+            "Um?",
+            "So the biggest takehome message of our experiments is that.",
+            "This streaming clustering does better than batch camins batch Lloyds even though batch is an easier problem and it's just I think partly 'cause the algorithms are completely different.",
+            "So this blue is batch Lloyds, well not better.",
+            "Sometimes we do about the same but this is a mixture of 25 Gaussians.",
+            "So at K = 25 which you can hardly see.",
+            "This is sort of important because that's actually where the optimal centers are and.",
+            "We're doing better.",
+            "Oh, by the way, we also we haven't figured out why this is going on, but it's interesting and you can't read this.",
+            "But if you do divide and conquer with K means, plus plus at both of the sub algorithms, it's performing almost the same as our version."
+        ],
+        [
+            "So here are some UCI datasets.",
+            "So by the way here, we're clustering 10,000 points.",
+            "Here we're clustering.",
+            "I think on the order of 1000 and on the order of 4000 points this is intended mentions and this is in like 58 dimensions.",
+            "So here we're actually doing strictly better than batch Lloyds Batch Camins.",
+            "So you're not losing anything at all by doing streaming.",
+            "And I think we had a problem where we didn't know what the correct K was, so we looked at K equals, you know, 510, fifteen, 2025 for those for the fake data we."
+        ],
+        [
+            "What they was because we invented it.",
+            "And we also experimented with the memory approximation tradeoff and we did not come across a situation that was able to showcase our bounds.",
+            "I think the idea is that we never were looking at small enough memory amounts such that clustering on a smaller subset was not representative on clustering on large subset.",
+            "So you would expect the approximation would affect the cost the approximation factor to increase as your memory decreased, but actually.",
+            "It wasn't really affected.",
+            "Sometimes it actually decreased, so maybe it was the hierarchical nature of the algorithm that was helping."
+        ],
+        [
+            "So future work, so definitely we need to drill down on those experiments, figure out what's going on tightening the analysis.",
+            "OK, we haven't optimized constants or choice of bounds, just kind of exciting to extend.",
+            "K means plus plus to the streaming setting.",
+            "Also, there's reason to believe we might be able to get a one pass algorithm with a constant approximation to the K means objective.",
+            "So there's a paper by Kanungo Mount and a lot of other people I'm not remembering right now, but.",
+            "So they do attain a constant approximation to the K means objective in the batch setting.",
+            "So we plug this into our divide and conquer version.",
+            "However, there are some running time concerns with that algorithm.",
+            "It's like end to the 4th times one over epsilon to the D. You might be able to deal with the Epsilon dependence using some Johnson Lindenstrauss random projections, but it's an exciting area of future work.",
+            "Also, since people are OK with IID assumptions and other assumptions about well separated means, why don't we take these very, very simple seeding algorithms that seem to perform well?",
+            "Well in practice and see what kind of approximation guarantees you can get when you start with something like well separated means.",
+            "And also bringing it full circle to the goals of this workshop.",
+            "It would also be really interesting to design and analyze algorithms that probably optimize the K means objective in the online setting, so this is confusing when you think about how you would even evaluate these things.",
+            "OK, so First off here I've just been looking at the approximation guarantees after you do your seating.",
+            "But it's approximation guarantees of the clustering of the clustering.",
+            "That you output with respect to your whole data set X in the online setting.",
+            "Is it really fair to say OK, I'm just going to evaluate my algorithm once I've seated my centers?",
+            "No, because there's a whole future horizon of data, but also it seems like for any clustering algorithm you can think up a really bad setting.",
+            "Really bad sequence of data if you're in the non stochastic setting.",
+            "So either we're going to have to take some sort of distributional assumption, or we're going to have to start looking at regret.",
+            "But it's an interesting area for future works."
+        ],
+        [
+            "So thanks and thanks to my coauthors.",
+            "So you show two different algorithm to update the approximations one at 8.",
+            "Do you think you can get other traders something like a cookie equals?",
+            "Will that be OK or not?",
+            "But this is a really good point like.",
+            "Hopefully.",
+            "Right, we could sort of fill in a continuum between these two guys, and I think that's also an interesting area of future work.",
+            "Our analysis was pretty different from theirs, so it's not already obviously a continuum with respect to memory.",
+            "We kind of already do have a continuum, right?",
+            "Because we can just tell you the trade off with respect to how much memory you have, but with respect to trading off the approximation of K and the approximation of the objective, I think that's an interesting direction and I don't have an intuition on it yet.",
+            "What about optimality?",
+            "Right lower bounds OK, so we've been looking into some communication lower bounds to drive lower bounds for clustering.",
+            "Most the lower bounds that we know of.",
+            "Do make some distributional assumptions, but yeah, this is also an area of future work.",
+            "I didn't put it up there 'cause it's sort of pessimistic, but.",
+            "Senses."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Thanks so this is joint work with knee rylon at Google Research an ragesh Jaiswal at Columbia.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this is a chance for people that are just here to hear about bandits on line learning and regret to take a nap.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the intermission.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm talking about streaming clustering.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So, um.",
+                    "label": 0
+                },
+                {
+                    "sent": "The streaming setting is similar to the online learning setting, but the data stream is finite.",
+                    "label": 1
+                },
+                {
+                    "sent": "And you only need to output the classifier or the prediction at the end, but it's still motivated by a very large datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or maybe your datasets not so large, but your processing capacity is small, 'cause you're a sensor or a mobile robot, or a handheld device.",
+                    "label": 0
+                },
+                {
+                    "sent": "And still you want algorithms that are very lightweight in terms of computation and memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that make only one Passover the data even though it is a finite data set.",
+                    "label": 1
+                },
+                {
+                    "sent": "And so this paper is about unsupervised learning in the streaming setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to relate it a little bit back to this workshop.",
+                    "label": 1
+                },
+                {
+                    "sent": "The feedback it is streaming optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The feedback is extremely limited.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are no labels, but you can compute intermediate values of the objective function.",
+                    "label": 1
+                },
+                {
+                    "sent": "However they may not help you very much because they're on point seen so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not making any distributional assumptions on the data, so you could see subsets on which the objective function doesn't tell you much 'cause you have adversarial data, for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so in the streaming setting, we're going to be studying clustering with respect to the K means clustering objective now.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, let me differentiate this from an algorithm that people call K means the hard assignment EM algorithm I'm going to call that Lloyd's algorithm, because here I'm talking about the K means objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "An why do you care about clustering objective?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So you can run a clustering algorithm, and how do you know if it's good?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you can have a domain experts say I like the way your clusters look, but if you don't have a domain expert and you're designing generic algorithms, how do you judge the output of clustering algorithms without any idea assumptions or well separated means assumptions on the data, so we want no assumptions on the data and one thing you can do is how does the clustering that your algorithm outputs.",
+                    "label": 1
+                },
+                {
+                    "sent": "How does it do with respect to some objective function so?",
+                    "label": 0
+                },
+                {
+                    "sent": "People talk about the Caymans objective function, and it has some theoretical basis, and so we're going to see that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're given a finite point set to cluster in Euclidean space.",
+                    "label": 0
+                },
+                {
+                    "sent": "The set X and you want to find K. We're going to column cluster centers C, which is also some subset of Euclidean space.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does not have to be a subset of XOK such that the distance between all the points in your.",
+                    "label": 0
+                },
+                {
+                    "sent": "Set the L2 distance squared to the closest center in C. That sum is minimized.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this Phi Subsea I'm going to refer to both as the K means objective or the K means cost.",
+                    "label": 0
+                },
+                {
+                    "sent": "Later, I'm going to also call it a potential.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it turns out that if you just want to optimize this, that's NP hard even for small K, and that's due to junious Freeze can Impala.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mentioned what we're typically calling that K means algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "In this talk I'm going to call Lloyd's algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "He came out with it in terms of vector quantization.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very fast to converge, but it actually lacks any approximation guarantee with respect to the K means objective, OK. And usually it's due to bad initialization when it doesn't do well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So there's as soon as we talk about the field of streaming or the field of clustering, there's a lot of related work.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'm only going to mention 2 pieces of work.",
+                    "label": 0
+                },
+                {
+                    "sent": "I know there's been work in the cold, a nice email community on clustering, but really the most related pieces of work for this talk are the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the batch setting, there's been a recent algorithm called K means plus plus, which probably approximates the K means objective by a multiplicative factor of O log K. That's in the batch setting and then also guja at all, and this was originally infox 2000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gave 4K meteoroid a slightly different objective way to do streaming clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have access to batch algorithms that rabs approximation algorithms, meaning they approximate the optimal value of the K means objective by a multiplicative factor of B and they output at most 8 * K centers OK. Then you can get a streaming version using divide and conquer.",
+                    "label": 1
+                },
+                {
+                    "sent": "That is also a Navy approximation too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other objective comedian.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are the works I'm going to be talking about more in depth and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Let me just motivate the goal of this work so.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't want to make assumptions on the data, so we're going to evaluate clustering algorithms based on how well they approximate the K means objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "There aren't that many algorithms that have such guarantees.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, the K means algorithm doesn't have one.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's hard enough in batch.",
+                    "label": 1
+                },
+                {
+                    "sent": "Let's now do it in either the on line or the streaming setting, and we're going to the streaming setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "And along the way, we actually contribute to the literature just on batch clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because we provide so K means plus plus is an algorithm that outputs exactly K centers with a log K approximation to the objective, we're going to alter the algorithm and its analysis to give a batch algorithm that outputs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Log K log K centers but has a constant approximation of the objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this may suggest future work on sort of how to approach that continuum between trading off between how well you approximate Kayan, how well you approximate the came in subjective.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is what we do.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do that extension.",
+                    "label": 0
+                },
+                {
+                    "sent": "We show that the analysis works for a be approximate K means clustering for that Guha, divide and conquer.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then what we get is a one pass streaming algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a long day approximation to came in.",
+                    "label": 0
+                },
+                {
+                    "sent": "So essentially we take, we matched the positive result of K means plus plus.",
+                    "label": 1
+                },
+                {
+                    "sent": "But in the streaming setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we also look at tradeoffs between.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you really want to save memory, what's your effect on the approximation?",
+                    "label": 0
+                },
+                {
+                    "sent": "And we do some experiments, so let me jump in and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Tell you what K means.",
+                    "label": 0
+                },
+                {
+                    "sent": "Plus plus is an first.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me just note the main problem with Lloyd's algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you probably think of the K means algorithm is often due to bad initialization.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these folks that invented key means.",
+                    "label": 0
+                },
+                {
+                    "sent": "Plus, we're just focusing on how to initialize.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kimmins, so their idea was they give a very simple initialization procedure, which Allstate shortly.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you want to do before you run Lloyd's algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then when they approve the good approximation guarantee of the combined algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can stop after the seeding procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "All you have to do is seed using this technique and then you get a log K approximations.",
+                    "label": 0
+                },
+                {
+                    "sent": "That K means objective and then the idea is Lloyd should only make it better but still can't prove anything about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for the purposes of this talk, all I'm going to talk about are the seeding procedures.",
+                    "label": 0
+                },
+                {
+                    "sent": "With those we can prove good approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is a very simple technique.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, we're back in the batch setting, so you can really forget about online or streaming for this part of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Pick one center at random from your point set.",
+                    "label": 1
+                },
+                {
+                    "sent": "And let that be the first center and then you choose your next center.",
+                    "label": 1
+                },
+                {
+                    "sent": "Just with probability proportional to the points distance to the current subset of centers squared.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you're going to recompute this distribution and renormalize every time you add 1 center, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very simple and with that they prove the log K approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to go into their proof.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're going to use a couple of their lemmas and I will go into our proof.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So, OK, we've just seen that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can return case centers with the log K approximation to the objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can we design A variant that has a constant approximation to the objective, but you return K log K centers?",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so the algorithm is not that much different than theirs.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, we just do everything that they do log K times to keep in mind though.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're only going to update, see and therefore this D squared probability after a batch of three log K draws.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, it should be clear from the way I say the algorithm just want to emphasize that, OK, same thing, but you do everything in rounds of log K of three, OK?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK so um.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we can show is that this yields a constant approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "To the Caymans objective, and it outputs OK log K centers is actually only holds the probability of quarter, but we amplify by running it Logn times to get it told with probability 1 -- 1 of them OK.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here's the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Idea?",
+                    "label": 0
+                },
+                {
+                    "sent": "So by the way, opt is of course the minimum value of the K means objective for fixed point set X, but I'm going to overload that terminology twice.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm also using up to refer to the set of centers that achieves that minimum, and I'm also going to occasionally use it to refer to the partition induced by that sentence set of centers on the data space.",
+                    "label": 1
+                },
+                {
+                    "sent": "So how does this partition work?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there are K regions, each of them is the cell containing all points that are assigned to a particular center.",
+                    "label": 0
+                },
+                {
+                    "sent": "An assignment is just based on minimizing that L2 squared distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this is a partition of opt.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what if I could show with sufficient probability that for so I have XI don't know what OPT is, but with respect to opt by picking sent?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yours, I'm actually hitting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And covering clusters in opt and what do I mean?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And by covering I mean I'm choosing points such that when viewed as centers they don't hurt the objective too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "They'll still allow us to approve the proof the approximation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Guarantee So what we show is that after we choose our OK log K centers, we actually cover all K clusters in opt.",
+                    "label": 1
+                },
+                {
+                    "sent": "And I'll formalize cover shortly.",
+                    "label": 0
+                },
+                {
+                    "sent": "With sufficient probability or were done because we already have reached the approximation guarantee, that's going to be the former prime.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually going to try to walk through it, because I think it's fun and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Formative.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what do I mean by covered?",
+                    "label": 0
+                },
+                {
+                    "sent": "So for particular cluster A and opt, remember one of these regions.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, First off, I'm going to consider potential, just restricted to a subset of X, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the same potential, but this is on say a cluster, eh?",
+                    "label": 0
+                },
+                {
+                    "sent": "If my current cluster in C has potential that's at most 32.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh should I repeat that part?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, it wasn't that important.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the potential defined on any subset A.",
+                    "label": 0
+                },
+                {
+                    "sent": "In particular, a cluster in opt OK if my current clustering C has potential on a, that's that's at most 32 times what OPT had on a. I'm calling that cluster covered OK like C is covering a.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then I can just partition X into the covered and uncovered clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way the proof is going to work, I have to show that three things hold with sufficient probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "First off, in the first round, where we're choosing points uniformly that I'm going to cover, one cluster inop with sufficient probability.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then at any other round.",
+                    "label": 0
+                },
+                {
+                    "sent": "Based on what is in my set of centres, see either the potential on the uncovered on the covered region is greater than the uncovered region, or the reverse holds.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if the potential on the covered region is currently greater, we can actually show that we've already reached the approximation guarantee, and I'll explain that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Otherwise, we can show that actually it's likely that in the next draw of log K centers we're going to hit an uncovered cluster and cover it.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that that's the style of what we're going to show an eye.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Thought I would jump into it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the first step where we're choosing kelan K or three K log K. Sorry, three log K uniform points.",
+                    "label": 0
+                },
+                {
+                    "sent": "From X, so if I pick one point now, I'm going to define a as the cluster inop.",
+                    "label": 0
+                },
+                {
+                    "sent": "That partition that the point falls in.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK here I have to turn to a lemma from the K means folks I'm not going to be proving these, but I can talk about them offline, which is that with respect to one cluster and opt.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you draw one point at uniform and say, let that be the center, then in expectation you're still getting a two approximation of the optimal potential.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we actually turn everything into probabilities and we just apply Markov's inequality so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we pick log K random points, then with probability 1 -- 1 / K, one of them is going to be good for opt.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or sorry, we're going to hit a cluster A with one point that is good for it.",
+                    "label": 1
+                },
+                {
+                    "sent": "But this is stronger than covering, so by my definition of covering is that you're at most a factor of 32 from opt, so this property will imply it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So after the first round we've already, so I'll just go.",
+                    "label": 0
+                },
+                {
+                    "sent": "After the first round, we've already covered one cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now I just need to consider 2 cases that cover all the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Remaining came on this one rounds, so after we've.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, at whatever stage we are, we have, however, many centers already chosen in our sets see either.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if the potential of the covered clusters is greater than the potential on the uncovered clusters, then we're actually done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is that so?",
+                    "label": 0
+                },
+                {
+                    "sent": "Remember the covered and uncovered clusters, partition X and the potential is linear, so we can certainly just break it up into the potential on the cover and the potential on the uncovered.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I'm just applying the fact that the covered has greater potential, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "And here I'm just applying the definition of covered, which is this potential is at most 32 times the optimal potential.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then finally I finish by noticing that look the covered set is a subset of the entire set, and the potential is just positive, so we wouldn't need to do anything more if this were the case.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But otherwise we're in a situation where the potential on the uncovered set is greater.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I want to show is that at the next round, when I pick log K, more centers that I'm likely to hit an cover an uncovered cluster.",
+                    "label": 1
+                },
+                {
+                    "sent": "So first I'm going to analyze the probability of picking a point in the uncovered set in one of my next draws.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so I'm just going to sum over the uncovered set of the probability that we pick a cluster which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know if I'll go all the way back into the algorithm, but it's simply proportional to this dsquared waiting, so that's only that's just the potential of the uncovered set over the total potential, and again, just by applying this setting, you know I can lower bound this thing by 1/2.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the probability that I'm going to hit an uncovered point is 1/2 at least 1/2.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now, given that I hit an uncovered cluster, we're again going to rely on a lemma from the K means plus plus argument, and are sort of corollary, applying Markov's inequality, which shows that now adding a new center sampled according to the D squared waiting in that uncovered cluster that we hit the probability that it now covers it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just the definition of covering can also be lower bounded, so of course OK, so we show a constant probability that we cover a new uncovered cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we run it log K times and we get that this holds with probability 1 -- 1 / K.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in summary, in the first round with probability at least 1 -- 1 / K, I cover a cluster of opt and then I have K -- 1 remaining rounds where either I'm done because I've reached the 64 approximation guarantee.",
+                    "label": 1
+                },
+                {
+                    "sent": "Or for each round I have this probability of covering a new cluster.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, for there to be an uncovered cluster, after all K rounds.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the it's 1 minus all the good events happening, so it's at most 3/4.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again we get an algorithm that succeeds with probability 1/4 that gives us a 64 approximation and outputs quelaag 3 kalog centers.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we just amplified by running log N times and getting this to hold with probability 1 -- 1 / N instead of 1/4.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's in the batch setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "That was sort of interesting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Contribution in the batch setting and to have some relation to this workshop.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's get back to the streaming setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "The streaming divide and conquer clustering is very simple.",
+                    "label": 1
+                },
+                {
+                    "sent": "Very simple application of divide and conquer.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you have access to clustering algorithms that operate in the batch setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so you partition your stream and so each of these parts is input to a clustering algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an AB clustering algorithm, so any clustering algorithm that outputs at most 8 times case enters with a B approximation to the objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these little blocks are of size at most AK, and those are actually centers output by clustering algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you feed those into another clustering algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now this was analyzed for K Mediod.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the objective is different.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it was also for a weighted version.",
+                    "label": 0
+                },
+                {
+                    "sent": "I didn't mention that you can just add weights and if they are integer weights then.",
+                    "label": 0
+                },
+                {
+                    "sent": "Weighted K means and K means can be easily trend.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can it's?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a big deal to go between the two just by using the weights as the multiplicity just repeat each point that weight number of times.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the weights are integral, so without loss of generality what we're doing, I'm not going to go through weighted K means.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the end we apply.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could be the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe clustering algorithm, but it could be a different one, so we'll call it a prime B prime and what they showed is in the streaming version using these batch algorithms you still get.",
+                    "label": 0
+                },
+                {
+                    "sent": "A prime BB prime approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "How do we put it all together?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first we actually had to extend the analysis to show that it worked for the K means objective as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does and the approximation factors are still a prime BB prime.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then what do we do OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "At this level, call K means plus plus.",
+                    "label": 0
+                },
+                {
+                    "sent": "And at this level call RK means sharp.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that means a is olaug.",
+                    "label": 0
+                },
+                {
+                    "sent": "KB is a constant, a prime is 1 because remember K means plus plus returns exactly K centers and B prime is O log K. So in the end we simply get exactly K centers with the log K approximation of the objective.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, what if I want to use less memory than?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know one over the number of partitions times aka.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you could keep extending and extending this hierarchy.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a two level version where I keep calling this a be algorithm on the sets of centers input to the next level with weights according to their multiplicities.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the two level one, and as you increase the levels of the hierarchy you're running your batch clustering algorithms on smaller and smaller inputs, so it's good for low.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to quantify the tradeoff, we have that if you have end to the Alpha memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can provide an algorithm that's this multi level hierarchy such that the approximation has an additional multiplicative factor of C to the one over Alpha, so that quantifies the tradeoff.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So maybe I'll just quickly touch on some experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the biggest takehome message of our experiments is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "This streaming clustering does better than batch camins batch Lloyds even though batch is an easier problem and it's just I think partly 'cause the algorithms are completely different.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this blue is batch Lloyds, well not better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes we do about the same but this is a mixture of 25 Gaussians.",
+                    "label": 1
+                },
+                {
+                    "sent": "So at K = 25 which you can hardly see.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is sort of important because that's actually where the optimal centers are and.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're doing better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, by the way, we also we haven't figured out why this is going on, but it's interesting and you can't read this.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you do divide and conquer with K means, plus plus at both of the sub algorithms, it's performing almost the same as our version.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here are some UCI datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "So by the way here, we're clustering 10,000 points.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we're clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think on the order of 1000 and on the order of 4000 points this is intended mentions and this is in like 58 dimensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we're actually doing strictly better than batch Lloyds Batch Camins.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you're not losing anything at all by doing streaming.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I think we had a problem where we didn't know what the correct K was, so we looked at K equals, you know, 510, fifteen, 2025 for those for the fake data we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What they was because we invented it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we also experimented with the memory approximation tradeoff and we did not come across a situation that was able to showcase our bounds.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think the idea is that we never were looking at small enough memory amounts such that clustering on a smaller subset was not representative on clustering on large subset.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you would expect the approximation would affect the cost the approximation factor to increase as your memory decreased, but actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "It wasn't really affected.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes it actually decreased, so maybe it was the hierarchical nature of the algorithm that was helping.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So future work, so definitely we need to drill down on those experiments, figure out what's going on tightening the analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, we haven't optimized constants or choice of bounds, just kind of exciting to extend.",
+                    "label": 0
+                },
+                {
+                    "sent": "K means plus plus to the streaming setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, there's reason to believe we might be able to get a one pass algorithm with a constant approximation to the K means objective.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a paper by Kanungo Mount and a lot of other people I'm not remembering right now, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they do attain a constant approximation to the K means objective in the batch setting.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we plug this into our divide and conquer version.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, there are some running time concerns with that algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like end to the 4th times one over epsilon to the D. You might be able to deal with the Epsilon dependence using some Johnson Lindenstrauss random projections, but it's an exciting area of future work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, since people are OK with IID assumptions and other assumptions about well separated means, why don't we take these very, very simple seeding algorithms that seem to perform well?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well in practice and see what kind of approximation guarantees you can get when you start with something like well separated means.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also bringing it full circle to the goals of this workshop.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would also be really interesting to design and analyze algorithms that probably optimize the K means objective in the online setting, so this is confusing when you think about how you would even evaluate these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so First off here I've just been looking at the approximation guarantees after you do your seating.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's approximation guarantees of the clustering of the clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you output with respect to your whole data set X in the online setting.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is it really fair to say OK, I'm just going to evaluate my algorithm once I've seated my centers?",
+                    "label": 0
+                },
+                {
+                    "sent": "No, because there's a whole future horizon of data, but also it seems like for any clustering algorithm you can think up a really bad setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Really bad sequence of data if you're in the non stochastic setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So either we're going to have to take some sort of distributional assumption, or we're going to have to start looking at regret.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's an interesting area for future works.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So thanks and thanks to my coauthors.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you show two different algorithm to update the approximations one at 8.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you think you can get other traders something like a cookie equals?",
+                    "label": 0
+                },
+                {
+                    "sent": "Will that be OK or not?",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is a really good point like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, we could sort of fill in a continuum between these two guys, and I think that's also an interesting area of future work.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our analysis was pretty different from theirs, so it's not already obviously a continuum with respect to memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "We kind of already do have a continuum, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because we can just tell you the trade off with respect to how much memory you have, but with respect to trading off the approximation of K and the approximation of the objective, I think that's an interesting direction and I don't have an intuition on it yet.",
+                    "label": 0
+                },
+                {
+                    "sent": "What about optimality?",
+                    "label": 0
+                },
+                {
+                    "sent": "Right lower bounds OK, so we've been looking into some communication lower bounds to drive lower bounds for clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most the lower bounds that we know of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do make some distributional assumptions, but yeah, this is also an area of future work.",
+                    "label": 0
+                },
+                {
+                    "sent": "I didn't put it up there 'cause it's sort of pessimistic, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Senses.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

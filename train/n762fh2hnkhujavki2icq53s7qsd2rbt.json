@@ -1,0 +1,3643 @@
+{
+    "id": "n762fh2hnkhujavki2icq53s7qsd2rbt",
+    "title": "Introduction to Open ACC (Part 2)",
+    "info": {
+        "author": [
+            "John Urbanic, Pittsburgh Supercomputing Center"
+        ],
+        "published": "Sept. 19, 2016",
+        "recorded": "June 2016",
+        "category": [
+            "Top->Computer Science",
+            "Top->Computers->Programming"
+        ]
+    },
+    "url": "http://videolectures.net/ihpcss2016_urbanic_intro_to_openACC_part2/",
+    "segmentation": [
+        [
+            "OK, and we have.",
+            "We have sorted out that problem for good, so as long as you use the Dash GPU we are good for the rest of the workshop.",
+            "Just sit on your GPU and be happy.",
+            "Yes I see Oh my microphone is not now now are you happy OK?",
+            "OK, here's the obvious solution.",
+            "Most of you probably did something like this, 'cause I didn't give you a whole lot of tools to work with, so there weren't a whole lot of different things for you to carve out.",
+            "Here's the."
+        ],
+        [
+            "Fortran version of that, so I guess most of you probably did something like this if you did."
+        ],
+        [
+            "This the compiler output.",
+            "Looks something like this where it told you accelerator kernel generated so you could tell.",
+            "OK it it was, it was able to do something to generate some kind of GPU.",
+            "Colonel with my."
+        ],
+        [
+            "Actives and you probably got some performance that looks something like this, yes, question.",
+            "Look around.",
+            "Yeah you could.",
+            "Yeah if you put a if you put a kernel around a block of code it will make separate kernels inside, yes?",
+            "What kind of error did it give you?",
+            "You just put a primer on the outside of things is what you're saying.",
+            "The whole loop and you put an end and end pragma and I'll take a look at it there.",
+            "But there's nothing should be illegal about that, but it's in the direction we're going.",
+            "It's not super helpful, yes?",
+            "Real problem, putting it, putting the pragma around the 2nd loop.",
+            "Is it.",
+            "The DT is dependent on previous iterations it look like.",
+            "OK, so we have."
+        ],
+        [
+            "Missing an open MP programmer amongst us maybe maybe who spotted."
+        ],
+        [
+            "Not independence, but actually a reduction operation going on here.",
+            "So a similar type of concern will get on to that in a second.",
+            "OK, but."
+        ],
+        [
+            "Usually open MP programmers spot that.",
+            "Well, I just did as what you showed us, but I didn't get speedup.",
+            "I mean I tried to see if that's OK, neither did I.",
+            "So if you look at the results here, I didn't get much speedup either, right?",
+            "We went from 18 seconds roughly for the serial code to 29 seconds for the GPU code.",
+            "OK, so it is a matter of fact from an open MP code which is by the way very similar directives to this with open MP code, so I can get this thing all the way down to less than a second to run on all 28 cores.",
+            "So we've not only not done well compared to open MP, but we've just done.",
+            "Dismally compared to our original serial code.",
+            "So this is not what I would consider much of a success."
+        ],
+        [
+            "Yes.",
+            "So and the open MP stuff here.",
+            "Normally I'll take a little digression and talk about open MP and what it means.",
+            "Everything else, but I think you guys get the general idea.",
+            "Or is it?"
+        ],
+        [
+            "Different directive based approach.",
+            "So instead will get into the more interesting thing which is what went wrong here.",
+            "Then why is this not seeming to be so effective?",
+            "Well it so happens that we have all the answers obvious.",
+            "Once I show you why we also have a really really easy performance profiling capability, we can turn on right here.",
+            "It's one of the reasons.",
+            "Also, I like the PGI compiler is if you just set runtime variable an environment variable called PGI_ACC_time equal to 1 whenever you run your code.",
+            "Even you're already compiled code.",
+            "It'll spit out a nice timing report and that's that's pretty convenient.",
+            "There are wonderful performance profilers available as well, where you can really drill down and get all kinds of pie charts and bar graphs and everything else, But this is a pretty nice quick and dirty way to find out what's up in your code, so I ran that here just to get some output and see what's going on.",
+            "So I did that with with my horrible code.",
+            "It's not working well, and here's what came back out with the output.",
+            "And by the way, it's not that hard to decipher.",
+            "It's gotten line numbers here, telling us where it spent time and.",
+            "All the times are in microseconds, so once you see that the numbers make sense here.",
+            "So I went down here.",
+            "The side where it talks about execution here Colonel launched so we see here it says Kernel launched and kernel launched and then actually reduction kernel here 'cause there's a reduction going on in this code.",
+            "So I went there talk about the reduction.",
+            "In second I went there and looked at all the time that we spent actually executing and it's been about little over a second actually executed here.",
+            "Well, that's not terrible.",
+            "Actually would be a really good speedup, comparable to our open MP code running on 28 cores, so that's that's not bad.",
+            "It looks like our time spent running was pretty good.",
+            "On the other hand, here's a bunch of other stuff that reported over here about device data copies.",
+            "So if I look at all these lines that have these data copying things, this is telling me where it had to move data back and forth.",
+            "Data copied into the device, or out of the device, and this is the number one issue that we have to contend with when working on an accelerator as we as human beings have to help the compiler do."
+        ],
+        [
+            "Better job because this is kind of a schematic here of GPU's and CPU's which is that CPU's have a decent connection to their memory, not bad bandwidth.",
+            "GPU's have a fantastic connection to their memory.",
+            "This is one of the reasons that they can perform so well.",
+            "They have very very high bandwidth but the connection between the two is pathetic.",
+            "It's over this PCI bus so these can be measured in hundreds of gigabytes these days and this is a couple gigabytes so it's just terrible to move data back and forth so."
+        ],
+        [
+            "As a matter of fact, this is what's going on.",
+            "We're cramming this data over the PCI bus and back to the CPU memory, and we're doing it.",
+            "If we look at our."
+        ],
+        [
+            "Nope, here we're doing it four times every generation.",
+            "How do I know that?",
+            "Because anytime you use a kernels directive, what the compiler does is it says to be safe.",
+            "I had best copy any data that's used within the kernel to the GPU at the beginning.",
+            "When I start running and at the end I best copy all that data back.",
+            "And if we look at the data that's in the kernel, it's temperature and temperature last and so it's copying all of those arrays onto and off of the GPU.",
+            "Four times it swings copy every iteration, copying onto, copying off, copying it back onto when it hits that second for loop, and back off 4 copies every iteration of our while loop.",
+            "This is where all of our time is spent right here.",
+            "It's all in the data movement, moving data back and forth."
+        ],
+        [
+            "So this is where you, as a human being, have to come in and help the compiler a little bit instead of just sticking kernel directives that every for loop like I said and expecting great results.",
+            "You as human being have to come in and say here's where I do not need to move data all the time.",
+            "You don't need to do the Super paranoid thing of copying all the data onto and all the data off instead some."
+        ],
+        [
+            "So I can avoid copies, but before I move on, I do want to mention that reduction here.",
+            "So there is this variable DT inside the 2nd loop and it's not actually independence, so it's not independence.",
+            "There's not one iteration of it, or what you say is it's not an index into some kind of data array structure, So what it is though, is a variable that from between iterations mean let me stay.",
+            "One iteration doesn't depend on the next, but.",
+            "All the iterations together needed to be added together to figure out which one had the maximum deviation.",
+            "That's the best way to put it.",
+            "I'll say that again, a different way, so it makes sense we're doing an operation where over the entire array we want to find the maximum element.",
+            "Here.",
+            "The biggest temperature change so they can all be done independently.",
+            "It's not like a loop dependence where one affects the other.",
+            "They could all be on it, done independently, but at the end of the loop, all of those cores with their separate values, their sub guys, they found they all need to spit out the correct maximum.",
+            "One maximum comes out of this.",
+            "Now to an Open MP programmer.",
+            "This is a big pitfall is to not recognize when you've got a reduction going on in a loop like this and you miss it and now something bad happens.",
+            "The value for DT that falls out of the end of this loop is the wrong one, but for you open MP programmers open ACC can recognize reductions like this and for you not open MP programmers who don't know didn't know what you didn't have to worry about until now.",
+            "Reduction operation like this is something that compiler will automatically catch.",
+            "It did spit out in that report that we asked.",
+            "You notice when I said report things.",
+            "It said it did a reduction operation so you can tell it did something there, but in other words, it just recognized the fact that DT, if it's calculated by a bunch of different cores, each one of them being responsible for some slice of our our metal plate.",
+            "So each one of our our metal plates can be divided up into a bunch of different cores working on their own small section of it.",
+            "Each one of them is going to come up with their own DT maximum.",
+            "And so before we fall out of the blood into loop, they need to combine them all together to get the real maximum.",
+            "The actual maximum volume together.",
+            "That's a reduction operation.",
+            "So it does this automatically.",
+            "So why am I dwelling on it so much again?",
+            "Because open MP programmers will be concerned about this, that we overlook.",
+            "This house is being handled and becausw's open.",
+            "ACC programmers.",
+            "You should be aware of the fact that this is this is a nice thing for the compiler to take care of automatically."
+        ],
+        [
+            "So onto the data construct which is going to allow us to fix our problem here so it's the same as another is any other clause in open ACC.",
+            "It's bang dollar, ACC and then data."
+        ],
+        [
+            "Except in this case, we're going to tell it which variables need to be copied onto an offer the device instead of doing the default thing which is to move them on and off the device.",
+            "Anything in that kernel.",
+            "So the commands we have available are copy and copy.",
+            "Is that like the default behavior?",
+            "Copy it onto the device and copy it off the device and you might say don't I need to do that for any data while the answer is no very often.",
+            "Instead you might have something like copy in where you've got data that just is entering into the equation, but you certainly don't need to waste time moving it back off the device.",
+            "It's just like a subroutine where you have an input variable and you don't.",
+            "Don't need it as an output.",
+            "Likewise, sometimes you have things that are copied on the device, but you don't certainly don't need to waste time moving in some uninitialized nonsense on their big block.",
+            "Punish allies data instead.",
+            "You just want the result to come back out, and that's where copy out is.",
+            "Nice thing to specify.",
+            "We also have last one here, which creates, which says don't copy this thing onto or off the device and you might say what uses that.",
+            "Well, there are lots of times when you have a temporary variable in a subroutine, for example, and it's just used in the calculation, but you don't need to input into a subroutine, and you don't want the value back out.",
+            "Well, the same thing with the GPU.",
+            "You may have some array that enters into the midst of the calculations, but you don't need to enter the result.",
+            "Then you don't need to send it back, so we have the ability to tell.",
+            "Now the compiler the status of these different types of variables here so that."
+        ],
+        [
+            "Don't waste time doing this now.",
+            "We can also do this with small sections of arrays, because very often it's helpful to not move an entire array, but a small part of it is necessary to have and this is done with the race shaping, which the Fortran programmers probably looks pretty natural.",
+            "This is kind of like Fortran slicing notation, standard kind of thing to use.",
+            "Unfortunately, 90 C programmers probably not that foreign either.",
+            "In these this day and age, you probably most of you have done some kind of Python thing or some other language where a MATLAB something else.",
+            "That add array slicing like this, so it's probably not the first time you've seen that, so you can send subsections of arrays back and forth and save the needless copying of the entire array.",
+            "If you know you only this small section of it, small important note here is Fortran uses start and end for these things, which the Fortran programmers is perfectly normal and see uses start and length, which is kind of also ASI convention too.",
+            "So this the two conventions are slightly different, but that's the natural way you already do things in those languages.",
+            "So let's see."
+        ],
+        [
+            "Look at how the compiler might actually guess some of these things.",
+            "The compiler is not entirely stupid and can guess some of these things.",
+            "In this case.",
+            "Here we have an example like.",
+            "We've got a variable here called B, which the compiler was able to tell.",
+            "If so, by default with kernels, you should assume the compiler looks at this kernel right here.",
+            "It says I've got three variables in here.",
+            "AB&CI better coffee them all on to the on the GPU at the beginning of the kernel and copy them all off the GPU at the end of the kernel.",
+            "You assume that's what it's doing by default.",
+            "Sometimes it can see it doesn't need to do that, so in this case here with the Arabian does do the copy those that need to copy it on and off.",
+            "That's that's by default.",
+            "On the other hand, look at Array C array, see here.",
+            "It knows that it only needs to copy that array out.",
+            "It doesn't need to copy that onto.",
+            "How can we see that?",
+            "Well, if we look at, CC is being initialized by values from A and from B it doesn't doesn't bring anything into the routine, it doesn't need to come into the array, so C is.",
+            "Laser pointer sticky Now see is copy out or shoot me cop yes coffee out only so that saves us an entire copy of that C array every time it calls this kernel likewise.",
+            "A it only needs to copy out.",
+            "It looks this routine here and says with a with a laser pointer is it says a is being multiplied by four times the index.",
+            "That's entirely internal to that routine.",
+            "There's no point in copying the values for a, but a could have some values that end up needing to be used after that routine.",
+            "So we need to copy a out so you get the idea of what's going on here with copy ends and outs and and how they work.",
+            "They're pretty straightforward, however."
+        ],
+        [
+            "There's a little bit of responsibility you take when you start using these data directives.",
+            "You can actually now break your code, so so far, implied open ACC is much nicer than open MP and that the opportunity to break your code are more limited.",
+            "But they are there now with data management.",
+            "We now have the possibility of breaking our coach.",
+            "Let's see how we might do that here with a little bit of an artificial example here, so don't fear that these pitfalls are all out there everywhere.",
+            "Hidden, waiting to bite you.",
+            "With this example we have right here.",
+            "We have a very simple kernel, does nothing more than initialize an array.",
+            "To one value one here basically.",
+            "So it's a for loop.",
+            "It sets an array equal to 1, then after the four loop here we've got this.",
+            "We've got this statement here.",
+            "That's one element of the array equal to two, and then we print out that element and you would expect it to be equal to two.",
+            "So pretty straightforward normal C code.",
+            "Make it a GPU kernel.",
+            "Normal behavior does what we think it should do, however.",
+            "If we break it down, what's exactly happening here?",
+            "Once we take over data management were going to mess with this.",
+            "What's happening here is that the a array of course gets copied to GPU at the beginning and gets copied to the host host.",
+            "By the way, is the term that the GPU world uses for the CPU, so the actual terminology you'll find in the documents is host and device.",
+            "That's what they are, the open ACC and GPU World likes to call things.",
+            "The host is the CPU, and the device is whatever you're plugging in.",
+            "So we got to host the device so.",
+            "In this case here, everything is copied onto the GPU and then gets copied back to the CPU and then on the CPU we set the value equal to two and we print out to nothing exciting there.",
+            "However, if we put a data region around this code like this and we run this program now we're going to find our output is.",
+            "Now this a 10 is equal to 1.",
+            "That element that we seem to be setting equal to two somehow stays set equal to 1.",
+            "And the reason is quite clear if we think about what we're actually commanding to happen here with our data region.",
+            "So here's our first data management clause in action here, and we're actually doing something a little bit stupid, so we put a data region around this kernel, and what that says is within this data region I am in charge.",
+            "The human being is in charge of deciding when a gets copied.",
+            "I'm overriding the default behavior of copy everything and copy everything out, because I know what I'm doing here.",
+            "So I'm saying within this data region I am telling you at the beginning of the data region, copy a amount of GPU.",
+            "And at the end of the data region here after this last bracket yellow bracket here copy the data back off the GPU.",
+            "So I'm telling the GPU when it's going to get access to a.",
+            "The problem is that in the middle here of this data region here we have stuff that's running on the GPU in the kernel, followed by stuff that's running on the CPU, and that's probably that's that's usually going to be a little bit sketchy, and in this case here it bites us, because what happens is a runs on the GPU get set equal to 1 everywhere.",
+            "Then it comes back to the CPU.",
+            "CPU sets its copy of a equal to two for Element 10.",
+            "It's copy, I said because we got 2 copies.",
+            "We got a copy of the GPU and a copy of the CPU copy on the GPU though doesn't get set that the kernel set that equal to 1, the CPU set element 10 equal to two, we get to the end of the data region and called the data back from the GPU.",
+            "It's going to overwrite the version on the CPU and we're going to find out that it's still equal to 1. the CPU right to its own local?",
+            "Local copy got overwritten, so and this happens, becausw were explicitly stepping in here and we're saying copy the data.",
+            "The GPU.",
+            "This thing still runs on the host and this copy stuff back from the host.",
+            "So we."
+        ],
+        [
+            "The coupled the compute region and the data region we made into two separate things here.",
+            "And so we have to pay attention.",
+            "So it makes sense to everybody what's happening here.",
+            "This is not something you need to worry about all the time when you use open ACC, but you need to take a little bit of responsibility when you start using data management commands, because now you're moving data manually and you're overriding the compilers default judgment, which is to paranoid Lee only move data at the beginning of the GPU kernel and move everything back at the end of it.",
+            "So yes.",
+            "This one or this one.",
+            "This one."
+        ],
+        [
+            "Text this case with him he showed me that would be awesome.",
+            "Do that to you.",
+            ", to this."
+        ],
+        [
+            "Gold so he's just looking out.",
+            "So in this case here, there's no opportunity for anything to go wrong, because the compute region in the data region are the same thing.",
+            "We haven't applied any data management here, so whatever we're doing on the GPU to the data is all going to get copied back off at the end of this section here, if it needs to be, it can ignore it here.",
+            "They said the compiler smart here knows it can ignore some of this stuff, but there's no opportunity here if we're just using kernels and letting them do their own thing for anything to go wrong, there's no there there.",
+            "The data region and compute region are exactly the same.",
+            "We can do it.",
+            "We think about it and we come back to it.",
+            "If you want.",
+            "If there's some confusion, yes."
+        ],
+        [
+            "More more or more.",
+            "Back not pregnant.",
+            "That reason is the corner, right?",
+            "Record.",
+            "So with.",
+            "That is it that is occurring, right?",
+            "So why the 8th in two is running list?",
+            "Because the the kernel is just the for loop.",
+            "That's the kernel applies to the next block of code right next block of code is just the for loop, right?",
+            "That's the definition.",
+            "No kernel is always for the next block of code and see whatever that is so we can see the next block of code is happens to be the for loop.",
+            "It's like that's covered everything, so I made my own block here by doing this by putting my own braces.",
+            "Now I have my own block there that's my block.",
+            "This is a block that's already naturally in the code, right there that I put the kernel in front of.",
+            "Yes.",
+            "Copy a seed.",
+            "It does copy everything.",
+            "GPU absolutely copies at the GPU, but then when you call the kernel one on the next one, would it recopy the current what I call the kernels within my data region so I'm over ruling the kernels behavior.",
+            "That's the whole point of the data directive as you were saying within this region I'm manually taking charge of.",
+            "A array here.",
+            "Don't don't do anything else.",
+            "Do exactly what I say at the beginning of the region.",
+            "Copy A in at the end of the region, down by that yellow bracket, copy it out and inside there you're not allowed to do anything with it.",
+            "OK, so as long as it's inside that it won't do it exactly.",
+            "The data regions where you say within this region don't do anything at all.",
+            "I'm taking charge, but I'll.",
+            "What time is it?",
+            "If I put the.",
+            "If I put the assignment statement in front of the kernel, yeah, let's think let let's let's walk through it here.",
+            "OK, well the Ara gets copied to GPU, then on the host that assignment statements going to happen.",
+            "So what we're talking about here is we move.",
+            "We're just moving this statement here, up up ahead here.",
+            "So the assignments can happen on the CPU.",
+            "Then the kernel is going to run and set the GPU copy equal to 1 everywhere.",
+            "Then it's going to fall out of the loop and copy that back out.",
+            "So once again, the host version is going to be completely overwritten, so it's going to be the same effect for the exact same reason.",
+            "Tell me.",
+            "Yes, could we sticky jacket if we moved.",
+            "Say for example we stuck our own curly brackets in here and stuck his set here.",
+            "Anna set here.",
+            "Then we could we could force then let's see what will we do in that case then terminal would still be the same except that we would be telling it to run this on the GPU and that would actually run on GPU then and then it would set it on the GPU when it copied it back at the end.",
+            "Region we would get this result over here like our original serial code.",
+            "So the problem is ignorant data is not accountable rather slow.",
+            "Alright, that's the scope.",
+            "Yeah, the scope of the data is.",
+            "Definitely.",
+            "No, it won't.",
+            "It won't.",
+            "By default it will not see these things by default.",
+            "Thank you."
+        ],
+        [
+            "Yes, that one in the demote the innermost loop.",
+            "If you add in a square bracket 10th 2 = 2 Two what kind of result would you expect?",
+            "So if we put a similar assignment statement in the middle of this right here, so we set a jet a 10 equal to two in the middle of this loop.",
+            "OK, then we would expect that a needs to be this a make its way out of this loop right now.",
+            "It does make its way out of this loop, so that's fine, so it wouldn't affect anything here if we did that because it would be set on the GPU, and that's fine.",
+            "And then it would also be copied out, which is already happening right now, so that's fine too.",
+            "So it would make its way out of it and we would find that that value would be set.",
+            "It would be the same as our."
+        ],
+        [
+            "Working there version of code right here.",
+            "OK, so this stuff is actually like I say, not tricky.",
+            "I just want to introduce the concept that you're taking some responsibility here so you can't be completely oblivious, but in general it should be pretty obvious to you what your."
+        ],
+        [
+            "Going and when you need to do it, which is good because you're about to take some responsibility here and fix our broken exercise.",
+            "So again, the idea is that you as a human being, should step back from the problem and say when does the data need to be on the device and when does it not need?",
+            "What doesn't need to be on the device and when does it need to be back on the CPU.",
+            "So before you do anything before you attack this next exercise with our data copy commands say to yourself, when would I like the day to be on GPU and would like it to be back.",
+            "In the ideal case that we should always strive for is that all the data lives on the GPU for almost the entire simulation and only comes back at the end.",
+            "I mean, that is the ideal case of a GPU code.",
+            "Is that the data just sits on the GPU.",
+            "You do all of your computation there, where you've got all this horsepower and then at the very end when you need to results to print it out or whatever, you bring it back.",
+            "That's the ideal case you should strive for that in any given code, and that's kind of achievable too now.",
+            "You are not limited to just so far of interest data region.",
+            "There are also more specific ways to move data back and forth.",
+            "I will give you here for our problem one more which is the update construct.",
+            "So with the update construct here we can at any point in the code say right now on this line I want you to move the data onto the GPU.",
+            "I want you to update the device or update the host.",
+            "I want you to move the data right now so you're not always stuck with these regions.",
+            "Regions are a pretty natural way to deal with a lot of code.",
+            "A lot of times, but you can at any point in time precisely.",
+            "Migrate data back and forth and you might find that useful in our next exercise here.",
+            "Along."
+        ],
+        [
+            "With data regions, so we're going to do.",
+            "Without further distractions from our machine environment, we're going to do an exercise here.",
+            "We're going to fix exercise one so you have data directors now to work with.",
+            "So think about it before you start cramming him into the code stamp, step back and think when would I like this day to be on the GPU and would like it to return?",
+            "Apply the data directives and we have we have about enough time to finish the exercise.",
+            "Probably I'll get a feel for how it's going in the room here, whether we, whether we give the solution out or whether we just.",
+            "You know, let people work on it as they want continuing.",
+            "So go ahead, get to work again.",
+            "You're probably most of you sitting already on a GPU node.",
+            "Just stay there if you want.",
+            "Squat that squat on there and work and ask questions.",
+            "I'll take questions now in general about what we just talked about is appropriate, but go ahead and those of you who feel informed go ahead and get to work on the exercise, yes.",
+            "Update fragment that seems that's more.",
+            "This update pragma is."
+        ],
+        [
+            "It's more like a statement.",
+            "It's not like a on a block or how should it?",
+            "Yeah, it's it's more like a statement.",
+            "It's less applies to a block of code and it's more like do this right here.",
+            "So yeah, so you can put it into an if for instance, and then will only happen.",
+            "Yes indeed.",
+            "Yes, yeah, OK."
+        ],
+        [
+            "And I hope everybody's found this lecture on the wiki.",
+            "Now if you want to refer back and forth the slides right, no problems with that, OK?",
+            "Extremely sophisticated refinements of the exercise, so I will show you at least a straightforward simple solution.",
+            "I see lots of positive results out there.",
+            "People were doing well.",
+            "So let's look at.",
+            "Let's look at my solution."
+        ],
+        [
+            "OK, many of you came up with something pretty close to this.",
+            "Or a minor variation on this, and this is a good solution.",
+            "I'll throw out a little spoiler here.",
+            "This gets good performance.",
+            "Results will look at specifically in a second, but the idea here is that I look at this code and I said OK, when does the data need to be on the GPU and when does it need to be back on a CPU?",
+            "And I said to myself that maybe I should shoot for the ideal case of the data lives on the GPU.",
+            "The entire simulation.",
+            "Is there any reason that can't happen?",
+            "No, the GPU is doing all the work.",
+            "It's running the entire simulation.",
+            "So let's have the day to sit on the CPU, lived there for for essentially the entire simulation.",
+            "So what do I need to do that?",
+            "Well, temperature and temperature last are the only two things I really care about here.",
+            "You may care a little bit about us.",
+            "What are called scalar variables or variables that aren't arrays you can nitpick about those in a real code.",
+            "In general, it's not worth worrying about that 'cause they take so little time to move back and forth.",
+            "If your compiler does its paranoid thing there, who cares.",
+            "But definitely temperature in temperature last I want to worry about those, so I said OK. Let's make temperature and temperature last copy statements outside the while loop so it doesn't copy them back and forth, it they just stay on the GPU the entire time.",
+            "Let's try that.",
+            "So I tried that and I ran it.",
+            "And guess what?",
+            "I got great performance because now I'm preventing it from copying back and forth.",
+            "And I even got the right final result converge at the right time.",
+            "And if I looked at the data it was the right data at the end.",
+            "But I did notice along the way that my update my print Progress track progress as I call it hair routine.",
+            "Was not giving me good results.",
+            "They were a bunch of zeros in my case and they could actually been garbage and I said to myself, why is that?",
+            "Oh yeah, track progress is printing stuff out on the CPU and Meanwhile I have told it to keep the data on the GPU.",
+            "So So what must I do?",
+            "Well, I should update it right when track at that point in time, right when I'm going to print stuff out so once every 100 times steps I need a copy of temperature to come back before I print things out.",
+            "So I stuck that in an I got good results.",
+            "So and I see many of you kind of came up with some solution like that.",
+            "Then I thought about it a little bit more and I realized that temperature actually doesn't need to be copied onto or off the GPU at all if I want to be really clever because temperature is set in its first iteration through the loop by the results from temperature last, and on the way out of the code.",
+            "If I want the results during temperature last two, so I really don't need temperature at all except as a temporary variable really on the loop, so I moved it as a create variable that didn't buy me a whole lot.",
+            "What bought me a whole lot.",
+            "Who's not copying temperature and temperature last onto and off the GPU.",
+            "Every iteration of our while loop that bought me a whole lot.",
+            "That's bad things up.",
+            "A lot will look at how much in a second, but moving to the temperature to create claws so they didn't copy at that first time too.",
+            "That only bought me a fraction of a second so it wasn't a big win to do that, but it was."
+        ],
+        [
+            "Clever little thing to optimization added.",
+            "Here's the Fortran version of.",
+            "It's the exact same thinking process again.",
+            "I said when do I like the data to be on the GPU?",
+            "I'd like it to be on the GPU at the beginning of the simulation.",
+            "When would like it to move off the GPU?",
+            "Ideally not until the end of the simulation, and that's generally true of any algorithm.",
+            "Can I do that here?",
+            "I think I might be able to pull that off here, so why don't put a temperature?",
+            "Or don't put a clause around the entire while loop and just move temperature and temperature last onto the thing.",
+            "Once an offer the thing once at the end that I did that.",
+            "And except for the update overlooking that update clause, I was OK.",
+            "If you fix the update for the track progress, retain you're fine, and then again if you want to be really a little extra creative there, you can.",
+            "You can move the temperature as a temporary variable with the create clause, so.",
+            "Here is a way that we could actually have saved with the update command even a little bit more because we could just move that tiny little bit that we need to print the results out.",
+            "We're only printing the bottom corner the array, so we could actually use to shape command there like a shape shape clause I guess is what I've called there to only move a tiny part of the update to the array on that update command.",
+            "It's not a huge win either, but it's it's nice.",
+            "So any questions on this?",
+            "Yes."
+        ],
+        [
+            "So if you put a print command in the middle of."
+        ],
+        [
+            "OK will go to the new ones here.",
+            "So like you're saying if I put a print command right there.",
+            "OK first of all you can't put print statements or IO statements is the way it's phrased.",
+            "You can't have IO in the middle of a kernels or any kind of GPU code, which if you think about it isn't really an unreasonable command because GPU's don't have access to IO, so you can't really do I owe that means Prince or disk access or anything else in the middle of a kernel state.",
+            "So to begin with that would be illegal to do.",
+            "But let's say we did it with the bugger or something we were.",
+            "Let's say we were just for debugging.",
+            "We were peering at a variable there and there.",
+            "The debugger does allow you go in and stare at this kind of stuff in midstream.",
+            "So if we if we printed out what there, which variable?",
+            "Temperature, if we printed out temperature there in the inside of the kernel with the debugger, the bunker is going to look on the GPU and it's going to be the right thing.",
+            "Or do you mean if we looked at what the value is back on the CPU and we look if we look at the CPU temperatures for this entire codes duration while it's running is sitting there stuck at 0 at the initialized state and it never changes until it gets the code.",
+            "Then basically we need the data region.",
+            "So if we were to look if we were to use a debugger and freeze this code on iteration 500.",
+            "And we look at what's on the GPU.",
+            "Something interesting is going on with temperature in temperature last, and if we look on the CPU nothing's going on with other one of 'em, they're both set equal to 0 when the boundary the edge is set for one of 'em.",
+            "But nothing really interesting.",
+            "Yes.",
+            "So temperature last, why does it need a copy in a copy out?",
+            "Well, you need to get the result out somehow, and I mean you.",
+            "If well, I should say you need to.",
+            "I should say I'm assuming that somebody would like to do something with our final result so.",
+            "Exactly I'm, I'm assuming we'd like something to come back off of the out of our simulation, so that's.",
+            "Who's not?",
+            "That's a good question, so what's up with DT?",
+            "'cause first of all, is very dismissive and I said don't worry about scalar variables and that's not an unreasonable.",
+            "You know position, because who cares if it copies it back and forth the whole lot 'cause it's not expensive, so anything that's a single variable.",
+            "It's insignificant performance, but we can certainly understand it doesn't hurt to understand what exactly is going on.",
+            "Well, let's look at this here.",
+            "What what is going on is we haven't made a data clause about DT, so kernels are going to do what they do by default, which in this case means it is going to copy for each one of these kernels when it's the first kernel here.",
+            "It's going to copy DT on when it gets to the end, it's going to copy DT back.",
+            "Well, actually, no, it's not.",
+            "'cause there's no DT in that kernel, so it's going to ignore DT for the first one on the second one.",
+            "Here, there is a DT in there, so it's by default going to copy it in, and then it actually recognizes that it's a reduction operation here, so it'll do a reduction on the way back out for us.",
+            "So in essence, it's going to do what it did in our exercise one.",
+            "It's going to be completely unaffected.",
+            "Able to detect alert about Africa apart.",
+            "If you.",
+            "Remove this D T = 0 two.",
+            "Which do loop the first one, the second one?",
+            "What is just before the 2nd loop?",
+            "No need to go back to normal.",
+            "You give me stick it inside a Colonel in the kernel somehow.",
+            "Or yeah, no.",
+            "You need to put a data region around it to do it.",
+            "The kernel is only going to affect the actual loop, so you need to put a data region around it.",
+            "But again it's insignificant to worry about that scalar moving back and forth a single variable, so don't even worry about it.",
+            "You don't put a data region around that do that, not just the kernels.",
+            "Discuss folder data.",
+            "Complete the partial derivatives with Byron Orange.",
+            "Greetings and leaving the nursing profession.",
+            "What so only update?",
+            "Which part of what?",
+            "What's the weather like?",
+            "That probation surprise doesn't make you so.",
+            "I'm I'm you're losing me there with what's not bigger use of what?",
+            "One day, the next point, which would be the last part of the array.",
+            "That's where I think.",
+            "You mean for the print statement?",
+            "So you mean just to update, so update could just yes well as matter fact, that's what I did in the Fortran one.",
+            "Weather raising taxes right here.",
+            "That's exactly what they did right there.",
+            "Yes.",
+            "Tourist information yes, you can have an if condition in a kernel that will on any GPU GPU hardware has, shall we say issues with branch statements and conditionals, which I'll talk more about tomorrow.",
+            "It's legal to do it, but it can be a huge performance handicap to have a conditional inside of any part of GPU code.",
+            "So I'll revisit that tomorrow when I talk about GPU hardware a little bit more 'cause that explains why, but you can do it.",
+            "It's legal, it's just not.",
+            "It's not generally a good thing to do.",
+            "Eliminate it, right?",
+            "When I put the file inside it relatively.",
+            "Not that hard.",
+            "I'll look at that and see what's going on, but there's no fundamental reason it can't, yes.",
+            "One second, they're going to yell at me for not using this microphone for questions, and this is probably would you be so kind as to hand it back?",
+            "This this is a good use for it here.",
+            "It's getting a little noisy is matter fact.",
+            "OK, so for.",
+            "For DT.",
+            "You didn't do the reduction explicitly.",
+            "How was the reduction done?",
+            "You know in the code, so the reduction open ACC is smart enough that it will spot reductions and do them for you.",
+            "So are you at you and open MP programmer?",
+            "Is that why the paranoia comes in?",
+            "Like why you can't do that?",
+            "You have to spot the reduction.",
+            "You don't have to spot the reduction, it will do it for you.",
+            "It will take responsibility for that.",
+            "You can see it again and am info Command.",
+            "You can see that it creates a reduction words appropriate.",
+            "But yes, it's an open MP programmer.",
+            "You should be asking yourself that question, but if you're not open any programmer, it just seems like course compiler can recognize something like that.",
+            "Thank you.",
+            "Yes?",
+            "I think the.",
+            "Holds.",
+            "Columns and rows or opposite.",
+            "Uh.",
+            "I don't know you could be right.",
+            "Since it's symmetrical it doesn't matter I guess.",
+            "Yeah no, no, I'm so you might be right.",
+            "You might let me see here.",
+            "I'm looking at this.",
+            "You might well be right and it doesn't matter so.",
+            "Columns iron general columns.",
+            "Here is being treated as the first index or the last thing so columns.",
+            "No, it's right.",
+            "It looks right to me.",
+            "I think it's right.",
+            "I think that yeah.",
+            "So columns is the first, so columns is what I'm calling J, which is the 1st at last index here.",
+            "And maybe you're right, maybe it's back.",
+            "Yeah, I probably wasn't paying a lot of attention when I was probably originally just.",
+            "Question.",
+            "He sent us right?",
+            "So for example, for example, this is for example.",
+            "In that case, open ACC calendar stand that is reduction.",
+            "If we write with stiff sentence.",
+            "That Max should can be right written by if sentence right?",
+            "For example.",
+            "So give me exactly exactly what you what you put in there, so I'm not.",
+            "I'm not so sure how much that open ACC is credible or not.",
+            "Using Max sentence is easier to understand that reduction, but if we use if sentence for for example searching and if statement if statement.",
+            "Sorry yeah OK. Is it possible to 4 four place easy to understand this reduction will not.",
+            "So if you were to hand code yourself like your own Max statement with it, if it actually is actually this because it's the same template, again, you're going to have different values on different cores.",
+            "Compiler can recognize that, so it's not just the magic of it's using the built in Max function here that allows us to see that.",
+            "Get sex.",
+            "Yep.",
+            "This card just copying is this correct?",
+            "You're copying the bottom 5 by 5 chunk and then just printing out the diagonal elements.",
+            "Yes, right?",
+            "So you're only printing out your not just copying what you're putting out, but just the whole bottom.",
+            "It's copying the last five by five chunk.",
+            "I don't bottom corner and then printing out then printing out the diagonal, thanks.",
+            "How did you say Mincey?",
+            "Can you do the same?",
+            "Say what it see you're saying.",
+            "Yeah, only copied the bottom part of the array in C."
+        ],
+        [
+            "Because the same syntax doesn't work.",
+            "So in C you also have array shaping, but I should say that the compiler implementations of this stuff are sketchy, so I would try it before elsewhere.",
+            "It will work here, but if you go back to where I was saying with the race shaping, if you pay attention to everything but the OR did I have that so somewhere in here I had a race shaping and I know where it is here, it's it's about."
+        ],
+        [
+            "Let's see, yeah.",
+            "So if you pay attention to these rules, it should work.",
+            "It's slightly different for seeding for Fortran, so the syntax is a little bit different, but mainly the start and end a little bit different.",
+            "So this is right.",
+            "Here is important to pay attention to, so if you pay attention to that, otherwise it should work the same.",
+            "Now in reality, for a long time it was impossible to do multi Dimensional Rd raised properly in C and some compilers and others.",
+            "And it was very, very badly implemented everywhere, so I haven't tested that recently, but it should.",
+            "Work you are welcome to try it and tell me how it works.",
+            "In this case, it's not an important optimization, so I don't worry about it too much, but please give it a shot and let me know.",
+            "It does works, so yeah, it works.",
+            "It works fine.",
+            "Yes.",
+            "Yes, I I do know actually so so yeah.",
+            "So it so happens that just using the ACC flags alone triggers some optimization.",
+            "We're using no optimization on the code at all, so it triggers like 03 and so yeah, so it's it's a tricky little thing.",
+            "So yeah, that's exactly why you see stuff like that.",
+            "Yes.",
+            "Rent-a-center Avicii."
+        ],
+        [
+            "Stopping constant vice and then and then it's reduced on the device and then copied the back on the host.",
+            "Yes?",
+            "So the life of DT here, DTS initialized outside of the loop, it makes its way into the while loop and then in the first kernel it doesn't matter at all.",
+            "It's not even used, the second kernel, it'll be copied in.",
+            "It'll be, which doesn't matter all it doesn't really matter at all if it's copied it or not.",
+            "If it's really smart, it might not even do a copy in, but it's a reduction for sure.",
+            "So actually, once it realizes reduction, it probably won't do a copy and it's a reduction for sure.",
+            "So inside that 2nd loop here it spots it's a reduction, which means when it gets to the end of that loop, it knows it needs to condense it all down.",
+            "The one single value, which means by the time you get to hear it has the same value as it would in a serial code, and then the while statement could properly use it for it's it's evaluation on the next pass.",
+            "OK, because I'm in front of compiler log, I'm not seeing any copy of DT is that's expected?",
+            "Yeah, it won't show you it.",
+            "Just copying scalar variables.",
+            "Like I say there are not significant enough against it because it's Karen's killer.",
+            "OK thanks.",
+            "OK, well and I'm happy to continue to entertain questions on this, but I would like to point out."
+        ],
+        [
+            "That the performance now starts to become significantly better.",
+            "So now if we look at it, we've gone from 18 seconds down to 1.5 seconds here.",
+            "I think that's what many of you were seeing something along the lines of 1.5 seconds.",
+            "And whether you achieve that last little bit of cleverness with the update with a tiny block or using a create on temperature doesn't affect this time at all.",
+            "That's percent points.",
+            "But on the other hand, the tremendous speed up by a factor of 12 does work, which is pretty impressive for something that if you look at what you did here, just a couple lines of directive here.",
+            "Clause which, if you had any experience or with the benefit of what little experience you have now, you realize is a matter of really minutes of work to go in and spot what you've done.",
+            "So we've got a big performance improvement.",
+            "However, the interesting thing here, and the first time we really had this happened, was on bridges because the compute nodes are pretty powerful.",
+            "It was still not.",
+            "We still haven't caught the open MP code in terms of performance, and so that surprised me a little bit.",
+            "Because prior to this, on every platform we run on open ACC just blows away open MP right out of the box.",
+            "And so I looked at it and realized, well.",
+            "The chorus with 28 good cores on node, the same node you're running on right now.",
+            "You can run the Open MP version for those of you that are often programmers, and if you bother to run the open MP version, it's sitting around now there's one sitting around in your exercise director.",
+            "If you run it with 28 cores were actually now causing the problem to be so small perk, or if it's completely into cash and it runs incredibly well, and so the open MP version actually beats the open ACC version for the first time, however."
+        ],
+        [
+            "When we get to a little bit more realistic with problem size because again it's 1000 by thousand problem we're doing right now is a whole 8 megabytes of data, and we're spreading out over 28 cores.",
+            "That's a pittance for a node like this.",
+            "If we spread it to 1000 bias Outdoor, excuse me 10,000 by 10,000.",
+            "It becomes 16.",
+            "Where's my math here on this should be like one point, yeah?"
+        ],
+        [
+            "Where's my there we go?",
+            "Here's a slide with this so we spread it out to 10,000 by 10,000 which is what we do for the hybrid challenge.",
+            "So I hope those of you that decide to do hybrid challenge will talk more about that tomorrow.",
+            "Spread out 10,000 by 10,000 then you will find it with a more realistic problem size of 1.6 gigabytes.",
+            "And that's not even huge.",
+            "But that's getting up there to where it started to take a chunk of the GPU memory up.",
+            "Now the open ACC in the GPU starts to kind of come into their own and it pulls ahead of what the CPU could do on a problem size like that so.",
+            "The IT is still interesting and unknown Who Will Win the hybrid challenge because we've got some serious competitors in the mix.",
+            "And like I say, it's it's the first time even with a small problem, that the CPU cores gave a run to the GPU."
+        ],
+        [
+            "OK, well let's wrap up quickly here today with and then we can understand questions as long as we want with a couple of quick notes on the end here before we get into the more advanced interesting stuff tomorrow, that's.",
+            "And this really is kind of an stuff.",
+            "Maybe I should save it for tomorrow.",
+            "I'll send the slides are here will cover him now so data management commands that you have right now are just a couple of the ones that are available in open ACC.",
+            "Tomorrow will look at some more convenient ones that you use in larger complicated codes.",
+            "You don't always have to figure out how to fit everything into one of these data regions.",
+            "However, it gets even more flexible with direction that NVIDIA wants to go where they get rid of the Intel CPU altogether and you're just running everything on their cards out there, and so they like it heading towards that direction there.",
+            "It's useful for the unified memory space.",
+            "Which allows you to pretend that your CPU memory and your GPU memory are actually one big memory space, and then you can skip data movement by just accessing memory remotely, only that it can't get rid of the actual physical fact that you have to move things over the PCI bus.",
+            "So either it works because you're not really moving data to begin with, or it doesn't work and you need data management commands anyway, so it's not particularly exciting.",
+            "On the other hand, and video also has the notion of skipping the CPU and skipping the network to connect things up with MPI by connecting.",
+            "Their GPU's directly an one way that they're doing that right now around the PCI bus at least, is with envy Link, which allows you to connect GPU's within a node correctly to each other and then get very good bandwidth and all of a sudden the data management between the GPU's at least with multiple Jeep."
+        ],
+        [
+            "Use is completely different story.",
+            "We're not bottlenecked by that PCI bus, so tomorrow we'll talk about some further speedups if we want to really optimize this code further, but to do that, we're going to have to start to understand GPU architecture a little bit, which by NET, which if you realize right now you know nothing about GPU architecture, you've had to learn nothing about how these devices actually work.",
+            "It's been a complete back black box to you, and yet we've got some pretty substantial performance improvements we've been able to do something sensible and meaningful to our code.",
+            "You will, as a CUDA programmer.",
+            "That's probably right now, impressing you somewhat how far we've gotten without worrying about any of that.",
+            "Tomorrow will look into the architectural details and how quickly they evolve, and more from one generation to the next.",
+            "And maybe you'll appreciate a little bit more how nice it is to have that kind of platform independence to be above the fray of constant hardware changes, so."
+        ],
+        [
+            "Look at that tomorrow.",
+            "So to reiterate, here you go after the Big Four do loops in your code, which is scientific programmers HPC programmers, you probably have their probably easy targets sitting there for you.",
+            "You go after those loops.",
+            "You can apply directives.",
+            "The obvious directives you may have to deal with the fact that loop has some kind of data dependence in it.",
+            "You may have to.",
+            "You probably will have to look at it and say, how can I be a little bit smarter than just copying data all the time?",
+            "Out of paranoia?",
+            "And if you do that you can with relatively little effort.",
+            "Have a potentially very efficient use of the GPU without having to do anything deeper than that."
+        ],
+        [
+            "So tomorrow will talk about some of the more advanced stuff, but I hope that at the very least you believe that we've hit kind of most of these points here in incredible way.",
+            "We've stayed high level here.",
+            "We haven't had to dig into anything low level.",
+            "We haven't messed up the source code writer Laplace code after you've added some directives.",
+            "Still looks like the serial code is still understandable to a person that knows nothing about your open agency directives efficiency.",
+            "Well, we don't really have anything directly to compare it to, but I gave you a couple of clues.",
+            "We compared it to a good open MP implementation and whatnot.",
+            "Performance portable.",
+            "I welcome you to take the code that we worked on today.",
+            "A couple people in here have already talked about moving on to their workstations or laptops or whatever, and if you've you've done the experiment, I mean move the code around.",
+            "Put a PGI compiler, pgi's a free student license and lots of ways for you to just grab the PGI compiler.",
+            "Even though it's officially a licensed product, they make it very freely available to students and whatnot.",
+            "Grab the PGI compiler and put it on some device where you have a GPU and it doesn't have to be super expensive GPU, but it does have to be a relatively modern.",
+            "Generation GPU to really get any benefits and this last thing this incremental thing.",
+            "This is important here.",
+            "I mean what we've been able to do is we've been able to attack our code by looking at a single subroutine, and we've been able to ignore everything else in our code.",
+            "In our case, everything else is just some simple minded initialization routine and print routine, but in principle that represents the many hundreds of subroutines lurking in your in the code you've inherited, you know, or the thing you just downloaded from GitHub that you don't want to mess with because you know all the time.",
+            "And effort is really in a single, you know, single subroutine or a handful of subroutines.",
+            "So this incremental approach is a wonderful thing.",
+            "And anybody that's a real MPI programmer in here, for example, appreciates that because you can't take that for granted, so think."
+        ],
+        [
+            "Inclusion today.",
+            "Right open MP is how we can use the corzana node, but you've just learned how to use the accelerator and you've done it in a way that I hope makes sense to you will answer questions you can keep asking me questions throughout the evening and everything else, but I hope you can appreciate that.",
+            "It's a very elegant way to gain a whole lot of power in something that you've learned in just an afternoon.",
+            "Giving mastered in afternoon, but you've got the key concepts down.",
+            "And for the hybrid challenge, we're going to go ahead and we'll talk about it tomorrow.",
+            "How we can put all these pieces together and see who's going to come up with the fastest solution to this.",
+            "So with that we are finishing right on the money to wander directly over to the dinner slash poster session.",
+            "So again, I'm going to hang out right here to entertain your questions.",
+            "For any of you that want to ask me questions and then I will see you so you guys at dinner.",
+            "And I'll see you back here tomorrow to talk about the more advanced stuff and whatnot.",
+            "Go."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, and we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have sorted out that problem for good, so as long as you use the Dash GPU we are good for the rest of the workshop.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just sit on your GPU and be happy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes I see Oh my microphone is not now now are you happy OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, here's the obvious solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most of you probably did something like this, 'cause I didn't give you a whole lot of tools to work with, so there weren't a whole lot of different things for you to carve out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Fortran version of that, so I guess most of you probably did something like this if you did.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This the compiler output.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks something like this where it told you accelerator kernel generated so you could tell.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK it it was, it was able to do something to generate some kind of GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "Colonel with my.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Actives and you probably got some performance that looks something like this, yes, question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look around.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah you could.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah if you put a if you put a kernel around a block of code it will make separate kernels inside, yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "What kind of error did it give you?",
+                    "label": 0
+                },
+                {
+                    "sent": "You just put a primer on the outside of things is what you're saying.",
+                    "label": 0
+                },
+                {
+                    "sent": "The whole loop and you put an end and end pragma and I'll take a look at it there.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's nothing should be illegal about that, but it's in the direction we're going.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not super helpful, yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "Real problem, putting it, putting the pragma around the 2nd loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The DT is dependent on previous iterations it look like.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so we have.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Missing an open MP programmer amongst us maybe maybe who spotted.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Not independence, but actually a reduction operation going on here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a similar type of concern will get on to that in a second.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, but.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Usually open MP programmers spot that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I just did as what you showed us, but I didn't get speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean I tried to see if that's OK, neither did I.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you look at the results here, I didn't get much speedup either, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We went from 18 seconds roughly for the serial code to 29 seconds for the GPU code.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so it is a matter of fact from an open MP code which is by the way very similar directives to this with open MP code, so I can get this thing all the way down to less than a second to run on all 28 cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've not only not done well compared to open MP, but we've just done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dismally compared to our original serial code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is not what I would consider much of a success.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So and the open MP stuff here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Normally I'll take a little digression and talk about open MP and what it means.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everything else, but I think you guys get the general idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or is it?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Different directive based approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "So instead will get into the more interesting thing which is what went wrong here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then why is this not seeming to be so effective?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well it so happens that we have all the answers obvious.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once I show you why we also have a really really easy performance profiling capability, we can turn on right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's one of the reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, I like the PGI compiler is if you just set runtime variable an environment variable called PGI_ACC_time equal to 1 whenever you run your code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even you're already compiled code.",
+                    "label": 0
+                },
+                {
+                    "sent": "It'll spit out a nice timing report and that's that's pretty convenient.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are wonderful performance profilers available as well, where you can really drill down and get all kinds of pie charts and bar graphs and everything else, But this is a pretty nice quick and dirty way to find out what's up in your code, so I ran that here just to get some output and see what's going on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I did that with with my horrible code.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not working well, and here's what came back out with the output.",
+                    "label": 0
+                },
+                {
+                    "sent": "And by the way, it's not that hard to decipher.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's gotten line numbers here, telling us where it spent time and.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the times are in microseconds, so once you see that the numbers make sense here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I went down here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The side where it talks about execution here Colonel launched so we see here it says Kernel launched and kernel launched and then actually reduction kernel here 'cause there's a reduction going on in this code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I went there talk about the reduction.",
+                    "label": 0
+                },
+                {
+                    "sent": "In second I went there and looked at all the time that we spent actually executing and it's been about little over a second actually executed here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, that's not terrible.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually would be a really good speedup, comparable to our open MP code running on 28 cores, so that's that's not bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks like our time spent running was pretty good.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, here's a bunch of other stuff that reported over here about device data copies.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I look at all these lines that have these data copying things, this is telling me where it had to move data back and forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Data copied into the device, or out of the device, and this is the number one issue that we have to contend with when working on an accelerator as we as human beings have to help the compiler do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Better job because this is kind of a schematic here of GPU's and CPU's which is that CPU's have a decent connection to their memory, not bad bandwidth.",
+                    "label": 0
+                },
+                {
+                    "sent": "GPU's have a fantastic connection to their memory.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is one of the reasons that they can perform so well.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have very very high bandwidth but the connection between the two is pathetic.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's over this PCI bus so these can be measured in hundreds of gigabytes these days and this is a couple gigabytes so it's just terrible to move data back and forth so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "As a matter of fact, this is what's going on.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're cramming this data over the PCI bus and back to the CPU memory, and we're doing it.",
+                    "label": 1
+                },
+                {
+                    "sent": "If we look at our.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Nope, here we're doing it four times every generation.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do I know that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because anytime you use a kernels directive, what the compiler does is it says to be safe.",
+                    "label": 0
+                },
+                {
+                    "sent": "I had best copy any data that's used within the kernel to the GPU at the beginning.",
+                    "label": 0
+                },
+                {
+                    "sent": "When I start running and at the end I best copy all that data back.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we look at the data that's in the kernel, it's temperature and temperature last and so it's copying all of those arrays onto and off of the GPU.",
+                    "label": 1
+                },
+                {
+                    "sent": "Four times it swings copy every iteration, copying onto, copying off, copying it back onto when it hits that second for loop, and back off 4 copies every iteration of our while loop.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is where all of our time is spent right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's all in the data movement, moving data back and forth.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is where you, as a human being, have to come in and help the compiler a little bit instead of just sticking kernel directives that every for loop like I said and expecting great results.",
+                    "label": 0
+                },
+                {
+                    "sent": "You as human being have to come in and say here's where I do not need to move data all the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't need to do the Super paranoid thing of copying all the data onto and all the data off instead some.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I can avoid copies, but before I move on, I do want to mention that reduction here.",
+                    "label": 1
+                },
+                {
+                    "sent": "So there is this variable DT inside the 2nd loop and it's not actually independence, so it's not independence.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's not one iteration of it, or what you say is it's not an index into some kind of data array structure, So what it is though, is a variable that from between iterations mean let me stay.",
+                    "label": 0
+                },
+                {
+                    "sent": "One iteration doesn't depend on the next, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the iterations together needed to be added together to figure out which one had the maximum deviation.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the best way to put it.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll say that again, a different way, so it makes sense we're doing an operation where over the entire array we want to find the maximum element.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The biggest temperature change so they can all be done independently.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not like a loop dependence where one affects the other.",
+                    "label": 0
+                },
+                {
+                    "sent": "They could all be on it, done independently, but at the end of the loop, all of those cores with their separate values, their sub guys, they found they all need to spit out the correct maximum.",
+                    "label": 0
+                },
+                {
+                    "sent": "One maximum comes out of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now to an Open MP programmer.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a big pitfall is to not recognize when you've got a reduction going on in a loop like this and you miss it and now something bad happens.",
+                    "label": 1
+                },
+                {
+                    "sent": "The value for DT that falls out of the end of this loop is the wrong one, but for you open MP programmers open ACC can recognize reductions like this and for you not open MP programmers who don't know didn't know what you didn't have to worry about until now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Reduction operation like this is something that compiler will automatically catch.",
+                    "label": 0
+                },
+                {
+                    "sent": "It did spit out in that report that we asked.",
+                    "label": 0
+                },
+                {
+                    "sent": "You notice when I said report things.",
+                    "label": 0
+                },
+                {
+                    "sent": "It said it did a reduction operation so you can tell it did something there, but in other words, it just recognized the fact that DT, if it's calculated by a bunch of different cores, each one of them being responsible for some slice of our our metal plate.",
+                    "label": 0
+                },
+                {
+                    "sent": "So each one of our our metal plates can be divided up into a bunch of different cores working on their own small section of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each one of them is going to come up with their own DT maximum.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so before we fall out of the blood into loop, they need to combine them all together to get the real maximum.",
+                    "label": 0
+                },
+                {
+                    "sent": "The actual maximum volume together.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a reduction operation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it does this automatically.",
+                    "label": 0
+                },
+                {
+                    "sent": "So why am I dwelling on it so much again?",
+                    "label": 1
+                },
+                {
+                    "sent": "Because open MP programmers will be concerned about this, that we overlook.",
+                    "label": 1
+                },
+                {
+                    "sent": "This house is being handled and becausw's open.",
+                    "label": 0
+                },
+                {
+                    "sent": "ACC programmers.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should be aware of the fact that this is this is a nice thing for the compiler to take care of automatically.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So onto the data construct which is going to allow us to fix our problem here so it's the same as another is any other clause in open ACC.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's bang dollar, ACC and then data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Except in this case, we're going to tell it which variables need to be copied onto an offer the device instead of doing the default thing which is to move them on and off the device.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anything in that kernel.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the commands we have available are copy and copy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that like the default behavior?",
+                    "label": 0
+                },
+                {
+                    "sent": "Copy it onto the device and copy it off the device and you might say don't I need to do that for any data while the answer is no very often.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instead you might have something like copy in where you've got data that just is entering into the equation, but you certainly don't need to waste time moving it back off the device.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just like a subroutine where you have an input variable and you don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't need it as an output.",
+                    "label": 0
+                },
+                {
+                    "sent": "Likewise, sometimes you have things that are copied on the device, but you don't certainly don't need to waste time moving in some uninitialized nonsense on their big block.",
+                    "label": 0
+                },
+                {
+                    "sent": "Punish allies data instead.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just want the result to come back out, and that's where copy out is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nice thing to specify.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also have last one here, which creates, which says don't copy this thing onto or off the device and you might say what uses that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, there are lots of times when you have a temporary variable in a subroutine, for example, and it's just used in the calculation, but you don't need to input into a subroutine, and you don't want the value back out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the same thing with the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "You may have some array that enters into the midst of the calculations, but you don't need to enter the result.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you don't need to send it back, so we have the ability to tell.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the compiler the status of these different types of variables here so that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Don't waste time doing this now.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can also do this with small sections of arrays, because very often it's helpful to not move an entire array, but a small part of it is necessary to have and this is done with the race shaping, which the Fortran programmers probably looks pretty natural.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is kind of like Fortran slicing notation, standard kind of thing to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, 90 C programmers probably not that foreign either.",
+                    "label": 0
+                },
+                {
+                    "sent": "In these this day and age, you probably most of you have done some kind of Python thing or some other language where a MATLAB something else.",
+                    "label": 0
+                },
+                {
+                    "sent": "That add array slicing like this, so it's probably not the first time you've seen that, so you can send subsections of arrays back and forth and save the needless copying of the entire array.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you know you only this small section of it, small important note here is Fortran uses start and end for these things, which the Fortran programmers is perfectly normal and see uses start and length, which is kind of also ASI convention too.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this the two conventions are slightly different, but that's the natural way you already do things in those languages.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Look at how the compiler might actually guess some of these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "The compiler is not entirely stupid and can guess some of these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we have an example like.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got a variable here called B, which the compiler was able to tell.",
+                    "label": 0
+                },
+                {
+                    "sent": "If so, by default with kernels, you should assume the compiler looks at this kernel right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It says I've got three variables in here.",
+                    "label": 0
+                },
+                {
+                    "sent": "AB&CI better coffee them all on to the on the GPU at the beginning of the kernel and copy them all off the GPU at the end of the kernel.",
+                    "label": 0
+                },
+                {
+                    "sent": "You assume that's what it's doing by default.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes it can see it doesn't need to do that, so in this case here with the Arabian does do the copy those that need to copy it on and off.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's that's by default.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, look at Array C array, see here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It knows that it only needs to copy that array out.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't need to copy that onto.",
+                    "label": 0
+                },
+                {
+                    "sent": "How can we see that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if we look at, CC is being initialized by values from A and from B it doesn't doesn't bring anything into the routine, it doesn't need to come into the array, so C is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Laser pointer sticky Now see is copy out or shoot me cop yes coffee out only so that saves us an entire copy of that C array every time it calls this kernel likewise.",
+                    "label": 0
+                },
+                {
+                    "sent": "A it only needs to copy out.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks this routine here and says with a with a laser pointer is it says a is being multiplied by four times the index.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's entirely internal to that routine.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no point in copying the values for a, but a could have some values that end up needing to be used after that routine.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need to copy a out so you get the idea of what's going on here with copy ends and outs and and how they work.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're pretty straightforward, however.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "There's a little bit of responsibility you take when you start using these data directives.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can actually now break your code, so so far, implied open ACC is much nicer than open MP and that the opportunity to break your code are more limited.",
+                    "label": 0
+                },
+                {
+                    "sent": "But they are there now with data management.",
+                    "label": 0
+                },
+                {
+                    "sent": "We now have the possibility of breaking our coach.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's see how we might do that here with a little bit of an artificial example here, so don't fear that these pitfalls are all out there everywhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hidden, waiting to bite you.",
+                    "label": 0
+                },
+                {
+                    "sent": "With this example we have right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a very simple kernel, does nothing more than initialize an array.",
+                    "label": 0
+                },
+                {
+                    "sent": "To one value one here basically.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a for loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "It sets an array equal to 1, then after the four loop here we've got this.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got this statement here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's one element of the array equal to two, and then we print out that element and you would expect it to be equal to two.",
+                    "label": 0
+                },
+                {
+                    "sent": "So pretty straightforward normal C code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Make it a GPU kernel.",
+                    "label": 0
+                },
+                {
+                    "sent": "Normal behavior does what we think it should do, however.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we break it down, what's exactly happening here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Once we take over data management were going to mess with this.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's happening here is that the a array of course gets copied to GPU at the beginning and gets copied to the host host.",
+                    "label": 1
+                },
+                {
+                    "sent": "By the way, is the term that the GPU world uses for the CPU, so the actual terminology you'll find in the documents is host and device.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what they are, the open ACC and GPU World likes to call things.",
+                    "label": 0
+                },
+                {
+                    "sent": "The host is the CPU, and the device is whatever you're plugging in.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we got to host the device so.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case here, everything is copied onto the GPU and then gets copied back to the CPU and then on the CPU we set the value equal to two and we print out to nothing exciting there.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, if we put a data region around this code like this and we run this program now we're going to find our output is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now this a 10 is equal to 1.",
+                    "label": 1
+                },
+                {
+                    "sent": "That element that we seem to be setting equal to two somehow stays set equal to 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason is quite clear if we think about what we're actually commanding to happen here with our data region.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's our first data management clause in action here, and we're actually doing something a little bit stupid, so we put a data region around this kernel, and what that says is within this data region I am in charge.",
+                    "label": 0
+                },
+                {
+                    "sent": "The human being is in charge of deciding when a gets copied.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm overriding the default behavior of copy everything and copy everything out, because I know what I'm doing here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm saying within this data region I am telling you at the beginning of the data region, copy a amount of GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "And at the end of the data region here after this last bracket yellow bracket here copy the data back off the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm telling the GPU when it's going to get access to a.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that in the middle here of this data region here we have stuff that's running on the GPU in the kernel, followed by stuff that's running on the CPU, and that's probably that's that's usually going to be a little bit sketchy, and in this case here it bites us, because what happens is a runs on the GPU get set equal to 1 everywhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it comes back to the CPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "CPU sets its copy of a equal to two for Element 10.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's copy, I said because we got 2 copies.",
+                    "label": 0
+                },
+                {
+                    "sent": "We got a copy of the GPU and a copy of the CPU copy on the GPU though doesn't get set that the kernel set that equal to 1, the CPU set element 10 equal to two, we get to the end of the data region and called the data back from the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to overwrite the version on the CPU and we're going to find out that it's still equal to 1. the CPU right to its own local?",
+                    "label": 0
+                },
+                {
+                    "sent": "Local copy got overwritten, so and this happens, becausw were explicitly stepping in here and we're saying copy the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "The GPU.",
+                    "label": 1
+                },
+                {
+                    "sent": "This thing still runs on the host and this copy stuff back from the host.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The coupled the compute region and the data region we made into two separate things here.",
+                    "label": 1
+                },
+                {
+                    "sent": "And so we have to pay attention.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it makes sense to everybody what's happening here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is not something you need to worry about all the time when you use open ACC, but you need to take a little bit of responsibility when you start using data management commands, because now you're moving data manually and you're overriding the compilers default judgment, which is to paranoid Lee only move data at the beginning of the GPU kernel and move everything back at the end of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "This one or this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "This one.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Text this case with him he showed me that would be awesome.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do that to you.",
+                    "label": 0
+                },
+                {
+                    "sent": ", to this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Gold so he's just looking out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this case here, there's no opportunity for anything to go wrong, because the compute region in the data region are the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We haven't applied any data management here, so whatever we're doing on the GPU to the data is all going to get copied back off at the end of this section here, if it needs to be, it can ignore it here.",
+                    "label": 0
+                },
+                {
+                    "sent": "They said the compiler smart here knows it can ignore some of this stuff, but there's no opportunity here if we're just using kernels and letting them do their own thing for anything to go wrong, there's no there there.",
+                    "label": 0
+                },
+                {
+                    "sent": "The data region and compute region are exactly the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "We think about it and we come back to it.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there's some confusion, yes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "More more or more.",
+                    "label": 0
+                },
+                {
+                    "sent": "Back not pregnant.",
+                    "label": 0
+                },
+                {
+                    "sent": "That reason is the corner, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Record.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is it that is occurring, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So why the 8th in two is running list?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because the the kernel is just the for loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the kernel applies to the next block of code right next block of code is just the for loop, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the definition.",
+                    "label": 0
+                },
+                {
+                    "sent": "No kernel is always for the next block of code and see whatever that is so we can see the next block of code is happens to be the for loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's like that's covered everything, so I made my own block here by doing this by putting my own braces.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I have my own block there that's my block.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a block that's already naturally in the code, right there that I put the kernel in front of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Copy a seed.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does copy everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "GPU absolutely copies at the GPU, but then when you call the kernel one on the next one, would it recopy the current what I call the kernels within my data region so I'm over ruling the kernels behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the whole point of the data directive as you were saying within this region I'm manually taking charge of.",
+                    "label": 0
+                },
+                {
+                    "sent": "A array here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't don't do anything else.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do exactly what I say at the beginning of the region.",
+                    "label": 0
+                },
+                {
+                    "sent": "Copy A in at the end of the region, down by that yellow bracket, copy it out and inside there you're not allowed to do anything with it.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so as long as it's inside that it won't do it exactly.",
+                    "label": 0
+                },
+                {
+                    "sent": "The data regions where you say within this region don't do anything at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm taking charge, but I'll.",
+                    "label": 0
+                },
+                {
+                    "sent": "What time is it?",
+                    "label": 0
+                },
+                {
+                    "sent": "If I put the.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I put the assignment statement in front of the kernel, yeah, let's think let let's let's walk through it here.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, well the Ara gets copied to GPU, then on the host that assignment statements going to happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're talking about here is we move.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're just moving this statement here, up up ahead here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the assignments can happen on the CPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the kernel is going to run and set the GPU copy equal to 1 everywhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it's going to fall out of the loop and copy that back out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So once again, the host version is going to be completely overwritten, so it's going to be the same effect for the exact same reason.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tell me.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, could we sticky jacket if we moved.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say for example we stuck our own curly brackets in here and stuck his set here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anna set here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we could we could force then let's see what will we do in that case then terminal would still be the same except that we would be telling it to run this on the GPU and that would actually run on GPU then and then it would set it on the GPU when it copied it back at the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "Region we would get this result over here like our original serial code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem is ignorant data is not accountable rather slow.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, that's the scope.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, the scope of the data is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Definitely.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, it won't.",
+                    "label": 0
+                },
+                {
+                    "sent": "It won't.",
+                    "label": 0
+                },
+                {
+                    "sent": "By default it will not see these things by default.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yes, that one in the demote the innermost loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you add in a square bracket 10th 2 = 2 Two what kind of result would you expect?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we put a similar assignment statement in the middle of this right here, so we set a jet a 10 equal to two in the middle of this loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, then we would expect that a needs to be this a make its way out of this loop right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does make its way out of this loop, so that's fine, so it wouldn't affect anything here if we did that because it would be set on the GPU, and that's fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it would also be copied out, which is already happening right now, so that's fine too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it would make its way out of it and we would find that that value would be set.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would be the same as our.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Working there version of code right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this stuff is actually like I say, not tricky.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just want to introduce the concept that you're taking some responsibility here so you can't be completely oblivious, but in general it should be pretty obvious to you what your.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Going and when you need to do it, which is good because you're about to take some responsibility here and fix our broken exercise.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, the idea is that you as a human being, should step back from the problem and say when does the data need to be on the device and when does it not need?",
+                    "label": 0
+                },
+                {
+                    "sent": "What doesn't need to be on the device and when does it need to be back on the CPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "So before you do anything before you attack this next exercise with our data copy commands say to yourself, when would I like the day to be on GPU and would like it to be back.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the ideal case that we should always strive for is that all the data lives on the GPU for almost the entire simulation and only comes back at the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, that is the ideal case of a GPU code.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is that the data just sits on the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "You do all of your computation there, where you've got all this horsepower and then at the very end when you need to results to print it out or whatever, you bring it back.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the ideal case you should strive for that in any given code, and that's kind of achievable too now.",
+                    "label": 0
+                },
+                {
+                    "sent": "You are not limited to just so far of interest data region.",
+                    "label": 1
+                },
+                {
+                    "sent": "There are also more specific ways to move data back and forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will give you here for our problem one more which is the update construct.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with the update construct here we can at any point in the code say right now on this line I want you to move the data onto the GPU.",
+                    "label": 1
+                },
+                {
+                    "sent": "I want you to update the device or update the host.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want you to move the data right now so you're not always stuck with these regions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Regions are a pretty natural way to deal with a lot of code.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of times, but you can at any point in time precisely.",
+                    "label": 0
+                },
+                {
+                    "sent": "Migrate data back and forth and you might find that useful in our next exercise here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Along.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "With data regions, so we're going to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Without further distractions from our machine environment, we're going to do an exercise here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to fix exercise one so you have data directors now to work with.",
+                    "label": 0
+                },
+                {
+                    "sent": "So think about it before you start cramming him into the code stamp, step back and think when would I like this day to be on the GPU and would like it to return?",
+                    "label": 0
+                },
+                {
+                    "sent": "Apply the data directives and we have we have about enough time to finish the exercise.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably I'll get a feel for how it's going in the room here, whether we, whether we give the solution out or whether we just.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, let people work on it as they want continuing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So go ahead, get to work again.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're probably most of you sitting already on a GPU node.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just stay there if you want.",
+                    "label": 0
+                },
+                {
+                    "sent": "Squat that squat on there and work and ask questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll take questions now in general about what we just talked about is appropriate, but go ahead and those of you who feel informed go ahead and get to work on the exercise, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Update fragment that seems that's more.",
+                    "label": 0
+                },
+                {
+                    "sent": "This update pragma is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's more like a statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not like a on a block or how should it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, it's it's more like a statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's less applies to a block of code and it's more like do this right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, so you can put it into an if for instance, and then will only happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes indeed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yeah, OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And I hope everybody's found this lecture on the wiki.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if you want to refer back and forth the slides right, no problems with that, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "Extremely sophisticated refinements of the exercise, so I will show you at least a straightforward simple solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "I see lots of positive results out there.",
+                    "label": 0
+                },
+                {
+                    "sent": "People were doing well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's look at my solution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, many of you came up with something pretty close to this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or a minor variation on this, and this is a good solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll throw out a little spoiler here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This gets good performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Results will look at specifically in a second, but the idea here is that I look at this code and I said OK, when does the data need to be on the GPU and when does it need to be back on a CPU?",
+                    "label": 0
+                },
+                {
+                    "sent": "And I said to myself that maybe I should shoot for the ideal case of the data lives on the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "The entire simulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is there any reason that can't happen?",
+                    "label": 0
+                },
+                {
+                    "sent": "No, the GPU is doing all the work.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's running the entire simulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's have the day to sit on the CPU, lived there for for essentially the entire simulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what do I need to do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, temperature and temperature last are the only two things I really care about here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You may care a little bit about us.",
+                    "label": 0
+                },
+                {
+                    "sent": "What are called scalar variables or variables that aren't arrays you can nitpick about those in a real code.",
+                    "label": 0
+                },
+                {
+                    "sent": "In general, it's not worth worrying about that 'cause they take so little time to move back and forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "If your compiler does its paranoid thing there, who cares.",
+                    "label": 0
+                },
+                {
+                    "sent": "But definitely temperature in temperature last I want to worry about those, so I said OK. Let's make temperature and temperature last copy statements outside the while loop so it doesn't copy them back and forth, it they just stay on the GPU the entire time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's try that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I tried that and I ran it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And guess what?",
+                    "label": 0
+                },
+                {
+                    "sent": "I got great performance because now I'm preventing it from copying back and forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I even got the right final result converge at the right time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I looked at the data it was the right data at the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I did notice along the way that my update my print Progress track progress as I call it hair routine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Was not giving me good results.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were a bunch of zeros in my case and they could actually been garbage and I said to myself, why is that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh yeah, track progress is printing stuff out on the CPU and Meanwhile I have told it to keep the data on the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "So So what must I do?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I should update it right when track at that point in time, right when I'm going to print stuff out so once every 100 times steps I need a copy of temperature to come back before I print things out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I stuck that in an I got good results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So and I see many of you kind of came up with some solution like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I thought about it a little bit more and I realized that temperature actually doesn't need to be copied onto or off the GPU at all if I want to be really clever because temperature is set in its first iteration through the loop by the results from temperature last, and on the way out of the code.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I want the results during temperature last two, so I really don't need temperature at all except as a temporary variable really on the loop, so I moved it as a create variable that didn't buy me a whole lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "What bought me a whole lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "Who's not copying temperature and temperature last onto and off the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every iteration of our while loop that bought me a whole lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's bad things up.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot will look at how much in a second, but moving to the temperature to create claws so they didn't copy at that first time too.",
+                    "label": 0
+                },
+                {
+                    "sent": "That only bought me a fraction of a second so it wasn't a big win to do that, but it was.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Clever little thing to optimization added.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the Fortran version of.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's the exact same thinking process again.",
+                    "label": 0
+                },
+                {
+                    "sent": "I said when do I like the data to be on the GPU?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like it to be on the GPU at the beginning of the simulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "When would like it to move off the GPU?",
+                    "label": 0
+                },
+                {
+                    "sent": "Ideally not until the end of the simulation, and that's generally true of any algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I do that here?",
+                    "label": 0
+                },
+                {
+                    "sent": "I think I might be able to pull that off here, so why don't put a temperature?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or don't put a clause around the entire while loop and just move temperature and temperature last onto the thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once an offer the thing once at the end that I did that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And except for the update overlooking that update clause, I was OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you fix the update for the track progress, retain you're fine, and then again if you want to be really a little extra creative there, you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can move the temperature as a temporary variable with the create clause, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is a way that we could actually have saved with the update command even a little bit more because we could just move that tiny little bit that we need to print the results out.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're only printing the bottom corner the array, so we could actually use to shape command there like a shape shape clause I guess is what I've called there to only move a tiny part of the update to the array on that update command.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a huge win either, but it's it's nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "So any questions on this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So if you put a print command in the middle of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK will go to the new ones here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So like you're saying if I put a print command right there.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK first of all you can't put print statements or IO statements is the way it's phrased.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't have IO in the middle of a kernels or any kind of GPU code, which if you think about it isn't really an unreasonable command because GPU's don't have access to IO, so you can't really do I owe that means Prince or disk access or anything else in the middle of a kernel state.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to begin with that would be illegal to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "But let's say we did it with the bugger or something we were.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say we were just for debugging.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were peering at a variable there and there.",
+                    "label": 0
+                },
+                {
+                    "sent": "The debugger does allow you go in and stare at this kind of stuff in midstream.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we if we printed out what there, which variable?",
+                    "label": 0
+                },
+                {
+                    "sent": "Temperature, if we printed out temperature there in the inside of the kernel with the debugger, the bunker is going to look on the GPU and it's going to be the right thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or do you mean if we looked at what the value is back on the CPU and we look if we look at the CPU temperatures for this entire codes duration while it's running is sitting there stuck at 0 at the initialized state and it never changes until it gets the code.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then basically we need the data region.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we were to look if we were to use a debugger and freeze this code on iteration 500.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we look at what's on the GPU.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something interesting is going on with temperature in temperature last, and if we look on the CPU nothing's going on with other one of 'em, they're both set equal to 0 when the boundary the edge is set for one of 'em.",
+                    "label": 0
+                },
+                {
+                    "sent": "But nothing really interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So temperature last, why does it need a copy in a copy out?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you need to get the result out somehow, and I mean you.",
+                    "label": 0
+                },
+                {
+                    "sent": "If well, I should say you need to.",
+                    "label": 0
+                },
+                {
+                    "sent": "I should say I'm assuming that somebody would like to do something with our final result so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly I'm, I'm assuming we'd like something to come back off of the out of our simulation, so that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Who's not?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a good question, so what's up with DT?",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause first of all, is very dismissive and I said don't worry about scalar variables and that's not an unreasonable.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know position, because who cares if it copies it back and forth the whole lot 'cause it's not expensive, so anything that's a single variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's insignificant performance, but we can certainly understand it doesn't hurt to understand what exactly is going on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, let's look at this here.",
+                    "label": 0
+                },
+                {
+                    "sent": "What what is going on is we haven't made a data clause about DT, so kernels are going to do what they do by default, which in this case means it is going to copy for each one of these kernels when it's the first kernel here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to copy DT on when it gets to the end, it's going to copy DT back.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, actually, no, it's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause there's no DT in that kernel, so it's going to ignore DT for the first one on the second one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here, there is a DT in there, so it's by default going to copy it in, and then it actually recognizes that it's a reduction operation here, so it'll do a reduction on the way back out for us.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in essence, it's going to do what it did in our exercise one.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to be completely unaffected.",
+                    "label": 0
+                },
+                {
+                    "sent": "Able to detect alert about Africa apart.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Remove this D T = 0 two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which do loop the first one, the second one?",
+                    "label": 0
+                },
+                {
+                    "sent": "What is just before the 2nd loop?",
+                    "label": 0
+                },
+                {
+                    "sent": "No need to go back to normal.",
+                    "label": 0
+                },
+                {
+                    "sent": "You give me stick it inside a Colonel in the kernel somehow.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or yeah, no.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need to put a data region around it to do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The kernel is only going to affect the actual loop, so you need to put a data region around it.",
+                    "label": 0
+                },
+                {
+                    "sent": "But again it's insignificant to worry about that scalar moving back and forth a single variable, so don't even worry about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't put a data region around that do that, not just the kernels.",
+                    "label": 0
+                },
+                {
+                    "sent": "Discuss folder data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Complete the partial derivatives with Byron Orange.",
+                    "label": 0
+                },
+                {
+                    "sent": "Greetings and leaving the nursing profession.",
+                    "label": 0
+                },
+                {
+                    "sent": "What so only update?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which part of what?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's the weather like?",
+                    "label": 0
+                },
+                {
+                    "sent": "That probation surprise doesn't make you so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm I'm you're losing me there with what's not bigger use of what?",
+                    "label": 0
+                },
+                {
+                    "sent": "One day, the next point, which would be the last part of the array.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's where I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "You mean for the print statement?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you mean just to update, so update could just yes well as matter fact, that's what I did in the Fortran one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Weather raising taxes right here.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's exactly what they did right there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tourist information yes, you can have an if condition in a kernel that will on any GPU GPU hardware has, shall we say issues with branch statements and conditionals, which I'll talk more about tomorrow.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's legal to do it, but it can be a huge performance handicap to have a conditional inside of any part of GPU code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll revisit that tomorrow when I talk about GPU hardware a little bit more 'cause that explains why, but you can do it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's legal, it's just not.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not generally a good thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Eliminate it, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "When I put the file inside it relatively.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not that hard.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll look at that and see what's going on, but there's no fundamental reason it can't, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "One second, they're going to yell at me for not using this microphone for questions, and this is probably would you be so kind as to hand it back?",
+                    "label": 0
+                },
+                {
+                    "sent": "This this is a good use for it here.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's getting a little noisy is matter fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so for.",
+                    "label": 0
+                },
+                {
+                    "sent": "For DT.",
+                    "label": 0
+                },
+                {
+                    "sent": "You didn't do the reduction explicitly.",
+                    "label": 0
+                },
+                {
+                    "sent": "How was the reduction done?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know in the code, so the reduction open ACC is smart enough that it will spot reductions and do them for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "So are you at you and open MP programmer?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that why the paranoia comes in?",
+                    "label": 0
+                },
+                {
+                    "sent": "Like why you can't do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "You have to spot the reduction.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't have to spot the reduction, it will do it for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will take responsibility for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see it again and am info Command.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see that it creates a reduction words appropriate.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yes, it's an open MP programmer.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should be asking yourself that question, but if you're not open any programmer, it just seems like course compiler can recognize something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "I think the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Holds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Columns and rows or opposite.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uh.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know you could be right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since it's symmetrical it doesn't matter I guess.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah no, no, I'm so you might be right.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might let me see here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm looking at this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might well be right and it doesn't matter so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Columns iron general columns.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is being treated as the first index or the last thing so columns.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, it's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks right to me.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So columns is the first, so columns is what I'm calling J, which is the 1st at last index here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And maybe you're right, maybe it's back.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, I probably wasn't paying a lot of attention when I was probably originally just.",
+                    "label": 0
+                },
+                {
+                    "sent": "Question.",
+                    "label": 0
+                },
+                {
+                    "sent": "He sent us right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, for example, this is for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that case, open ACC calendar stand that is reduction.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we write with stiff sentence.",
+                    "label": 0
+                },
+                {
+                    "sent": "That Max should can be right written by if sentence right?",
+                    "label": 0
+                },
+                {
+                    "sent": "For example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So give me exactly exactly what you what you put in there, so I'm not.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not so sure how much that open ACC is credible or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using Max sentence is easier to understand that reduction, but if we use if sentence for for example searching and if statement if statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry yeah OK. Is it possible to 4 four place easy to understand this reduction will not.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you were to hand code yourself like your own Max statement with it, if it actually is actually this because it's the same template, again, you're going to have different values on different cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "Compiler can recognize that, so it's not just the magic of it's using the built in Max function here that allows us to see that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get sex.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "This card just copying is this correct?",
+                    "label": 0
+                },
+                {
+                    "sent": "You're copying the bottom 5 by 5 chunk and then just printing out the diagonal elements.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you're only printing out your not just copying what you're putting out, but just the whole bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's copying the last five by five chunk.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't bottom corner and then printing out then printing out the diagonal, thanks.",
+                    "label": 0
+                },
+                {
+                    "sent": "How did you say Mincey?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you do the same?",
+                    "label": 0
+                },
+                {
+                    "sent": "Say what it see you're saying.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, only copied the bottom part of the array in C.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Because the same syntax doesn't work.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in C you also have array shaping, but I should say that the compiler implementations of this stuff are sketchy, so I would try it before elsewhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will work here, but if you go back to where I was saying with the race shaping, if you pay attention to everything but the OR did I have that so somewhere in here I had a race shaping and I know where it is here, it's it's about.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let's see, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you pay attention to these rules, it should work.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's slightly different for seeding for Fortran, so the syntax is a little bit different, but mainly the start and end a little bit different.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here is important to pay attention to, so if you pay attention to that, otherwise it should work the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now in reality, for a long time it was impossible to do multi Dimensional Rd raised properly in C and some compilers and others.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it was very, very badly implemented everywhere, so I haven't tested that recently, but it should.",
+                    "label": 0
+                },
+                {
+                    "sent": "Work you are welcome to try it and tell me how it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, it's not an important optimization, so I don't worry about it too much, but please give it a shot and let me know.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does works, so yeah, it works.",
+                    "label": 0
+                },
+                {
+                    "sent": "It works fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, I I do know actually so so yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it so happens that just using the ACC flags alone triggers some optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're using no optimization on the code at all, so it triggers like 03 and so yeah, so it's it's a tricky little thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, that's exactly why you see stuff like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rent-a-center Avicii.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Stopping constant vice and then and then it's reduced on the device and then copied the back on the host.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the life of DT here, DTS initialized outside of the loop, it makes its way into the while loop and then in the first kernel it doesn't matter at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not even used, the second kernel, it'll be copied in.",
+                    "label": 0
+                },
+                {
+                    "sent": "It'll be, which doesn't matter all it doesn't really matter at all if it's copied it or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it's really smart, it might not even do a copy in, but it's a reduction for sure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So actually, once it realizes reduction, it probably won't do a copy and it's a reduction for sure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So inside that 2nd loop here it spots it's a reduction, which means when it gets to the end of that loop, it knows it needs to condense it all down.",
+                    "label": 0
+                },
+                {
+                    "sent": "The one single value, which means by the time you get to hear it has the same value as it would in a serial code, and then the while statement could properly use it for it's it's evaluation on the next pass.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, because I'm in front of compiler log, I'm not seeing any copy of DT is that's expected?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, it won't show you it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just copying scalar variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like I say there are not significant enough against it because it's Karen's killer.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK thanks.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, well and I'm happy to continue to entertain questions on this, but I would like to point out.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That the performance now starts to become significantly better.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now if we look at it, we've gone from 18 seconds down to 1.5 seconds here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that's what many of you were seeing something along the lines of 1.5 seconds.",
+                    "label": 0
+                },
+                {
+                    "sent": "And whether you achieve that last little bit of cleverness with the update with a tiny block or using a create on temperature doesn't affect this time at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's percent points.",
+                    "label": 0
+                },
+                {
+                    "sent": "But on the other hand, the tremendous speed up by a factor of 12 does work, which is pretty impressive for something that if you look at what you did here, just a couple lines of directive here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Clause which, if you had any experience or with the benefit of what little experience you have now, you realize is a matter of really minutes of work to go in and spot what you've done.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've got a big performance improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, the interesting thing here, and the first time we really had this happened, was on bridges because the compute nodes are pretty powerful.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was still not.",
+                    "label": 0
+                },
+                {
+                    "sent": "We still haven't caught the open MP code in terms of performance, and so that surprised me a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because prior to this, on every platform we run on open ACC just blows away open MP right out of the box.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so I looked at it and realized, well.",
+                    "label": 0
+                },
+                {
+                    "sent": "The chorus with 28 good cores on node, the same node you're running on right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can run the Open MP version for those of you that are often programmers, and if you bother to run the open MP version, it's sitting around now there's one sitting around in your exercise director.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you run it with 28 cores were actually now causing the problem to be so small perk, or if it's completely into cash and it runs incredibly well, and so the open MP version actually beats the open ACC version for the first time, however.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "When we get to a little bit more realistic with problem size because again it's 1000 by thousand problem we're doing right now is a whole 8 megabytes of data, and we're spreading out over 28 cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a pittance for a node like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we spread it to 1000 bias Outdoor, excuse me 10,000 by 10,000.",
+                    "label": 0
+                },
+                {
+                    "sent": "It becomes 16.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where's my math here on this should be like one point, yeah?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Where's my there we go?",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's a slide with this so we spread it out to 10,000 by 10,000 which is what we do for the hybrid challenge.",
+                    "label": 1
+                },
+                {
+                    "sent": "So I hope those of you that decide to do hybrid challenge will talk more about that tomorrow.",
+                    "label": 0
+                },
+                {
+                    "sent": "Spread out 10,000 by 10,000 then you will find it with a more realistic problem size of 1.6 gigabytes.",
+                    "label": 1
+                },
+                {
+                    "sent": "And that's not even huge.",
+                    "label": 1
+                },
+                {
+                    "sent": "But that's getting up there to where it started to take a chunk of the GPU memory up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the open ACC in the GPU starts to kind of come into their own and it pulls ahead of what the CPU could do on a problem size like that so.",
+                    "label": 0
+                },
+                {
+                    "sent": "The IT is still interesting and unknown Who Will Win the hybrid challenge because we've got some serious competitors in the mix.",
+                    "label": 1
+                },
+                {
+                    "sent": "And like I say, it's it's the first time even with a small problem, that the CPU cores gave a run to the GPU.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, well let's wrap up quickly here today with and then we can understand questions as long as we want with a couple of quick notes on the end here before we get into the more advanced interesting stuff tomorrow, that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this really is kind of an stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe I should save it for tomorrow.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll send the slides are here will cover him now so data management commands that you have right now are just a couple of the ones that are available in open ACC.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tomorrow will look at some more convenient ones that you use in larger complicated codes.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't always have to figure out how to fit everything into one of these data regions.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, it gets even more flexible with direction that NVIDIA wants to go where they get rid of the Intel CPU altogether and you're just running everything on their cards out there, and so they like it heading towards that direction there.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's useful for the unified memory space.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which allows you to pretend that your CPU memory and your GPU memory are actually one big memory space, and then you can skip data movement by just accessing memory remotely, only that it can't get rid of the actual physical fact that you have to move things over the PCI bus.",
+                    "label": 1
+                },
+                {
+                    "sent": "So either it works because you're not really moving data to begin with, or it doesn't work and you need data management commands anyway, so it's not particularly exciting.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, and video also has the notion of skipping the CPU and skipping the network to connect things up with MPI by connecting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Their GPU's directly an one way that they're doing that right now around the PCI bus at least, is with envy Link, which allows you to connect GPU's within a node correctly to each other and then get very good bandwidth and all of a sudden the data management between the GPU's at least with multiple Jeep.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Use is completely different story.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not bottlenecked by that PCI bus, so tomorrow we'll talk about some further speedups if we want to really optimize this code further, but to do that, we're going to have to start to understand GPU architecture a little bit, which by NET, which if you realize right now you know nothing about GPU architecture, you've had to learn nothing about how these devices actually work.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's been a complete back black box to you, and yet we've got some pretty substantial performance improvements we've been able to do something sensible and meaningful to our code.",
+                    "label": 0
+                },
+                {
+                    "sent": "You will, as a CUDA programmer.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's probably right now, impressing you somewhat how far we've gotten without worrying about any of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tomorrow will look into the architectural details and how quickly they evolve, and more from one generation to the next.",
+                    "label": 0
+                },
+                {
+                    "sent": "And maybe you'll appreciate a little bit more how nice it is to have that kind of platform independence to be above the fray of constant hardware changes, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Look at that tomorrow.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to reiterate, here you go after the Big Four do loops in your code, which is scientific programmers HPC programmers, you probably have their probably easy targets sitting there for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "You go after those loops.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can apply directives.",
+                    "label": 0
+                },
+                {
+                    "sent": "The obvious directives you may have to deal with the fact that loop has some kind of data dependence in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You may have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You probably will have to look at it and say, how can I be a little bit smarter than just copying data all the time?",
+                    "label": 0
+                },
+                {
+                    "sent": "Out of paranoia?",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you do that you can with relatively little effort.",
+                    "label": 0
+                },
+                {
+                    "sent": "Have a potentially very efficient use of the GPU without having to do anything deeper than that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So tomorrow will talk about some of the more advanced stuff, but I hope that at the very least you believe that we've hit kind of most of these points here in incredible way.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've stayed high level here.",
+                    "label": 0
+                },
+                {
+                    "sent": "We haven't had to dig into anything low level.",
+                    "label": 0
+                },
+                {
+                    "sent": "We haven't messed up the source code writer Laplace code after you've added some directives.",
+                    "label": 0
+                },
+                {
+                    "sent": "Still looks like the serial code is still understandable to a person that knows nothing about your open agency directives efficiency.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we don't really have anything directly to compare it to, but I gave you a couple of clues.",
+                    "label": 0
+                },
+                {
+                    "sent": "We compared it to a good open MP implementation and whatnot.",
+                    "label": 0
+                },
+                {
+                    "sent": "Performance portable.",
+                    "label": 0
+                },
+                {
+                    "sent": "I welcome you to take the code that we worked on today.",
+                    "label": 0
+                },
+                {
+                    "sent": "A couple people in here have already talked about moving on to their workstations or laptops or whatever, and if you've you've done the experiment, I mean move the code around.",
+                    "label": 0
+                },
+                {
+                    "sent": "Put a PGI compiler, pgi's a free student license and lots of ways for you to just grab the PGI compiler.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even though it's officially a licensed product, they make it very freely available to students and whatnot.",
+                    "label": 0
+                },
+                {
+                    "sent": "Grab the PGI compiler and put it on some device where you have a GPU and it doesn't have to be super expensive GPU, but it does have to be a relatively modern.",
+                    "label": 0
+                },
+                {
+                    "sent": "Generation GPU to really get any benefits and this last thing this incremental thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is important here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean what we've been able to do is we've been able to attack our code by looking at a single subroutine, and we've been able to ignore everything else in our code.",
+                    "label": 0
+                },
+                {
+                    "sent": "In our case, everything else is just some simple minded initialization routine and print routine, but in principle that represents the many hundreds of subroutines lurking in your in the code you've inherited, you know, or the thing you just downloaded from GitHub that you don't want to mess with because you know all the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And effort is really in a single, you know, single subroutine or a handful of subroutines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this incremental approach is a wonderful thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And anybody that's a real MPI programmer in here, for example, appreciates that because you can't take that for granted, so think.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Inclusion today.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right open MP is how we can use the corzana node, but you've just learned how to use the accelerator and you've done it in a way that I hope makes sense to you will answer questions you can keep asking me questions throughout the evening and everything else, but I hope you can appreciate that.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a very elegant way to gain a whole lot of power in something that you've learned in just an afternoon.",
+                    "label": 0
+                },
+                {
+                    "sent": "Giving mastered in afternoon, but you've got the key concepts down.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for the hybrid challenge, we're going to go ahead and we'll talk about it tomorrow.",
+                    "label": 0
+                },
+                {
+                    "sent": "How we can put all these pieces together and see who's going to come up with the fastest solution to this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with that we are finishing right on the money to wander directly over to the dinner slash poster session.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, I'm going to hang out right here to entertain your questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "For any of you that want to ask me questions and then I will see you so you guys at dinner.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll see you back here tomorrow to talk about the more advanced stuff and whatnot.",
+                    "label": 0
+                },
+                {
+                    "sent": "Go.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

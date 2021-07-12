@@ -1,0 +1,1045 @@
+{
+    "id": "yck4osnecqerks4imq6monkckva3v6l6",
+    "title": "Bootstrapping from Game Tree Search",
+    "info": {
+        "author": [
+            "Joel Veness, NICTA, Australia's ICT Research Centre of Excellence"
+        ],
+        "published": "Jan. 19, 2010",
+        "recorded": "December 2009",
+        "category": [
+            "Top->Computer Science->Information Retrieval"
+        ]
+    },
+    "url": "http://videolectures.net/nips09_veness_bfg/",
+    "segmentation": [
+        [
+            "Hello everyone.",
+            "OK so today I'm going to be presenting a new algorithm for learning a Ristic heuristic evaluation function for game Tree search by itself played, so I'm going to be looking at a method that works for two player deterministic adversarial games.",
+            "So before I get into that, I'm going to 1st talk about why."
+        ],
+        [
+            "Define methods are first interesting and important for game game researchers.",
+            "Then I'm going to be introducing this idea of search bootstrapping and to give you some kind of high level intuition as to why that's interesting.",
+            "Here we're looking at a technique that uses the search to 1st improve the quality of the estimates given by the valuation function, and then it plugs in these new improved estimates back to the search and it iterates this procedure.",
+            "Before I do that though, I'll first describe some previous successful methods have been used for self play learning for games, and finally, I'm going to be talking about an empirical evaluation of these methods as applied to chess.",
+            "So a quick reminder."
+        ],
+        [
+            "Game tree search.",
+            "So here Tic Tac toe shown so one way of playing a game.",
+            "If the game is small is simply to start from some initial state, then recursively expand, expand the game tree according to the rules of the game.",
+            "Keep doing this until you reach till you have a tree and that at the tree every single leaf node is a terminal position.",
+            "Once you have these terminal positions you can score these according to the rules of the game and then you can back up these scores using a min Max backup and that way you can compute the value of the game and then decide what to do.",
+            "I'm helping."
+        ],
+        [
+            "This of course you can't do that because the games we're interested in just way too big, so we need to look at some kind of approximation.",
+            "The kind of approximation that I'll be looking at in this talk is simply to do a depth limited minimax search and replace the.",
+            "And here with a depth limited minimax search, you might only have sons.",
+            "You know, some positions, other terminal, some positions may not be terminal and what we do there is, we just score these non terminal positions with some function and treat this as if it was a terminal position and then back up using the same procedure as described before.",
+            "And so in this work we're only going to be considering a linear combination of features, so it's quite simple.",
+            "However, this is sufficient at least for very, very strong play to be achieved in games like Othello, Checkers or Chess, and so, given that you're starting with a good set of features, well, the real problem then is, well, how do you find a good set of weights?",
+            "OK, so.",
+            "It's probably 3 main methods that you would come to mind when you were thinking about how you might find these weights.",
+            "So the most common one, at least by sort of practical game programmers, is just to hand tune.",
+            "And there this is not so unreasonable because normally they know the game that there they know bit about the game that they're actually designing the code for so they can."
+        ],
+        [
+            "Really make some good estimates as to you know what the values of the weight should be initially and then they can can perturb and observe games and then know retest and continue this process.",
+            "And the big downside of this though, is it's very time intensive.",
+            "Free time and labor intensive so the other thing you might like to try is to do to set up some kind of supervised learning task and then maybe use some kind of regression method.",
+            "However, again, the problem here is that you need to have some labels.",
+            "So if you start off with some game that you've never seen before, then, well, OK, it's not clear where you get these labeled training examples, so you know maybe regression is a little bit harder to achieve in practice, so.",
+            "That's why that's the motivation for looking at self play methods, because if there was a good selfie method that could be used to learn a set of weights, then or first this self place scenario is much much easier to achieve and there's the potential there to really reduce the knowledge engineering effort on the part of the game developer so.",
+            "I mean ideally if you had a really, really good method at work using self play, what you could do is as a game as a game engineer you could focus on constructing these high level features, doing what humans are good at, and then leave the sort of nitty gritty details of tuning the weights to just do an algorithm.",
+            "But self play, yeah is a little bit harder than what you might first thing."
+        ],
+        [
+            "So before I give a sort of summary of the related methods to our one, I first better just mentioned something something briefly about what I mean by updating an evaluation function.",
+            "So here it's quite simple.",
+            "All I'm talking about is moving the current heuristic estimate for some state or position towards some particular target value.",
+            "So all the methods that I consider here, they're all online.",
+            "They always use some form of stochastic gradient descent.",
+            "And they're all invoked after a re election is made on the actual game.",
+            "So the interesting thing that you'll see when comparing and contrasting the different methods that the new method and the previous methods is that the real difference between these approaches is exactly how they choose their training target.",
+            "OK, so the best place to start then is with TD learning.",
+            "I'm sure everyone is familiar with the success TD Gammon had by using the temporal difference learning algorithm to train a heuristic evaluation function.",
+            "This result was particularly impressive too, because the training regime was very, very simple.",
+            "A neural network evaluation function was initialized with a set of random weights.",
+            "The training regime simply picked greedily, played against itself for."
+        ],
+        [
+            "A bunch of games and then from that process a strong set of weights emerged.",
+            "I can if you look at the diagram, just to give you some kind of intuition as to how the temporal difference in works.",
+            "What it does is it moves the estimate of the value at say time T towards the estimate of the value at time T + 1.",
+            "So in the context of self play you get this.",
+            "You gotta kind of real signal when you terminate again and you know you either win or lose and this thing is backed up and then this process repeats and the important thing to note that it is actually crossing a temporal boundary with these updates.",
+            "And unfortunately, TD learning doesn't work everywhere, and in particular it struggles with highly tactical domains in particular like chess is a very good example.",
+            "I don't have alot of time to go into this, but the main intuition here is that if you just use TD learning with a very simple action selection policy, it's very hard to find.",
+            "Say, Chess is a game where you might have a significant edge, but you do need a little bit of research to actually convert your advantage.",
+            "So for example.",
+            "If you adjust to use naive TD, learning is setup very similar to those arrows.",
+            "You'll find that most games in chess would just Peter out to a draw and you don't get a very good signal, so it's very hard to sort of start this whole kind of bootstrapping procedure.",
+            "OK, so this motivated the introduction of a new algorithm and this algorithm is called TD Leaf, and what tea leaf does, and this is introduced by Baxter.",
+            "So what this does is it combines game trees."
+        ],
+        [
+            "Search and temporal difference.",
+            "Learning together in a nice combination.",
+            "So the main thing here to note is looking at looking at the diagram.",
+            "You'll see that there's a shaded path and Gray.",
+            "This shaded path in Gray is the principle variation, and what that is is.",
+            "It's the first best line of play.",
+            "Assuming both players play optimally, given the assumption that the heuristic estimates are correct, OK, so this is very similar to temporal difference learning.",
+            "However, the main difference is that the principle leaf is used instead of the actual position that occurred.",
+            "On the real board, so this makes some kind of intuitive sense too, because it's really just the value of this principle.",
+            "Leaf is what gets backed up to the root, and so that's really the score that you're assigning too, so it's pretty reasonable.",
+            "And so it was definitely an improvement.",
+            "However, there still.",
+            "There's still a number of issues with TD Leaf, so one of the problems that it had, especially in chess, was that it was very difficult to achieve any kind of strong results using just self play with randomly assigned weights.",
+            "So 40 leaf too.",
+            "So tea leaf certainly achieved experts master level playing chess how.",
+            "However what was required was was that the material weights, so the value of each piece in each piece of you know, little thing about chess were initialized.",
+            "Good expert estimates.",
+            "And in some sense, that's it's a really, really enormous bit of domain knowledge.",
+            "So that was that was problematic.",
+            "The other thing too is that their training regime had to be."
+        ],
+        [
+            "Carefully crafted for learning to proceed.",
+            "For example, they needed to look their best results were achieved and playing online, and when they had the rating and what this rating peoples to ensure that they were matched against evenly.",
+            "You know opposition of roughly the same strength.",
+            "So OK, so learning could proceed, but there was some kind of expert knowledge thrown into the mix and they needed a carefully crafted training regime.",
+            "The other thing to note is too compared to TD is that TD doesn't work well.",
+            "TSR is implementation TD doesn't require any search to choose the best action.",
+            "However, with TD Leaf OK so you might be searching, you know to apply to maybe 12 ply for every single move.",
+            "So just to get a single update, you've got to invest alot alot more computational work.",
+            "So this really slows down the learning process and this could be a big factor in why there was.",
+            "Typical to achieve strong results with this method in some settings.",
+            "OK, so they put our work into context with what came before is.",
+            "So what we're looking at is chess and we're looking at using completely completely random set of weights.",
+            "The training is going to be via self play.",
+            "The training regime is going to be very, very simple.",
+            "It's just going to be.",
+            "The simple greedy action selection and what we're going to show later in the empirical results is that we achieved expert to master level play from this more difficult setting."
+        ],
+        [
+            "I should say too that the tea leaf algorithm has had some well known success in a self place setting and that was with very very strong chess checkers program Chinook.",
+            "However, there there was still a little bit of knowledge leaked into the process because the value of the King were set to constant values.",
+            "OK, so so before I introduce the algorithm, here's a hint is very interesting point.",
+            "It's very, very obvious in hindsight, but it's kind of subtle.",
+            "So the main thing is, is that OK?",
+            "So the TD methods in the TV leaf methods, especially once a reasonable amount of learning, has occurred.",
+            "What they do is that there are only really learning from kind of sensible positions.",
+            "So for example, in TD it's learning from positions that actually occur in the game.",
+            "And tea leaf.",
+            "OK, so it's learning from something deep in the tree, but this is along the principle variation and the positions that you see in the principle variation are much, much more."
+        ],
+        [
+            "Extensible looking, but The thing is, is when constructing a heuristic evaluation function for brute force games, researcher what you really need is something that cannot just sort of evaluate the realistically compositions that are typical, say, chess human expert, would expect to see.",
+            "But what you need is something that can evaluate all kinds of crazy stuff that comes in, comes in the fruitful search tree.",
+            "So if you're searching, say, 14 moves ahead and 14 of these moves, the garbage well, the resulting position will look.",
+            "Very, very crazy and you need to be able to evaluate this effectively, otherwise you'll simply just propagate rubbish up the tree and perform weak moves."
+        ],
+        [
+            "So here's the high level diagram about and this really describes the approach taken by this new algorithm that we're introducing.",
+            "So here it's.",
+            "I guess there's three main properties of this.",
+            "So first thing to notice a bit of."
+        ],
+        [
+            "Explanation is we're not crossing a temporal boundary, so in some sense here there may not be.",
+            "There's reason to think that this kind of backup approach may not be so sensitive to the strength of the opponent.",
+            "The other thing to Note 2 is that every single interior node in the tree has a.",
+            "As a min Max value for it.",
+            "So if every interior node there's actually sort of a separate principle variation that's then backed up for that node.",
+            "So what we do with our modified backup scheme is we actually instead of learning just from one position like what tea Leaf and TD do is that we learn from a whole bunch of these, all of them in the tree.",
+            "So OK, so.",
+            "OK, so a single search then provides many updates.",
+            "So the question is as well.",
+            "Given that we're using more information, is the potential to learn faster.",
+            "The other thing to coming back to the point I mentioned before was that the training examples now come from sort of more representative positions that are closer to you.",
+            "Know the distribution of positions that will actually be used by the game Tree search program in practice.",
+            "And I'll briefly talk about some implementation details, but it's a bit too much to describe them all in this talk, but if you want, you can find me afterwards and I can go through them with you at the post that that the main technical contribution of this paper was to extend this kind of intuitive idea to Alpha beta search and how we did this is to use a sort of 1 sided loss function.",
+            "Form suggests to cast a gradient descent on this thing, but the main complication in doing this is that Alpha beta search you actually don't get.",
+            "Full minimax estimates for every single interior node you only get bound information, so you have to do some work to get the whole algorithm up and running.",
+            "But what's really really good is once you figure out the details, is that all high performance game playing programs already have a big data structure called a transposition table.",
+            "That's a kind of case of everything that you've computed before, so the good thing is is that the bound information that we need to perform the learning is already."
+        ],
+        [
+            "Available and so the actual implementation effort to apply this method is very, very minimal.",
+            "OK, so.",
+            "So that I've given some kind of high level intuition about this new approach.",
+            "So let me tell you about the experimental results.",
+            "So, OK, so we're looking at chess.",
+            "We used in the valuation function that consisted of 1800 features, the training games, an training, games, all went for about 5 minutes, or they were played with one one Fisher time controls.",
+            "If you know anything about chess.",
+            "An important point to try and make things fair was that the time taken for each learning update reduced the overall.",
+            "The amount of overtime that each program had on their on their tournament Clock.",
+            "So this is important, of course, because a method such as TD leaf only updates one node.",
+            "However, a tree structure based approach will be updating many, possibly 10,000 positions, possibly 100,000 positions.",
+            "So if you don't penalize these methods for you know the time taken for updates you really giving them a quite an unfair advantage.",
+            "So 25,000 games with roughly we played.",
+            "To learn a whole bunch of different weights for a bunch of different approaches.",
+            "And then to evaluate these weight configurations, there was two different experiments were performed.",
+            "The first was a local tournament which just paired off the different set sets of weights against each other, and next there was.",
+            "We got the best set of weights and random online.",
+            "So the first set of results.",
+            "This graph here describes the local tournament, so this is so."
+        ],
+        [
+            "On the Y axis, any low rating is given and this is a statistical measure of the sort of strength of the chess program.",
+            "So what each line actually corresponds to is 1 long.",
+            "One long training run, and the thing to Note 2 is that the number of training games is on a log rhythmic scale.",
+            "And that the best performing methods trace track based so the purple line is the tree strap method using an Alpha beta search.",
+            "The dashed black line is that race track method applied with a minimax search.",
+            "And then the the nearest competitor will at least that we talked about before was TD Leaf and that's the dashed blue line.",
+            "And I guess the thing to take away from this graph is that after 1000 training games, there's an enormous difference between the low values.",
+            "I mean, you're talking something like 1600 below, which is a significantly different class of player.",
+            "The other thing to Note 2 is that there's a dashed redline.",
+            "And what is that thing?",
+            "So this is a learning variant which we called root strap, so this is very similar to tree Stripe.",
+            "However, instead of dating updating all nodes in the tree, it only updates the single node at the root, so this is really more.",
+            "This is introduced into this experiment as more control just to check whether you know whether updating from all notes in this really, really did help the final thing too is and the green line at the bottom that represents an untrained player."
+        ],
+        [
+            "And.",
+            "OK, so one thing I should say is that the ratings that I'm going to show now you can't compare them with the previous ones because they're against the different players.",
+            "So now that we have some idea about the relative strength of different methods, what I did was to get the best performing set of weights and then to run them online at the Internet Chess Club and there to get a rating that's kind of come parable to human ratings.",
+            "So here's the interesting thing is, is that the best set of weights trains using self played?",
+            "Achieved expert orwick master level of play, which is really quite great.",
+            "The other thing to note too is just to get an idea of how sensitive the method is to the training partner training was performed also against the Grandmaster strength Commercial chess program, and there what we found was that the strongest set of weights was a fair bit stronger, and we run this thing online too, and this corresponds to strengthen their correspondence to master level play.",
+            "Good thing was that the trace traffic data method with the Self Play training scored 13 1/2 out of 15 against international master position which is really quite a good result.",
+            "And the other thing to Note 2 is like TD Leaf.",
+            "There is some sensitivity to the training partner, however it doesn't seem to be as pronounced using the tree strap method.",
+            "OK, so the highlights of this talk.",
+            "OK, so the tree strap algorithm is.",
+            "We've introduced this and this provides another another tool for the toolbox that game developers can use to you when they're looking for using a self play method to train up a risk."
+        ],
+        [
+            "Evaluation function and then specifically with respect to chess, we've shown that that restart method empirically at least leads to an order of magnitude reduction time in the training time as compared to the previous state of the arches tea leaf.",
+            "Training regime was very, very simple.",
+            "Greedy action selection and I guess in summary highlight the main empirical highlight is that we've got.",
+            "We're using this new algorithm.",
+            "We achieved the first successful self play results starting entirely from random weights.",
+            "OK."
+        ],
+        [
+            "So thank you very much for listening and if you have anymore questions, please find me and my coauthors that are posted this evening at W. 38 and he's just a list of a couple of things you might want to talk to me about.",
+            "OK, thank you."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Hello everyone.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK so today I'm going to be presenting a new algorithm for learning a Ristic heuristic evaluation function for game Tree search by itself played, so I'm going to be looking at a method that works for two player deterministic adversarial games.",
+                    "label": 0
+                },
+                {
+                    "sent": "So before I get into that, I'm going to 1st talk about why.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Define methods are first interesting and important for game game researchers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I'm going to be introducing this idea of search bootstrapping and to give you some kind of high level intuition as to why that's interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we're looking at a technique that uses the search to 1st improve the quality of the estimates given by the valuation function, and then it plugs in these new improved estimates back to the search and it iterates this procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Before I do that though, I'll first describe some previous successful methods have been used for self play learning for games, and finally, I'm going to be talking about an empirical evaluation of these methods as applied to chess.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a quick reminder.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Game tree search.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here Tic Tac toe shown so one way of playing a game.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the game is small is simply to start from some initial state, then recursively expand, expand the game tree according to the rules of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Keep doing this until you reach till you have a tree and that at the tree every single leaf node is a terminal position.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once you have these terminal positions you can score these according to the rules of the game and then you can back up these scores using a min Max backup and that way you can compute the value of the game and then decide what to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm helping.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This of course you can't do that because the games we're interested in just way too big, so we need to look at some kind of approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "The kind of approximation that I'll be looking at in this talk is simply to do a depth limited minimax search and replace the.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here with a depth limited minimax search, you might only have sons.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, some positions, other terminal, some positions may not be terminal and what we do there is, we just score these non terminal positions with some function and treat this as if it was a terminal position and then back up using the same procedure as described before.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so in this work we're only going to be considering a linear combination of features, so it's quite simple.",
+                    "label": 1
+                },
+                {
+                    "sent": "However, this is sufficient at least for very, very strong play to be achieved in games like Othello, Checkers or Chess, and so, given that you're starting with a good set of features, well, the real problem then is, well, how do you find a good set of weights?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's probably 3 main methods that you would come to mind when you were thinking about how you might find these weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the most common one, at least by sort of practical game programmers, is just to hand tune.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there this is not so unreasonable because normally they know the game that there they know bit about the game that they're actually designing the code for so they can.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Really make some good estimates as to you know what the values of the weight should be initially and then they can can perturb and observe games and then know retest and continue this process.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the big downside of this though, is it's very time intensive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Free time and labor intensive so the other thing you might like to try is to do to set up some kind of supervised learning task and then maybe use some kind of regression method.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, again, the problem here is that you need to have some labels.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you start off with some game that you've never seen before, then, well, OK, it's not clear where you get these labeled training examples, so you know maybe regression is a little bit harder to achieve in practice, so.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's why that's the motivation for looking at self play methods, because if there was a good selfie method that could be used to learn a set of weights, then or first this self place scenario is much much easier to achieve and there's the potential there to really reduce the knowledge engineering effort on the part of the game developer so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean ideally if you had a really, really good method at work using self play, what you could do is as a game as a game engineer you could focus on constructing these high level features, doing what humans are good at, and then leave the sort of nitty gritty details of tuning the weights to just do an algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "But self play, yeah is a little bit harder than what you might first thing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So before I give a sort of summary of the related methods to our one, I first better just mentioned something something briefly about what I mean by updating an evaluation function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here it's quite simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "All I'm talking about is moving the current heuristic estimate for some state or position towards some particular target value.",
+                    "label": 1
+                },
+                {
+                    "sent": "So all the methods that I consider here, they're all online.",
+                    "label": 1
+                },
+                {
+                    "sent": "They always use some form of stochastic gradient descent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they're all invoked after a re election is made on the actual game.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the interesting thing that you'll see when comparing and contrasting the different methods that the new method and the previous methods is that the real difference between these approaches is exactly how they choose their training target.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so the best place to start then is with TD learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm sure everyone is familiar with the success TD Gammon had by using the temporal difference learning algorithm to train a heuristic evaluation function.",
+                    "label": 1
+                },
+                {
+                    "sent": "This result was particularly impressive too, because the training regime was very, very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "A neural network evaluation function was initialized with a set of random weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "The training regime simply picked greedily, played against itself for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "A bunch of games and then from that process a strong set of weights emerged.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can if you look at the diagram, just to give you some kind of intuition as to how the temporal difference in works.",
+                    "label": 0
+                },
+                {
+                    "sent": "What it does is it moves the estimate of the value at say time T towards the estimate of the value at time T + 1.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the context of self play you get this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You gotta kind of real signal when you terminate again and you know you either win or lose and this thing is backed up and then this process repeats and the important thing to note that it is actually crossing a temporal boundary with these updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "And unfortunately, TD learning doesn't work everywhere, and in particular it struggles with highly tactical domains in particular like chess is a very good example.",
+                    "label": 1
+                },
+                {
+                    "sent": "I don't have alot of time to go into this, but the main intuition here is that if you just use TD learning with a very simple action selection policy, it's very hard to find.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say, Chess is a game where you might have a significant edge, but you do need a little bit of research to actually convert your advantage.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you adjust to use naive TD, learning is setup very similar to those arrows.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll find that most games in chess would just Peter out to a draw and you don't get a very good signal, so it's very hard to sort of start this whole kind of bootstrapping procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this motivated the introduction of a new algorithm and this algorithm is called TD Leaf, and what tea leaf does, and this is introduced by Baxter.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what this does is it combines game trees.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Search and temporal difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "Learning together in a nice combination.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the main thing here to note is looking at looking at the diagram.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll see that there's a shaded path and Gray.",
+                    "label": 0
+                },
+                {
+                    "sent": "This shaded path in Gray is the principle variation, and what that is is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's the first best line of play.",
+                    "label": 0
+                },
+                {
+                    "sent": "Assuming both players play optimally, given the assumption that the heuristic estimates are correct, OK, so this is very similar to temporal difference learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, the main difference is that the principle leaf is used instead of the actual position that occurred.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the real board, so this makes some kind of intuitive sense too, because it's really just the value of this principle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Leaf is what gets backed up to the root, and so that's really the score that you're assigning too, so it's pretty reasonable.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so it was definitely an improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, there still.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's still a number of issues with TD Leaf, so one of the problems that it had, especially in chess, was that it was very difficult to achieve any kind of strong results using just self play with randomly assigned weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "So 40 leaf too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So tea leaf certainly achieved experts master level playing chess how.",
+                    "label": 0
+                },
+                {
+                    "sent": "However what was required was was that the material weights, so the value of each piece in each piece of you know, little thing about chess were initialized.",
+                    "label": 0
+                },
+                {
+                    "sent": "Good expert estimates.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in some sense, that's it's a really, really enormous bit of domain knowledge.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that was that was problematic.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing too is that their training regime had to be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Carefully crafted for learning to proceed.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, they needed to look their best results were achieved and playing online, and when they had the rating and what this rating peoples to ensure that they were matched against evenly.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know opposition of roughly the same strength.",
+                    "label": 0
+                },
+                {
+                    "sent": "So OK, so learning could proceed, but there was some kind of expert knowledge thrown into the mix and they needed a carefully crafted training regime.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing to note is too compared to TD is that TD doesn't work well.",
+                    "label": 1
+                },
+                {
+                    "sent": "TSR is implementation TD doesn't require any search to choose the best action.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, with TD Leaf OK so you might be searching, you know to apply to maybe 12 ply for every single move.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just to get a single update, you've got to invest alot alot more computational work.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this really slows down the learning process and this could be a big factor in why there was.",
+                    "label": 0
+                },
+                {
+                    "sent": "Typical to achieve strong results with this method in some settings.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so they put our work into context with what came before is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we're looking at is chess and we're looking at using completely completely random set of weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "The training is going to be via self play.",
+                    "label": 0
+                },
+                {
+                    "sent": "The training regime is going to be very, very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just going to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "The simple greedy action selection and what we're going to show later in the empirical results is that we achieved expert to master level play from this more difficult setting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I should say too that the tea leaf algorithm has had some well known success in a self place setting and that was with very very strong chess checkers program Chinook.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, there there was still a little bit of knowledge leaked into the process because the value of the King were set to constant values.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, so so before I introduce the algorithm, here's a hint is very interesting point.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very, very obvious in hindsight, but it's kind of subtle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the main thing is, is that OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the TD methods in the TV leaf methods, especially once a reasonable amount of learning, has occurred.",
+                    "label": 0
+                },
+                {
+                    "sent": "What they do is that there are only really learning from kind of sensible positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, in TD it's learning from positions that actually occur in the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "And tea leaf.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so it's learning from something deep in the tree, but this is along the principle variation and the positions that you see in the principle variation are much, much more.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Extensible looking, but The thing is, is when constructing a heuristic evaluation function for brute force games, researcher what you really need is something that cannot just sort of evaluate the realistically compositions that are typical, say, chess human expert, would expect to see.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what you need is something that can evaluate all kinds of crazy stuff that comes in, comes in the fruitful search tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you're searching, say, 14 moves ahead and 14 of these moves, the garbage well, the resulting position will look.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very, very crazy and you need to be able to evaluate this effectively, otherwise you'll simply just propagate rubbish up the tree and perform weak moves.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's the high level diagram about and this really describes the approach taken by this new algorithm that we're introducing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess there's three main properties of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first thing to notice a bit of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Explanation is we're not crossing a temporal boundary, so in some sense here there may not be.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's reason to think that this kind of backup approach may not be so sensitive to the strength of the opponent.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing to Note 2 is that every single interior node in the tree has a.",
+                    "label": 0
+                },
+                {
+                    "sent": "As a min Max value for it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if every interior node there's actually sort of a separate principle variation that's then backed up for that node.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we do with our modified backup scheme is we actually instead of learning just from one position like what tea Leaf and TD do is that we learn from a whole bunch of these, all of them in the tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so a single search then provides many updates.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the question is as well.",
+                    "label": 1
+                },
+                {
+                    "sent": "Given that we're using more information, is the potential to learn faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing to coming back to the point I mentioned before was that the training examples now come from sort of more representative positions that are closer to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Know the distribution of positions that will actually be used by the game Tree search program in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll briefly talk about some implementation details, but it's a bit too much to describe them all in this talk, but if you want, you can find me afterwards and I can go through them with you at the post that that the main technical contribution of this paper was to extend this kind of intuitive idea to Alpha beta search and how we did this is to use a sort of 1 sided loss function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Form suggests to cast a gradient descent on this thing, but the main complication in doing this is that Alpha beta search you actually don't get.",
+                    "label": 0
+                },
+                {
+                    "sent": "Full minimax estimates for every single interior node you only get bound information, so you have to do some work to get the whole algorithm up and running.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what's really really good is once you figure out the details, is that all high performance game playing programs already have a big data structure called a transposition table.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a kind of case of everything that you've computed before, so the good thing is is that the bound information that we need to perform the learning is already.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Available and so the actual implementation effort to apply this method is very, very minimal.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that I've given some kind of high level intuition about this new approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me tell you about the experimental results.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, OK, so we're looking at chess.",
+                    "label": 0
+                },
+                {
+                    "sent": "We used in the valuation function that consisted of 1800 features, the training games, an training, games, all went for about 5 minutes, or they were played with one one Fisher time controls.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you know anything about chess.",
+                    "label": 0
+                },
+                {
+                    "sent": "An important point to try and make things fair was that the time taken for each learning update reduced the overall.",
+                    "label": 0
+                },
+                {
+                    "sent": "The amount of overtime that each program had on their on their tournament Clock.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is important, of course, because a method such as TD leaf only updates one node.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, a tree structure based approach will be updating many, possibly 10,000 positions, possibly 100,000 positions.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you don't penalize these methods for you know the time taken for updates you really giving them a quite an unfair advantage.",
+                    "label": 1
+                },
+                {
+                    "sent": "So 25,000 games with roughly we played.",
+                    "label": 0
+                },
+                {
+                    "sent": "To learn a whole bunch of different weights for a bunch of different approaches.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then to evaluate these weight configurations, there was two different experiments were performed.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first was a local tournament which just paired off the different set sets of weights against each other, and next there was.",
+                    "label": 0
+                },
+                {
+                    "sent": "We got the best set of weights and random online.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first set of results.",
+                    "label": 0
+                },
+                {
+                    "sent": "This graph here describes the local tournament, so this is so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "On the Y axis, any low rating is given and this is a statistical measure of the sort of strength of the chess program.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what each line actually corresponds to is 1 long.",
+                    "label": 0
+                },
+                {
+                    "sent": "One long training run, and the thing to Note 2 is that the number of training games is on a log rhythmic scale.",
+                    "label": 1
+                },
+                {
+                    "sent": "And that the best performing methods trace track based so the purple line is the tree strap method using an Alpha beta search.",
+                    "label": 0
+                },
+                {
+                    "sent": "The dashed black line is that race track method applied with a minimax search.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the the nearest competitor will at least that we talked about before was TD Leaf and that's the dashed blue line.",
+                    "label": 1
+                },
+                {
+                    "sent": "And I guess the thing to take away from this graph is that after 1000 training games, there's an enormous difference between the low values.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you're talking something like 1600 below, which is a significantly different class of player.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing to Note 2 is that there's a dashed redline.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what is that thing?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a learning variant which we called root strap, so this is very similar to tree Stripe.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, instead of dating updating all nodes in the tree, it only updates the single node at the root, so this is really more.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is introduced into this experiment as more control just to check whether you know whether updating from all notes in this really, really did help the final thing too is and the green line at the bottom that represents an untrained player.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so one thing I should say is that the ratings that I'm going to show now you can't compare them with the previous ones because they're against the different players.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now that we have some idea about the relative strength of different methods, what I did was to get the best performing set of weights and then to run them online at the Internet Chess Club and there to get a rating that's kind of come parable to human ratings.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here's the interesting thing is, is that the best set of weights trains using self played?",
+                    "label": 0
+                },
+                {
+                    "sent": "Achieved expert orwick master level of play, which is really quite great.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing to note too is just to get an idea of how sensitive the method is to the training partner training was performed also against the Grandmaster strength Commercial chess program, and there what we found was that the strongest set of weights was a fair bit stronger, and we run this thing online too, and this corresponds to strengthen their correspondence to master level play.",
+                    "label": 0
+                },
+                {
+                    "sent": "Good thing was that the trace traffic data method with the Self Play training scored 13 1/2 out of 15 against international master position which is really quite a good result.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the other thing to Note 2 is like TD Leaf.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is some sensitivity to the training partner, however it doesn't seem to be as pronounced using the tree strap method.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the highlights of this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the tree strap algorithm is.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've introduced this and this provides another another tool for the toolbox that game developers can use to you when they're looking for using a self play method to train up a risk.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Evaluation function and then specifically with respect to chess, we've shown that that restart method empirically at least leads to an order of magnitude reduction time in the training time as compared to the previous state of the arches tea leaf.",
+                    "label": 1
+                },
+                {
+                    "sent": "Training regime was very, very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "Greedy action selection and I guess in summary highlight the main empirical highlight is that we've got.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're using this new algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "We achieved the first successful self play results starting entirely from random weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So thank you very much for listening and if you have anymore questions, please find me and my coauthors that are posted this evening at W. 38 and he's just a list of a couple of things you might want to talk to me about.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, thank you.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

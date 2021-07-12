@@ -1,0 +1,3273 @@
+{
+    "id": "jj5qzralnl4zvmlodjfoqhtl6k6j6k7g",
+    "title": "How Watson Learns Superhuman Jeopardy! Strategies",
+    "info": {
+        "author": [
+            "Gerry Tesauro, IBM Thomas J. Watson Research Center"
+        ],
+        "published": "Nov. 7, 2013",
+        "recorded": "September 2013",
+        "category": [
+            "Top->Computer Science->Decision Support",
+            "Top->Computer Science->Machine Learning->On-line Learning"
+        ]
+    },
+    "url": "http://videolectures.net/lsoldm2013_tesauro_jeopardy_strategies/",
+    "segmentation": [
+        [
+            "For this particular talk, I'm going to focus on the game strategy aspect of Watson, which is somewhat different from a lot.",
+            "A lot of the other material that's out there really focuses on the deep QA on the question answering, and of course that's critically important.",
+            "That's vital for Watson, but it turns out this the strategy aspect is also maybe got a surprising degree of importance as well.",
+            "It can make a pretty big difference as to whether a contestant can win or lose.",
+            "So our strategy work was done by me and my colleague shown here.",
+            "This is joint work with Dave Gondek, John Lenczner, James Fan, and John Prager.",
+            "These guys are all Co inventors and code developers.",
+            "The methodology I'm going to talk about today."
+        ],
+        [
+            "OK, the rough plan of points.",
+            "I'd like to mention in the talk.",
+            "I'd like to begin with a little bit of background, sort of about why we decided to take on this grand challenge of building a machine to play jeopardy, and why we thought that would be a very significant driver of progress to take on that challenge.",
+            "Then, within that challenge there is also the game strategy, part of it, and will motivate why it's significant to work on the game strategy and then we'll get into the details of our specific approach to strategy.",
+            "It's basically A2 pronged approach where the first prong is.",
+            "We invest a lot of effort in developing a fairly faithful simulation model that could simulate fairly accurately what is likely to happen if Watson plays jeopardy against two humans of some known level of ability.",
+            "So that was a big effort to build a good simulator.",
+            "Then once you've got a good simulator, you can then use a variety of machine learning and optimization techniques.",
+            "To build and optimize modules that handle each of the strategy decisions that Watson has to make during the game.",
+            "So I'll just mention right now what these types of decisions are and give you some buzzwords about what sort of approach we used.",
+            "So the first decision is wagering on a daily double an we used a fortuitous combination of neural Nets, an reinforcement learning which very much revisited the work I did on TD Gammon.",
+            "That David mentioned earlier.",
+            "For Final Jeopardy, we do some fairly elementary game theory.",
+            "We compute a best response to our simulation model of what the humans are likely to do in Final Jeopardy.",
+            "Then when you have control of the board, you have to select which clue do you want to play next, and it's very important.",
+            "It turns out when you're selecting these clues, you would like to get the daily double ahead of the opponent so that they don't get it, and so we have a nice method for estimating the probabilities of where the daily double might be located using alive Bayesian inference updating technique.",
+            "And then finally, the last issue is when a clue is revealed and Watson calculates what it thinks it's answer is, and Watson also estimates a confidence likelihood that it's answer is going to be correct.",
+            "Then you have to decide, do you have sufficient confidence that it's worth taking a risk to try and buzz in an answer?",
+            "Because if you buzz in and get it wrong, you get penalized, so this is an important decision, and for this we use sort of lots and lots of real time Monte Carlo trials.",
+            "IE roll roll outs that feed into an approximate dynamic programming technique that can calculate how much confidence you actually need in a given game state."
+        ],
+        [
+            "So that's the plan.",
+            "So I understand a lot of folks over here in Europe they may not have too much familiarity with the game.",
+            "It's really, really really popular in North America.",
+            "But just if anyone does not at all familiar with it, there's the basic mechanics of play is going to be illustrated on this slide.",
+            "There there are two rounds of play.",
+            "There are 30 clues per board in each of the round, and the clues are organized by category.",
+            "But by columns, the columns have to do with questions in different categories, and there's dollar values.",
+            "The higher dollar values are supposed to be more difficult questions.",
+            "So the the person who is in control of the board who gave the last right answer, they pick a clue and they may say speak of the Dickens for 600 say.",
+            "And the clue is going to be revealed an so they can.",
+            "They will reveal this clue and the host is going to read it.",
+            "The first chapter of this unfinished novel is titled The Dawn and then so then when the host is done reading the clue.",
+            "If you think you know the answer, you can try to buzz in with your signaling device.",
+            "And if you're the first player to buzz, you get to give your answer an if your answer is what is the mystery of Edwin Drood you would be right, and you win the 600.",
+            "And if you were wrong, you would lose 600.",
+            "So that's kind of the basic mechanics of of gameplay for answering all the clues."
+        ],
+        [
+            "OK, so when we began thinking, I think it was around 2006 people in IBM started to think about, you know?",
+            "Should we really try to make some effort to build a machine to play jeopardy?",
+            "We realized by trying to tackle this domain it was going to require very very significant progress in multiple dimensions and multiple aspects of question answering or QA technology and we've got these key challenges shown on the left over here.",
+            "The first challenge is that on jeopardy, the clues can be from myriad variety of categories and topics.",
+            "So this basically.",
+            "Very much like an open domain QA task where your system is supposed to be able to answer questions about anything, and that's known to be much, much more challenging than if you're just doing a QA in a very restricted set of domain where you only need a restricted set of facts and knowledge.",
+            "The second challenge is we have to be very, very precise in what we compute when we try to answer a question.",
+            "It's not like a search engine where you type in some terms and it gives you.",
+            "Dozens or hundreds of documents an you know it's up to you to decide where is the right answer and all that we have to focus in on.",
+            "Get the precise term, the precise, unique string of text that is going to be the correct answer.",
+            "As I said, confidence is very important because you get penalized if you give wrong answer.",
+            "So the machine has to know what it knows it when it's has to know when it's very likely to be right, then it tries to answer.",
+            "It has to know when it's not likely to be right, so it backs off and doesn't try to answer.",
+            "This whole computation has to be done at tremendously high speed.",
+            "There's only a brief window of maybe a few seconds while the host is reading the clue that Watson has to crunch through all of its analysis.",
+            "Sift through all it's massive.",
+            "Hundreds of millions of passages of text crunched through all the supporting evidence of each of the candidates considering, and then give the final overall confidence at the end and the answer that it believes is most likely to be right.",
+            "That has to be done.",
+            "Our goal was to do that in three seconds, so this is a really major computing challenge which required pretty significant parallel scale out.",
+            "And the last, and maybe the most important aspect of this challenge is the system has to deal with all the complexities and ambiguities and oddness weirdness about how questions might be formulated in a natural language, and this is particularly prominent in jeopardy because the writers it seems sometimes they go out of their way to ask questions in a very non straightforward manner.",
+            "I believe simply because it makes the show more entertaining.",
+            "For the viewers at home, but if you're if you're doing a QA system and you look at how they were, the questions you think you might think there being malicious and they're they're trying to trip you up.",
+            "And I have a few really kind of standout examples of this strange language here and different things that can throw off a QA system so the one in the top, if you're standing, it's the direction you should look to check out the wainscoting for anyone who doesn't know wainscoting, it's the trim that runs along the bottom of a wall.",
+            "And if I tell you that now, it's trivial for human answer this question.",
+            "The problem for a QA system like Watson, it'll go and check all of its sources that talk about Wainscotings an none of that material will be at all relevant to answering this question.",
+            "'cause this question is really about sort of common sense reasoning based on the ordinary everyday physics of your life as a human, and you know about up and down and left and right and.",
+            "And how to direct your eyes to see a certain thing in a certain location so it's completely not in it's evidence sources, and that means it's going to be very difficult for it to produce the right answer.",
+            "The one in the bottom is very interesting.",
+            "Look down.",
+            "So in jeopardy you have to phrase your answer in the form of the question.",
+            "So you would say what is down.",
+            "So it says it's the direction you should look, so you have to give a direction.",
+            "So the right answer is what is down and Watson could not get this.",
+            "OK.",
+            "So this one in the bottom is another interesting one.",
+            "The eight member club formed by this treaty shuts Keydets doors in 1991.",
+            "Do a system is going to go?",
+            "What the heck is shut skied?",
+            "That is not a valid word in the English language, whereas for us humans we can take it as kind of a hint and we go shatsky.",
+            "That's vaguely Slavic sounding, so let me think is is there a Slavic treaty that ended in 1991 and just based on that you might guess the Warsaw Pact and that would turn out to be the right answer, but you know getting it directly, some supporting evidence terms that don't exist in English.",
+            "This is a very hard problem.",
+            "And then here's another interesting one.",
+            "In the right, the first use of this term in print was by Raymond Chandler.",
+            "The second word plays on the word investigator.",
+            "Does anyone have an idea of what the right answer is to this quote?",
+            "It's private.",
+            "I spelled EYE so ostensibly we're asking the QA system to recognize an advanced form of word play that the word IEYE is a play on investigator because it sounds like the letter I.",
+            "Which is the 1st letter of the word investigator.",
+            "So I'm not saying it's impossible, but it's certainly with our standard architectures for how we build QA systems and how we think they should operate.",
+            "This kind sort of inference is likely to throw it for a loop."
+        ],
+        [
+            "OK, I just like to give a brief very very high level picture of the Deep QA architecture, so there's sort of a pipeline that flows left to right.",
+            "The question will come in will do sort of a standard NLP analysis will parse.",
+            "The question will analyze the category.",
+            "You know the parts of speech will detect relevant terms an from there will do sort of a two phase analysis to get answer first, first will look through a set of answer sources and.",
+            "This is hundreds of millions of passages of unstructured text that have been annotated and pre analyzed, and so forth.",
+            "And so we will go and do.",
+            "Kind of a passage by passage, match up a passage in the source with the the sentence or or the question that we're trying to match.",
+            "An if there's a sufficiently close match, then we use that passage as a source of terms that we can, at least initially, consider that they might be candidates to being answers to the question.",
+            "So when we're all done with this process, we have maybe anywhere from a few 100 to a few thousand candidates, casting a very wide net.",
+            "So once we've got those candidates, then there's a second process where we do much more extensive analysis using a bigger set of evidence sources.",
+            "Again, hundreds of millions of passages of unstructured text, many, many different sources.",
+            "So we will look for many different types of evidence we'll have.",
+            "We have a panoply of several 100 NLP algorithms, each design to look for a particular unique type of supporting evidence, and so all those algorithms will crunch in parallel on all the candidates.",
+            "And literally we go through every candidate in every passage of text and will say for each of the evidence types that we're looking for how much positive or negative evidence is there that that either supports a given candidate being the right answer, or refutes it.",
+            "Estimates that being not the right answer.",
+            "So when we're all done with that now, for each of these candidates, we now have an extensive evidence profile or sort of in evidence feature vector, but say proximately 500 components of degrees of supporting evidence in those feature vectors.",
+            "Now we have to boil that evidence feature vector down into a single scalar, and the way we do that is we use some weights that were trained offline on a set of historical jeopardy clues.",
+            "Where are for each of the clues there was?",
+            "There were certain terms that were known to be right answers, and there were certain other terms that were known to be wrong answers, so that gives us a data set where we can do supervised learning.",
+            "We do supervised learning on the data set to score the ones that are right.",
+            "We want them to score high.",
+            "The ones that are wrong, we want them to score low, so that gives.",
+            "That gives us a set of weights that we can apply to our feature vectors and sort of a simple product.",
+            "Fashion weight vector times feature vector and that gives us an overall scale or score for aggregate evidence for each clue.",
+            "Yeah question.",
+            "Nearly sources speak about example of question and what would be the answer.",
+            "Sources work together sources so, so I don't think there's a great difference.",
+            "I did not actually work on that part of it, so people did explain a little bit about what the differences are.",
+            "Recollection is there's there's relatively minor differences as to whether an any given passage of text is selected to be in the answer sources or the evidence sources.",
+            "I don't remember any really important distinguishing factors for that, Sir.",
+            "OK.",
+            "It said the evidence is somewhat bigger, but it's not an order of magnitude bigger.",
+            "It's maybe it's no more than, say, factor of 2.",
+            "And.",
+            "Right, and of course we did much much more processing on these so.",
+            "OK, so so we've got these scalar scores now for each of our candidates.",
+            "Now the last thing we need we need from the scalar scores we need to get probabilities out, so that's simply just running the scores through logistic map and it gives you a number between zero and one that we interpret as a probability.",
+            "So then we're finally done with our crunching.",
+            "We've got our answer.",
+            "We've got our confidence that it's going to be right and this whole process takes place in three seconds or less.",
+            "Other.",
+            "Data is in house.",
+            "Some of it was collected from sort of open source is on the web, like Wikipedia.",
+            "There were other sort of proprietary encyclopedias or whatever that we purchased the license to download their material.",
+            "So it's a combination of public domain and private domain.",
+            "It's all loaded into the ram of the machine so that that was.",
+            "It was pretty surprising when I first learned that they so they had about 15 terabytes of processed sources, and so that's part of the reason why they needed 3000 cores to run Watson.",
+            "So they had 3000 cores.",
+            "Each core had five gig of RAM, so that gives you a total of 15 terabytes of RAM, which then when you're crunching, you don't.",
+            "You're not pulling stuff off of disk, otherwise we would never be done in time.",
+            "OK."
+        ],
+        [
+            "OK, so the last bit of background I just wanted to mention Watson's competitive record.",
+            "Well, we played a bunch of sparring games against humans.",
+            "Contestants who had actually been on the TV show, and this was organized by Jeopardy.",
+            "They invited these guys to come to our lab and try their luck playing against Watson.",
+            "So we had an initial series of 73 games.",
+            "And it was against contestants that were supposed to be representative, sort of the average contestant that gets on the show.",
+            "So we picked people who had tipped.",
+            "They had only been on the show maybe once or twice, so that's fairly representative of a typical player that's on the show.",
+            "So our record this was like late 2009 early 2010, so we had a record of 40 of those 70 three games.",
+            "47.",
+            "We finished first 15, we finished second.",
+            "At 11 we finished third, so 64% first place finishes.",
+            "21 of those was by what we call a lockout, which means that Watson had a guaranteed win in Final Jeopardy.",
+            "There's no way the opponents could catch up with him in Final Jeopardy, so he had a guaranteed win.",
+            "Next, we then played another series in the fall of 2010, this time against much, much stronger opponents.",
+            "These were players who had done very, very well in the show.",
+            "They were invited to compete in the show's annual Tournament of Champions, and they had played in the Tournament of Champions and gotten all the way to the finals, or at least to the semifinals.",
+            "So this is really an elite caliber of opposition, so it's our opponents a lot stronger.",
+            "Watson was also significantly stronger by that point then in the earlier games.",
+            "So it turned out we had a more commanding record there 39, eight and eight, so it's about 71% first place finish and now now the vast majority of those wins were by lockout.",
+            "So these very nice results against these tournament champion players gave us the confidence that we were ready to take on the ultimate challenge.",
+            "And it was may have seen it on TV.",
+            "If you haven't seen it on TV, you can go to YouTube to see the video from the match.",
+            "So we play it against arguably the two best human contestants ever.",
+            "Ken Jennings and Brad Rutter.",
+            "And as you might know, Watson's had a score of 70 seven 147 which was his first place guaranteed by lockout to win the $1,000,000 first prize.",
+            "Ken Jennings came in second and Brad Rutter finished third.",
+            "So any questions about the background before we move on?",
+            "OK, very good."
+        ],
+        [
+            "So now let's start to think about these strategy decisions that we have to do there.",
+            "Are there are four different types of strategies, decisions that come up during the course of the game.",
+            "The first one is.",
+            "So this is the sound on the show when you pick a clue and it turns out to be a daily double.",
+            "They play that little sound effect and then because it's a daily double now it doesn't have a fixed value.",
+            "Now you get to choose how much of your money do you want to risk from nothing all the way to your entire bankroll.",
+            "So the issue here for humans is basically humans don't have any clue how would you even think about trying to calculate a quote unquote optimal wager.",
+            "This is just it's something that's beyond the typical human thought process, and Additionally the host only gives you a few seconds to think about how much you want to risk.",
+            "So typically humans will kind of wing it, they'll just pick some even #1000 or 2000.",
+            "And just they'll pick some number that they're comfortable with.",
+            "At least make sure they're not going to lose too much money in case that they're wrong.",
+            "So as you might expect this.",
+            "This sort of winging it on the fly is not terribly optimal.",
+            "Our analysis shows that humans sacrificed quite a lot and expected winning chances by not knowing first.",
+            "You don't know how to do the calculation, you don't know how to estimate the probabilities and then just just being risk averse because you're so uncertain where it turns out.",
+            "The correct that the the correct thing that you should do according to our.",
+            "Our analysis is typically a human should wager quite a lot.",
+            "There are many, many cases where they should wager the entire amount, and so if you don't do that, then you're costing yourself, yeah.",
+            "Occur.",
+            "Yeah, so it's coming up where the daily doubles tend to be located.",
+            "It tends to be towards the bottom, but it can occasionally.",
+            "Some of the higher ones could come up.",
+            "Yeah, humans have a different utility function to function well.",
+            "Well, so you know that it's really important to win 'cause you don't get to keep the money unless you win.",
+            "And Secondly, if you win, you get to keep playing.",
+            "So not only you get to keep the money and you have an opportunity to make a lot more money, whereas if you don't win, they'll send you home with some token, small amount of cash or whatever.",
+            "So everybody knows that you need to win, but they don't know that they don't know how to estimate their chances of winning and they don't know how to estimate their chance of answering the question right.",
+            "So there are quite a disadvantage.",
+            "So the next decision is another sound effect.",
+            "For this is the final clue of the game, where they show you the category and you have to write down your wager and so nobody can see your wager.",
+            "You can't see your opponents wager, so this is a game theoretic strategic reasoning kind of calculation to decide how much I should wager.",
+            "Actually, there is some pretty good theory about Final Jeopardy wagering that's out there.",
+            "The challenge, I think, is many contestants on the show.",
+            "Appear to have not studied any of that theory, and they just make really really elementary mistakes with many times tragic consequences.",
+            "They bet everything when they don't have to.",
+            "You know there's some minimum amount they have to bet they don't bet the minimum amount, so in many cases it's very, very costly if they.",
+            "If they had just read the theory and just made the right bet, they would have won, but they are ignorant of the theory so they go home as a loser.",
+            "Quite sad.",
+            "What?",
+            "Beg pardon.",
+            "One really applies.",
+            "Well, in some cases, like it's a dominant strategy that even if the other guys play wrong, just like there's like there's some minimum that you need to bet.",
+            "OK, so the next decision is what clues should you pick to play next?",
+            "I have a sound effect for Watson picking a clue.",
+            "Let's finish.",
+            "That was one of the more amusing clue pics.",
+            "That was in one of the practice games that it played against Cannon bread, so here it's in our analysis here shows it's very important to get the daily doubles an it's particularly important if you're playing against super strong human contestants of the caliber of a Ken Jennings.",
+            "You really do not want Ken Jennings to get the daily double because he's going to slaughter you if he gets the daily double.",
+            "So this really motivated us to focus hard on.",
+            "Doing our best possible estimation of where the daily doubles are located and our best possible search strategy to find them ahead of the humans.",
+            "And the last issue as I said, for any given game states, you see the clue you have some confidence and then you have to decide.",
+            "Do I have enough confidence to buzz in typically a sort of default confidence threshold is usually good for much of the game.",
+            "It turns out near the end of the game.",
+            "These special scenarios of the particular end game states can make your threshold either go very, very high where you don't want to buzz at all, or you can go very low.",
+            "Where you just make a desperation buzz right at the end and we saw this dramatically illustrated in one of our final sparring games before we appeared on TV.",
+            "So we got down to the last clue.",
+            "Watson was way ahead but he didn't have a lockout so there was a second place human that is a little bit above half of Watson score.",
+            "So we played the last clue.",
+            "Watson buzzed and got it wrong and then now the human at that situation.",
+            "You should never buzz in just your way way behind.",
+            "If you if you get it right, you just improve your score a little bit, but you don't improve your chance to win Final Jeopardy.",
+            "So it doesn't help you if you get it right, but the danger is if you get it wrong now you drop below half a Watson score and you're locked out and this was a Jeopardy champion.",
+            "By the way, you would think that they would know about these things, but I guess that is the heat of live play.",
+            "He just he.",
+            "He buzzed, he got in there, buzzed, answered, and.",
+            "But he was ruled wrong.",
+            "And then like a few seconds later it dawned on him.",
+            "But I just blew the match right there, so this can be very critical to take the game state into account and adjust your buzzing accordingly.",
+            "Can make a very big difference."
+        ],
+        [
+            "So we decided to develop for the first time a really quantitative an, ideally as principled as possible, approach to developing good strategies for Watson, where we want to have good estimates of various probabilities and ultimately to estimate Watson's overall probability of winning, and use that as the basis of our decision making.",
+            "We put a lot of effort into this and we because of that we had to justify for ourselves and for IBM management.",
+            "You know why?",
+            "Is it worthwhile investing all this effort in all this strategy stuff?",
+            "Well, the first thing the executives want to know is does this.",
+            "Does this give us a better shot at winning an?",
+            "Yes, we're able to document.",
+            "We presented a lot of analysis and simulation data and so forth that our work does give Watson a substantial edge over humans in the strategy part of the game.",
+            "And this and this is going to that edge and strategy we showed yields a very substantial boost in overall winning chances compared to if we had not worked hard on this and just done some simple heuristic, we demonstrated we could win way, way greater percentage of games.",
+            "The second question they ask is, well, is the strategy stuff useful for any sort of business problem that we care about an so we argued, yes, we can take this general approach of sort of coupling.",
+            "QA system with the decision making system via simulation modeling and optimization and learning so forth.",
+            "We can utilize that same sort of overall approach in other domains, like a healthcare, competitive pricing, security, IE counterterrorism domains that we're actively investigating those sort of applications.",
+            "And finally, just this sort of analysis has never been done before, so for the fans of the Jeopardy show that people who avidly watch it leads to fascinating new theories of.",
+            "How do you evaluate what the state of the game is and what sort of strategy should you use in various states of the game so the executives are not interested in this aspect, but some of us think it's pretty cool and I'm happy to share some of the insights that we have garnered about.",
+            "Sort of what you should really be doing in your game strategy."
+        ],
+        [
+            "OK, so the simulation approach many people ask us why do you bother putting all this effort into building this very, very complicated simulation model?",
+            "If you're familiar with computer games, you might know that there are sort of three classic metric functions to assess how strong your game playing system is.",
+            "One is, you might test the performance of your program in a bunch of life games.",
+            "You could also test performance in simulated games.",
+            "Or you could evaluate over some suite of test positions.",
+            "Well, number one is certainly the gold standard.",
+            "It's the the closest to ground truth.",
+            "It's very slow an it's hideously expensive to gather this sort of data, especially if you're playing jeopardy.",
+            "You need live human contestants.",
+            "You need a host.",
+            "You need 3000 cores to run Watson, which uses quite a lot of electricity, and there's not that much episode data available.",
+            "So with the limited episode data and.",
+            "When people get exposed to an episode there just you can't have them play that episode again because now they know what all the right answers are, so it's very tough to get any sort of decent amount of data in the live approach.",
+            "The number 3, the test positions is well known to be vulnerable to so called overfitting, where you tweak all your adjustable parameters to do well on your test cases.",
+            "But then other kind of cases come up in the live setting and you didn't have them represented in your test set.",
+            "So it ends up you do very well on test cases, but not on the other things that are outside those test cases.",
+            "So really the simulation approach is really the way to go with potentially one big caveat.",
+            "In simulation we can get generate many many more orders of magnitude of data for learning and optimization, but we do have to face a big question.",
+            "Is your simulation model faithful or faithful enough to be useful?",
+            "'cause otherwise it's just going to be a situation of garbage in, garbage out and?",
+            "The results of simulation won't be meaningful.",
+            "OK.",
+            "So before we get into the detailed approaches, any any questions at this point about sort of rationale methodology?",
+            "OK yeah yeah.",
+            "Regarding simulation, I mean you still need to some kind of pool of test questions that the simulation is drawing now.",
+            "Now we don't.",
+            "Well, we'll see where we that's maybe a perfect leader into what I'm going to present.",
+            "Yeah.",
+            "The end result was two percentage came from the grill.",
+            "Question answering ability.",
+            "The final result came from.",
+            "Choosing a better strategy but Oh well.",
+            "So we can put a number on the strategy, so we estimate it.",
+            "If we had simple heuristic strategies in the match against Ken Jennings and Brad Rutter, we had a 50% chance to beat them.",
+            "But then if we swap in all of our advanced strategies, the 50% goes to 70%.",
+            "So that's a pretty substantial difference.",
+            "And of course you know the QA is absolutely critical.",
+            "Without QA you have 0%, so I don't want to say by no means is strategy more important than QA.",
+            "But beg pardon.",
+            "Oh, how good are the human strategies?",
+            "Yeah, so they know like some of the basics about you, look for the daily doubles near the bottom and they knew that when they're playing against Watson, Watson is very very good in the buzzer and they sort of know that that means that they have to be very aggressive on the daily double wagers.",
+            "So I would not really fault their strategy decisions is just the main thing that they don't know the detailed statistics about the row column.",
+            "Joint probabilities of where the daily doubles located so it's no disgrace there.",
+            "If you don't know those probabilities.",
+            "Yeah, OK. Alright."
+        ],
+        [
+            "So we started to think about building a simulation model for jeopardy and we immediately thought well, if we're going to try to simulate clues and categories and correct answers, then we're in for a world of very difficult issues.",
+            "'cause it's just.",
+            "It's going to be really, really difficult to emulate an anything like the the clues that the writers of the show that they write, how they calibrate the wording of those clues to get the desired level of difficulty.",
+            "Which categories do they pick?",
+            "How do they put a board together on this board?",
+            "We're going to have this category in this other category in this other category.",
+            "It just seemed too much of a mess to model that language content as well as trying to model the human contestants.",
+            "Each human contestant is maybe a unique point of ability across several thousand types of categories, and so we try to model well, if can.",
+            "Contestant A is good at this category.",
+            "Does that correlate with ability in other categories?",
+            "So that was just too daunting to really seriously contemplate, and therefore what we ended up doing is we just resorted to extreme simplification.",
+            "So we just made an average stochastic process model that just average across everything we average across all the players across all of the categories and all the clues.",
+            "So so for each type of each type of jeopardy situation, whether it's a regular clue whether it's a daily double or final jeopardy.",
+            "We just had sort of a mean rate stochastic process model which says on average, what's the rate of something happening and we and we try to look for correlations between contestants.",
+            "So we reasonably expected in the data confirmed that if human if one contestant has a certain rate of getting it right and say they do get it right, then it's likely that the other contestants that he's playing against are also likely to get it right.",
+            "We kind of expected.",
+            "Positive correlations and that that is what we found from our analysis.",
+            "OK, but I just wanted to keep in mind where we really don't want to model literally human versus human play, but we want to make kind of a predictive model of what happens when humans go up against Watson, and if the humans alter their behavior because they're playing against the machine, then that's the phenomena that we really want to model accurately rather than just say accurately when it's all humans on the show, we don't care about that so much."
+        ],
+        [
+            "OK, so here are the steps we're going about building a jeopardy simulator.",
+            "First thing you do is you go through a really valuable website.",
+            "J-archive.com.",
+            "This is a site that's maintained by the fans of the show.",
+            "And every night when the show airs, they meticulously transcribe and fine grained detail.",
+            "Every event that happened on that show and they upload it immediately.",
+            "So from this website we were able to extract fine grained episode data from over 3000 historical episodes.",
+            "Going back multiple decades so it was really a tremendous source of data, not only for the human modeling, but also getting source material for the clues and for the answers.",
+            "Dave Ferrucci often made made a quip that said if we didn't have J archive and we had to do it ourselves, that would have been at least half the project.",
+            "Just building this sort of a source of information.",
+            "So once you download that data from J archive, then you can construct these models of where do they tend to put the daily doubles?",
+            "We can model various aspects of human performance, like how often they attempt to buzz in, how often are they right when they win the buzz, and what is their accuracy and how do they tend to bet the betting scenarios?",
+            "OK, we we did build 3 different models calibrated to the level of opponents that we faced.",
+            "So for our initial sparring games we built what we called an average model and we just took data.",
+            "We just basically took all the data that was available and then we excluded certain special case populations of contestants like college, college students, teens or celebrities that definitely the celebrity data is not at all useful for modeling good players.",
+            "Then then for the champion model we took a subset of data that we just picked the top 100 players ranked by total number of games won and that seemed to be pretty representative of these very strong players that we faced in the second sparring games and then finally for the match with Ken and Brad, we built a super elites.",
+            "What we call it a grand champion model which was based on statistics of the top 10 Ken and Brad and eight other really really super strong players."
+        ],
+        [
+            "OK, so here's the issue about where do they place the doubles daily doubles so the colors are a little washed out, but this is supposed to be red over here and red means it's likely to have a daily double.",
+            "Blue means it's cold.",
+            "It's not likely to have a daily double, so most people know that the daily doubles tend to be towards the bottom.",
+            "There are some interesting column dependencies, at least it's never been talked about in print.",
+            "If you go and look at what's on the web.",
+            "There's no discussion, so our analysis shows that, for example, the first column is more likely to have a daily double.",
+            "The most likely the second column is least likely to have a daily double.",
+            "And it's up to us.",
+            "I guess we haven't asked the writers about this.",
+            "We have our own theories, so my theory is I notice they tend to put a lot of pop culture type questions about pop music or celebrities, or Academy Awards or something.",
+            "Those types of categories tend to be in the second column angius may.",
+            "Maybe they don't want to dignify that type of category by putting a daily double in it.",
+            "No, make up your own guess, but in any case we have the row column statistics and now this is our prior for Bayesian inference, when as clues are revealed to be not a daily double, or to be a daily double, we continually update compute the posteriors of where they're going to be."
+        ],
+        [
+            "OK, this is an illustration of the data that we have on Final Jeopardy for humans.",
+            "Turns out Final Jeopardy is roughly a coin flip for the average contestant.",
+            "They have about 50% chance of getting it right, and there is somewhat of a positive, moderate positive correlation.",
+            "If players both getting it right or both getting it wrong, the correlation is about 0.3.",
+            "In the plot here, we've illustrated the scatter plot of Actual bets that they have made, so we call the 1st place.",
+            "Player is A and the 2nd place player is be an, so we guess the lighter blue.",
+            "So I guess it's a little bit hard to tell the blue dots or how a tends to bit and darker red is how be tends to bet, so we notice there is a scatter, but there is some structure that kind of jumps out at you, so there's this blue line going up here.",
+            "And that's the well known strategy where a bets to cover in case B score doubles to to be a wants to be at least $1 ahead of that.",
+            "So that's that strategy, and it's very represented in the data for the strategies for B.",
+            "There's a case where Beacon bet everything that's fairly common.",
+            "That's this line.",
+            "There's also this descending line here, where B bets just enough to overtake A's current score, and we also see that as a kind of common strategy on the show.",
+            "So from this data we we looked at it different ways that different ways of illustrating the scatter plots, and we decided to segment the data based on a couple of strategic decisions.",
+            "One is does B have at least 2/3 of a.",
+            "So if in that scenario there B has more ways of winning that can do different things with this strategy versus if B is below 2/3, then just be has a very limited way to win an obviously dictated strategy.",
+            "The other issue is does be have to worry about being overtaken by C and that leads if he does have to worry.",
+            "That leads to one set of thinking versus if you don't have to worry about that then you can think about formulating your bet using a different thought process.",
+            "So that gives us four segments and we just fit the simple stochastic betting models with within each of those segments.",
+            "We'd say AB or C will bet a certain type of strategy.",
+            "With a certain probability that we estimate from our data, and that's our probabilistic model of how the humans bet.",
+            "So it turns out then we are able to go back and check the recorded historical human bets and were able to say OK, let's see with these historical bets, how often does a B or C win?",
+            "And then we could do a historical replacement type of test where say we replace all the bets that were made by the human a replace it with a draw from our distribution that we're modeling, and see how often do you win withdrawing from our distributions.",
+            "And that turns out to match remarkably well.",
+            "So here's.",
+            "Here's the real rates of winning as a B or C, and here's if you draw from our models you can see we fairly closely match the rate of winning for A and very close for being very close for C, so this gives us very good confidence that we've got a decent model of the human behavior because the model was formulated in a way that was completely blind to how often do we win?",
+            "How often does the human win?",
+            "We just try to reproduce these statistical bets.",
+            "We had no idea.",
+            "How often you're going to win with that distribution, and it turns out to match the win rate pretty well.",
+            "So that gives us confidence.",
+            "We've got a good model.",
+            "The question?",
+            "These numbers don't add up.",
+            "What happened to the other percentage?",
+            "Yeah, interesting find point.",
+            "So it turns out the numbers add up to about 100 and 1% and the reason for that is that Jeopardy game can end in a tie.",
+            "The tie for first, and so that's how you get the more than 100% nice catch.",
+            "OK."
+        ],
+        [
+            "So just the last thing I want to say about modeling this is how we model what happens on a regular clue.",
+            "So we took a vast amount of regular clue data more than 150,000 regular clues from J archive, and we realized that there are basically only seven possible events that can occur in a clue, either on the initial buzz.",
+            "Either nobody buzzes an it's over, or somebody buzzes and they get it right, or if they're wrong, then you go to the rebound.",
+            "And this whole thing can happen again.",
+            "No buzz buzz, right or wrong, and you can have a second rebound also.",
+            "So the squares in indicates the endpoints of a clue, and we have the historical rates of reaching each of these endpoints, and now that we've got these historical rates, we can estimate most likely parameters of some mean rate model.",
+            "So we have we estimated a mean precision of getting it right.",
+            "When you decide to buzz in, that's in the high 80s and there's a mean rate.",
+            "Of attempting to buzz in that comes out to be in the low 60s and it turns out there are mild positive correlations both for buzzing in an for getting it right, just sort of in the vicinity of about 0.2.",
+            "We know from the rebound stats we know this directly, but when we say first player buzzed and got it wrong, what's the likelihood that the second player gets it right or gets it wrong that directly gives us a positive 0.2 correlation?",
+            "I believe that's all I want to say about the modeling and any questions about the modeling, but.",
+            "OK, so we."
+        ],
+        [
+            "Move on to the strategies.",
+            "The first strategy is daily double bedding, as I alluded to earlier.",
+            "We trained a neural net in the simulation.",
+            "We run millions of simulated games where it simulate Watson playing against to humans, and it's very much the same sort of concept is what I did in TD Gammon.",
+            "So in TD Gammon there was a neural net that would play games against itself.",
+            "It would see a sequence of backgammon board positions would be fed in as input States and those would propagate forward in the output of the neural net would be an estimate of winning in that state.",
+            "And you do temporal difference.",
+            "Learning a step by step correction.",
+            "Change the weights of your value function and then finally you find out at the end who really won the game and that that gives you your ground truth feedback an after million millions.",
+            "Millions of such simulated games.",
+            "This TD Lambda training makes this neural net able to estimate very accurately the probability of winning from any given bakemon state an it's exactly the same thing in Watson where same type of neural net.",
+            "And now we just feeding in.",
+            "Sequences of jeopardy.",
+            "Game states suitably encoded for saliency of representing jeopardy.",
+            "States crunched through all those sequences to your TD, Lambda learning, and at the end we've got a neural net that can estimate what's the probability that Watson is going to win in Jeopardy State."
+        ],
+        [
+            "The state representation turned out to be fairly simple.",
+            "Representation was good enough.",
+            "We basically we just use the scores of the players and various measures of how much play is left in the game.",
+            "Like how many clues remains to be played, what's the total dollar value of those remaining clues, total number of remaining daily doubles, and which player has control of the board.",
+            "It turns out Watson also has an estimate of his probability of getting the daily double rate based on what he has already seen in the category.",
+            "If he's seen a few clues already and maybe he got some right and he got some wrong that now provides a basis to estimate likelihood of daily getting the DD right, that's not an input to the neural net, but isn't it isn't input to how we calculate the wager, which I'm about to show you."
+        ],
+        [
+            "On this slide, so it's a very simple calculation.",
+            "We say we have this function.",
+            "It's a function of Watson's current score.",
+            "Another of these game game state variables.",
+            "That's going to be our estimated probability of winning, so we go if comp is our probability of getting the question right an if we make some bet and we get it right in our score increases by the bet, then we then we would have this probability of winning.",
+            "So it's just your your.",
+            "Probability of getting it right times your probability of winning the game after the score increase plus probability of getting it wrong.",
+            "Times probability of winning the game after a score decrease.",
+            "This is a you evaluate all your bets and pick the one with highest expectation.",
+            "That is a classic risk neutral betting algorithm.",
+            "It turns out such a betting algorithm in many cases can take on a frightening degree of risk.",
+            "Not not the Watson.",
+            "Is afraid, but us humans who own and operate Watson.",
+            "We sometimes get very skittish about how much it wants to bet in some situations, and therefore we decided to build in some risk mitigation techniques, which also humans are scared.",
+            "And we've got an imperfect model.",
+            "So we made maybe wagering too much.",
+            "Just because there's some sort of an error in the model, and that's another reason to back off a little bit, so the risk mitigation is just some standard stuff.",
+            "There's a penalty for bets that entail.",
+            "High volatility meaning big standard deviation over getting it right versus getting it wrong.",
+            "We have a flat out limit on.",
+            "There's a maximum downside risk that we allow Watson to take an beyond that we say no more you can't take anymore risk than that, so that limits how much it can bet with these two techniques.",
+            "It costs us a little bit in expectation, with a few tenths of a percent in equity, but it very significantly reduces the risk by the say more than 1/3, which we are very happy to have.",
+            "That degree of downside protection.",
+            "At what appears to be not too much cost and expectation."
+        ],
+        [
+            "10 minutes OK thank you.",
+            "Alright, so I have an actual video clip, so here's from one of our sparring games.",
+            "One of the early games where here's an interesting situation where we started the second round.",
+            "Watson got the first 3 clues rates in the first column, and then he hit the daily double.",
+            "Now Watson has a pretty big lead at this point.",
+            "11,000 two, 4200 each for the humans, but he has a different way of thinking about it than the humans.",
+            "The human might think.",
+            "Well, I've got a big lead.",
+            "I'm not going to risk my big lead.",
+            "Watson goes, I've seen 3 clues in this category.",
+            "I got all three right.",
+            "Therefore I am good at this category and therefore I'm going to make a very hefty wager here, even though he's got a big lead.",
+            "So let's see the."
+        ],
+        [
+            "Video Russian.",
+            "Ivy House was famous for its ornamental language.",
+            "This is before the DD.",
+            "Who is Adam with Logan for 1600?",
+            "Ballet dancers for 1200.",
+            "All right, we have quite a large lead over our two human players.",
+            "How much would you like to wager?",
+            "I'll wager $6700.",
+            "He was born in Kiev around 1889 to parents who were celebrated dancers from Poland.",
+            "Who is Bass Lake Majeski that is correct, very nicely done, quicker score is $17,700 or human players are still without the 4200 mark.",
+            "Choose again wants it.",
+            "OK."
+        ],
+        [
+            "So here's the analysis that went into the bet.",
+            "I don't.",
+            "Can people see this?",
+            "There's an ascending curve.",
+            "It may be hard to see, but this is Watson's equity.",
+            "If he gets it right from betting, nothing all the way up to his entire stake.",
+            "So if he bets everything and gets it right, we estimate he's almost 90% to win.",
+            "On the other hand, if he bets and gets it wrong, then that's this equity curve here.",
+            "So if he bets everything and gets it wrong, he's sort of close to 30%.",
+            "And these are really, really smooth, simple curves.",
+            "It's kind of surprising that anything interesting comes out, but the behavior does turn out to be interesting, so now."
+        ],
+        [
+            "We can calculate what is Watson's equity at various confidence levels, and so we've looked at 5 different, going from 45%, fifty, five, 6575 and 85, and so that's these five different curves.",
+            "And again, I guess this one is hard to see.",
+            "So, and we've marked the best bet is a big black dot on each of the curve so we can see at 45%.",
+            "The optimal bet is nothing.",
+            "At 55% the bed is about 2000, at 65% it's over 5000, at 75% it's more than 9000 and if his confidence where to get to 85% he would have better true daily double so.",
+            "At the end of the.",
+            "This is the ultimate chance to win after getting it right or just just for just this step.",
+            "There's a random process where you either get it right or you get it wrong with some probability, and now what?",
+            "What's your overall from the probability of getting it right times the probability of winning if you got it right.",
+            "Plus probability of getting it wrong times probability of winning if you get it wrong, but it's it's a blend of these so we blend.",
+            "It's a confidence weighted blending of the rising kervan.",
+            "The following her.",
+            "Does that make sense?",
+            "So we could never question is is this expected?",
+            "Immediate rewards or no?",
+            "The objective is to win at the end.",
+            "So the V function estimates probability of winning at the end of the game.",
+            "Yeah yeah, the dollars are meaningless.",
+            "We don't care bout dollars we just want to win, yeah.",
+            "Good."
+        ],
+        [
+            "OK, so maybe I can skip through some of these performance metrics.",
+            "So bottom line, if we had simple heuristics, are simulation said we win 61%?",
+            "We plug in neural net betting using the live confidence estimates and it jumps to 67%.",
+            "It's a pretty big boost given we only use this method once or twice per game, that's a fairly hefty improvement and we did some postmortem sort of offline Monte Carlo analysis of for each of the wagers that we made.",
+            "We could analyze that situation and say what that really gave the best winning rate and how was our winning rate compared to the best optimal winning rate and that turned out to be .6% per daily double bet.",
+            "We're able to fix most of the errors came near the end of the game.",
+            "We were able to make the simulation go fast enough that instead of using the neural net at the end of the game, we could just run alive simulation and we would be essentially perfect in our model.",
+            "So we made that change.",
+            "We got down to about.",
+            "Quarter of a percent equity loss per bet, which is so close to perfect.",
+            "We're happy to stop at that point, yeah?",
+            "Quite a little while to answer his interview.",
+            "Yeah, so in that case that was.",
+            "I believe that was the first time we had run the neural net daily double an.",
+            "It was running on the operator's laptop, so it was a fairly slow machine.",
+            "So when we did the later sparring games and when we were running on TV we had a much more powerful server available, so the daily doubles could be wagered a lot faster.",
+            "But it was a slow machine.",
+            "OK, so let's been given the time signal.",
+            "So I want to try to zip through this summer."
+        ],
+        [
+            "This stuff so for Final Jeopardy.",
+            "We have the randomized human model that I've mentioned, so we have some model of there's some distribution of bets they're going to make, and some probability that they'll get it right or wrong.",
+            "We do a simple best response strategy against that distribution, and we eventually got to where we could do it life for life we would draw about 10,000 samples of human bet pairs, and then we would consider for each legal Watson bit.",
+            "Compute the probability at Watson wins given the bet pair and the right wrong probabilities.",
+            "So for there are eight possible right wrong binary outcomes, and we could calculate analytically what the probabilities were of each of those combinations, so we didn't have to simulate right wrong, we just simulated the beds and then we combined that with the analytic probabilities of right versus wrong and just loop over all the bets and that will give you a best bet.",
+            "It turns out that these bets that we get.",
+            "Makes sense in terms of logical betting rules.",
+            "I don't want to delve into the details.",
+            "I can refer you to papers that we've published to kind of go into this in more detail.",
+            "So bottom line, we went about 3% more wins than if we just had a very simple Final Jeopardy heuristic.",
+            "And now if we go back and look at historic replacement again, what if we replace the human bets by our best response calculation and we can see noticeable increase in win rate for A and a very significant increase in.",
+            "Win rate for B&C.",
+            "So we've got a big edge, particularly if the human is trailing."
+        ],
+        [
+            "So the clue selection we considered 3 three different types of considerations when we're picking the clues.",
+            "One is you want to get the daily double as fast as you can, so that motivates using this basic Bayesian prior and updating with evidence as clues are revealed.",
+            "Another consideration is to try to keep control of the board.",
+            "In case you don't get the daily double and you get to pick again.",
+            "So that would tend to keep Watson in categories where he is currently doing well.",
+            "And the final consideration is sort of getting a sense of what the category is all about.",
+            "From the revealed clue and the revealed answers, and so for learning, then you want to explore, kind of at the top where it's less expensive and that would help you do better on the higher dollar value.",
+            "So you had a question.",
+            "Say.",
+            "Rob.",
+            "Trying to home in on the daily double straight away, is it not better to gather some evidence about which categories you're good out before then?",
+            "Then yeah, that's so we consider that.",
+            "But it turned out to be not particularly relevant until when all the daily deltas are gone.",
+            "Then the information gathering comes to four, but otherwise we would just say, well, we do a mix of this and this so 90% on finding the daily double 10% on keeping control."
+        ],
+        [
+            "So I have an animation here show you clue on the on the left.",
+            "We're going to show you clue selection with Watson's strategy or daily double seeking versus the actual historical ways that humans tend to pick the clues.",
+            "And we're going to let them run simultaneously side by side so you can see the humans are going top to bottom, top to bottom, top to bottom, Watson on the other hand is focusing all of his effort near the bottom.",
+            "And there are various hotspots that kind of get red as as closer revealed.",
+            "Certain squares become very, very likely have the daily double, and so Watson hones in on where the daily double is.",
+            "Humans are just going top to bottom and it takes them a lot longer time to get the daily doubles."
+        ],
+        [
+            "OK, the last thing and I'll just try to mention this quickly so the for buzzing in we need to compute thresholds.",
+            "There are four thresholds Theta 0123 and if your confidence is above the threshold then you buzz otherwise you don't buzz whire.",
+            "Therefore there are four buzz eligible states in any given clue.",
+            "There's the initial buzz, there's a rebound.",
+            "If the first human got it wrong, there's a rebound where the human number two got it wrong and there's a double rebound where both humans got it wrong.",
+            "So those are different states an they potentially can have different thresholds, so you can write down a gory recursion relation is with some tedious math to solve it.",
+            "To say what's my probability of winning in a state with K clues left as a bunch of look ahead with over a bunch of probabilities of various states that you can end up in with only K -- 1 clues left.",
+            "An various probabilities of winning for those states."
+        ],
+        [
+            "So without a kershen, that classically suggests the dynamic programming type approach which we did implemented, we have an exact DP calculation where you sort of build a search state starting from the current clue, and you search out to the K minus one K -- 2.",
+            "Go all the way to the end where you're playing Final Jeopardy.",
+            "Just evaluate those final Jeopardy states, maybe by rollouts.",
+            "Or maybe you have them pre tabulated and then from those states you kind of work your way backward using the recursion to finally get.",
+            "What's my probability of winning if I buzz?",
+            "What's my probability of winning if I don't does that calculation?",
+            "Unfortunately, is usually too slow to do in live play.",
+            "There's a bad exponential blowup, So what we do instead is an approximate DP technique where we just do the recursion only for the first step and then after the first step we just do plain Monte Carlo trials so that that gives us a pretty good approximation to the exact answer, and it almost always finishes in less than two seconds.",
+            "Which is absolutely critical for us."
+        ],
+        [
+            "So I just have some illustrations of interesting things that can happen with the buzz threshold depending upon the game state.",
+            "So here's a situation.",
+            "There's one clue left that's worth $2000, and we're going to fix the human scores at 13,000 and 6800, and we're going to calculate Watson threshold at various interesting scores.",
+            "So what if Watson has 23,000?",
+            "We crunch crunch crunch and we get the threshold is 1, meaning Watson should never buzz.",
+            "Now, this may seem very surprising.",
+            "You mean you never buzz, even if you're perfectly confident.",
+            "So if you think about it, Watson doesn't get any advantage by buzzing because, say, he buzzes and he gets it right?",
+            "So Watson has 23,000.",
+            "Sorry if he buzzes, he gets it right.",
+            "He goes to 25,000.",
+            "That is not enough to achieve a lockout to get a lockout, he needs to double 13,000 to get to 26.",
+            "So basically there's no advantage.",
+            "To getting it right, but if he gets it wrong he drops the 21,000.",
+            "Now be can jump in there he can get it right and he can get up to 15,000 so B would then pull to within 2/3 of Watson Score Sobeys chance to win goes up, Watson's chance to win goes down.",
+            "So this situation there's no upside from buzzing and it's all downside.",
+            "Now what if, on the other hand, Watson has 25,000?",
+            "Now that's completely opposite.",
+            "The threshold is 0, so just buzz whatever the arbitrarily low confidence.",
+            "So here if he buzzes, any gets it right.",
+            "He gets his lockout if he gets it wrong, he drops to 23,000, and now there's no way that be could get to 2/3.",
+            "So getting it wrong doesn't cost him anything, so it's a free shot to try and win if he has 27,000 now, there's sort of a provisional lockout as is.",
+            "But B could jump in an answer right and spoil the lockout by getting to 15,000 so purely just to kind of prevent be from answering, Watson may contemplate just buzzing in you are taking a gamble here, so you have to be pretty confident the correct threshold turns out to be.",
+            "You have to be at least 64% confident to make this gamble pay off and then finally, if Watson has 29,000 now again, it's another free shot.",
+            "If Watson gets it right.",
+            "He wins the game if he gets it wrong he drops the 27,000 B still needs to buzz in and get it right.",
+            "Otherwise it's a lockout.",
+            "So interesting variations in the."
+        ],
+        [
+            "Threshold so I need to wrap up, so take home lessons as it's the first ever quantitative, principled.",
+            "An comprehensive strategy for jeopardy covering all aspects of the strategy decisions.",
+            "My bottom line we we think we have a slight edge over good humans who actually study the known theory.",
+            "We maybe have a little bit of an edge.",
+            "We have a clear edge and daily doubles for clue selection.",
+            "I would say moderate edge this this Bayesian daily double calculation.",
+            "It gives us somewhat of an edge over.",
+            "It's something that humans can't do and then the end game buzzing and clear edge in certain special case situations.",
+            "And the superhuman fact strategy.",
+            "Was in fact a pretty pretty substantial factor.",
+            "There's a lot that went into Watson's victory strategy was a big part of that, so I need to stop and I will now put myself in jeopardy and I'll try to answer your questions, thanks."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "For this particular talk, I'm going to focus on the game strategy aspect of Watson, which is somewhat different from a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of the other material that's out there really focuses on the deep QA on the question answering, and of course that's critically important.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's vital for Watson, but it turns out this the strategy aspect is also maybe got a surprising degree of importance as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can make a pretty big difference as to whether a contestant can win or lose.",
+                    "label": 0
+                },
+                {
+                    "sent": "So our strategy work was done by me and my colleague shown here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is joint work with Dave Gondek, John Lenczner, James Fan, and John Prager.",
+                    "label": 1
+                },
+                {
+                    "sent": "These guys are all Co inventors and code developers.",
+                    "label": 0
+                },
+                {
+                    "sent": "The methodology I'm going to talk about today.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, the rough plan of points.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to mention in the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'd like to begin with a little bit of background, sort of about why we decided to take on this grand challenge of building a machine to play jeopardy, and why we thought that would be a very significant driver of progress to take on that challenge.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then, within that challenge there is also the game strategy, part of it, and will motivate why it's significant to work on the game strategy and then we'll get into the details of our specific approach to strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's basically A2 pronged approach where the first prong is.",
+                    "label": 0
+                },
+                {
+                    "sent": "We invest a lot of effort in developing a fairly faithful simulation model that could simulate fairly accurately what is likely to happen if Watson plays jeopardy against two humans of some known level of ability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that was a big effort to build a good simulator.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then once you've got a good simulator, you can then use a variety of machine learning and optimization techniques.",
+                    "label": 0
+                },
+                {
+                    "sent": "To build and optimize modules that handle each of the strategy decisions that Watson has to make during the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll just mention right now what these types of decisions are and give you some buzzwords about what sort of approach we used.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first decision is wagering on a daily double an we used a fortuitous combination of neural Nets, an reinforcement learning which very much revisited the work I did on TD Gammon.",
+                    "label": 1
+                },
+                {
+                    "sent": "That David mentioned earlier.",
+                    "label": 0
+                },
+                {
+                    "sent": "For Final Jeopardy, we do some fairly elementary game theory.",
+                    "label": 1
+                },
+                {
+                    "sent": "We compute a best response to our simulation model of what the humans are likely to do in Final Jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then when you have control of the board, you have to select which clue do you want to play next, and it's very important.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out when you're selecting these clues, you would like to get the daily double ahead of the opponent so that they don't get it, and so we have a nice method for estimating the probabilities of where the daily double might be located using alive Bayesian inference updating technique.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then finally, the last issue is when a clue is revealed and Watson calculates what it thinks it's answer is, and Watson also estimates a confidence likelihood that it's answer is going to be correct.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you have to decide, do you have sufficient confidence that it's worth taking a risk to try and buzz in an answer?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because if you buzz in and get it wrong, you get penalized, so this is an important decision, and for this we use sort of lots and lots of real time Monte Carlo trials.",
+                    "label": 0
+                },
+                {
+                    "sent": "IE roll roll outs that feed into an approximate dynamic programming technique that can calculate how much confidence you actually need in a given game state.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So that's the plan.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I understand a lot of folks over here in Europe they may not have too much familiarity with the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's really, really really popular in North America.",
+                    "label": 0
+                },
+                {
+                    "sent": "But just if anyone does not at all familiar with it, there's the basic mechanics of play is going to be illustrated on this slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "There there are two rounds of play.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are 30 clues per board in each of the round, and the clues are organized by category.",
+                    "label": 0
+                },
+                {
+                    "sent": "But by columns, the columns have to do with questions in different categories, and there's dollar values.",
+                    "label": 0
+                },
+                {
+                    "sent": "The higher dollar values are supposed to be more difficult questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the the person who is in control of the board who gave the last right answer, they pick a clue and they may say speak of the Dickens for 600 say.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the clue is going to be revealed an so they can.",
+                    "label": 0
+                },
+                {
+                    "sent": "They will reveal this clue and the host is going to read it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first chapter of this unfinished novel is titled The Dawn and then so then when the host is done reading the clue.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you think you know the answer, you can try to buzz in with your signaling device.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you're the first player to buzz, you get to give your answer an if your answer is what is the mystery of Edwin Drood you would be right, and you win the 600.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you were wrong, you would lose 600.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's kind of the basic mechanics of of gameplay for answering all the clues.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so when we began thinking, I think it was around 2006 people in IBM started to think about, you know?",
+                    "label": 0
+                },
+                {
+                    "sent": "Should we really try to make some effort to build a machine to play jeopardy?",
+                    "label": 0
+                },
+                {
+                    "sent": "We realized by trying to tackle this domain it was going to require very very significant progress in multiple dimensions and multiple aspects of question answering or QA technology and we've got these key challenges shown on the left over here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first challenge is that on jeopardy, the clues can be from myriad variety of categories and topics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this basically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very much like an open domain QA task where your system is supposed to be able to answer questions about anything, and that's known to be much, much more challenging than if you're just doing a QA in a very restricted set of domain where you only need a restricted set of facts and knowledge.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second challenge is we have to be very, very precise in what we compute when we try to answer a question.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not like a search engine where you type in some terms and it gives you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dozens or hundreds of documents an you know it's up to you to decide where is the right answer and all that we have to focus in on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get the precise term, the precise, unique string of text that is going to be the correct answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "As I said, confidence is very important because you get penalized if you give wrong answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the machine has to know what it knows it when it's has to know when it's very likely to be right, then it tries to answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has to know when it's not likely to be right, so it backs off and doesn't try to answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "This whole computation has to be done at tremendously high speed.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's only a brief window of maybe a few seconds while the host is reading the clue that Watson has to crunch through all of its analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sift through all it's massive.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hundreds of millions of passages of text crunched through all the supporting evidence of each of the candidates considering, and then give the final overall confidence at the end and the answer that it believes is most likely to be right.",
+                    "label": 0
+                },
+                {
+                    "sent": "That has to be done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our goal was to do that in three seconds, so this is a really major computing challenge which required pretty significant parallel scale out.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the last, and maybe the most important aspect of this challenge is the system has to deal with all the complexities and ambiguities and oddness weirdness about how questions might be formulated in a natural language, and this is particularly prominent in jeopardy because the writers it seems sometimes they go out of their way to ask questions in a very non straightforward manner.",
+                    "label": 0
+                },
+                {
+                    "sent": "I believe simply because it makes the show more entertaining.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the viewers at home, but if you're if you're doing a QA system and you look at how they were, the questions you think you might think there being malicious and they're they're trying to trip you up.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I have a few really kind of standout examples of this strange language here and different things that can throw off a QA system so the one in the top, if you're standing, it's the direction you should look to check out the wainscoting for anyone who doesn't know wainscoting, it's the trim that runs along the bottom of a wall.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I tell you that now, it's trivial for human answer this question.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem for a QA system like Watson, it'll go and check all of its sources that talk about Wainscotings an none of that material will be at all relevant to answering this question.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause this question is really about sort of common sense reasoning based on the ordinary everyday physics of your life as a human, and you know about up and down and left and right and.",
+                    "label": 0
+                },
+                {
+                    "sent": "And how to direct your eyes to see a certain thing in a certain location so it's completely not in it's evidence sources, and that means it's going to be very difficult for it to produce the right answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "The one in the bottom is very interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look down.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in jeopardy you have to phrase your answer in the form of the question.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you would say what is down.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it says it's the direction you should look, so you have to give a direction.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the right answer is what is down and Watson could not get this.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this one in the bottom is another interesting one.",
+                    "label": 0
+                },
+                {
+                    "sent": "The eight member club formed by this treaty shuts Keydets doors in 1991.",
+                    "label": 1
+                },
+                {
+                    "sent": "Do a system is going to go?",
+                    "label": 0
+                },
+                {
+                    "sent": "What the heck is shut skied?",
+                    "label": 0
+                },
+                {
+                    "sent": "That is not a valid word in the English language, whereas for us humans we can take it as kind of a hint and we go shatsky.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's vaguely Slavic sounding, so let me think is is there a Slavic treaty that ended in 1991 and just based on that you might guess the Warsaw Pact and that would turn out to be the right answer, but you know getting it directly, some supporting evidence terms that don't exist in English.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a very hard problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then here's another interesting one.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the right, the first use of this term in print was by Raymond Chandler.",
+                    "label": 1
+                },
+                {
+                    "sent": "The second word plays on the word investigator.",
+                    "label": 0
+                },
+                {
+                    "sent": "Does anyone have an idea of what the right answer is to this quote?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's private.",
+                    "label": 0
+                },
+                {
+                    "sent": "I spelled EYE so ostensibly we're asking the QA system to recognize an advanced form of word play that the word IEYE is a play on investigator because it sounds like the letter I.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is the 1st letter of the word investigator.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm not saying it's impossible, but it's certainly with our standard architectures for how we build QA systems and how we think they should operate.",
+                    "label": 0
+                },
+                {
+                    "sent": "This kind sort of inference is likely to throw it for a loop.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, I just like to give a brief very very high level picture of the Deep QA architecture, so there's sort of a pipeline that flows left to right.",
+                    "label": 0
+                },
+                {
+                    "sent": "The question will come in will do sort of a standard NLP analysis will parse.",
+                    "label": 0
+                },
+                {
+                    "sent": "The question will analyze the category.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the parts of speech will detect relevant terms an from there will do sort of a two phase analysis to get answer first, first will look through a set of answer sources and.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is hundreds of millions of passages of unstructured text that have been annotated and pre analyzed, and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we will go and do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of a passage by passage, match up a passage in the source with the the sentence or or the question that we're trying to match.",
+                    "label": 0
+                },
+                {
+                    "sent": "An if there's a sufficiently close match, then we use that passage as a source of terms that we can, at least initially, consider that they might be candidates to being answers to the question.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when we're all done with this process, we have maybe anywhere from a few 100 to a few thousand candidates, casting a very wide net.",
+                    "label": 0
+                },
+                {
+                    "sent": "So once we've got those candidates, then there's a second process where we do much more extensive analysis using a bigger set of evidence sources.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, hundreds of millions of passages of unstructured text, many, many different sources.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we will look for many different types of evidence we'll have.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have a panoply of several 100 NLP algorithms, each design to look for a particular unique type of supporting evidence, and so all those algorithms will crunch in parallel on all the candidates.",
+                    "label": 0
+                },
+                {
+                    "sent": "And literally we go through every candidate in every passage of text and will say for each of the evidence types that we're looking for how much positive or negative evidence is there that that either supports a given candidate being the right answer, or refutes it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Estimates that being not the right answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when we're all done with that now, for each of these candidates, we now have an extensive evidence profile or sort of in evidence feature vector, but say proximately 500 components of degrees of supporting evidence in those feature vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we have to boil that evidence feature vector down into a single scalar, and the way we do that is we use some weights that were trained offline on a set of historical jeopardy clues.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where are for each of the clues there was?",
+                    "label": 0
+                },
+                {
+                    "sent": "There were certain terms that were known to be right answers, and there were certain other terms that were known to be wrong answers, so that gives us a data set where we can do supervised learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do supervised learning on the data set to score the ones that are right.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want them to score high.",
+                    "label": 0
+                },
+                {
+                    "sent": "The ones that are wrong, we want them to score low, so that gives.",
+                    "label": 0
+                },
+                {
+                    "sent": "That gives us a set of weights that we can apply to our feature vectors and sort of a simple product.",
+                    "label": 0
+                },
+                {
+                    "sent": "Fashion weight vector times feature vector and that gives us an overall scale or score for aggregate evidence for each clue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nearly sources speak about example of question and what would be the answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sources work together sources so, so I don't think there's a great difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "I did not actually work on that part of it, so people did explain a little bit about what the differences are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Recollection is there's there's relatively minor differences as to whether an any given passage of text is selected to be in the answer sources or the evidence sources.",
+                    "label": 1
+                },
+                {
+                    "sent": "I don't remember any really important distinguishing factors for that, Sir.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "It said the evidence is somewhat bigger, but it's not an order of magnitude bigger.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's maybe it's no more than, say, factor of 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, and of course we did much much more processing on these so.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so so we've got these scalar scores now for each of our candidates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the last thing we need we need from the scalar scores we need to get probabilities out, so that's simply just running the scores through logistic map and it gives you a number between zero and one that we interpret as a probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then we're finally done with our crunching.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got our answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got our confidence that it's going to be right and this whole process takes place in three seconds or less.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other.",
+                    "label": 0
+                },
+                {
+                    "sent": "Data is in house.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of it was collected from sort of open source is on the web, like Wikipedia.",
+                    "label": 1
+                },
+                {
+                    "sent": "There were other sort of proprietary encyclopedias or whatever that we purchased the license to download their material.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a combination of public domain and private domain.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's all loaded into the ram of the machine so that that was.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was pretty surprising when I first learned that they so they had about 15 terabytes of processed sources, and so that's part of the reason why they needed 3000 cores to run Watson.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they had 3000 cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each core had five gig of RAM, so that gives you a total of 15 terabytes of RAM, which then when you're crunching, you don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're not pulling stuff off of disk, otherwise we would never be done in time.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so the last bit of background I just wanted to mention Watson's competitive record.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we played a bunch of sparring games against humans.",
+                    "label": 0
+                },
+                {
+                    "sent": "Contestants who had actually been on the TV show, and this was organized by Jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "They invited these guys to come to our lab and try their luck playing against Watson.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we had an initial series of 73 games.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it was against contestants that were supposed to be representative, sort of the average contestant that gets on the show.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we picked people who had tipped.",
+                    "label": 0
+                },
+                {
+                    "sent": "They had only been on the show maybe once or twice, so that's fairly representative of a typical player that's on the show.",
+                    "label": 0
+                },
+                {
+                    "sent": "So our record this was like late 2009 early 2010, so we had a record of 40 of those 70 three games.",
+                    "label": 0
+                },
+                {
+                    "sent": "47.",
+                    "label": 0
+                },
+                {
+                    "sent": "We finished first 15, we finished second.",
+                    "label": 0
+                },
+                {
+                    "sent": "At 11 we finished third, so 64% first place finishes.",
+                    "label": 0
+                },
+                {
+                    "sent": "21 of those was by what we call a lockout, which means that Watson had a guaranteed win in Final Jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no way the opponents could catch up with him in Final Jeopardy, so he had a guaranteed win.",
+                    "label": 0
+                },
+                {
+                    "sent": "Next, we then played another series in the fall of 2010, this time against much, much stronger opponents.",
+                    "label": 0
+                },
+                {
+                    "sent": "These were players who had done very, very well in the show.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were invited to compete in the show's annual Tournament of Champions, and they had played in the Tournament of Champions and gotten all the way to the finals, or at least to the semifinals.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is really an elite caliber of opposition, so it's our opponents a lot stronger.",
+                    "label": 0
+                },
+                {
+                    "sent": "Watson was also significantly stronger by that point then in the earlier games.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it turned out we had a more commanding record there 39, eight and eight, so it's about 71% first place finish and now now the vast majority of those wins were by lockout.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these very nice results against these tournament champion players gave us the confidence that we were ready to take on the ultimate challenge.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it was may have seen it on TV.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you haven't seen it on TV, you can go to YouTube to see the video from the match.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we play it against arguably the two best human contestants ever.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ken Jennings and Brad Rutter.",
+                    "label": 1
+                },
+                {
+                    "sent": "And as you might know, Watson's had a score of 70 seven 147 which was his first place guaranteed by lockout to win the $1,000,000 first prize.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ken Jennings came in second and Brad Rutter finished third.",
+                    "label": 0
+                },
+                {
+                    "sent": "So any questions about the background before we move on?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, very good.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now let's start to think about these strategy decisions that we have to do there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are there are four different types of strategies, decisions that come up during the course of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first one is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the sound on the show when you pick a clue and it turns out to be a daily double.",
+                    "label": 0
+                },
+                {
+                    "sent": "They play that little sound effect and then because it's a daily double now it doesn't have a fixed value.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you get to choose how much of your money do you want to risk from nothing all the way to your entire bankroll.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the issue here for humans is basically humans don't have any clue how would you even think about trying to calculate a quote unquote optimal wager.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just it's something that's beyond the typical human thought process, and Additionally the host only gives you a few seconds to think about how much you want to risk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So typically humans will kind of wing it, they'll just pick some even #1000 or 2000.",
+                    "label": 0
+                },
+                {
+                    "sent": "And just they'll pick some number that they're comfortable with.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least make sure they're not going to lose too much money in case that they're wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as you might expect this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This sort of winging it on the fly is not terribly optimal.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our analysis shows that humans sacrificed quite a lot and expected winning chances by not knowing first.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't know how to do the calculation, you don't know how to estimate the probabilities and then just just being risk averse because you're so uncertain where it turns out.",
+                    "label": 0
+                },
+                {
+                    "sent": "The correct that the the correct thing that you should do according to our.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our analysis is typically a human should wager quite a lot.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are many, many cases where they should wager the entire amount, and so if you don't do that, then you're costing yourself, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Occur.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so it's coming up where the daily doubles tend to be located.",
+                    "label": 0
+                },
+                {
+                    "sent": "It tends to be towards the bottom, but it can occasionally.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of the higher ones could come up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, humans have a different utility function to function well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so you know that it's really important to win 'cause you don't get to keep the money unless you win.",
+                    "label": 0
+                },
+                {
+                    "sent": "And Secondly, if you win, you get to keep playing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So not only you get to keep the money and you have an opportunity to make a lot more money, whereas if you don't win, they'll send you home with some token, small amount of cash or whatever.",
+                    "label": 0
+                },
+                {
+                    "sent": "So everybody knows that you need to win, but they don't know that they don't know how to estimate their chances of winning and they don't know how to estimate their chance of answering the question right.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there are quite a disadvantage.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the next decision is another sound effect.",
+                    "label": 0
+                },
+                {
+                    "sent": "For this is the final clue of the game, where they show you the category and you have to write down your wager and so nobody can see your wager.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't see your opponents wager, so this is a game theoretic strategic reasoning kind of calculation to decide how much I should wager.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, there is some pretty good theory about Final Jeopardy wagering that's out there.",
+                    "label": 1
+                },
+                {
+                    "sent": "The challenge, I think, is many contestants on the show.",
+                    "label": 0
+                },
+                {
+                    "sent": "Appear to have not studied any of that theory, and they just make really really elementary mistakes with many times tragic consequences.",
+                    "label": 0
+                },
+                {
+                    "sent": "They bet everything when they don't have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know there's some minimum amount they have to bet they don't bet the minimum amount, so in many cases it's very, very costly if they.",
+                    "label": 0
+                },
+                {
+                    "sent": "If they had just read the theory and just made the right bet, they would have won, but they are ignorant of the theory so they go home as a loser.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quite sad.",
+                    "label": 0
+                },
+                {
+                    "sent": "What?",
+                    "label": 0
+                },
+                {
+                    "sent": "Beg pardon.",
+                    "label": 0
+                },
+                {
+                    "sent": "One really applies.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, in some cases, like it's a dominant strategy that even if the other guys play wrong, just like there's like there's some minimum that you need to bet.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the next decision is what clues should you pick to play next?",
+                    "label": 0
+                },
+                {
+                    "sent": "I have a sound effect for Watson picking a clue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's finish.",
+                    "label": 0
+                },
+                {
+                    "sent": "That was one of the more amusing clue pics.",
+                    "label": 0
+                },
+                {
+                    "sent": "That was in one of the practice games that it played against Cannon bread, so here it's in our analysis here shows it's very important to get the daily doubles an it's particularly important if you're playing against super strong human contestants of the caliber of a Ken Jennings.",
+                    "label": 0
+                },
+                {
+                    "sent": "You really do not want Ken Jennings to get the daily double because he's going to slaughter you if he gets the daily double.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this really motivated us to focus hard on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Doing our best possible estimation of where the daily doubles are located and our best possible search strategy to find them ahead of the humans.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the last issue as I said, for any given game states, you see the clue you have some confidence and then you have to decide.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do I have enough confidence to buzz in typically a sort of default confidence threshold is usually good for much of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out near the end of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "These special scenarios of the particular end game states can make your threshold either go very, very high where you don't want to buzz at all, or you can go very low.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where you just make a desperation buzz right at the end and we saw this dramatically illustrated in one of our final sparring games before we appeared on TV.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we got down to the last clue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Watson was way ahead but he didn't have a lockout so there was a second place human that is a little bit above half of Watson score.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we played the last clue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Watson buzzed and got it wrong and then now the human at that situation.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should never buzz in just your way way behind.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you if you get it right, you just improve your score a little bit, but you don't improve your chance to win Final Jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it doesn't help you if you get it right, but the danger is if you get it wrong now you drop below half a Watson score and you're locked out and this was a Jeopardy champion.",
+                    "label": 0
+                },
+                {
+                    "sent": "By the way, you would think that they would know about these things, but I guess that is the heat of live play.",
+                    "label": 0
+                },
+                {
+                    "sent": "He just he.",
+                    "label": 0
+                },
+                {
+                    "sent": "He buzzed, he got in there, buzzed, answered, and.",
+                    "label": 0
+                },
+                {
+                    "sent": "But he was ruled wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then like a few seconds later it dawned on him.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I just blew the match right there, so this can be very critical to take the game state into account and adjust your buzzing accordingly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can make a very big difference.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we decided to develop for the first time a really quantitative an, ideally as principled as possible, approach to developing good strategies for Watson, where we want to have good estimates of various probabilities and ultimately to estimate Watson's overall probability of winning, and use that as the basis of our decision making.",
+                    "label": 0
+                },
+                {
+                    "sent": "We put a lot of effort into this and we because of that we had to justify for ourselves and for IBM management.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know why?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is it worthwhile investing all this effort in all this strategy stuff?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, the first thing the executives want to know is does this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Does this give us a better shot at winning an?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, we're able to document.",
+                    "label": 0
+                },
+                {
+                    "sent": "We presented a lot of analysis and simulation data and so forth that our work does give Watson a substantial edge over humans in the strategy part of the game.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this and this is going to that edge and strategy we showed yields a very substantial boost in overall winning chances compared to if we had not worked hard on this and just done some simple heuristic, we demonstrated we could win way, way greater percentage of games.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second question they ask is, well, is the strategy stuff useful for any sort of business problem that we care about an so we argued, yes, we can take this general approach of sort of coupling.",
+                    "label": 0
+                },
+                {
+                    "sent": "QA system with the decision making system via simulation modeling and optimization and learning so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can utilize that same sort of overall approach in other domains, like a healthcare, competitive pricing, security, IE counterterrorism domains that we're actively investigating those sort of applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, just this sort of analysis has never been done before, so for the fans of the Jeopardy show that people who avidly watch it leads to fascinating new theories of.",
+                    "label": 1
+                },
+                {
+                    "sent": "How do you evaluate what the state of the game is and what sort of strategy should you use in various states of the game so the executives are not interested in this aspect, but some of us think it's pretty cool and I'm happy to share some of the insights that we have garnered about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of what you should really be doing in your game strategy.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so the simulation approach many people ask us why do you bother putting all this effort into building this very, very complicated simulation model?",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're familiar with computer games, you might know that there are sort of three classic metric functions to assess how strong your game playing system is.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is, you might test the performance of your program in a bunch of life games.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could also test performance in simulated games.",
+                    "label": 1
+                },
+                {
+                    "sent": "Or you could evaluate over some suite of test positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, number one is certainly the gold standard.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's the the closest to ground truth.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very slow an it's hideously expensive to gather this sort of data, especially if you're playing jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need live human contestants.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need a host.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need 3000 cores to run Watson, which uses quite a lot of electricity, and there's not that much episode data available.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with the limited episode data and.",
+                    "label": 0
+                },
+                {
+                    "sent": "When people get exposed to an episode there just you can't have them play that episode again because now they know what all the right answers are, so it's very tough to get any sort of decent amount of data in the live approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number 3, the test positions is well known to be vulnerable to so called overfitting, where you tweak all your adjustable parameters to do well on your test cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then other kind of cases come up in the live setting and you didn't have them represented in your test set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it ends up you do very well on test cases, but not on the other things that are outside those test cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So really the simulation approach is really the way to go with potentially one big caveat.",
+                    "label": 0
+                },
+                {
+                    "sent": "In simulation we can get generate many many more orders of magnitude of data for learning and optimization, but we do have to face a big question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is your simulation model faithful or faithful enough to be useful?",
+                    "label": 1
+                },
+                {
+                    "sent": "'cause otherwise it's just going to be a situation of garbage in, garbage out and?",
+                    "label": 0
+                },
+                {
+                    "sent": "The results of simulation won't be meaningful.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So before we get into the detailed approaches, any any questions at this point about sort of rationale methodology?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK yeah yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Regarding simulation, I mean you still need to some kind of pool of test questions that the simulation is drawing now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we'll see where we that's maybe a perfect leader into what I'm going to present.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "The end result was two percentage came from the grill.",
+                    "label": 0
+                },
+                {
+                    "sent": "Question answering ability.",
+                    "label": 0
+                },
+                {
+                    "sent": "The final result came from.",
+                    "label": 0
+                },
+                {
+                    "sent": "Choosing a better strategy but Oh well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we can put a number on the strategy, so we estimate it.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we had simple heuristic strategies in the match against Ken Jennings and Brad Rutter, we had a 50% chance to beat them.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then if we swap in all of our advanced strategies, the 50% goes to 70%.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's a pretty substantial difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course you know the QA is absolutely critical.",
+                    "label": 0
+                },
+                {
+                    "sent": "Without QA you have 0%, so I don't want to say by no means is strategy more important than QA.",
+                    "label": 0
+                },
+                {
+                    "sent": "But beg pardon.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, how good are the human strategies?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so they know like some of the basics about you, look for the daily doubles near the bottom and they knew that when they're playing against Watson, Watson is very very good in the buzzer and they sort of know that that means that they have to be very aggressive on the daily double wagers.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I would not really fault their strategy decisions is just the main thing that they don't know the detailed statistics about the row column.",
+                    "label": 0
+                },
+                {
+                    "sent": "Joint probabilities of where the daily doubles located so it's no disgrace there.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you don't know those probabilities.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, OK. Alright.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we started to think about building a simulation model for jeopardy and we immediately thought well, if we're going to try to simulate clues and categories and correct answers, then we're in for a world of very difficult issues.",
+                    "label": 0
+                },
+                {
+                    "sent": "'cause it's just.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to be really, really difficult to emulate an anything like the the clues that the writers of the show that they write, how they calibrate the wording of those clues to get the desired level of difficulty.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which categories do they pick?",
+                    "label": 0
+                },
+                {
+                    "sent": "How do they put a board together on this board?",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to have this category in this other category in this other category.",
+                    "label": 0
+                },
+                {
+                    "sent": "It just seemed too much of a mess to model that language content as well as trying to model the human contestants.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each human contestant is maybe a unique point of ability across several thousand types of categories, and so we try to model well, if can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Contestant A is good at this category.",
+                    "label": 0
+                },
+                {
+                    "sent": "Does that correlate with ability in other categories?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that was just too daunting to really seriously contemplate, and therefore what we ended up doing is we just resorted to extreme simplification.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we just made an average stochastic process model that just average across everything we average across all the players across all of the categories and all the clues.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so for each type of each type of jeopardy situation, whether it's a regular clue whether it's a daily double or final jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just had sort of a mean rate stochastic process model which says on average, what's the rate of something happening and we and we try to look for correlations between contestants.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we reasonably expected in the data confirmed that if human if one contestant has a certain rate of getting it right and say they do get it right, then it's likely that the other contestants that he's playing against are also likely to get it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "We kind of expected.",
+                    "label": 0
+                },
+                {
+                    "sent": "Positive correlations and that that is what we found from our analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, but I just wanted to keep in mind where we really don't want to model literally human versus human play, but we want to make kind of a predictive model of what happens when humans go up against Watson, and if the humans alter their behavior because they're playing against the machine, then that's the phenomena that we really want to model accurately rather than just say accurately when it's all humans on the show, we don't care about that so much.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so here are the steps we're going about building a jeopardy simulator.",
+                    "label": 0
+                },
+                {
+                    "sent": "First thing you do is you go through a really valuable website.",
+                    "label": 0
+                },
+                {
+                    "sent": "J-archive.com.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a site that's maintained by the fans of the show.",
+                    "label": 0
+                },
+                {
+                    "sent": "And every night when the show airs, they meticulously transcribe and fine grained detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every event that happened on that show and they upload it immediately.",
+                    "label": 0
+                },
+                {
+                    "sent": "So from this website we were able to extract fine grained episode data from over 3000 historical episodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Going back multiple decades so it was really a tremendous source of data, not only for the human modeling, but also getting source material for the clues and for the answers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dave Ferrucci often made made a quip that said if we didn't have J archive and we had to do it ourselves, that would have been at least half the project.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just building this sort of a source of information.",
+                    "label": 0
+                },
+                {
+                    "sent": "So once you download that data from J archive, then you can construct these models of where do they tend to put the daily doubles?",
+                    "label": 1
+                },
+                {
+                    "sent": "We can model various aspects of human performance, like how often they attempt to buzz in, how often are they right when they win the buzz, and what is their accuracy and how do they tend to bet the betting scenarios?",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, we we did build 3 different models calibrated to the level of opponents that we faced.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for our initial sparring games we built what we called an average model and we just took data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just basically took all the data that was available and then we excluded certain special case populations of contestants like college, college students, teens or celebrities that definitely the celebrity data is not at all useful for modeling good players.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then then for the champion model we took a subset of data that we just picked the top 100 players ranked by total number of games won and that seemed to be pretty representative of these very strong players that we faced in the second sparring games and then finally for the match with Ken and Brad, we built a super elites.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we call it a grand champion model which was based on statistics of the top 10 Ken and Brad and eight other really really super strong players.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so here's the issue about where do they place the doubles daily doubles so the colors are a little washed out, but this is supposed to be red over here and red means it's likely to have a daily double.",
+                    "label": 0
+                },
+                {
+                    "sent": "Blue means it's cold.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not likely to have a daily double, so most people know that the daily doubles tend to be towards the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are some interesting column dependencies, at least it's never been talked about in print.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you go and look at what's on the web.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no discussion, so our analysis shows that, for example, the first column is more likely to have a daily double.",
+                    "label": 1
+                },
+                {
+                    "sent": "The most likely the second column is least likely to have a daily double.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it's up to us.",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess we haven't asked the writers about this.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have our own theories, so my theory is I notice they tend to put a lot of pop culture type questions about pop music or celebrities, or Academy Awards or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those types of categories tend to be in the second column angius may.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe they don't want to dignify that type of category by putting a daily double in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, make up your own guess, but in any case we have the row column statistics and now this is our prior for Bayesian inference, when as clues are revealed to be not a daily double, or to be a daily double, we continually update compute the posteriors of where they're going to be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, this is an illustration of the data that we have on Final Jeopardy for humans.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turns out Final Jeopardy is roughly a coin flip for the average contestant.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have about 50% chance of getting it right, and there is somewhat of a positive, moderate positive correlation.",
+                    "label": 0
+                },
+                {
+                    "sent": "If players both getting it right or both getting it wrong, the correlation is about 0.3.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the plot here, we've illustrated the scatter plot of Actual bets that they have made, so we call the 1st place.",
+                    "label": 0
+                },
+                {
+                    "sent": "Player is A and the 2nd place player is be an, so we guess the lighter blue.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I guess it's a little bit hard to tell the blue dots or how a tends to bit and darker red is how be tends to bet, so we notice there is a scatter, but there is some structure that kind of jumps out at you, so there's this blue line going up here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's the well known strategy where a bets to cover in case B score doubles to to be a wants to be at least $1 ahead of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's that strategy, and it's very represented in the data for the strategies for B.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a case where Beacon bet everything that's fairly common.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's this line.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also this descending line here, where B bets just enough to overtake A's current score, and we also see that as a kind of common strategy on the show.",
+                    "label": 0
+                },
+                {
+                    "sent": "So from this data we we looked at it different ways that different ways of illustrating the scatter plots, and we decided to segment the data based on a couple of strategic decisions.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is does B have at least 2/3 of a.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if in that scenario there B has more ways of winning that can do different things with this strategy versus if B is below 2/3, then just be has a very limited way to win an obviously dictated strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other issue is does be have to worry about being overtaken by C and that leads if he does have to worry.",
+                    "label": 0
+                },
+                {
+                    "sent": "That leads to one set of thinking versus if you don't have to worry about that then you can think about formulating your bet using a different thought process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that gives us four segments and we just fit the simple stochastic betting models with within each of those segments.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'd say AB or C will bet a certain type of strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "With a certain probability that we estimate from our data, and that's our probabilistic model of how the humans bet.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it turns out then we are able to go back and check the recorded historical human bets and were able to say OK, let's see with these historical bets, how often does a B or C win?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we could do a historical replacement type of test where say we replace all the bets that were made by the human a replace it with a draw from our distribution that we're modeling, and see how often do you win withdrawing from our distributions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that turns out to match remarkably well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the real rates of winning as a B or C, and here's if you draw from our models you can see we fairly closely match the rate of winning for A and very close for being very close for C, so this gives us very good confidence that we've got a decent model of the human behavior because the model was formulated in a way that was completely blind to how often do we win?",
+                    "label": 0
+                },
+                {
+                    "sent": "How often does the human win?",
+                    "label": 0
+                },
+                {
+                    "sent": "We just try to reproduce these statistical bets.",
+                    "label": 0
+                },
+                {
+                    "sent": "We had no idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "How often you're going to win with that distribution, and it turns out to match the win rate pretty well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that gives us confidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've got a good model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The question?",
+                    "label": 0
+                },
+                {
+                    "sent": "These numbers don't add up.",
+                    "label": 0
+                },
+                {
+                    "sent": "What happened to the other percentage?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, interesting find point.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it turns out the numbers add up to about 100 and 1% and the reason for that is that Jeopardy game can end in a tie.",
+                    "label": 0
+                },
+                {
+                    "sent": "The tie for first, and so that's how you get the more than 100% nice catch.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So just the last thing I want to say about modeling this is how we model what happens on a regular clue.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we took a vast amount of regular clue data more than 150,000 regular clues from J archive, and we realized that there are basically only seven possible events that can occur in a clue, either on the initial buzz.",
+                    "label": 1
+                },
+                {
+                    "sent": "Either nobody buzzes an it's over, or somebody buzzes and they get it right, or if they're wrong, then you go to the rebound.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this whole thing can happen again.",
+                    "label": 1
+                },
+                {
+                    "sent": "No buzz buzz, right or wrong, and you can have a second rebound also.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the squares in indicates the endpoints of a clue, and we have the historical rates of reaching each of these endpoints, and now that we've got these historical rates, we can estimate most likely parameters of some mean rate model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have we estimated a mean precision of getting it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you decide to buzz in, that's in the high 80s and there's a mean rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of attempting to buzz in that comes out to be in the low 60s and it turns out there are mild positive correlations both for buzzing in an for getting it right, just sort of in the vicinity of about 0.2.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know from the rebound stats we know this directly, but when we say first player buzzed and got it wrong, what's the likelihood that the second player gets it right or gets it wrong that directly gives us a positive 0.2 correlation?",
+                    "label": 0
+                },
+                {
+                    "sent": "I believe that's all I want to say about the modeling and any questions about the modeling, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Move on to the strategies.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first strategy is daily double bedding, as I alluded to earlier.",
+                    "label": 0
+                },
+                {
+                    "sent": "We trained a neural net in the simulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We run millions of simulated games where it simulate Watson playing against to humans, and it's very much the same sort of concept is what I did in TD Gammon.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in TD Gammon there was a neural net that would play games against itself.",
+                    "label": 0
+                },
+                {
+                    "sent": "It would see a sequence of backgammon board positions would be fed in as input States and those would propagate forward in the output of the neural net would be an estimate of winning in that state.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you do temporal difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "Learning a step by step correction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Change the weights of your value function and then finally you find out at the end who really won the game and that that gives you your ground truth feedback an after million millions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Millions of such simulated games.",
+                    "label": 0
+                },
+                {
+                    "sent": "This TD Lambda training makes this neural net able to estimate very accurately the probability of winning from any given bakemon state an it's exactly the same thing in Watson where same type of neural net.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now we just feeding in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sequences of jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Game states suitably encoded for saliency of representing jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "States crunched through all those sequences to your TD, Lambda learning, and at the end we've got a neural net that can estimate what's the probability that Watson is going to win in Jeopardy State.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The state representation turned out to be fairly simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "Representation was good enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "We basically we just use the scores of the players and various measures of how much play is left in the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like how many clues remains to be played, what's the total dollar value of those remaining clues, total number of remaining daily doubles, and which player has control of the board.",
+                    "label": 1
+                },
+                {
+                    "sent": "It turns out Watson also has an estimate of his probability of getting the daily double rate based on what he has already seen in the category.",
+                    "label": 0
+                },
+                {
+                    "sent": "If he's seen a few clues already and maybe he got some right and he got some wrong that now provides a basis to estimate likelihood of daily getting the DD right, that's not an input to the neural net, but isn't it isn't input to how we calculate the wager, which I'm about to show you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "On this slide, so it's a very simple calculation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We say we have this function.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a function of Watson's current score.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another of these game game state variables.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's going to be our estimated probability of winning, so we go if comp is our probability of getting the question right an if we make some bet and we get it right in our score increases by the bet, then we then we would have this probability of winning.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's just your your.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probability of getting it right times your probability of winning the game after the score increase plus probability of getting it wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "Times probability of winning the game after a score decrease.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a you evaluate all your bets and pick the one with highest expectation.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is a classic risk neutral betting algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out such a betting algorithm in many cases can take on a frightening degree of risk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not not the Watson.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is afraid, but us humans who own and operate Watson.",
+                    "label": 0
+                },
+                {
+                    "sent": "We sometimes get very skittish about how much it wants to bet in some situations, and therefore we decided to build in some risk mitigation techniques, which also humans are scared.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we've got an imperfect model.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we made maybe wagering too much.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just because there's some sort of an error in the model, and that's another reason to back off a little bit, so the risk mitigation is just some standard stuff.",
+                    "label": 1
+                },
+                {
+                    "sent": "There's a penalty for bets that entail.",
+                    "label": 1
+                },
+                {
+                    "sent": "High volatility meaning big standard deviation over getting it right versus getting it wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a flat out limit on.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a maximum downside risk that we allow Watson to take an beyond that we say no more you can't take anymore risk than that, so that limits how much it can bet with these two techniques.",
+                    "label": 0
+                },
+                {
+                    "sent": "It costs us a little bit in expectation, with a few tenths of a percent in equity, but it very significantly reduces the risk by the say more than 1/3, which we are very happy to have.",
+                    "label": 0
+                },
+                {
+                    "sent": "That degree of downside protection.",
+                    "label": 0
+                },
+                {
+                    "sent": "At what appears to be not too much cost and expectation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "10 minutes OK thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so I have an actual video clip, so here's from one of our sparring games.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the early games where here's an interesting situation where we started the second round.",
+                    "label": 0
+                },
+                {
+                    "sent": "Watson got the first 3 clues rates in the first column, and then he hit the daily double.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now Watson has a pretty big lead at this point.",
+                    "label": 0
+                },
+                {
+                    "sent": "11,000 two, 4200 each for the humans, but he has a different way of thinking about it than the humans.",
+                    "label": 0
+                },
+                {
+                    "sent": "The human might think.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I've got a big lead.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to risk my big lead.",
+                    "label": 0
+                },
+                {
+                    "sent": "Watson goes, I've seen 3 clues in this category.",
+                    "label": 0
+                },
+                {
+                    "sent": "I got all three right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Therefore I am good at this category and therefore I'm going to make a very hefty wager here, even though he's got a big lead.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's see the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Video Russian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ivy House was famous for its ornamental language.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is before the DD.",
+                    "label": 0
+                },
+                {
+                    "sent": "Who is Adam with Logan for 1600?",
+                    "label": 0
+                },
+                {
+                    "sent": "Ballet dancers for 1200.",
+                    "label": 0
+                },
+                {
+                    "sent": "All right, we have quite a large lead over our two human players.",
+                    "label": 0
+                },
+                {
+                    "sent": "How much would you like to wager?",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll wager $6700.",
+                    "label": 0
+                },
+                {
+                    "sent": "He was born in Kiev around 1889 to parents who were celebrated dancers from Poland.",
+                    "label": 0
+                },
+                {
+                    "sent": "Who is Bass Lake Majeski that is correct, very nicely done, quicker score is $17,700 or human players are still without the 4200 mark.",
+                    "label": 0
+                },
+                {
+                    "sent": "Choose again wants it.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's the analysis that went into the bet.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can people see this?",
+                    "label": 0
+                },
+                {
+                    "sent": "There's an ascending curve.",
+                    "label": 0
+                },
+                {
+                    "sent": "It may be hard to see, but this is Watson's equity.",
+                    "label": 0
+                },
+                {
+                    "sent": "If he gets it right from betting, nothing all the way up to his entire stake.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if he bets everything and gets it right, we estimate he's almost 90% to win.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, if he bets and gets it wrong, then that's this equity curve here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if he bets everything and gets it wrong, he's sort of close to 30%.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these are really, really smooth, simple curves.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's kind of surprising that anything interesting comes out, but the behavior does turn out to be interesting, so now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We can calculate what is Watson's equity at various confidence levels, and so we've looked at 5 different, going from 45%, fifty, five, 6575 and 85, and so that's these five different curves.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, I guess this one is hard to see.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, and we've marked the best bet is a big black dot on each of the curve so we can see at 45%.",
+                    "label": 0
+                },
+                {
+                    "sent": "The optimal bet is nothing.",
+                    "label": 0
+                },
+                {
+                    "sent": "At 55% the bed is about 2000, at 65% it's over 5000, at 75% it's more than 9000 and if his confidence where to get to 85% he would have better true daily double so.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the end of the.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the ultimate chance to win after getting it right or just just for just this step.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a random process where you either get it right or you get it wrong with some probability, and now what?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's your overall from the probability of getting it right times the probability of winning if you got it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Plus probability of getting it wrong times probability of winning if you get it wrong, but it's it's a blend of these so we blend.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a confidence weighted blending of the rising kervan.",
+                    "label": 0
+                },
+                {
+                    "sent": "The following her.",
+                    "label": 0
+                },
+                {
+                    "sent": "Does that make sense?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we could never question is is this expected?",
+                    "label": 0
+                },
+                {
+                    "sent": "Immediate rewards or no?",
+                    "label": 0
+                },
+                {
+                    "sent": "The objective is to win at the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the V function estimates probability of winning at the end of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah, the dollars are meaningless.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't care bout dollars we just want to win, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Good.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so maybe I can skip through some of these performance metrics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So bottom line, if we had simple heuristics, are simulation said we win 61%?",
+                    "label": 0
+                },
+                {
+                    "sent": "We plug in neural net betting using the live confidence estimates and it jumps to 67%.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a pretty big boost given we only use this method once or twice per game, that's a fairly hefty improvement and we did some postmortem sort of offline Monte Carlo analysis of for each of the wagers that we made.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could analyze that situation and say what that really gave the best winning rate and how was our winning rate compared to the best optimal winning rate and that turned out to be .6% per daily double bet.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're able to fix most of the errors came near the end of the game.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were able to make the simulation go fast enough that instead of using the neural net at the end of the game, we could just run alive simulation and we would be essentially perfect in our model.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we made that change.",
+                    "label": 0
+                },
+                {
+                    "sent": "We got down to about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quarter of a percent equity loss per bet, which is so close to perfect.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're happy to stop at that point, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "Quite a little while to answer his interview.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so in that case that was.",
+                    "label": 0
+                },
+                {
+                    "sent": "I believe that was the first time we had run the neural net daily double an.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was running on the operator's laptop, so it was a fairly slow machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when we did the later sparring games and when we were running on TV we had a much more powerful server available, so the daily doubles could be wagered a lot faster.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it was a slow machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let's been given the time signal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I want to try to zip through this summer.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This stuff so for Final Jeopardy.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have the randomized human model that I've mentioned, so we have some model of there's some distribution of bets they're going to make, and some probability that they'll get it right or wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do a simple best response strategy against that distribution, and we eventually got to where we could do it life for life we would draw about 10,000 samples of human bet pairs, and then we would consider for each legal Watson bit.",
+                    "label": 1
+                },
+                {
+                    "sent": "Compute the probability at Watson wins given the bet pair and the right wrong probabilities.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for there are eight possible right wrong binary outcomes, and we could calculate analytically what the probabilities were of each of those combinations, so we didn't have to simulate right wrong, we just simulated the beds and then we combined that with the analytic probabilities of right versus wrong and just loop over all the bets and that will give you a best bet.",
+                    "label": 1
+                },
+                {
+                    "sent": "It turns out that these bets that we get.",
+                    "label": 0
+                },
+                {
+                    "sent": "Makes sense in terms of logical betting rules.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't want to delve into the details.",
+                    "label": 1
+                },
+                {
+                    "sent": "I can refer you to papers that we've published to kind of go into this in more detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "So bottom line, we went about 3% more wins than if we just had a very simple Final Jeopardy heuristic.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now if we go back and look at historic replacement again, what if we replace the human bets by our best response calculation and we can see noticeable increase in win rate for A and a very significant increase in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Win rate for B&C.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've got a big edge, particularly if the human is trailing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the clue selection we considered 3 three different types of considerations when we're picking the clues.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is you want to get the daily double as fast as you can, so that motivates using this basic Bayesian prior and updating with evidence as clues are revealed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another consideration is to try to keep control of the board.",
+                    "label": 1
+                },
+                {
+                    "sent": "In case you don't get the daily double and you get to pick again.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that would tend to keep Watson in categories where he is currently doing well.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the final consideration is sort of getting a sense of what the category is all about.",
+                    "label": 0
+                },
+                {
+                    "sent": "From the revealed clue and the revealed answers, and so for learning, then you want to explore, kind of at the top where it's less expensive and that would help you do better on the higher dollar value.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you had a question.",
+                    "label": 0
+                },
+                {
+                    "sent": "Say.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rob.",
+                    "label": 0
+                },
+                {
+                    "sent": "Trying to home in on the daily double straight away, is it not better to gather some evidence about which categories you're good out before then?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then yeah, that's so we consider that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it turned out to be not particularly relevant until when all the daily deltas are gone.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the information gathering comes to four, but otherwise we would just say, well, we do a mix of this and this so 90% on finding the daily double 10% on keeping control.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I have an animation here show you clue on the on the left.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to show you clue selection with Watson's strategy or daily double seeking versus the actual historical ways that humans tend to pick the clues.",
+                    "label": 1
+                },
+                {
+                    "sent": "And we're going to let them run simultaneously side by side so you can see the humans are going top to bottom, top to bottom, top to bottom, Watson on the other hand is focusing all of his effort near the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are various hotspots that kind of get red as as closer revealed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Certain squares become very, very likely have the daily double, and so Watson hones in on where the daily double is.",
+                    "label": 1
+                },
+                {
+                    "sent": "Humans are just going top to bottom and it takes them a lot longer time to get the daily doubles.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, the last thing and I'll just try to mention this quickly so the for buzzing in we need to compute thresholds.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are four thresholds Theta 0123 and if your confidence is above the threshold then you buzz otherwise you don't buzz whire.",
+                    "label": 0
+                },
+                {
+                    "sent": "Therefore there are four buzz eligible states in any given clue.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's the initial buzz, there's a rebound.",
+                    "label": 1
+                },
+                {
+                    "sent": "If the first human got it wrong, there's a rebound where the human number two got it wrong and there's a double rebound where both humans got it wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those are different states an they potentially can have different thresholds, so you can write down a gory recursion relation is with some tedious math to solve it.",
+                    "label": 0
+                },
+                {
+                    "sent": "To say what's my probability of winning in a state with K clues left as a bunch of look ahead with over a bunch of probabilities of various states that you can end up in with only K -- 1 clues left.",
+                    "label": 1
+                },
+                {
+                    "sent": "An various probabilities of winning for those states.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So without a kershen, that classically suggests the dynamic programming type approach which we did implemented, we have an exact DP calculation where you sort of build a search state starting from the current clue, and you search out to the K minus one K -- 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "Go all the way to the end where you're playing Final Jeopardy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just evaluate those final Jeopardy states, maybe by rollouts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or maybe you have them pre tabulated and then from those states you kind of work your way backward using the recursion to finally get.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's my probability of winning if I buzz?",
+                    "label": 0
+                },
+                {
+                    "sent": "What's my probability of winning if I don't does that calculation?",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, is usually too slow to do in live play.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a bad exponential blowup, So what we do instead is an approximate DP technique where we just do the recursion only for the first step and then after the first step we just do plain Monte Carlo trials so that that gives us a pretty good approximation to the exact answer, and it almost always finishes in less than two seconds.",
+                    "label": 1
+                },
+                {
+                    "sent": "Which is absolutely critical for us.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I just have some illustrations of interesting things that can happen with the buzz threshold depending upon the game state.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a situation.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's one clue left that's worth $2000, and we're going to fix the human scores at 13,000 and 6800, and we're going to calculate Watson threshold at various interesting scores.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what if Watson has 23,000?",
+                    "label": 0
+                },
+                {
+                    "sent": "We crunch crunch crunch and we get the threshold is 1, meaning Watson should never buzz.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, this may seem very surprising.",
+                    "label": 0
+                },
+                {
+                    "sent": "You mean you never buzz, even if you're perfectly confident.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you think about it, Watson doesn't get any advantage by buzzing because, say, he buzzes and he gets it right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So Watson has 23,000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry if he buzzes, he gets it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "He goes to 25,000.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is not enough to achieve a lockout to get a lockout, he needs to double 13,000 to get to 26.",
+                    "label": 1
+                },
+                {
+                    "sent": "So basically there's no advantage.",
+                    "label": 0
+                },
+                {
+                    "sent": "To getting it right, but if he gets it wrong he drops the 21,000.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now be can jump in there he can get it right and he can get up to 15,000 so B would then pull to within 2/3 of Watson Score Sobeys chance to win goes up, Watson's chance to win goes down.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this situation there's no upside from buzzing and it's all downside.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what if, on the other hand, Watson has 25,000?",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that's completely opposite.",
+                    "label": 0
+                },
+                {
+                    "sent": "The threshold is 0, so just buzz whatever the arbitrarily low confidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here if he buzzes, any gets it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "He gets his lockout if he gets it wrong, he drops to 23,000, and now there's no way that be could get to 2/3.",
+                    "label": 1
+                },
+                {
+                    "sent": "So getting it wrong doesn't cost him anything, so it's a free shot to try and win if he has 27,000 now, there's sort of a provisional lockout as is.",
+                    "label": 1
+                },
+                {
+                    "sent": "But B could jump in an answer right and spoil the lockout by getting to 15,000 so purely just to kind of prevent be from answering, Watson may contemplate just buzzing in you are taking a gamble here, so you have to be pretty confident the correct threshold turns out to be.",
+                    "label": 1
+                },
+                {
+                    "sent": "You have to be at least 64% confident to make this gamble pay off and then finally, if Watson has 29,000 now again, it's another free shot.",
+                    "label": 0
+                },
+                {
+                    "sent": "If Watson gets it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "He wins the game if he gets it wrong he drops the 27,000 B still needs to buzz in and get it right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise it's a lockout.",
+                    "label": 0
+                },
+                {
+                    "sent": "So interesting variations in the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Threshold so I need to wrap up, so take home lessons as it's the first ever quantitative, principled.",
+                    "label": 1
+                },
+                {
+                    "sent": "An comprehensive strategy for jeopardy covering all aspects of the strategy decisions.",
+                    "label": 0
+                },
+                {
+                    "sent": "My bottom line we we think we have a slight edge over good humans who actually study the known theory.",
+                    "label": 0
+                },
+                {
+                    "sent": "We maybe have a little bit of an edge.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have a clear edge and daily doubles for clue selection.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would say moderate edge this this Bayesian daily double calculation.",
+                    "label": 1
+                },
+                {
+                    "sent": "It gives us somewhat of an edge over.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's something that humans can't do and then the end game buzzing and clear edge in certain special case situations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the superhuman fact strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Was in fact a pretty pretty substantial factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a lot that went into Watson's victory strategy was a big part of that, so I need to stop and I will now put myself in jeopardy and I'll try to answer your questions, thanks.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

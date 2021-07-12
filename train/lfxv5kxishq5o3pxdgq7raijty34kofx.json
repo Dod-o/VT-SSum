@@ -1,0 +1,2423 @@
+{
+    "id": "lfxv5kxishq5o3pxdgq7raijty34kofx",
+    "title": "Deep Robotic Learning",
+    "info": {
+        "author": [
+            "Sergey Levine, Department of Computer Science and Engineering, University of Washington"
+        ],
+        "published": "May 27, 2016",
+        "recorded": "May 2016",
+        "category": [
+            "Top->Computer Science->Machine Learning"
+        ]
+    },
+    "url": "http://videolectures.net/iclr2016_levine_deep_learning/",
+    "segmentation": [
+        [
+            "So.",
+            "I'm going to talk about."
+        ],
+        [
+            "Robotic learning, but actually before I start, let me just say a few words about how this relates to some other work in machine learning, I think.",
+            "Many of the lessons that we learned when we work on deep robotic learning are actually much more broadly applicable to situations where we have machine learning systems that have to interact with the real world.",
+            "And sometimes when we design our machine learning systems, we don't necessarily think about how they're going to track with the real world, so we think, well, maybe the job of a object classifiers to classify objects and images.",
+            "the Java Speech Recognition System is to recognize speech, but in fact there's a whole other half to this cycle, because when your system actually outputs some label or some solution.",
+            "Presumably it's something is going to act on that output and that something is going to in some way affect the world.",
+            "And if we reason about how that something affects the world, that can actually give us a lot of insight on how to design both the perception and the action component of this pipeline.",
+            "So, for example, if you're out in the jungle and you see it."
+        ],
+        [
+            "Tiger, you probably need to react."
+        ],
+        [
+            "In that situation, because if you don't react appropriately, that will affect very strongly we receive next and your system needs to be able to deal with that so."
+        ],
+        [
+            "There's kind of a perception side to this, and there's also."
+        ],
+        [
+            "Action side and what I'm going to try to convince you of in this talk is that if we consider perception and action together, if we consider them."
+        ],
+        [
+            "As one sensory motor loop instead of two discrete components that we designed separately, then we can actually not only be able to do interesting things like control autonomous robots, but we can in fact simplify both the perception.",
+            "An action side of the cycle, because the perception system can output only those things that are actually necessary to take good actions in the real world, and the action system can code app with the perception system to understand its limitations."
+        ],
+        [
+            "So first let me give you a little example of how this happens for a particular behavior that humans can do really well."
+        ],
+        [
+            "And that's the task of catching a ball.",
+            "So evolutionary biologist Richard Dawkins wrote when a man throws a ball high in the air and catches it again, he behaves.",
+            "If he had solved a sort of differential equations in predicting the structure of the ball and it's subconscious level, something functionally equivalent to the mathematical calculations is going on.",
+            "So this is a kind of worldview that suggests that, well, there is this perception modeling component that performs looks like predictions, something where perhaps all very familiar with and then based on those predictions you make some decision to actually take actions in the real world.",
+            "But it turns out that when we actually try to do this task, we do something quite different.",
+            "And this is from simix."
+        ],
+        [
+            "Sermons done in the 90s."
+        ],
+        [
+            "Baseball players we actually employ something called the gaze heuristic, which couples perception action much more closely and actually short circuits.",
+            "A lot of this complicated modeling so."
+        ],
+        [
+            "All we do is we look at the ball.",
+            "We fix its position in our field of view, but remember where it is and then we begin run."
+        ],
+        [
+            "And we actually dynamically adjust our running speed."
+        ],
+        [
+            "So the ball stays in the same position in our field of view."
+        ],
+        [
+            "I'm actually attempting to predict where it's going to go.",
+            "We're not estimating wind resistance or gravity or anything like that.",
+            "We're simply coupling perception action directly, and in doing so, we actually recover a robust, highly reliable sensory motor skill that is a lot simpler than doing the perception, planning, and action separately.",
+            "So in this talk I'm going to discuss some algorithms that can allow robots to learn sensorimotor skills of this type in the process, hopefully get across this idea that combining perception action can actually simplify both of them."
+        ],
+        [
+            "Now, why do we want robots to learn sensorimotor skills?",
+            "Well, this is a video from the Doctor Humanoid Robotics Challenge that was held last year, and this is actually the winning entry in the upper humanoid robotics challenges.",
+            "The team from Frank Ice from Korea, and hear this robot is performing the door opening task now.",
+            "This team was very successful.",
+            "They were actually able to complete all of the challenges set before them, but watching this video it's pretty apparent that there's kind of something very robotic going on.",
+            "There's kind of a perception stage.",
+            "There's a modeling stages, actually human operator in the loop that's helping the robot make some of these decisions.",
+            "And then there's a planning and execution stage, and this robot does actually get the door open.",
+            "But you know it kind of maybe takes a little bit of time, so there's something in this execution that maybe leaves a little bit to be desired.",
+            "I think it's very interesting at this point to compare to how a person would do this task is actually a colleague of mine, Phillip Crombie.",
+            "I think he might actually be at this conference here.",
+            "Phillip is performing the sensory motor skill of opening the door and you can see he's very professional.",
+            "He you know this was when he was a PhD student.",
+            "So he does this presumably every morning he comes in and opens the door.",
+            "But the other thing is that perception action are being coupled very closely, right?",
+            "Let's let's see this again.",
+            "Now you can see he's he's not just passively perceiving the world and then planning and executing because he can't because he's blindfolded.",
+            "He's combining perception action to one to one sensorimotor loop.",
+            "And that's what we're going for with our autonomous robots.",
+            "We're going to look at building a deep neural network that actually performs the entire sensorimotor loop.",
+            "It's going to have some stages that perform visual processing from taking images from the onboard camera, running them through a number of convolutional layers.",
+            "It's going to have some layers that perform motor processing using fully connected layers, but the whole system is going to be trained end to end on the goals of the task, so the input from the sensors going going to go into the bottom of this network commands to the robots.",
+            "Motors are going to come out from the top, and this is going to be the sensorimotor loop.",
+            "The same sensorimotor loop that I showed you before.",
+            "So there are some challenges in framing sensorimotor learning in this way, in contrast to more traditional deep learning methods.",
+            "First, we typically don't rely on having direct supervision, so there isn't a data set of robotic actions that tells us in response to this image take this action."
+        ],
+        [
+            "And when we build these sensory motor skills, we have also reason about the fact that our actions have consequences, so we can't consider every time step entirely in isolation.",
+            "We have to reason about the fact that we take certain actions.",
+            "That's going to affect the next observation that will receive.",
+            "So I'm going to."
+        ],
+        [
+            "Off the talk by describing an algorithm called Guided Policy search that we can use the train visual motor policies and I'll show some experimental results to validate that.",
+            "In fact, when we learn these sensory motor skills, we can simplify both the perception and action.",
+            "Then I'll discuss how we can scale up deep robotic learning, and then I'll briefly mention some future directions."
+        ],
+        [
+            "So."
+        ],
+        [
+            "First, let's actually write down the problem that we're going to try to solve in learning these sensory motor skills, or problem that we're trying to solve is a kind of reinforcement learning problem.",
+            "It's called the policy search problem, so we have a deep neural network policy, and our goal is to optimize the weights in this neural network.",
+            "The parameters of the policy with respect to some cost function.",
+            "So the cause."
+        ],
+        [
+            "Function, we can use it to evaluate entire trajectories, and we'd like to minimize the expected cost of entire trajectory's, and the cost is a function of the state of the system, which in."
+        ],
+        [
+            "The joint angles of the robot, the position of its end effector positions of objects in the world.",
+            "Basically everything that matters for the task.",
+            "And the actions which typically are the motor commands of the."
+        ],
+        [
+            "It's joints.",
+            "And then our policy is going to give us a distribution over actions condition on the observation.",
+            "So the observation."
+        ],
+        [
+            "May or may not be the same as the state.",
+            "So for example, if the robot needs to perceive objects and images, the full state of the system includes the positions of those objects, but the observation might only include the image and the robot.",
+            "We need to process that image in order to figure out where where things are."
+        ],
+        [
+            "Now, a standard kind of textbook way of addressing this type of problem is to use reinforcement learning, and at a very kind of high level summary of reinforcement learning.",
+            "Very cartoon summary might look something like this.",
+            "You initialize the parameters their policy randomly, and then you run."
+        ],
+        [
+            "Policy in the real world, and then you observe how."
+        ],
+        [
+            "Execution of the policy perform you measure their cost.",
+            "And then we're going to."
+        ],
+        [
+            "The trajectory is that achieved a good cost, and we're going to try to make it a little bit more probable under a policy, and we're going to take the ones that had a bad."
+        ],
+        [
+            "'cause I'm going to try to make them less probable.",
+            "This is a very crude summary of the reinforce algorithm and it's actually quite similar to many other reinforcement learning algorithms work, and there's been a lot of advances in recent years."
+        ],
+        [
+            "On reinforcement learning algorithms for training deep neural networks, and this is a very vibrant field where there is some really interesting results.",
+            "The methods that I'm going to describe in this talk a little bit different, and the reason that there are a little bit different because they're trying to get around this issue of sample complexity so we can use reinforcement learning training very complex neural networks, but typically as the number of parameters increases, the actual number of samples that you need in the real world blows up quite dramatically when we're doing robotic learning.",
+            "If we'd like to actually learn in the real world, it's very important to keep the sample complexity down."
+        ],
+        [
+            "To try to kind of dig into this a little bit more, we can look at policy search with reinforcement learning as trying to solve 2 very difficult challenges at the same time."
+        ],
+        [
+            "It's trying to deal with the complexity of the dynamics of the system.",
+            "This is basically all the physics.",
+            "Everything that makes attacks physically difficult."
+        ],
+        [
+            "And we have to deal with the complexity of the policy, the high dimensionality and non linearity of these large neural networks."
+        ],
+        [
+            "So tackling both these challenges at the same time is actually quite difficult, and this is part of the reason why sample complexity for deep reinforcement learning algorithms tends to not be so great."
+        ],
+        [
+            "However, if we're just doing supervised learning, if we have some Oracle that could tell us exactly which action we should take in response to every observation."
+        ],
+        [
+            "I would simply forget about the dynamics of the system and we're back to the kind of the familiar world of supervised learning we have to deal with the complexity of."
+        ],
+        [
+            "Will not work, but we have pretty pretty good idea of how to do that at this point so."
+        ],
+        [
+            "Is comparatively quite easy.",
+            "The trouble is that we don't have such an Oracle.",
+            "We don't have somebody that will tell us exactly which action we should take in response to every observation."
+        ],
+        [
+            "What we can do is we can look to optimal control for ideas on how to handle complex dynamical systems, so optimal control tells us a lot about how to deal with complex dynamic."
+        ],
+        [
+            "But it's not going to help you train deep neural networks."
+        ],
+        [
+            "So if we borrow ideas from control that can help us deal with the dynamics and then we can try to maybe look at something that looks more like supervised learning to train our neural networks and recover an algorithm.",
+            "That's a lot more, Sam."
+        ],
+        [
+            "Efficient.",
+            "So the algorithm and this is an algorithm guided policy search basically has two key ideas underpinning it.",
+            "The first idea."
+        ],
+        [
+            "Is that we're going to take our complex task, and we're going to break it up into end, separate instances, each of which is a lot simpler.",
+            "And this idea is very similar to the composition of actually frame it as dual decomposition mathematically.",
+            "But first let me build up a little bit of intuition for it.",
+            "Let's say that you'd like to learn to write letters, right?",
+            "So you're in primary school.",
+            "You're learning to write a reinforcement learning approach to learning how to write will look something like this every morning.",
+            "You come to school and the teacher and the teacher tells you today you're going to write the letter B.",
+            "And you attempt to write the letter B.",
+            "The teacher tells you whether you did it right or wrong.",
+            "Then you go home.",
+            "You come back the next day and he's your tells.",
+            "OK, now you're going to write the letter F and you write the letter F. The teacher tells you whether you are right or wrong, and so when you practice this for a year, two years, five years, 20 years, and hopefully after a while, you learn to write the entire alphabet.",
+            "This is of course kind of ridiculous, and this is not how we would actually ever attempt to do this task ourselves.",
+            "We would say OK, Now I'm going to practice the letter A. I'm going to practice it until I get it right, and then I move on to the next letter.",
+            "So I'm going to actually break up the task and to end separate instances and then I can practice each instance separately and then will allow me to learn much, much faster.",
+            "So in the robotics setting, let's say that we'd like to learn to perform this little shape sorting cube task.",
+            "It is a children's puzzle kind of age appropriate for robot.",
+            "Would like to take this shape and insert into a hole in the shape sorting cube instead of trying to do this task all in one go by randomly observing different instances of this problem, we're going to break it up into separate instances where in each instance the shape sorting cube is always located in the same place, so there's one instance where it's always on the left, one instance where it's always at the top, one is where it's always at the bottom.",
+            "Once we've decomposed the task in this way in order to solve each individual instance.",
+            "We actually don't even need to worry about, for example vision because the shape sorting cube is always going to be in the same place.",
+            "So for each of these instances we can come with a very simple solution, a solution that basically looks like a trajectory with a little bit of linear stabilization without any kind of deep neural network or anything particularly sophisticated.",
+            "The second idea is to.",
+            "Then you supervised learning to Unite the solutions to each of these individual instances into a single deep neural network policy.",
+            "That's actually that's actually going to do some complex perception, so we're going to use a trajectory centric reinforcement learning algorithm.",
+            "It's a reinforcement learning algorithm based on some ideas from optimal control to solve each of the individual instances, and this algorithm is just going to optimize basically trajectories, motions that execute each of the instances.",
+            "But that's going to produce training data that we're going to then use to train our deep neural network policy with supervised learning.",
+            "And the solution to each instance is very simple, because our decomposition removes the need for complex perceptions.",
+            "So each of the instances are basically a mapping from states to actions.",
+            "But the final neural network policy is going to be trained on raw observationes from the robots on board sensors, so it's going to be forced to learn how to do perception in order to be able to mimic the behavior of each individual trajectories."
+        ],
+        [
+            "So this is how the algorithm actually looks in practice.",
+            "We take our task, we break it up into N separate instances.",
+            "We're going to solve each of the individual instances using a trajectory centric our algorithm based on some ideas from optimal control.",
+            "And this is a video of what that looks like.",
+            "So here you can see this robot is moving the shape sorting cube through a range of positions.",
+            "The positions are not random their chosen arbitrarily, but it's the same positions each time it goes around in this cycle.",
+            "So it's solving each of those instances and in the process trainer generating training data that it can use to train a deep neural network with supervised learning to actually map from its onboard observations, including observations from this camera to the actions at the joints.",
+            "Now unfortunately, if we do this in the way described, we're not done quite yet because supervised learning does not in general guarantee that you will produce a policy with good long horizon performance so Long Horizon performance means the total costs over the length of the entire trajectory.",
+            "The difficulty here comes from the fact that when your when your policy training, supervised learning makes a mistake and every time you solve our Russian problem, doing some small mistake anytime it makes a mistake, it will find itself in a state that's different from any of the states saw during training because it took a different action from once during training, and when that happens, it'll make a bigger mistake because it's in an unfamiliar state and these mistakes will compound until at the end of the trajectory your policy will do something completely unreasonable.",
+            "So to mitigate this problem we can do is we can actually close the loop.",
+            "We can train our neural network policy with supervised learning, but then we can go back in and re optimize our individual trajectories using the same trajectory centric or algorithm to get them to minimize the cost of the task and also take actions that are more similar to what the neural network is trying to do.",
+            "And if we alternate these two stages, we alternate between the trajectory central and supervised learning.",
+            "Eventually the two sides of the cycle will converge on the same behavior once they converge on the same behavior, then the state distribution of our individual.",
+            "Instances will match the distribution that we get from running the deep neural network and then supervised learning will actually produce a policy with good long horizon performance.",
+            "And of course the purpose of training this policy was supervised learning is so that at the end, once it's trained we can take it to a new situation.",
+            "It will generalize effectively using only the onboard perception of the robot.",
+            "So here's an example, for example for this task where my colleague Chelsea Finn is actually holding the shape sorting cube in hand and the robot can automatically figure out where it is and perform the behavior."
+        ],
+        [
+            "Now that's kind of the intuition behind the algorithm.",
+            "Would like to also have a little bit of kind of stronger theoretical confidence that this is actually doing the right thing.",
+            "So as I mentioned before, our goal is to minimize the expected cost of the trajectories under this policy, and what we can do is we can actually write this minimization as an equivalent constrained optimization.",
+            "We're minimizing the expected cost under the individual trajectory distributions of these local policies that we train.",
+            "The structure central Corel, but subject to constraint that the probability of an action under our final global policy, that spy.",
+            "Is equal to the probability under local policies performing each of these instances, so this constraint formulation is a little bit silly because it's basically saying that PIE NPR exactly equal.",
+            "So of course the expectation of the costs under the local policies is going to be the same as its expectation of global policies.",
+            "But once we've rewritten our policy search problem in this way, what we can do is we can actually solve the constraint version with a variant of dual decomposition and the particular variant that we use is called Bregman Adm.",
+            "But there are a few other formulations that we can use as well and in solving this with decomposition were basically.",
+            "Alternate between minimizing the Lagrangian of this problem with respect to the primal variables.",
+            "Those are the local policies and the parameters of the neural network, and then incrementing the dual variables and from that we actually recover the same kind of alternating optimization structure where we alternate between minimizing with respect to the local policies with structure centric RL and then minimizing with respect to the neural network parameters.",
+            "And this minimizes the Lagrangian despite the primal variables.",
+            "And then there's an additional step to increment the dual variables so it's a very quick kind of tour of the theory, but the main takeaway from this slide is that we can actually formalize the guided policy search algorithm.",
+            "As a variant of dual decomposition and from this we can actually conclude that it does indeed optimize the expected cost of our final neural network policy, and this is important because we'd like to have some conferences actually doing something reasonable."
+        ],
+        [
+            "And the algorithm we actually ran the robot has this structure.",
+            "We first are going to run each of our local policy, so we're going to generate samples on the real system by running these individual trajectories for each of the N instances.",
+            "They give us a little data set of trajectories we're going to use that little data set of trajectories to fit very local dynamics models.",
+            "A different local dynamics model for each of the N instances, and these models are actually time varying linear, so they're very very simple and we can re fit them very quickly at every iteration.",
+            "These models are going to be used to improve the trajectory's.",
+            "For each of the N instances.",
+            "And then we can repeat this process and the same set of trajectories can be used as the training set to optimize our deep neural network policy.",
+            "And this is the thing that's actually going to generalize in the end, and that deep neural network policy is added as an additional term in the cost function when we improve our trajectory's.",
+            "So the trajectory's take on behaviors that are more like what the neural network is trying to do.",
+            "So the convergence, the neural network and the local policies are executing the same behavior and therefore the same state distribution."
+        ],
+        [
+            "So let's look at some experiments.",
+            "First, here's a video of just the local policy optimization running on a PR2 robot.",
+            "So this is just optimizing a single trajectory.",
+            "For now, just to show you what that looks like.",
+            "And here this PR2 robot is trying to put that Lego block on the corner that's closest to it.",
+            "The state of the system consists of the joint angles of the robot and the position of the end effector as well as their time derivatives and the actions here.",
+            "Actually that works at the robots joined, so the policy was actually just putting the voltages of the Motors which then translate into torques and you hopefully figure out what's what the robot is trying to do here.",
+            "This entire learning process takes about 10 minutes of real time, of which only about 3 minutes is actually spent taking samples on the real physical system.",
+            "The rest is spent on computation and other overhead.",
+            "So this is actually quite simple efficient.",
+            "If we compare this to how a reinforcement learning algorithm, a more general reinforcement learning algorithm works.",
+            "This is maybe two to three orders of magnitude more efficient.",
+            "But of course here it's solving just one instance.",
+            "In reality you do maybe 10 of these instances."
+        ],
+        [
+            "And now let's look at trading a visual motor policy that combines vision and control.",
+            "So the particular policy that we're going to have here is going to take in the image from the robots on board camera is going to process it with a set of convolutional layers.",
+            "Then we're going to append the information for robots encoders, the joint angles and their velocities.",
+            "Then we have some fully connected layers, and then we're going to put the torques at the robots joins.",
+            "And as I mentioned, when we use guided policy search, we break up our problem to end separate instances such that each instance can be solved without using complicated perception like vision.",
+            "So for each instance.",
+            "We're going to learn these trajectories that map from states to actions.",
+            "But then when we train our deep neural network policy with supervised learning, it's going to learn to map observations to action.",
+            "So essentially going to learn how to see in order to explain the behavior of each of these trajectories."
+        ],
+        [
+            "And here are the tasks that we're going to look at.",
+            "We're going to look at putting a shape into shape sorting cube, where we have just a few millimeters of tolerance.",
+            "Putting a coat hanger on Iraq where the rack can be a different distance from the robot.",
+            "Putting the claw the toy hammer under a nail where the hammer can be grasped at different angles.",
+            "And putting a capital bottle."
+        ],
+        [
+            "So here are the individual tasks.",
+            "Here's the shape Sorting cube task so you can see there the shape sorting cube is sitting on the table in the robot to put the shapes into the trapezoidal opening.",
+            "Here's the coat hanger task.",
+            "So here the distance of the coat hanger might vary and the robot needs to figure out where it is.",
+            "From monocular images this is all from monocular RGB.",
+            "Here's the hammer task, so here the robot is grasping the hammer different angles.",
+            "It doesn't know the angle, so that's actually watch its own wrist an angle the rest accordingly.",
+            "And here's the ball cap task here.",
+            "The bottle might be located in different places in the robot.",
+            "Needs to figure out to get the cap on the bottom to spin the cap in order to."
+        ],
+        [
+            "Sit down.",
+            "And here are some examples of generalization, so here I'm going to move the shape sorting cube around and you can see that the robot locates the Cuban, inserts the shape successfully.",
+            "Here in the insight you can see what the policy is actually seeing, so this is actually the image from the camera.",
+            "Here my colleague is holding the shape sorting cube in our hand and you can see that the robot successfully finds where it is and gets the shape in there.",
+            "For the coat hanger, here we're testing generalization, so it was trained without clothes on the rack.",
+            "We put in some clothes, we changed out the hanger just to make sure that it's actually generalizing in a reasonable way to some moderate variation.",
+            "Here for the Bottle cap task introduces some distracter bottles.",
+            "It is an instance level policy, so it's meant to put the cap on that particular bottle.",
+            "Although I'll talk a little bit about generalization later.",
+            "Here again, we're putting some distractors to the scene for the hammer task.",
+            "And the policies here are trained to also minimize torque that's part of the cost function, so they actually end up being a little bit compliance, so I can kind of push them out of the way.",
+            "It's not trained to recover from this, but it sort of does best."
+        ],
+        [
+            "Alright, so those are the qualitative results, but if you remember the beginning of the talk, I posited that if we combine perception and control, we can actually simplify both perception and control.",
+            "So let's actually try to verify the hypothesis to verify that hypothesis.",
+            "I'm going to look at two baselines.",
+            "The first baseline, which I'm going to call the post prediction baseline, is going to train a convolutional neural network with the same structure as a convolutional layers in our policy, and it's going to train the convolutional network to predict the those state variables that are not given to the robot test time.",
+            "So for the shape sorting cube, the robot is not given the position of the cube, so we're going to train this network to predict that position.",
+            "Then we're going to freeze those weights and then we'll train a little fully connected network using guided policy search to use that predicted pose to perform the task.",
+            "So this is the most similar kind of standard robotic learning approach where you first use.",
+            "Vision technique to learn to perceive and then use the output of the computer vision technique within some kind of policy search framework.",
+            "So this is meant to be roughly represented the standard way of solving this task.",
+            "Our second baseline, which is a little bit more sophisticated, is called the post features baseline.",
+            "So in this baseline we're going to train the convolutional layers in the same way as before, with the standard kind of vision technique.",
+            "But then instead of feeding the predicted state variables to the fully connected layers, were actually going to feed the last layer features, and the reason that we want to compare against this baselines, because then we recover the same architecture as the one that we have in our intent rain policy.",
+            "But this architecture architecture now is not training to its trains first separately for vision, and then separately for control, but it has the same architecture."
+        ],
+        [
+            "So let's look at how these baselines actually compare to our entrain method.",
+            "The post prediction baseline, which as I mentioned is the most similar to kind of the standard way of solving this type of problem in robotic learning actually ends up doing quite poorly that it succeeds about half the time on the coat hanger task, which was the easiest, and very rarely succeeds on the other tasks.",
+            "The post features baseline performed substantially better, but in the end Anton train policy achieves by far the highest success rate close to or higher than 90% of all the tasks.",
+            "So this is a little bit interesting.",
+            "Why does the post prediction baseline in particular fare so poorly?",
+            "Well, first of course we tested the accuracy of our post prediction of predicting that the pose of the shape sorting cube in particular, and we found that we get about 1.3 centimeters of error in predicting the 3D pose of the cube.",
+            "Which is actually quite reasonable.",
+            "There's some prior work on the same robot predicting the position of objects using checkerboards, and they got about 2 centimeters, so we're roughly in the same ballpark.",
+            "This is not a bad pose detector.",
+            "The trouble is that the shape sorting cube is only a few millimeters of tolerance, so if you're 1.3 centimeters off then you're not going to be able to insert the shape into into shape sorting cube.",
+            "And what this suggests is at the end, to end training policy is doing something very interesting.",
+            "It can't possibly be doing a better job of pose detection because not trained for pose detection, but it can do is it can adapt the perception system to the needs of the control system.",
+            "If you want to sort the shapes into shape sorting cube, you don't really care how high up the cube is going to push down all the way.",
+            "That's fine, you can use a robust strategy.",
+            "You can slide in the shape from the side, which greatly increases your robustness to variation along that vector.",
+            "So you need a lot more accuracy in the other direction, but in the parallel direction can be quite inaccurate.",
+            "And this is getting a lot of the ideas that I used to motivate this talk when I discuss how we when we combine perception and control, we can actually recover a sensory motor skill that is more robust and more reliable, but also a lot simpler."
+        ],
+        [
+            "And of course, guided policy search is a fairly general approach to learning robotic control policies.",
+            "We applied this method to a number of different tasks.",
+            "The manipulation tasks in which I showed in a stock in my dissertation work with Adam Colton.",
+            "I used the sagram to devise control policies for IP locomotion simulation, so this is a neural network controlling it by Peter Walker that's recovering from some very strong perturbations together with some colleagues at the University of Washington.",
+            "We've applied this algorithm dextrous manipulation tasks, so this is actually a five finger, pneumatically driven hand that's trying to rotate the cylinder.",
+            "This is a more recent work with Abhishek Gupta.",
+            "Inclement sopner on applying this algorithm combined with learning from demonstration for a soft inflatable hand.",
+            "So this is hand the consistent inflatable chambers and the algorithms controlling at the level of valve commands to inflate and deflate the chambers to perform some dexterous manipulation tasks.",
+            "And this is also some ongoing work in simulation for applying these types of methods to autonomous flight.",
+            "Some of these results are shown using a fan of laser range finders and later on also using simulated vision.",
+            "So it's a fairly general approach, and we've been applying it to a number of different robotic systems, and that's of course one of the benefits of using robotic learning that once you come up with a method that is fairly general, it's quite widely applicable."
+        ],
+        [
+            "All right now in the in the second half of this talk, let me tell you a little bit about how we can scale up deep robotic learning."
+        ],
+        [
+            "And here I'm going to start off by taking a step backwards a little bit and look at kind of retrospectively at some of the reasons for the success of supervised learning in the past few years.",
+            "And I think these are ideas that all of you are very familiar with.",
+            "But I'll just recap now just to make sure we're on the same page.",
+            "You know, of course, one of the big reasons for the success of supervised learning and deep learning in particular has been the availability of large amounts of computation.",
+            "Things like GPU's and so on.",
+            "And that's kind of a given of course also improvements in algorithms models.",
+            "Those have been tremendously important, but the third one, and this is the point that really cannot be overstated.",
+            "The importance of the availability of large amounts of data.",
+            "In fact, many of the most successful algorithms and models have been successful because of their ability to leverage and take advantage of large amounts of data.",
+            "So where do we stand when it comes to learning sensorimotor skills?",
+            "Well, we of course have access to the same computation we all have the same hardware.",
+            "The algorithms are perhaps not as far along, although there definitely progressing, but in the end there's no way for us to get around the question of data.",
+            "If we want highly generalizable sensory motor skills.",
+            "If we want to generalize, for example, different objects that we've never seen before, different situations, different environments, we're going to need to start thinking seriously about how we can get enough diversity of data for learning highly generalizable sensorimotor skills.",
+            "So to begin tackling this question.",
+            "I spent some time working with colleagues at Google to scale up sensory motor learning and this is a parallel learning setup that we built for scaling up sensorimotor learning for a very particular sensory motor skill.",
+            "The particular sensory motor skill that we're looking at here is robotic grasping, and all these robots.",
+            "There's 14 robots in this room.",
+            "They're all cooperating together to learn a single grasping skill."
+        ],
+        [
+            "Now, the reason that we chose grasping for our sensor motor skill here first was because we're asking is a very fundamental manipulation skill.",
+            "If you'd like to perform any kind of object manipulation, typically the first thing that you want to do is pick up that object.",
+            "But the second reason, and this one is a little subtle, is that with grasping, the robots can always tell whether they perform this skill successfully.",
+            "They can see where their fingers closed, they can attempt drop the object back into the bin and see if the situation changes.",
+            "So it's very easy to determine success and will come back to this notion of determining success later on the talk.",
+            "When I talk about future work.",
+            "But for the grasping skills, we can evaluate it pretty easily using very simple heuristics.",
+            "Now we're going to frame grasping the sensory motor skill, which means that our robots are going to continuously observe the world in front of them and react to it and take new actions.",
+            "So there's going to be a controller that's running about 2 to 5 Hertz.",
+            "That's going to continuously taken images from the robots onboard camera and take new decisions.",
+            "To maximize this probability of successful grasps.",
+            "This system that you're going to see it was trained on about 800,000 grasp attempts for total about 3000 robot hours and all of these results are going to be using a monocular camera over the shoulder camera so you can see the camera in this diagram here.",
+            "So it's sometimes you will Mount the camera on the group, but this one is actually mounted over the shoulder, so it's quite far away and except for the evaluation of grasp success there's no prior knowledge about grasping that was actually used to build the system, so it's entirely learned from experience.",
+            "And."
+        ],
+        [
+            "Here's how we're going to actually set this up.",
+            "We'd like to use efficient, scalable, supervised learning methods to train our sensory motor skill, just like we did in the previous section.",
+            "Unfortunately, we can't apply guided policy search directly, because when the robot attempts to grasp objects in front of it, it'll randomize the scene in front of it, so we can't necessarily rely on these deterministic resets to break up the task into instances, but we can still use supervised learning, and here's how we're going to do that.",
+            "We're going to set up a neural network that takes in the image from the robots onboard camera and a motor command in the form of a vector.",
+            "For the gripper, and given this image in Motor Command is going to predict whether executing that motor Command in closing the gripper will produce a successful grasps.",
+            "It's going up with a probability number between zero and one that says how likely am I to successfully grasp something if given this image and this motor command execute the motor command and then close the fingers.",
+            "And the way that we produce training data for the supervised learning method is that we're going to run our data collection using our latest network and then network is going to take a number of decisions and each time it makes a decision where we're going to record is the current image and the vector from where the gripper is now to where it was when the fingers closed.",
+            "So we're not actually storing the action the robot actually took, but instead we're generating a new synthetic action from where the gripper is now to where it was when we finally closed the fingers, because that's where we're actually going to be able to evaluate whether the grass was successful or not.",
+            "So it moves through some complicated trajectory.",
+            "Each time noting down the vector from the current pose to the last pose and the last pose.",
+            "It closes the fingers.",
+            "Attempts to pick up the object, and that's what generates the label.",
+            "Now there's a little simplifying assumption that's implicit.",
+            "In this approach.",
+            "The simplifying assumption is that regardless of which path you take to an object, once you close the fingers, your probability success is the same.",
+            "This is simply not true, because of course, depending on how you get there.",
+            "If you push things around a little bit, you might have a different outcome, but it's very convenient and we have something very convenient like that.",
+            "You know, it's definitely worth a try, because it turns out to actually work quite well in this case.",
+            "And then a test time we're going to do is we're going to sample a wide range of different motor commands, and we're going to pick the one for which the network predicts the highest probability of success.",
+            "We're going to start executing that Motor Command and will immediately record a new image sample, new motor commands, and repeat this whole inference process.",
+            "So we're going to basically run inference as fast as we can to continuously update the motion of the gripper.",
+            "We do something a little more sophisticated than just sampling.",
+            "We're actually running a little stochastic optimization over the motion vector, called the cross entropy method, but it basically amounts to random sampling and choosing the best vector.",
+            "So it's a greedy approach, meaning that it's not actually planning for the best grasp, but it is a continuous feedback, so it's continuously reevaluating strategy, responding to motion of objects in the world, responding to perturbations, and very importantly in this case actually responding to imprecise actuation.",
+            "So if you remember, we have 14 robots, and we're training all 14 of those robots simultaneously."
+        ],
+        [
+            "This network doesn't know anything about camera calibration.",
+            "The pose of the cameras with the robot or the particular decision digital robot, and in fact we actually intentionally mounted the camera in a slightly different way on every robot.",
+            "So these are images from old 14 robots.",
+            "Older robots here holding the same pose, but you can see the images look quite different.",
+            "That's because the camera pose is a little bit randomized, and the reason for that is because we want to build a grasping system that was agnostic to the pose of the camera.",
+            "So because it's agnostic opposed the camera, it actually do.",
+            "You do continuous feedback, so essentially learn hand eye coordination is to watch its own gripper.",
+            "And adjust the motor commands continuously to maximize probability of success."
+        ],
+        [
+            "So let's look at how much this this continuous feedback actually matters.",
+            "So on the right of the slide, you're going to see our system attention, grasp objects and you can see that it kind of changes mine a little bit takes a complex trajectory to the grass point, because continuously updating his behavior.",
+            "And left as a baseline that simply looks at the image.",
+            "Use a known camera calibration to transform points in the image into the frame of the robot and then executes the grasp for the position where things that has the highest chance of succeeding and this is roughly representative.",
+            "Some previous work from CMU by Pinto and Gupta, so the method on the left is that an open loop method that uses a known camera calibration and it's not.",
+            "It's not a sensory motor skill, it's just a one shot scale.",
+            "It's picking the best grass point and the right is our continuous sensory motor skill.",
+            "And."
+        ],
+        [
+            "The continuous method.",
+            "So the open method gets a failure rate about 33% on this test set.",
+            "They're trained on the same data, but the test set contains objects at the methods I've never seen before, so these are test objects.",
+            "And our method of."
+        ],
+        [
+            "I read about 17.5%, so we're actually getting substantial benefit out of framing this assessor motor skill.",
+            "We also compared to a baseline that used a depth camera and an existing segmentation algorithm and they had a failure rate of about 35%.",
+            "So even though we're not using a depth camera, actually getting substantial improvement.",
+            "And this is, I think, again getting back to some of the ideas that I mentioned in the beginning of this talk where when we combine perception action together we actually recover a sensory motor skill that is more effective that generalizes better.",
+            "And that is actually simpler, because we don't need to worry about depth images.",
+            "We don't even worry bout camera calibration and so on."
+        ],
+        [
+            "So to wrap this up, let's look at some results of this method, and here I'm going to show you some experiments and sort of get what the system is actually learning.",
+            "So here you're going to see a set of objects.",
+            "They're all blue objects, and they're all roughly rectangular in profile, and for the rigid objects you can see that the robot surrounds the object on either side with fingers.",
+            "So what's the fingers on either side and then picks it up?",
+            "But then for this next object, you're going to see after the eraser you're going to see a soft sponge, and for the soft sponge with the robot, does it actually pinches it?",
+            "It's one of the things intentionally in the middle of the object, and this behavior is consistent.",
+            "Actually we put different sponges informing put tissue, paper and so on.",
+            "It picks it up in this particular way.",
+            "Using a pinch grasp.",
+            "Here's an object that is very heavy and large for this kind of obvious, very important grasp near the center of mass.",
+            "Otherwise you won't pick it up.",
+            "This is an obvious, very small and flat, so this is the kind of thing that works very poorly with DEF cameras because it won't show up in a depth image.",
+            "And you can see it takes a little time to find the right grass, but in the end it succeeds.",
+            "This object is very large and kind of awkwardly shaped.",
+            "And again, you're going to see that is going to change his mind a few times to try to find the right kind of grass.",
+            "Pond wants to find a grass, but is happy with the ones that predicts that moving nowhere has a higher chance of succeeding then moving the gripper.",
+            "Then it will close the gripper.",
+            "This energy that resolution.",
+            "So this is the kind of thing that's very problematic for depth cameras because they don't tend to handle translucency very well.",
+            "And for this object, aggressive by the handle because if you grasp by the round metal bit then you'll actually drop it."
+        ],
+        [
+            "Alright, so I think I'm just about out of time, so I'll actually go briefly over future directions and then."
+        ],
+        [
+            "Take some questions so I mentioned that one of the big challenges in learning sensorimotor skills is a data, and I presented one way that we can tackle it by having many robots in the same room, all learning together.",
+            "This is part of the solution, but it's not the entire solution because besides just having a large quantity of data, we need a large diversity of data.",
+            "We need data that is representative of what the robot will see at Test time, so I think one of the very important questions for us to address in future work in learning sensorimotor skills is to get robots out into the real world where they can learn continuously from the actual problems that will be asked to tackle at Test time.",
+            "For example, we have these Baxter robots that are all deployed in factories that are all engaged in packing boxes.",
+            "If they can pull their experience and together learn a single, highly generalizable box packing policy, it would not only make it robot more effective, but would also make it so when you run counter newness of this task, it will need to know how to solve it, and there are number of challenges associated with us, but I won't go into too much, but this is a very good kind of challenge problem for us to look at in deep robotic learn."
+        ],
+        [
+            "Alright, I'd like to.",
+            "Thank my collaborators Chelsea, Finn, Trevor Darrell and Peterbilt, UC Berkeley and Peter Pastor Alex for chef Scandurra Quillen at Google."
+        ],
+        [
+            "I'll be happy to take any questions."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to talk about.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Robotic learning, but actually before I start, let me just say a few words about how this relates to some other work in machine learning, I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many of the lessons that we learned when we work on deep robotic learning are actually much more broadly applicable to situations where we have machine learning systems that have to interact with the real world.",
+                    "label": 0
+                },
+                {
+                    "sent": "And sometimes when we design our machine learning systems, we don't necessarily think about how they're going to track with the real world, so we think, well, maybe the job of a object classifiers to classify objects and images.",
+                    "label": 0
+                },
+                {
+                    "sent": "the Java Speech Recognition System is to recognize speech, but in fact there's a whole other half to this cycle, because when your system actually outputs some label or some solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Presumably it's something is going to act on that output and that something is going to in some way affect the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we reason about how that something affects the world, that can actually give us a lot of insight on how to design both the perception and the action component of this pipeline.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, if you're out in the jungle and you see it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Tiger, you probably need to react.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In that situation, because if you don't react appropriately, that will affect very strongly we receive next and your system needs to be able to deal with that so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "There's kind of a perception side to this, and there's also.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Action side and what I'm going to try to convince you of in this talk is that if we consider perception and action together, if we consider them.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "As one sensory motor loop instead of two discrete components that we designed separately, then we can actually not only be able to do interesting things like control autonomous robots, but we can in fact simplify both the perception.",
+                    "label": 0
+                },
+                {
+                    "sent": "An action side of the cycle, because the perception system can output only those things that are actually necessary to take good actions in the real world, and the action system can code app with the perception system to understand its limitations.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So first let me give you a little example of how this happens for a particular behavior that humans can do really well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And that's the task of catching a ball.",
+                    "label": 0
+                },
+                {
+                    "sent": "So evolutionary biologist Richard Dawkins wrote when a man throws a ball high in the air and catches it again, he behaves.",
+                    "label": 1
+                },
+                {
+                    "sent": "If he had solved a sort of differential equations in predicting the structure of the ball and it's subconscious level, something functionally equivalent to the mathematical calculations is going on.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is a kind of worldview that suggests that, well, there is this perception modeling component that performs looks like predictions, something where perhaps all very familiar with and then based on those predictions you make some decision to actually take actions in the real world.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it turns out that when we actually try to do this task, we do something quite different.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is from simix.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Sermons done in the 90s.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Baseball players we actually employ something called the gaze heuristic, which couples perception action much more closely and actually short circuits.",
+                    "label": 0
+                },
+                {
+                    "sent": "A lot of this complicated modeling so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "All we do is we look at the ball.",
+                    "label": 0
+                },
+                {
+                    "sent": "We fix its position in our field of view, but remember where it is and then we begin run.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And we actually dynamically adjust our running speed.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the ball stays in the same position in our field of view.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm actually attempting to predict where it's going to go.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not estimating wind resistance or gravity or anything like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're simply coupling perception action directly, and in doing so, we actually recover a robust, highly reliable sensory motor skill that is a lot simpler than doing the perception, planning, and action separately.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this talk I'm going to discuss some algorithms that can allow robots to learn sensorimotor skills of this type in the process, hopefully get across this idea that combining perception action can actually simplify both of them.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now, why do we want robots to learn sensorimotor skills?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, this is a video from the Doctor Humanoid Robotics Challenge that was held last year, and this is actually the winning entry in the upper humanoid robotics challenges.",
+                    "label": 0
+                },
+                {
+                    "sent": "The team from Frank Ice from Korea, and hear this robot is performing the door opening task now.",
+                    "label": 0
+                },
+                {
+                    "sent": "This team was very successful.",
+                    "label": 0
+                },
+                {
+                    "sent": "They were actually able to complete all of the challenges set before them, but watching this video it's pretty apparent that there's kind of something very robotic going on.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's kind of a perception stage.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a modeling stages, actually human operator in the loop that's helping the robot make some of these decisions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there's a planning and execution stage, and this robot does actually get the door open.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you know it kind of maybe takes a little bit of time, so there's something in this execution that maybe leaves a little bit to be desired.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it's very interesting at this point to compare to how a person would do this task is actually a colleague of mine, Phillip Crombie.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think he might actually be at this conference here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Phillip is performing the sensory motor skill of opening the door and you can see he's very professional.",
+                    "label": 0
+                },
+                {
+                    "sent": "He you know this was when he was a PhD student.",
+                    "label": 0
+                },
+                {
+                    "sent": "So he does this presumably every morning he comes in and opens the door.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the other thing is that perception action are being coupled very closely, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's let's see this again.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you can see he's he's not just passively perceiving the world and then planning and executing because he can't because he's blindfolded.",
+                    "label": 0
+                },
+                {
+                    "sent": "He's combining perception action to one to one sensorimotor loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's what we're going for with our autonomous robots.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to look at building a deep neural network that actually performs the entire sensorimotor loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to have some stages that perform visual processing from taking images from the onboard camera, running them through a number of convolutional layers.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to have some layers that perform motor processing using fully connected layers, but the whole system is going to be trained end to end on the goals of the task, so the input from the sensors going going to go into the bottom of this network commands to the robots.",
+                    "label": 0
+                },
+                {
+                    "sent": "Motors are going to come out from the top, and this is going to be the sensorimotor loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same sensorimotor loop that I showed you before.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there are some challenges in framing sensorimotor learning in this way, in contrast to more traditional deep learning methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, we typically don't rely on having direct supervision, so there isn't a data set of robotic actions that tells us in response to this image take this action.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And when we build these sensory motor skills, we have also reason about the fact that our actions have consequences, so we can't consider every time step entirely in isolation.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have to reason about the fact that we take certain actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's going to affect the next observation that will receive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Off the talk by describing an algorithm called Guided Policy search that we can use the train visual motor policies and I'll show some experimental results to validate that.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, when we learn these sensory motor skills, we can simplify both the perception and action.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I'll discuss how we can scale up deep robotic learning, and then I'll briefly mention some future directions.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "First, let's actually write down the problem that we're going to try to solve in learning these sensory motor skills, or problem that we're trying to solve is a kind of reinforcement learning problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's called the policy search problem, so we have a deep neural network policy, and our goal is to optimize the weights in this neural network.",
+                    "label": 0
+                },
+                {
+                    "sent": "The parameters of the policy with respect to some cost function.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the cause.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Function, we can use it to evaluate entire trajectories, and we'd like to minimize the expected cost of entire trajectory's, and the cost is a function of the state of the system, which in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The joint angles of the robot, the position of its end effector positions of objects in the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically everything that matters for the task.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the actions which typically are the motor commands of the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's joints.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then our policy is going to give us a distribution over actions condition on the observation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the observation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "May or may not be the same as the state.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if the robot needs to perceive objects and images, the full state of the system includes the positions of those objects, but the observation might only include the image and the robot.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to process that image in order to figure out where where things are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now, a standard kind of textbook way of addressing this type of problem is to use reinforcement learning, and at a very kind of high level summary of reinforcement learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very cartoon summary might look something like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You initialize the parameters their policy randomly, and then you run.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Policy in the real world, and then you observe how.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Execution of the policy perform you measure their cost.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The trajectory is that achieved a good cost, and we're going to try to make it a little bit more probable under a policy, and we're going to take the ones that had a bad.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "'cause I'm going to try to make them less probable.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a very crude summary of the reinforce algorithm and it's actually quite similar to many other reinforcement learning algorithms work, and there's been a lot of advances in recent years.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "On reinforcement learning algorithms for training deep neural networks, and this is a very vibrant field where there is some really interesting results.",
+                    "label": 0
+                },
+                {
+                    "sent": "The methods that I'm going to describe in this talk a little bit different, and the reason that there are a little bit different because they're trying to get around this issue of sample complexity so we can use reinforcement learning training very complex neural networks, but typically as the number of parameters increases, the actual number of samples that you need in the real world blows up quite dramatically when we're doing robotic learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we'd like to actually learn in the real world, it's very important to keep the sample complexity down.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To try to kind of dig into this a little bit more, we can look at policy search with reinforcement learning as trying to solve 2 very difficult challenges at the same time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's trying to deal with the complexity of the dynamics of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is basically all the physics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everything that makes attacks physically difficult.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And we have to deal with the complexity of the policy, the high dimensionality and non linearity of these large neural networks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So tackling both these challenges at the same time is actually quite difficult, and this is part of the reason why sample complexity for deep reinforcement learning algorithms tends to not be so great.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "However, if we're just doing supervised learning, if we have some Oracle that could tell us exactly which action we should take in response to every observation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I would simply forget about the dynamics of the system and we're back to the kind of the familiar world of supervised learning we have to deal with the complexity of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Will not work, but we have pretty pretty good idea of how to do that at this point so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is comparatively quite easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trouble is that we don't have such an Oracle.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't have somebody that will tell us exactly which action we should take in response to every observation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What we can do is we can look to optimal control for ideas on how to handle complex dynamical systems, so optimal control tells us a lot about how to deal with complex dynamic.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But it's not going to help you train deep neural networks.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So if we borrow ideas from control that can help us deal with the dynamics and then we can try to maybe look at something that looks more like supervised learning to train our neural networks and recover an algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a lot more, Sam.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Efficient.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the algorithm and this is an algorithm guided policy search basically has two key ideas underpinning it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first idea.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Is that we're going to take our complex task, and we're going to break it up into end, separate instances, each of which is a lot simpler.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this idea is very similar to the composition of actually frame it as dual decomposition mathematically.",
+                    "label": 0
+                },
+                {
+                    "sent": "But first let me build up a little bit of intuition for it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say that you'd like to learn to write letters, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you're in primary school.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're learning to write a reinforcement learning approach to learning how to write will look something like this every morning.",
+                    "label": 0
+                },
+                {
+                    "sent": "You come to school and the teacher and the teacher tells you today you're going to write the letter B.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you attempt to write the letter B.",
+                    "label": 0
+                },
+                {
+                    "sent": "The teacher tells you whether you did it right or wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you go home.",
+                    "label": 0
+                },
+                {
+                    "sent": "You come back the next day and he's your tells.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now you're going to write the letter F and you write the letter F. The teacher tells you whether you are right or wrong, and so when you practice this for a year, two years, five years, 20 years, and hopefully after a while, you learn to write the entire alphabet.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is of course kind of ridiculous, and this is not how we would actually ever attempt to do this task ourselves.",
+                    "label": 0
+                },
+                {
+                    "sent": "We would say OK, Now I'm going to practice the letter A. I'm going to practice it until I get it right, and then I move on to the next letter.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to actually break up the task and to end separate instances and then I can practice each instance separately and then will allow me to learn much, much faster.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in the robotics setting, let's say that we'd like to learn to perform this little shape sorting cube task.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is a children's puzzle kind of age appropriate for robot.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would like to take this shape and insert into a hole in the shape sorting cube instead of trying to do this task all in one go by randomly observing different instances of this problem, we're going to break it up into separate instances where in each instance the shape sorting cube is always located in the same place, so there's one instance where it's always on the left, one instance where it's always at the top, one is where it's always at the bottom.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once we've decomposed the task in this way in order to solve each individual instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually don't even need to worry about, for example vision because the shape sorting cube is always going to be in the same place.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for each of these instances we can come with a very simple solution, a solution that basically looks like a trajectory with a little bit of linear stabilization without any kind of deep neural network or anything particularly sophisticated.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second idea is to.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then you supervised learning to Unite the solutions to each of these individual instances into a single deep neural network policy.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's actually that's actually going to do some complex perception, so we're going to use a trajectory centric reinforcement learning algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a reinforcement learning algorithm based on some ideas from optimal control to solve each of the individual instances, and this algorithm is just going to optimize basically trajectories, motions that execute each of the instances.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that's going to produce training data that we're going to then use to train our deep neural network policy with supervised learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the solution to each instance is very simple, because our decomposition removes the need for complex perceptions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So each of the instances are basically a mapping from states to actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the final neural network policy is going to be trained on raw observationes from the robots on board sensors, so it's going to be forced to learn how to do perception in order to be able to mimic the behavior of each individual trajectories.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this is how the algorithm actually looks in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "We take our task, we break it up into N separate instances.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to solve each of the individual instances using a trajectory centric our algorithm based on some ideas from optimal control.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this is a video of what that looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here you can see this robot is moving the shape sorting cube through a range of positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "The positions are not random their chosen arbitrarily, but it's the same positions each time it goes around in this cycle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's solving each of those instances and in the process trainer generating training data that it can use to train a deep neural network with supervised learning to actually map from its onboard observations, including observations from this camera to the actions at the joints.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now unfortunately, if we do this in the way described, we're not done quite yet because supervised learning does not in general guarantee that you will produce a policy with good long horizon performance so Long Horizon performance means the total costs over the length of the entire trajectory.",
+                    "label": 0
+                },
+                {
+                    "sent": "The difficulty here comes from the fact that when your when your policy training, supervised learning makes a mistake and every time you solve our Russian problem, doing some small mistake anytime it makes a mistake, it will find itself in a state that's different from any of the states saw during training because it took a different action from once during training, and when that happens, it'll make a bigger mistake because it's in an unfamiliar state and these mistakes will compound until at the end of the trajectory your policy will do something completely unreasonable.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to mitigate this problem we can do is we can actually close the loop.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can train our neural network policy with supervised learning, but then we can go back in and re optimize our individual trajectories using the same trajectory centric or algorithm to get them to minimize the cost of the task and also take actions that are more similar to what the neural network is trying to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we alternate these two stages, we alternate between the trajectory central and supervised learning.",
+                    "label": 1
+                },
+                {
+                    "sent": "Eventually the two sides of the cycle will converge on the same behavior once they converge on the same behavior, then the state distribution of our individual.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instances will match the distribution that we get from running the deep neural network and then supervised learning will actually produce a policy with good long horizon performance.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course the purpose of training this policy was supervised learning is so that at the end, once it's trained we can take it to a new situation.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will generalize effectively using only the onboard perception of the robot.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's an example, for example for this task where my colleague Chelsea Finn is actually holding the shape sorting cube in hand and the robot can automatically figure out where it is and perform the behavior.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now that's kind of the intuition behind the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Would like to also have a little bit of kind of stronger theoretical confidence that this is actually doing the right thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as I mentioned before, our goal is to minimize the expected cost of the trajectories under this policy, and what we can do is we can actually write this minimization as an equivalent constrained optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're minimizing the expected cost under the individual trajectory distributions of these local policies that we train.",
+                    "label": 0
+                },
+                {
+                    "sent": "The structure central Corel, but subject to constraint that the probability of an action under our final global policy, that spy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is equal to the probability under local policies performing each of these instances, so this constraint formulation is a little bit silly because it's basically saying that PIE NPR exactly equal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So of course the expectation of the costs under the local policies is going to be the same as its expectation of global policies.",
+                    "label": 0
+                },
+                {
+                    "sent": "But once we've rewritten our policy search problem in this way, what we can do is we can actually solve the constraint version with a variant of dual decomposition and the particular variant that we use is called Bregman Adm.",
+                    "label": 1
+                },
+                {
+                    "sent": "But there are a few other formulations that we can use as well and in solving this with decomposition were basically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alternate between minimizing the Lagrangian of this problem with respect to the primal variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are the local policies and the parameters of the neural network, and then incrementing the dual variables and from that we actually recover the same kind of alternating optimization structure where we alternate between minimizing with respect to the local policies with structure centric RL and then minimizing with respect to the neural network parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this minimizes the Lagrangian despite the primal variables.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there's an additional step to increment the dual variables so it's a very quick kind of tour of the theory, but the main takeaway from this slide is that we can actually formalize the guided policy search algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "As a variant of dual decomposition and from this we can actually conclude that it does indeed optimize the expected cost of our final neural network policy, and this is important because we'd like to have some conferences actually doing something reasonable.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the algorithm we actually ran the robot has this structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "We first are going to run each of our local policy, so we're going to generate samples on the real system by running these individual trajectories for each of the N instances.",
+                    "label": 0
+                },
+                {
+                    "sent": "They give us a little data set of trajectories we're going to use that little data set of trajectories to fit very local dynamics models.",
+                    "label": 0
+                },
+                {
+                    "sent": "A different local dynamics model for each of the N instances, and these models are actually time varying linear, so they're very very simple and we can re fit them very quickly at every iteration.",
+                    "label": 0
+                },
+                {
+                    "sent": "These models are going to be used to improve the trajectory's.",
+                    "label": 0
+                },
+                {
+                    "sent": "For each of the N instances.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we can repeat this process and the same set of trajectories can be used as the training set to optimize our deep neural network policy.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is the thing that's actually going to generalize in the end, and that deep neural network policy is added as an additional term in the cost function when we improve our trajectory's.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the trajectory's take on behaviors that are more like what the neural network is trying to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the convergence, the neural network and the local policies are executing the same behavior and therefore the same state distribution.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's look at some experiments.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, here's a video of just the local policy optimization running on a PR2 robot.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is just optimizing a single trajectory.",
+                    "label": 0
+                },
+                {
+                    "sent": "For now, just to show you what that looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here this PR2 robot is trying to put that Lego block on the corner that's closest to it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The state of the system consists of the joint angles of the robot and the position of the end effector as well as their time derivatives and the actions here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually that works at the robots joined, so the policy was actually just putting the voltages of the Motors which then translate into torques and you hopefully figure out what's what the robot is trying to do here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This entire learning process takes about 10 minutes of real time, of which only about 3 minutes is actually spent taking samples on the real physical system.",
+                    "label": 0
+                },
+                {
+                    "sent": "The rest is spent on computation and other overhead.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is actually quite simple efficient.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we compare this to how a reinforcement learning algorithm, a more general reinforcement learning algorithm works.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is maybe two to three orders of magnitude more efficient.",
+                    "label": 0
+                },
+                {
+                    "sent": "But of course here it's solving just one instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "In reality you do maybe 10 of these instances.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And now let's look at trading a visual motor policy that combines vision and control.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the particular policy that we're going to have here is going to take in the image from the robots on board camera is going to process it with a set of convolutional layers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we're going to append the information for robots encoders, the joint angles and their velocities.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we have some fully connected layers, and then we're going to put the torques at the robots joins.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as I mentioned, when we use guided policy search, we break up our problem to end separate instances such that each instance can be solved without using complicated perception like vision.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for each instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to learn these trajectories that map from states to actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then when we train our deep neural network policy with supervised learning, it's going to learn to map observations to action.",
+                    "label": 0
+                },
+                {
+                    "sent": "So essentially going to learn how to see in order to explain the behavior of each of these trajectories.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And here are the tasks that we're going to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to look at putting a shape into shape sorting cube, where we have just a few millimeters of tolerance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Putting a coat hanger on Iraq where the rack can be a different distance from the robot.",
+                    "label": 0
+                },
+                {
+                    "sent": "Putting the claw the toy hammer under a nail where the hammer can be grasped at different angles.",
+                    "label": 0
+                },
+                {
+                    "sent": "And putting a capital bottle.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here are the individual tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the shape Sorting cube task so you can see there the shape sorting cube is sitting on the table in the robot to put the shapes into the trapezoidal opening.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the coat hanger task.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here the distance of the coat hanger might vary and the robot needs to figure out where it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "From monocular images this is all from monocular RGB.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the hammer task, so here the robot is grasping the hammer different angles.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't know the angle, so that's actually watch its own wrist an angle the rest accordingly.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here's the ball cap task here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The bottle might be located in different places in the robot.",
+                    "label": 0
+                },
+                {
+                    "sent": "Needs to figure out to get the cap on the bottom to spin the cap in order to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Sit down.",
+                    "label": 0
+                },
+                {
+                    "sent": "And here are some examples of generalization, so here I'm going to move the shape sorting cube around and you can see that the robot locates the Cuban, inserts the shape successfully.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here in the insight you can see what the policy is actually seeing, so this is actually the image from the camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here my colleague is holding the shape sorting cube in our hand and you can see that the robot successfully finds where it is and gets the shape in there.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the coat hanger, here we're testing generalization, so it was trained without clothes on the rack.",
+                    "label": 0
+                },
+                {
+                    "sent": "We put in some clothes, we changed out the hanger just to make sure that it's actually generalizing in a reasonable way to some moderate variation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here for the Bottle cap task introduces some distracter bottles.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is an instance level policy, so it's meant to put the cap on that particular bottle.",
+                    "label": 0
+                },
+                {
+                    "sent": "Although I'll talk a little bit about generalization later.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here again, we're putting some distractors to the scene for the hammer task.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the policies here are trained to also minimize torque that's part of the cost function, so they actually end up being a little bit compliance, so I can kind of push them out of the way.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not trained to recover from this, but it sort of does best.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_51": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so those are the qualitative results, but if you remember the beginning of the talk, I posited that if we combine perception and control, we can actually simplify both perception and control.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's actually try to verify the hypothesis to verify that hypothesis.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to look at two baselines.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first baseline, which I'm going to call the post prediction baseline, is going to train a convolutional neural network with the same structure as a convolutional layers in our policy, and it's going to train the convolutional network to predict the those state variables that are not given to the robot test time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for the shape sorting cube, the robot is not given the position of the cube, so we're going to train this network to predict that position.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we're going to freeze those weights and then we'll train a little fully connected network using guided policy search to use that predicted pose to perform the task.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the most similar kind of standard robotic learning approach where you first use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Vision technique to learn to perceive and then use the output of the computer vision technique within some kind of policy search framework.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is meant to be roughly represented the standard way of solving this task.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our second baseline, which is a little bit more sophisticated, is called the post features baseline.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this baseline we're going to train the convolutional layers in the same way as before, with the standard kind of vision technique.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then instead of feeding the predicted state variables to the fully connected layers, were actually going to feed the last layer features, and the reason that we want to compare against this baselines, because then we recover the same architecture as the one that we have in our intent rain policy.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this architecture architecture now is not training to its trains first separately for vision, and then separately for control, but it has the same architecture.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's look at how these baselines actually compare to our entrain method.",
+                    "label": 0
+                },
+                {
+                    "sent": "The post prediction baseline, which as I mentioned is the most similar to kind of the standard way of solving this type of problem in robotic learning actually ends up doing quite poorly that it succeeds about half the time on the coat hanger task, which was the easiest, and very rarely succeeds on the other tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "The post features baseline performed substantially better, but in the end Anton train policy achieves by far the highest success rate close to or higher than 90% of all the tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a little bit interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why does the post prediction baseline in particular fare so poorly?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, first of course we tested the accuracy of our post prediction of predicting that the pose of the shape sorting cube in particular, and we found that we get about 1.3 centimeters of error in predicting the 3D pose of the cube.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is actually quite reasonable.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some prior work on the same robot predicting the position of objects using checkerboards, and they got about 2 centimeters, so we're roughly in the same ballpark.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is not a bad pose detector.",
+                    "label": 0
+                },
+                {
+                    "sent": "The trouble is that the shape sorting cube is only a few millimeters of tolerance, so if you're 1.3 centimeters off then you're not going to be able to insert the shape into into shape sorting cube.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what this suggests is at the end, to end training policy is doing something very interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can't possibly be doing a better job of pose detection because not trained for pose detection, but it can do is it can adapt the perception system to the needs of the control system.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to sort the shapes into shape sorting cube, you don't really care how high up the cube is going to push down all the way.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's fine, you can use a robust strategy.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can slide in the shape from the side, which greatly increases your robustness to variation along that vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you need a lot more accuracy in the other direction, but in the parallel direction can be quite inaccurate.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is getting a lot of the ideas that I used to motivate this talk when I discuss how we when we combine perception and control, we can actually recover a sensory motor skill that is more robust and more reliable, but also a lot simpler.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And of course, guided policy search is a fairly general approach to learning robotic control policies.",
+                    "label": 1
+                },
+                {
+                    "sent": "We applied this method to a number of different tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "The manipulation tasks in which I showed in a stock in my dissertation work with Adam Colton.",
+                    "label": 1
+                },
+                {
+                    "sent": "I used the sagram to devise control policies for IP locomotion simulation, so this is a neural network controlling it by Peter Walker that's recovering from some very strong perturbations together with some colleagues at the University of Washington.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've applied this algorithm dextrous manipulation tasks, so this is actually a five finger, pneumatically driven hand that's trying to rotate the cylinder.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is a more recent work with Abhishek Gupta.",
+                    "label": 0
+                },
+                {
+                    "sent": "Inclement sopner on applying this algorithm combined with learning from demonstration for a soft inflatable hand.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is hand the consistent inflatable chambers and the algorithms controlling at the level of valve commands to inflate and deflate the chambers to perform some dexterous manipulation tasks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is also some ongoing work in simulation for applying these types of methods to autonomous flight.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of these results are shown using a fan of laser range finders and later on also using simulated vision.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a fairly general approach, and we've been applying it to a number of different robotic systems, and that's of course one of the benefits of using robotic learning that once you come up with a method that is fairly general, it's quite widely applicable.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_54": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "All right now in the in the second half of this talk, let me tell you a little bit about how we can scale up deep robotic learning.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_55": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And here I'm going to start off by taking a step backwards a little bit and look at kind of retrospectively at some of the reasons for the success of supervised learning in the past few years.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I think these are ideas that all of you are very familiar with.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I'll just recap now just to make sure we're on the same page.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, of course, one of the big reasons for the success of supervised learning and deep learning in particular has been the availability of large amounts of computation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things like GPU's and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's kind of a given of course also improvements in algorithms models.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those have been tremendously important, but the third one, and this is the point that really cannot be overstated.",
+                    "label": 0
+                },
+                {
+                    "sent": "The importance of the availability of large amounts of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, many of the most successful algorithms and models have been successful because of their ability to leverage and take advantage of large amounts of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So where do we stand when it comes to learning sensorimotor skills?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, we of course have access to the same computation we all have the same hardware.",
+                    "label": 0
+                },
+                {
+                    "sent": "The algorithms are perhaps not as far along, although there definitely progressing, but in the end there's no way for us to get around the question of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want highly generalizable sensory motor skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want to generalize, for example, different objects that we've never seen before, different situations, different environments, we're going to need to start thinking seriously about how we can get enough diversity of data for learning highly generalizable sensorimotor skills.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to begin tackling this question.",
+                    "label": 0
+                },
+                {
+                    "sent": "I spent some time working with colleagues at Google to scale up sensory motor learning and this is a parallel learning setup that we built for scaling up sensorimotor learning for a very particular sensory motor skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "The particular sensory motor skill that we're looking at here is robotic grasping, and all these robots.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's 14 robots in this room.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're all cooperating together to learn a single grasping skill.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now, the reason that we chose grasping for our sensor motor skill here first was because we're asking is a very fundamental manipulation skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you'd like to perform any kind of object manipulation, typically the first thing that you want to do is pick up that object.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the second reason, and this one is a little subtle, is that with grasping, the robots can always tell whether they perform this skill successfully.",
+                    "label": 0
+                },
+                {
+                    "sent": "They can see where their fingers closed, they can attempt drop the object back into the bin and see if the situation changes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's very easy to determine success and will come back to this notion of determining success later on the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "When I talk about future work.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for the grasping skills, we can evaluate it pretty easily using very simple heuristics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we're going to frame grasping the sensory motor skill, which means that our robots are going to continuously observe the world in front of them and react to it and take new actions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's going to be a controller that's running about 2 to 5 Hertz.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's going to continuously taken images from the robots onboard camera and take new decisions.",
+                    "label": 0
+                },
+                {
+                    "sent": "To maximize this probability of successful grasps.",
+                    "label": 0
+                },
+                {
+                    "sent": "This system that you're going to see it was trained on about 800,000 grasp attempts for total about 3000 robot hours and all of these results are going to be using a monocular camera over the shoulder camera so you can see the camera in this diagram here.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it's sometimes you will Mount the camera on the group, but this one is actually mounted over the shoulder, so it's quite far away and except for the evaluation of grasp success there's no prior knowledge about grasping that was actually used to build the system, so it's entirely learned from experience.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_57": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here's how we're going to actually set this up.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'd like to use efficient, scalable, supervised learning methods to train our sensory motor skill, just like we did in the previous section.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, we can't apply guided policy search directly, because when the robot attempts to grasp objects in front of it, it'll randomize the scene in front of it, so we can't necessarily rely on these deterministic resets to break up the task into instances, but we can still use supervised learning, and here's how we're going to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to set up a neural network that takes in the image from the robots onboard camera and a motor command in the form of a vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the gripper, and given this image in Motor Command is going to predict whether executing that motor Command in closing the gripper will produce a successful grasps.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going up with a probability number between zero and one that says how likely am I to successfully grasp something if given this image and this motor command execute the motor command and then close the fingers.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the way that we produce training data for the supervised learning method is that we're going to run our data collection using our latest network and then network is going to take a number of decisions and each time it makes a decision where we're going to record is the current image and the vector from where the gripper is now to where it was when the fingers closed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're not actually storing the action the robot actually took, but instead we're generating a new synthetic action from where the gripper is now to where it was when we finally closed the fingers, because that's where we're actually going to be able to evaluate whether the grass was successful or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it moves through some complicated trajectory.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each time noting down the vector from the current pose to the last pose and the last pose.",
+                    "label": 0
+                },
+                {
+                    "sent": "It closes the fingers.",
+                    "label": 0
+                },
+                {
+                    "sent": "Attempts to pick up the object, and that's what generates the label.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there's a little simplifying assumption that's implicit.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "The simplifying assumption is that regardless of which path you take to an object, once you close the fingers, your probability success is the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is simply not true, because of course, depending on how you get there.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you push things around a little bit, you might have a different outcome, but it's very convenient and we have something very convenient like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, it's definitely worth a try, because it turns out to actually work quite well in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then a test time we're going to do is we're going to sample a wide range of different motor commands, and we're going to pick the one for which the network predicts the highest probability of success.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to start executing that Motor Command and will immediately record a new image sample, new motor commands, and repeat this whole inference process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to basically run inference as fast as we can to continuously update the motion of the gripper.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do something a little more sophisticated than just sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're actually running a little stochastic optimization over the motion vector, called the cross entropy method, but it basically amounts to random sampling and choosing the best vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a greedy approach, meaning that it's not actually planning for the best grasp, but it is a continuous feedback, so it's continuously reevaluating strategy, responding to motion of objects in the world, responding to perturbations, and very importantly in this case actually responding to imprecise actuation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you remember, we have 14 robots, and we're training all 14 of those robots simultaneously.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_58": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This network doesn't know anything about camera calibration.",
+                    "label": 0
+                },
+                {
+                    "sent": "The pose of the cameras with the robot or the particular decision digital robot, and in fact we actually intentionally mounted the camera in a slightly different way on every robot.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are images from old 14 robots.",
+                    "label": 0
+                },
+                {
+                    "sent": "Older robots here holding the same pose, but you can see the images look quite different.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's because the camera pose is a little bit randomized, and the reason for that is because we want to build a grasping system that was agnostic to the pose of the camera.",
+                    "label": 0
+                },
+                {
+                    "sent": "So because it's agnostic opposed the camera, it actually do.",
+                    "label": 0
+                },
+                {
+                    "sent": "You do continuous feedback, so essentially learn hand eye coordination is to watch its own gripper.",
+                    "label": 0
+                },
+                {
+                    "sent": "And adjust the motor commands continuously to maximize probability of success.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_59": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's look at how much this this continuous feedback actually matters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on the right of the slide, you're going to see our system attention, grasp objects and you can see that it kind of changes mine a little bit takes a complex trajectory to the grass point, because continuously updating his behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "And left as a baseline that simply looks at the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "Use a known camera calibration to transform points in the image into the frame of the robot and then executes the grasp for the position where things that has the highest chance of succeeding and this is roughly representative.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some previous work from CMU by Pinto and Gupta, so the method on the left is that an open loop method that uses a known camera calibration and it's not.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a sensory motor skill, it's just a one shot scale.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's picking the best grass point and the right is our continuous sensory motor skill.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_60": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The continuous method.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the open method gets a failure rate about 33% on this test set.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're trained on the same data, but the test set contains objects at the methods I've never seen before, so these are test objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "And our method of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_61": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I read about 17.5%, so we're actually getting substantial benefit out of framing this assessor motor skill.",
+                    "label": 1
+                },
+                {
+                    "sent": "We also compared to a baseline that used a depth camera and an existing segmentation algorithm and they had a failure rate of about 35%.",
+                    "label": 1
+                },
+                {
+                    "sent": "So even though we're not using a depth camera, actually getting substantial improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is, I think, again getting back to some of the ideas that I mentioned in the beginning of this talk where when we combine perception action together we actually recover a sensory motor skill that is more effective that generalizes better.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that is actually simpler, because we don't need to worry about depth images.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't even worry bout camera calibration and so on.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_62": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So to wrap this up, let's look at some results of this method, and here I'm going to show you some experiments and sort of get what the system is actually learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here you're going to see a set of objects.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're all blue objects, and they're all roughly rectangular in profile, and for the rigid objects you can see that the robot surrounds the object on either side with fingers.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what's the fingers on either side and then picks it up?",
+                    "label": 0
+                },
+                {
+                    "sent": "But then for this next object, you're going to see after the eraser you're going to see a soft sponge, and for the soft sponge with the robot, does it actually pinches it?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's one of the things intentionally in the middle of the object, and this behavior is consistent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually we put different sponges informing put tissue, paper and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "It picks it up in this particular way.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using a pinch grasp.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's an object that is very heavy and large for this kind of obvious, very important grasp near the center of mass.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise you won't pick it up.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is an obvious, very small and flat, so this is the kind of thing that works very poorly with DEF cameras because it won't show up in a depth image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see it takes a little time to find the right grass, but in the end it succeeds.",
+                    "label": 0
+                },
+                {
+                    "sent": "This object is very large and kind of awkwardly shaped.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, you're going to see that is going to change his mind a few times to try to find the right kind of grass.",
+                    "label": 0
+                },
+                {
+                    "sent": "Pond wants to find a grass, but is happy with the ones that predicts that moving nowhere has a higher chance of succeeding then moving the gripper.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it will close the gripper.",
+                    "label": 0
+                },
+                {
+                    "sent": "This energy that resolution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the kind of thing that's very problematic for depth cameras because they don't tend to handle translucency very well.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for this object, aggressive by the handle because if you grasp by the round metal bit then you'll actually drop it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_63": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so I think I'm just about out of time, so I'll actually go briefly over future directions and then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_64": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Take some questions so I mentioned that one of the big challenges in learning sensorimotor skills is a data, and I presented one way that we can tackle it by having many robots in the same room, all learning together.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is part of the solution, but it's not the entire solution because besides just having a large quantity of data, we need a large diversity of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need data that is representative of what the robot will see at Test time, so I think one of the very important questions for us to address in future work in learning sensorimotor skills is to get robots out into the real world where they can learn continuously from the actual problems that will be asked to tackle at Test time.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, we have these Baxter robots that are all deployed in factories that are all engaged in packing boxes.",
+                    "label": 0
+                },
+                {
+                    "sent": "If they can pull their experience and together learn a single, highly generalizable box packing policy, it would not only make it robot more effective, but would also make it so when you run counter newness of this task, it will need to know how to solve it, and there are number of challenges associated with us, but I won't go into too much, but this is a very good kind of challenge problem for us to look at in deep robotic learn.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_65": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, I'd like to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank my collaborators Chelsea, Finn, Trevor Darrell and Peterbilt, UC Berkeley and Peter Pastor Alex for chef Scandurra Quillen at Google.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_66": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'll be happy to take any questions.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

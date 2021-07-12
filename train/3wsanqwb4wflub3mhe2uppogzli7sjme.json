@@ -1,0 +1,853 @@
+{
+    "id": "3wsanqwb4wflub3mhe2uppogzli7sjme",
+    "title": "Unfolding Physiological State: Mortality Modelling in Intensive Care Units",
+    "info": {
+        "author": [
+            "Marzyeh Ghassemi, Computer Science and Artificial Intelligence Laboratory (CSAIL), Massachusetts Institute of Technology, MIT"
+        ],
+        "published": "Oct. 8, 2014",
+        "recorded": "August 2014",
+        "category": [
+            "Top->Computer Science->Data Mining",
+            "Top->Computer Science->Knowledge Extraction"
+        ]
+    },
+    "url": "http://videolectures.net/kdd2014_ghassemi_physiological_state/",
+    "segmentation": [
+        [
+            "Hi everyone, I'm Marcia, Cassini from MIT and I'm going to talk to you about our latest work on unfolding physiological state mortality modeling in the ICU."
+        ],
+        [
+            "What's the problem that we're trying to solve here?",
+            "Clinicians are working in an ICU, and it's an intense high stakes environment, so there's a lot of patients.",
+            "There's a lot of information what they really want is some measure of patient acuity, so in real time I want to know how severely ill each patient is, and that way I can put my efforts on those who need it the most.",
+            "However, we don't really have a good marker for acuity, so instead what we're going to do is we're going to look at predicting mortality as a surrogate for acuity."
+        ],
+        [
+            "So we're using the mimic to database and it's a public database that has a lot of different types of data.",
+            "There's signals data that comes off of monitors, there's numerical data that nurses coming in giving fluids intermittently.",
+            "There's narrative information, that's clinicians, nurses, pathology reports all text data that's coming in and speaking about the patient.",
+            "And then there's what I'm going to call snapshot information.",
+            "Snapshot information is different from these other types of data, in that it's not being processed temporally, so.",
+            "It happens at the beginning of your stay, right?",
+            "As you come into the ICU.",
+            "I would note your age, your weight, the saps, one acuity score for how severely ill you look when you come in and it happens at the end of your stay.",
+            "So at the end of your stay we record things about what happened to you during your stay.",
+            "Those are things like ICD 9 disease codes.",
+            "So that's coded after the fact after you're discharged, especially in this database, there's other information like your elixhauser comorbidity scores.",
+            "Those are calculated to see what we think happened to you before you came into the hospital.",
+            "But I want to distinguish that this snapshot information happens at the end as opposed to some of the stuff that happens at the beginning."
+        ],
+        [
+            "So we said before that we're going to use these mortality models as a surrogate for acuity, and there's a rich history of doing this.",
+            "So in 2011, in 2009 alone, there were over 118 validated mortality prediction tools that were published, so some of the problems with these tools since there are so many is that they have only a modest accuracy.",
+            "They tend to work really well on one type of patient.",
+            "They don't work well across a large group of hetrogenous patients, and the models are often based on only one type of data.",
+            "So the waveform data, although based on numerical data.",
+            "Or maybe just the snapshot information on this snapshot information is by far the most common.",
+            "We're going to use these aggregate values because they're really easy to work with, and then we're going to make a prediction, and often the narrative information because it comes in at a regular intervals.",
+            "They have different lengths.",
+            "Sometimes the language is a little bit messy.",
+            "They're not used almost at all, so guiding us is we want to make a good predictive rule for mentality modeling, and we want to make sure that it's accurate in a wide variety of clinical settings.",
+            "We want to make sure it's easy to incorporate to the clinical routine.",
+            "And we want to make sure that it's accurate, it acts."
+        ],
+        [
+            "It gives you some predictive value.",
+            "So what is our plan?",
+            "We want to evaluate the use of text data in predicting mortality.",
+            "So we're going to create forward facing models every 12 hours.",
+            "And what I mean by that is I only want to use real time data.",
+            "I don't want to use data that was coded after you were discharged to predict what happened to you during your stay.",
+            "I only want to use data as it becomes available and I'll talk about what this real time windowing is.",
+            "We're going to incorporate this narrative data with some of that Snapshot data that is most common.",
+            "We're not going to look at signals or numeric data in this specific work.",
+            "And then we're going to measure the performance on mortality prediction in hospital Anna 30 days an one year post discharge from the hospital."
+        ],
+        [
+            "So here's an overview of our model.",
+            "First, we're going to look at the types of data that are available, so the notes are coming in at different times for different patients, but we're going to window them in 12 hour intervals, and I'll explain why.",
+            "In a couple slides we also have what I'm calling the snapshot information.",
+            "You'll notice the 1st three and the table are.",
+            "You're admitting age, gender, and saps one acuity score.",
+            "So those happened right at the very beginning, and we can use them throughout your stay.",
+            "There's also the information that comes later, Ann.",
+            "I'm going to call this for the purpose of the talk.",
+            "The feature engineering features so these are features that we chose that look over your entire state and give us a snapshot of what might have happened to you.",
+            "So this would be the maximum sapsan acuity score.",
+            "The minimum saps want acuity score, your final acuity score and also those 30 elixhauser comorbidities that are coded up by clinicians after you are discharged from the hospital.",
+            "So these are more of the feature engineering approach.",
+            "Their snapshot information that happens after the fact.",
+            "More retrospective.",
+            "So those are in pretty matrix form.",
+            "What do I do with all this messy text data?",
+            "So I'm going to every 12 hours, zero, 12 zero, 24 zero to 36, take all of the text that came in about you.",
+            "I'm going to feed it into a topic model.",
+            "We're going to train the topic model once and then evaluate it at these 12 hour intervals.",
+            "And that's going to map every set of notes from words to topics, and we chose 50 topics after a set of experiments, because more topics did not do better.",
+            "And then once you have these decomposed into a set of 50 features.",
+            "We can use those in combination with some of these other snapshot features and see how well each of them do."
+        ],
+        [
+            "So let's talk about the data.",
+            "We have over 19,000 adult ICU patient records that we're going to gather the per patient snapshot information, and then we're going to collect all of their notes, and that's over 470,000 notes.",
+            "We're only using each patients first admission to the ICU because we want data points to be independent and we're ignoring the discharge summaries.",
+            "That's the final note that comes in about a patient, because often they say what happens to a patient.",
+            "This patient died, and that's obviously pretty biased, so we don't want to use that information in our continuous predictions.",
+            "And the reason that we chose to do 12 hour intervals for aggregating notes and doing predictions, as you can see over the first 10 days in the ICU very consistently, there are two bumps in one nurses and care staff into the notes every 12 hours.",
+            "We have this nice bump, so that's why we're segmenting."
+        ],
+        [
+            "So looking at the topic features that we learned the baseline mortality is shown there as the middle bar and then topics that had a higher probability of mortality are shown in red topics that had a lower probability of mortality are shown in green.",
+            "So the baseline population mortality is 11% in the center and you can see, even though this is an unlabeled, it's an unsupervised method.",
+            "LDA doesn't use the labels to figure out topics, there seems to be pretty interesting differentiation between topics for patients who passed away and for patients who survived the hospital.",
+            "The highest bar there at 27 is almost around 30% mortality and then some of the lower bars go down to almost 1%.",
+            "When you look at topic number one and it makes sense when you look at the most probable words for those topics and then the human label that we could assign to them.",
+            "So for example the topics that are shown in red going up very high correspond to things that we know kill you in the ICU, respiratory failure, renal failure, talking about the end of life plan that you might have with.",
+            "Patient and the things that people survive the ICU from are also well known indicators of survival.",
+            "So if you come in with a fracture, if you come in with, you know managing your diabetes, you'll probably survive those.",
+            "An interesting one is cardiovascular surgery, and this is also a well known indicator of surviving the ICU because if you come in for cardiovascular surgery in poor health, they'll just tell you to go home, get healthy, and then come back when you're healthy.",
+            "So we also know that people tend to survive cardiovascular surgeries really well, but it's nice that it shows up in the data."
+        ],
+        [
+            "So now that we know that these topics do reasonably well at just a differentiation of an outcome based on probabilities, let's look at how we're going to do prediction.",
+            "So we're going to take all the notes in 12 hour segments were going to feed them through.",
+            "Now we have a set of words were going to feed them through, so we have a set of features, the 50 features, the 50 topics, and then we're going to do prediction with them every 12 hours to every 12 hours.",
+            "Adding more information as we get more notes, we're going to try to predict will this patient die in hospital?"
+        ],
+        [
+            "And then we need to compare this to something.",
+            "So we're also going to pick compare it to an admission baseline model.",
+            "So this is taking the data that's present when you first are admitted, the age, the gender, and the sapsan acuity score.",
+            "So those are not going to change, but I'm going to continue to try to predict your outcome.",
+            "Will you die or not based on this information that was present when you were admitted?",
+            "OK, so that's going to be my baseline moving forward, comparing to the topics, and then we're going to."
+        ],
+        [
+            "To combine them together so can I do better when I use both this topic information that's getting more and more robust as more notes come in and using this information that was available right when you were admitted to the ICU so."
+        ],
+        [
+            "Most work in this field do not tend to do this kind of time.",
+            "Varying make a prediction as you're caring for the patient work.",
+            "They tend to look at retrospective analysis, so if I can see everything about your record from beginning to end now, can I predict something about you?",
+            "That's usually what people do, and then they get these really great AUC's so I can predict, predict with a .9 three AUC.",
+            "Whether you will die in hospital if I know everything about you, so that's kind of a false analysis, but we wanted to make sure that our features were at least as competitive as other features that are published, and so we're also going to do those kind of retrospective analysis.",
+            "So the first retrospective analysis we're going to do is a retrospective topic model.",
+            "We're going to take every note that's present in your record.",
+            "Decompose those into words, map those words to the 50 topics, and then try to do prediction with that were then."
+        ],
+        [
+            "Going to combine that retrospective topic set with those things that were available at admission.",
+            "So that's the age, the gender and the admitting SAPS 1 score."
+        ],
+        [
+            "And then we're going to try to compare this to that feature engineering approach.",
+            "So if I if I can see your whole record and I can look at the minimum and the maximum acuity scores and your final acuity score and your comorbidities.",
+            "If I can get all of that information, how well is that going to do?",
+            "Because often that's an approach that people tend to use."
+        ],
+        [
+            "And then I'm going to try all of that together.",
+            "So everything how well can I do if I have all of these features together.",
+            "I'm trying to predict something and."
+        ],
+        [
+            "The results I want you to 1st focus on the top left graph, so that's in hospital mortality and what we thought would happen did happen.",
+            "Looking at the lines first, you see the blue line.",
+            "That's the admission baseline model, right?",
+            "So the onset when you first come into the ICU.",
+            "That information tends to be pretty good at predicting what's going to happen to you.",
+            "That makes sense, and then you see the topic model in Red doesn't do so well initially because I only have maybe one note about you.",
+            "I don't have that much information, but as you move forward in time.",
+            "They actually cross and so now as I get more and more note information from care staff about UI gets better and better at predicting.",
+            "Whereas the information that came in when you were admitted if less and less relevant, and so when you combine them, they actually complement each other and you can see that the green line is the top line in that graph.",
+            "Now looking at the retrospective models, those are the diamonds that are present, sort of after the lines, and those are showing you what happens if you can see everything and what's interesting is that the kitchen sink kind of approach.",
+            "The feature engineering approach that did the worst.",
+            "So that's the first diamond and then right on top of that up by .93%.",
+            "AUC is the topic model.",
+            "The retrospective topic model, so using all of the note information is more valuable than using all of these derived features that we tried to come up with.",
+            "And then when you combine them, you do the best of all and we did really well at predicting so we got up around .95 AUC and that same trend is present in all of the prediction regimes.",
+            "So you can see it for in hospital mortality.",
+            "The same thing for 30 day post discharge mortality.",
+            "The same thing for one year post discharge mortality.",
+            "So in general, what we're seeing is that combination of these features is always doing the best weather you doing it retrospectively or you're doing it in a time varying way and one thing I wanted to point out is.",
+            "Usually when you see these presentations, the line keeps going up as time moves forward, the prediction gets better and better.",
+            "In our case as time moves forward, patients get discharged.",
+            "There's a real incentive for doctors to get you out of the ICU, especially after the five day Mark, which is at about 120 hours right there.",
+            "And that's why you see our graphs go down.",
+            "That's why prediction is getting a little bit worse there because our training set gets a lot smaller as you approach that five day Mark as opposed to most datasets where as you move forward there's more data."
+        ],
+        [
+            "So what did we learn here?",
+            "We learned that text data is valuable, so the combination of the latent topic features and the snapshot features worked best in both the retrospective and the time varying scenarios.",
+            "We learned that the long term predictions are harder.",
+            "The combination of features were still able to do reasonable prediction, but it's just a harder prediction regime to function in.",
+            "And finally, I think we most importantly learned that these real time models are more valuable.",
+            "Just looking at a very retrospective view of what happened to you in a hospital is not going to be as valuable as being able to give a more continuous update about what you think about a patients mortality probability, and therefore a surrogate for acuity."
+        ],
+        [
+            "So thinking about our future work, another good property that are predictive rule needs to have is they have to be able to indicate some sort of effective treatment for whatever outcome you're trying to prevent, and so our work right now is trying to do a good job about having a variety of data and then predicting the mortality as a surrogate for acuity.",
+            "But we'd like to work on in the future are ways of confirming ways of confirming that systems like this could actually treat you, and it could suggest things that are relevant for a good outcome."
+        ],
+        [
+            "And if you want more details, please come to our poster tonight and thank you very much."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Hi everyone, I'm Marcia, Cassini from MIT and I'm going to talk to you about our latest work on unfolding physiological state mortality modeling in the ICU.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What's the problem that we're trying to solve here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Clinicians are working in an ICU, and it's an intense high stakes environment, so there's a lot of patients.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a lot of information what they really want is some measure of patient acuity, so in real time I want to know how severely ill each patient is, and that way I can put my efforts on those who need it the most.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, we don't really have a good marker for acuity, so instead what we're going to do is we're going to look at predicting mortality as a surrogate for acuity.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we're using the mimic to database and it's a public database that has a lot of different types of data.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's signals data that comes off of monitors, there's numerical data that nurses coming in giving fluids intermittently.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's narrative information, that's clinicians, nurses, pathology reports all text data that's coming in and speaking about the patient.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there's what I'm going to call snapshot information.",
+                    "label": 0
+                },
+                {
+                    "sent": "Snapshot information is different from these other types of data, in that it's not being processed temporally, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "It happens at the beginning of your stay, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "As you come into the ICU.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would note your age, your weight, the saps, one acuity score for how severely ill you look when you come in and it happens at the end of your stay.",
+                    "label": 0
+                },
+                {
+                    "sent": "So at the end of your stay we record things about what happened to you during your stay.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are things like ICD 9 disease codes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's coded after the fact after you're discharged, especially in this database, there's other information like your elixhauser comorbidity scores.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are calculated to see what we think happened to you before you came into the hospital.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I want to distinguish that this snapshot information happens at the end as opposed to some of the stuff that happens at the beginning.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we said before that we're going to use these mortality models as a surrogate for acuity, and there's a rich history of doing this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in 2011, in 2009 alone, there were over 118 validated mortality prediction tools that were published, so some of the problems with these tools since there are so many is that they have only a modest accuracy.",
+                    "label": 1
+                },
+                {
+                    "sent": "They tend to work really well on one type of patient.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't work well across a large group of hetrogenous patients, and the models are often based on only one type of data.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the waveform data, although based on numerical data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or maybe just the snapshot information on this snapshot information is by far the most common.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to use these aggregate values because they're really easy to work with, and then we're going to make a prediction, and often the narrative information because it comes in at a regular intervals.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have different lengths.",
+                    "label": 1
+                },
+                {
+                    "sent": "Sometimes the language is a little bit messy.",
+                    "label": 1
+                },
+                {
+                    "sent": "They're not used almost at all, so guiding us is we want to make a good predictive rule for mentality modeling, and we want to make sure that it's accurate in a wide variety of clinical settings.",
+                    "label": 1
+                },
+                {
+                    "sent": "We want to make sure it's easy to incorporate to the clinical routine.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we want to make sure that it's accurate, it acts.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It gives you some predictive value.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what is our plan?",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to evaluate the use of text data in predicting mortality.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to create forward facing models every 12 hours.",
+                    "label": 1
+                },
+                {
+                    "sent": "And what I mean by that is I only want to use real time data.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't want to use data that was coded after you were discharged to predict what happened to you during your stay.",
+                    "label": 0
+                },
+                {
+                    "sent": "I only want to use data as it becomes available and I'll talk about what this real time windowing is.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to incorporate this narrative data with some of that Snapshot data that is most common.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not going to look at signals or numeric data in this specific work.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to measure the performance on mortality prediction in hospital Anna 30 days an one year post discharge from the hospital.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's an overview of our model.",
+                    "label": 0
+                },
+                {
+                    "sent": "First, we're going to look at the types of data that are available, so the notes are coming in at different times for different patients, but we're going to window them in 12 hour intervals, and I'll explain why.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a couple slides we also have what I'm calling the snapshot information.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll notice the 1st three and the table are.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're admitting age, gender, and saps one acuity score.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those happened right at the very beginning, and we can use them throughout your stay.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also the information that comes later, Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to call this for the purpose of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "The feature engineering features so these are features that we chose that look over your entire state and give us a snapshot of what might have happened to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this would be the maximum sapsan acuity score.",
+                    "label": 0
+                },
+                {
+                    "sent": "The minimum saps want acuity score, your final acuity score and also those 30 elixhauser comorbidities that are coded up by clinicians after you are discharged from the hospital.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are more of the feature engineering approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "Their snapshot information that happens after the fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "More retrospective.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those are in pretty matrix form.",
+                    "label": 0
+                },
+                {
+                    "sent": "What do I do with all this messy text data?",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to every 12 hours, zero, 12 zero, 24 zero to 36, take all of the text that came in about you.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to feed it into a topic model.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to train the topic model once and then evaluate it at these 12 hour intervals.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's going to map every set of notes from words to topics, and we chose 50 topics after a set of experiments, because more topics did not do better.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then once you have these decomposed into a set of 50 features.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can use those in combination with some of these other snapshot features and see how well each of them do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's talk about the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have over 19,000 adult ICU patient records that we're going to gather the per patient snapshot information, and then we're going to collect all of their notes, and that's over 470,000 notes.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're only using each patients first admission to the ICU because we want data points to be independent and we're ignoring the discharge summaries.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the final note that comes in about a patient, because often they say what happens to a patient.",
+                    "label": 0
+                },
+                {
+                    "sent": "This patient died, and that's obviously pretty biased, so we don't want to use that information in our continuous predictions.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason that we chose to do 12 hour intervals for aggregating notes and doing predictions, as you can see over the first 10 days in the ICU very consistently, there are two bumps in one nurses and care staff into the notes every 12 hours.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have this nice bump, so that's why we're segmenting.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So looking at the topic features that we learned the baseline mortality is shown there as the middle bar and then topics that had a higher probability of mortality are shown in red topics that had a lower probability of mortality are shown in green.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the baseline population mortality is 11% in the center and you can see, even though this is an unlabeled, it's an unsupervised method.",
+                    "label": 0
+                },
+                {
+                    "sent": "LDA doesn't use the labels to figure out topics, there seems to be pretty interesting differentiation between topics for patients who passed away and for patients who survived the hospital.",
+                    "label": 0
+                },
+                {
+                    "sent": "The highest bar there at 27 is almost around 30% mortality and then some of the lower bars go down to almost 1%.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you look at topic number one and it makes sense when you look at the most probable words for those topics and then the human label that we could assign to them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example the topics that are shown in red going up very high correspond to things that we know kill you in the ICU, respiratory failure, renal failure, talking about the end of life plan that you might have with.",
+                    "label": 0
+                },
+                {
+                    "sent": "Patient and the things that people survive the ICU from are also well known indicators of survival.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you come in with a fracture, if you come in with, you know managing your diabetes, you'll probably survive those.",
+                    "label": 0
+                },
+                {
+                    "sent": "An interesting one is cardiovascular surgery, and this is also a well known indicator of surviving the ICU because if you come in for cardiovascular surgery in poor health, they'll just tell you to go home, get healthy, and then come back when you're healthy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we also know that people tend to survive cardiovascular surgeries really well, but it's nice that it shows up in the data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now that we know that these topics do reasonably well at just a differentiation of an outcome based on probabilities, let's look at how we're going to do prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to take all the notes in 12 hour segments were going to feed them through.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we have a set of words were going to feed them through, so we have a set of features, the 50 features, the 50 topics, and then we're going to do prediction with them every 12 hours to every 12 hours.",
+                    "label": 0
+                },
+                {
+                    "sent": "Adding more information as we get more notes, we're going to try to predict will this patient die in hospital?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And then we need to compare this to something.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're also going to pick compare it to an admission baseline model.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is taking the data that's present when you first are admitted, the age, the gender, and the sapsan acuity score.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those are not going to change, but I'm going to continue to try to predict your outcome.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will you die or not based on this information that was present when you were admitted?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's going to be my baseline moving forward, comparing to the topics, and then we're going to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To combine them together so can I do better when I use both this topic information that's getting more and more robust as more notes come in and using this information that was available right when you were admitted to the ICU so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Most work in this field do not tend to do this kind of time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Varying make a prediction as you're caring for the patient work.",
+                    "label": 0
+                },
+                {
+                    "sent": "They tend to look at retrospective analysis, so if I can see everything about your record from beginning to end now, can I predict something about you?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's usually what people do, and then they get these really great AUC's so I can predict, predict with a .9 three AUC.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whether you will die in hospital if I know everything about you, so that's kind of a false analysis, but we wanted to make sure that our features were at least as competitive as other features that are published, and so we're also going to do those kind of retrospective analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first retrospective analysis we're going to do is a retrospective topic model.",
+                    "label": 1
+                },
+                {
+                    "sent": "We're going to take every note that's present in your record.",
+                    "label": 0
+                },
+                {
+                    "sent": "Decompose those into words, map those words to the 50 topics, and then try to do prediction with that were then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Going to combine that retrospective topic set with those things that were available at admission.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the age, the gender and the admitting SAPS 1 score.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then we're going to try to compare this to that feature engineering approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I if I can see your whole record and I can look at the minimum and the maximum acuity scores and your final acuity score and your comorbidities.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I can get all of that information, how well is that going to do?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because often that's an approach that people tend to use.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And then I'm going to try all of that together.",
+                    "label": 0
+                },
+                {
+                    "sent": "So everything how well can I do if I have all of these features together.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm trying to predict something and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The results I want you to 1st focus on the top left graph, so that's in hospital mortality and what we thought would happen did happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looking at the lines first, you see the blue line.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the admission baseline model, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the onset when you first come into the ICU.",
+                    "label": 0
+                },
+                {
+                    "sent": "That information tends to be pretty good at predicting what's going to happen to you.",
+                    "label": 0
+                },
+                {
+                    "sent": "That makes sense, and then you see the topic model in Red doesn't do so well initially because I only have maybe one note about you.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have that much information, but as you move forward in time.",
+                    "label": 0
+                },
+                {
+                    "sent": "They actually cross and so now as I get more and more note information from care staff about UI gets better and better at predicting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whereas the information that came in when you were admitted if less and less relevant, and so when you combine them, they actually complement each other and you can see that the green line is the top line in that graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now looking at the retrospective models, those are the diamonds that are present, sort of after the lines, and those are showing you what happens if you can see everything and what's interesting is that the kitchen sink kind of approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "The feature engineering approach that did the worst.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the first diamond and then right on top of that up by .93%.",
+                    "label": 0
+                },
+                {
+                    "sent": "AUC is the topic model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The retrospective topic model, so using all of the note information is more valuable than using all of these derived features that we tried to come up with.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then when you combine them, you do the best of all and we did really well at predicting so we got up around .95 AUC and that same trend is present in all of the prediction regimes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can see it for in hospital mortality.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same thing for 30 day post discharge mortality.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same thing for one year post discharge mortality.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in general, what we're seeing is that combination of these features is always doing the best weather you doing it retrospectively or you're doing it in a time varying way and one thing I wanted to point out is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Usually when you see these presentations, the line keeps going up as time moves forward, the prediction gets better and better.",
+                    "label": 0
+                },
+                {
+                    "sent": "In our case as time moves forward, patients get discharged.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a real incentive for doctors to get you out of the ICU, especially after the five day Mark, which is at about 120 hours right there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's why you see our graphs go down.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's why prediction is getting a little bit worse there because our training set gets a lot smaller as you approach that five day Mark as opposed to most datasets where as you move forward there's more data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what did we learn here?",
+                    "label": 0
+                },
+                {
+                    "sent": "We learned that text data is valuable, so the combination of the latent topic features and the snapshot features worked best in both the retrospective and the time varying scenarios.",
+                    "label": 1
+                },
+                {
+                    "sent": "We learned that the long term predictions are harder.",
+                    "label": 0
+                },
+                {
+                    "sent": "The combination of features were still able to do reasonable prediction, but it's just a harder prediction regime to function in.",
+                    "label": 1
+                },
+                {
+                    "sent": "And finally, I think we most importantly learned that these real time models are more valuable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just looking at a very retrospective view of what happened to you in a hospital is not going to be as valuable as being able to give a more continuous update about what you think about a patients mortality probability, and therefore a surrogate for acuity.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So thinking about our future work, another good property that are predictive rule needs to have is they have to be able to indicate some sort of effective treatment for whatever outcome you're trying to prevent, and so our work right now is trying to do a good job about having a variety of data and then predicting the mortality as a surrogate for acuity.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we'd like to work on in the future are ways of confirming ways of confirming that systems like this could actually treat you, and it could suggest things that are relevant for a good outcome.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And if you want more details, please come to our poster tonight and thank you very much.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

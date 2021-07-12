@@ -1,0 +1,786 @@
+{
+    "id": "uh3abz3lombgzlgwmfyjnfk6a3xl3leq",
+    "title": "Using Cloud Shadows to Infer Scene Structure and Camera Calibration",
+    "info": {
+        "author": [
+            "Nathan Jacobs, Department of Computer Science and Engineering, Washington University in St. Louis"
+        ],
+        "published": "July 19, 2010",
+        "recorded": "June 2010",
+        "category": [
+            "Top->Computer Science->Computer Vision->Shape from X"
+        ]
+    },
+    "url": "http://videolectures.net/cvpr2010_jacobs_ucsi/",
+    "segmentation": [
+        [
+            "Alright, let's get started.",
+            "Welcome to the shape from X section session.",
+            "My name is Todd Zickler from Harvard University.",
+            "I'm going to be sharing this session.",
+            "We're going to have three talks that are going to be 15 minutes each, and then we'll have two minutes for questions after each talk.",
+            "And then following this, we're going to poster spotlights, 92nd spot lights, and so if you are presenting one of these spotlights, I see a few empty seats down here.",
+            "Please make sure you come and sit down here at the front and the reserved seating.",
+            "The first talk we have using cloud shadows to infer scene structure and camera calibration is from Nathan Jacobs, Brian Buys and Robert Pless Washington University in Saint Louis, and it's going to be presented by Nathan Jacobs.",
+            "Thank you, thanks for the introduction and good afternoon everybody."
+        ],
+        [
+            "So today there are."
+        ],
+        [
+            "Hundreds of thousands of cameras sitting still in the outdoors and just watching the world pass by, and I'm interested in Geo, locating, calibrate, and calibrating these cameras.",
+            "An inferring properties of the scenes that they view."
+        ],
+        [
+            "Here's a typical timelapse video captured by one of these cameras.",
+            "On a partly cloudy day.",
+            "Today I'll show you how we turn a video like this into a depth map of the scene."
+        ],
+        [
+            "There's been a lot of related work thinking about inferring geometric properties of outdoor scenes.",
+            "Given natural cues, there's been work that looks at explicit shadow tracking.",
+            "There's been work that looks at photometric cues to infer surface normals.",
+            "There's also been work that directly looks at the relationship between Hayes and Fog, and the depth to a given point in the scene.",
+            "And there's also been work that looks at how natural patterns can help you do find stereo correspondences."
+        ],
+        [
+            "So an outline of what I'm going to talk about today.",
+            "First I'm going to describe a spatial cue that you get from these clouds passing overhead.",
+            "Basically it says that nearby points.",
+            "I see similar clouds.",
+            "Then I'm going to describe a gradient descent based algorithm that uses this Q to infer a depth map.",
+            "Then I'll describe a temporal delay queue which basically says that the wind is pushing the clouds across the scene, and this gives us some constraints.",
+            "So then I'll describe a set of linear constraints that this gives us, followed by a local search that combines the spatial Q in this temporal delay queue to infer a depth map."
+        ],
+        [
+            "So the spatial cue is an instance of the first law of geography that states.",
+            "Everything is related to everything else, but near things are.",
+            "More related than distant things.",
+            "So the reason this applies?"
+        ],
+        [
+            "Our setting is that the closer two points are in the world, the more likely they are to be under the shadow of the same cloud.",
+            "So this, in essence, is the spatial cue."
+        ],
+        [
+            "So we can see this relationship in the following false color image that we've constructed by taking a single pixel.",
+            "This blue pixel and computing the correlation between the time series of intensities at that pixel and all the other pixels in the scene.",
+            "So that allows us to make this false color image where white is correlation one and black is correlation zero, and so you can see clearly from this image that correlation is related to distance.",
+            "So we do this for many pixels in the scene to get a large set of these correlation Maps that each show this relationship of correlation to distance.",
+            "One thing that's interesting to note in this if you look at the lower right image, the white area, so the high correlation region is much smaller in the image, and that's because it's in the distance, so that that's highlighting.",
+            "Is that this correlation distance relationship is not in terms of image distance, it's in terms of 3D distance in the world."
+        ],
+        [
+            "And so these correlation Maps that we've constructed here are the input to our depth map estimation algorithm.",
+            "So the big question is, what is the relationship between correlation and distance?",
+            "And it turns out that the answer is that depends.",
+            "It depends on the types of clouds that are passing overhead, and the length of the video that you're looking at.",
+            "But here's one concrete example of what this relationship often looks like, so we've taken a set of Geo registered satellite images over the course of a long number of days, and because we know this is a Geo registered satellite image, we know the distance between points, and we can compute the correlation.",
+            "So the scatter plot at the right shows the correlation.",
+            "Every point in that is the correlation.",
+            "Between a pair of points and the distance between those points.",
+            "And so you can see this relationship that says that as we get higher correlation, the distance is smaller and this is the relationship that we see in lots and lots of videos of outdoor scenes where the correlation is related to distance.",
+            "And so this is basically what we're going to be doing is we're going to be taking these correlation Maps and trying to think about what we expect to find in this correlation to distance mapping to then infer a depth map and the basic assumption that we're making is that this correlation to distance mapping is monotonically decreasing."
+        ],
+        [
+            "So the algorithm we use to infer a depth map given these correlation Maps is a variant of nonmetric multidimensional scaling, modified to have projective constraints.",
+            "So the way this algorithm works is we first compute correlations between pairs of pixels and then we use these correlation Maps to estimate the focal length and to create an initial planar depth map.",
+            "You can see the paper for more details on how we do that.",
+            "Then we use this planar depth map too.",
+            "Start an iterative process where we have three steps from this iterative process.",
+            "First we use the current depth map to estimate the distances between points.",
+            "So that allows us to construct the scatterplot that you see at the right, where we show the relationship between correlation and distance.",
+            "Then using this data we can estimate the mapping between correlation and distance.",
+            "We're going to estimate what is the expected distance for a given correlation.",
+            "Then we update the depth map.",
+            "To minimize the error in these distances.",
+            "So I'm going to give more details about these last two steps in a second, but first I thought it would be better to show you the algorithm running."
+        ],
+        [
+            "So here we have an image of a scene and on the bottom left is the initial depth map that we get from the planar initialization and on the right is the initial correlation to distance mapping that's implied by this planar depth map.",
+            "And so as this starts running, what you'll see on the left is that the buildings will start popping out of the ground plane in the depth map and on the right you'll see that the correlation the distance mapping becomes less and less uncertain."
+        ],
+        [
+            "And so now move on to talk about the two specific steps that I already promised you that I talked to you about.",
+            "So first is estimating the correlation to distance mapping.",
+            "So what we're trying to do here is estimate the expected value of distance for a given correlation.",
+            "And what we want to do, because we don't know what the form of this correlation distance mapping is.",
+            "We use a nonparametric, very flexible technique that all it does is enforce the monotonicity constraint.",
+            "So this is a regression tool called monotonic regression that ends up being a linear programming problem.",
+            "So what's great about this is that it allows a very flexible mapping from correlation to distance that doesn't depend on.",
+            "It doesn't make very strong assumptions on what that distribution should look like."
+        ],
+        [
+            "So now we use this correlation to distance mapping to then update our depth map.",
+            "So the way we do that is optimizing this using gradient descent to optimize this very simple objective function.",
+            "Where this is the correlation to distance mapping that we just estimated.",
+            "These are the distances that are implied by the current depth map.",
+            "So these are the depth.",
+            "These are the things we're trying to optimize.",
+            "And then here's some weights.",
+            "Some weights that depend on the correlation.",
+            "So we basically weight more strongly high correlations.",
+            "So essentially we're trying to update our depth map by minimizing this error term.",
+            "So you can visualize how this works."
+        ],
+        [
+            "In the following way.",
+            "So here we have an overhead view of the scene.",
+            "At the bottom you have the camera location and then you have the pixel Rays in yellow coming up.",
+            "So we're trying to estimate depth, so these are these red dots that are along these pixel Rays, so we're trying to determine the location of these.",
+            "These points.",
+            "So now we can think about this.",
+            "How do we update this?"
+        ],
+        [
+            "A single point, a single depth.",
+            "So what we can do is because we know the correlation between that and all the other points in the scene.",
+            "We can look up the correlation and then we can use our current correlation to distance mapping to look up the distance that we expect to be between those two points.",
+            "So that allows us to draw this circle on the overhead view of this scene.",
+            "And so now we can get a large number of these.",
+            "We get a large number of these circles, and essentially what we're trying to do is when we do our update, we're pushing the red point closer to where these circles intersect and along the Pixel race.",
+            "So that's essentially how you can visualize this correlation to distance mapping, updating the depth map."
+        ],
+        [
+            "So here's another example of a scene where we've manually masked out the regions in the water, because that doesn't.",
+            "That doesn't have this nice relationship, and we've automatically masked out some of the points in the scene that don't see the sun, so that they don't have this nice relationship with induced by the clouds.",
+            "But I think two things that are interesting to point out in these two examples.",
+            "This example one is the fine detail that you get in the distance.",
+            "The far left in those buildings, so it's pulling out very fine regions and then that the correlation distance mapping as a very different form than the previous example.",
+            "So it's really important that we have a very flexible model for this, 'cause if we didn't, we would probably be imposing some biases on the geometry of the scene."
+        ],
+        [
+            "So to give a quick recap of what I've shown so far, so we're assuming that we have this monotonically decreasing relationship between correlation and distance.",
+            "Right now we have an algorithm that essentially computes similarities between pairs of points and then uses a modified version of non metric multidimensional scaling to estimated depth map.",
+            "So this is one of the methods that we've shown that we can take that initial video of clouds passing overhead and turn this into a turn that into a depth map.",
+            "So now I'll move on to describe the temporal delay queue.",
+            "So here's how."
+        ],
+        [
+            "It works.",
+            "So you can imagine two points in the world wide and X.",
+            "The point Y is seeing roughly the same pattern of clouds as X, with a slight temporal delay.",
+            "The point Z, because it's not directly in line with the wind, sees a slightly different set of clouds, but it's going to have the same temporal delay, so this very simply stated is the temporal delay queue."
+        ],
+        [
+            "So this allows us to define a set of linear constraints on the locations of points in the world.",
+            "So we're going to assume that the wind velocity is given.",
+            "This is something that we can look up in a database because we can assume that we know the location and the time that the images were captured.",
+            "So we're going to assume that the wind velocity is given.",
+            "Then the unknowns that we're trying to solve for are the locations of the points in the world.",
+            "And now this time, the time that it takes for the clouds to get from point.",
+            "X to point Y is this T not something that we estimate from the image data."
+        ],
+        [
+            "So the way that we do that is by taking a pair of pixels and instead of just directly computing correlation between those, we search for the temporal delay that gives the highest correlation.",
+            "And So what so we can visualize this.",
+            "The output of this.",
+            "In the following with the following false color images, so we've used the Hue to denote the temporal delay between the pairs of pixels and the brightness to denote the confidence in this estimate of the temporal delay.",
+            "So you can see at the top there's a point in this far in the distance and you can see that it sees a much broader range of temporal delays due to parallax effects than points that are in the near ground.",
+            "And another interesting thing to note is that because the wind is blowing from left to right in the scene, and the clouds are fairly small, that the rain, the confidence, the regions of high confidence are fairly narrow and their end of the direction of the wind."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, let's get started.",
+                    "label": 0
+                },
+                {
+                    "sent": "Welcome to the shape from X section session.",
+                    "label": 0
+                },
+                {
+                    "sent": "My name is Todd Zickler from Harvard University.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to be sharing this session.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to have three talks that are going to be 15 minutes each, and then we'll have two minutes for questions after each talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then following this, we're going to poster spotlights, 92nd spot lights, and so if you are presenting one of these spotlights, I see a few empty seats down here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Please make sure you come and sit down here at the front and the reserved seating.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first talk we have using cloud shadows to infer scene structure and camera calibration is from Nathan Jacobs, Brian Buys and Robert Pless Washington University in Saint Louis, and it's going to be presented by Nathan Jacobs.",
+                    "label": 1
+                },
+                {
+                    "sent": "Thank you, thanks for the introduction and good afternoon everybody.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So today there are.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Hundreds of thousands of cameras sitting still in the outdoors and just watching the world pass by, and I'm interested in Geo, locating, calibrate, and calibrating these cameras.",
+                    "label": 0
+                },
+                {
+                    "sent": "An inferring properties of the scenes that they view.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here's a typical timelapse video captured by one of these cameras.",
+                    "label": 0
+                },
+                {
+                    "sent": "On a partly cloudy day.",
+                    "label": 0
+                },
+                {
+                    "sent": "Today I'll show you how we turn a video like this into a depth map of the scene.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "There's been a lot of related work thinking about inferring geometric properties of outdoor scenes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given natural cues, there's been work that looks at explicit shadow tracking.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's been work that looks at photometric cues to infer surface normals.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also been work that directly looks at the relationship between Hayes and Fog, and the depth to a given point in the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's also been work that looks at how natural patterns can help you do find stereo correspondences.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So an outline of what I'm going to talk about today.",
+                    "label": 0
+                },
+                {
+                    "sent": "First I'm going to describe a spatial cue that you get from these clouds passing overhead.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically it says that nearby points.",
+                    "label": 1
+                },
+                {
+                    "sent": "I see similar clouds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I'm going to describe a gradient descent based algorithm that uses this Q to infer a depth map.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then I'll describe a temporal delay queue which basically says that the wind is pushing the clouds across the scene, and this gives us some constraints.",
+                    "label": 1
+                },
+                {
+                    "sent": "So then I'll describe a set of linear constraints that this gives us, followed by a local search that combines the spatial Q in this temporal delay queue to infer a depth map.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the spatial cue is an instance of the first law of geography that states.",
+                    "label": 0
+                },
+                {
+                    "sent": "Everything is related to everything else, but near things are.",
+                    "label": 1
+                },
+                {
+                    "sent": "More related than distant things.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the reason this applies?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Our setting is that the closer two points are in the world, the more likely they are to be under the shadow of the same cloud.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this, in essence, is the spatial cue.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we can see this relationship in the following false color image that we've constructed by taking a single pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "This blue pixel and computing the correlation between the time series of intensities at that pixel and all the other pixels in the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that allows us to make this false color image where white is correlation one and black is correlation zero, and so you can see clearly from this image that correlation is related to distance.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we do this for many pixels in the scene to get a large set of these correlation Maps that each show this relationship of correlation to distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing that's interesting to note in this if you look at the lower right image, the white area, so the high correlation region is much smaller in the image, and that's because it's in the distance, so that that's highlighting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that this correlation distance relationship is not in terms of image distance, it's in terms of 3D distance in the world.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And so these correlation Maps that we've constructed here are the input to our depth map estimation algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the big question is, what is the relationship between correlation and distance?",
+                    "label": 1
+                },
+                {
+                    "sent": "And it turns out that the answer is that depends.",
+                    "label": 0
+                },
+                {
+                    "sent": "It depends on the types of clouds that are passing overhead, and the length of the video that you're looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "But here's one concrete example of what this relationship often looks like, so we've taken a set of Geo registered satellite images over the course of a long number of days, and because we know this is a Geo registered satellite image, we know the distance between points, and we can compute the correlation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the scatter plot at the right shows the correlation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every point in that is the correlation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Between a pair of points and the distance between those points.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so you can see this relationship that says that as we get higher correlation, the distance is smaller and this is the relationship that we see in lots and lots of videos of outdoor scenes where the correlation is related to distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this is basically what we're going to be doing is we're going to be taking these correlation Maps and trying to think about what we expect to find in this correlation to distance mapping to then infer a depth map and the basic assumption that we're making is that this correlation to distance mapping is monotonically decreasing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the algorithm we use to infer a depth map given these correlation Maps is a variant of nonmetric multidimensional scaling, modified to have projective constraints.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way this algorithm works is we first compute correlations between pairs of pixels and then we use these correlation Maps to estimate the focal length and to create an initial planar depth map.",
+                    "label": 1
+                },
+                {
+                    "sent": "You can see the paper for more details on how we do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we use this planar depth map too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Start an iterative process where we have three steps from this iterative process.",
+                    "label": 1
+                },
+                {
+                    "sent": "First we use the current depth map to estimate the distances between points.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that allows us to construct the scatterplot that you see at the right, where we show the relationship between correlation and distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then using this data we can estimate the mapping between correlation and distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to estimate what is the expected distance for a given correlation.",
+                    "label": 1
+                },
+                {
+                    "sent": "Then we update the depth map.",
+                    "label": 0
+                },
+                {
+                    "sent": "To minimize the error in these distances.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to give more details about these last two steps in a second, but first I thought it would be better to show you the algorithm running.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here we have an image of a scene and on the bottom left is the initial depth map that we get from the planar initialization and on the right is the initial correlation to distance mapping that's implied by this planar depth map.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so as this starts running, what you'll see on the left is that the buildings will start popping out of the ground plane in the depth map and on the right you'll see that the correlation the distance mapping becomes less and less uncertain.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And so now move on to talk about the two specific steps that I already promised you that I talked to you about.",
+                    "label": 0
+                },
+                {
+                    "sent": "So first is estimating the correlation to distance mapping.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what we're trying to do here is estimate the expected value of distance for a given correlation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we want to do, because we don't know what the form of this correlation distance mapping is.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use a nonparametric, very flexible technique that all it does is enforce the monotonicity constraint.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a regression tool called monotonic regression that ends up being a linear programming problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what's great about this is that it allows a very flexible mapping from correlation to distance that doesn't depend on.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't make very strong assumptions on what that distribution should look like.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now we use this correlation to distance mapping to then update our depth map.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the way we do that is optimizing this using gradient descent to optimize this very simple objective function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Where this is the correlation to distance mapping that we just estimated.",
+                    "label": 1
+                },
+                {
+                    "sent": "These are the distances that are implied by the current depth map.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are the depth.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are the things we're trying to optimize.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then here's some weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some weights that depend on the correlation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we basically weight more strongly high correlations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So essentially we're trying to update our depth map by minimizing this error term.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can visualize how this works.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In the following way.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we have an overhead view of the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the bottom you have the camera location and then you have the pixel Rays in yellow coming up.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we're trying to estimate depth, so these are these red dots that are along these pixel Rays, so we're trying to determine the location of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "These points.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we can think about this.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we update this?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "A single point, a single depth.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we can do is because we know the correlation between that and all the other points in the scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can look up the correlation and then we can use our current correlation to distance mapping to look up the distance that we expect to be between those two points.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that allows us to draw this circle on the overhead view of this scene.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so now we can get a large number of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get a large number of these circles, and essentially what we're trying to do is when we do our update, we're pushing the red point closer to where these circles intersect and along the Pixel race.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's essentially how you can visualize this correlation to distance mapping, updating the depth map.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's another example of a scene where we've manually masked out the regions in the water, because that doesn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "That doesn't have this nice relationship, and we've automatically masked out some of the points in the scene that don't see the sun, so that they don't have this nice relationship with induced by the clouds.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I think two things that are interesting to point out in these two examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "This example one is the fine detail that you get in the distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "The far left in those buildings, so it's pulling out very fine regions and then that the correlation distance mapping as a very different form than the previous example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's really important that we have a very flexible model for this, 'cause if we didn't, we would probably be imposing some biases on the geometry of the scene.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to give a quick recap of what I've shown so far, so we're assuming that we have this monotonically decreasing relationship between correlation and distance.",
+                    "label": 1
+                },
+                {
+                    "sent": "Right now we have an algorithm that essentially computes similarities between pairs of points and then uses a modified version of non metric multidimensional scaling to estimated depth map.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is one of the methods that we've shown that we can take that initial video of clouds passing overhead and turn this into a turn that into a depth map.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now I'll move on to describe the temporal delay queue.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's how.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It works.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can imagine two points in the world wide and X.",
+                    "label": 0
+                },
+                {
+                    "sent": "The point Y is seeing roughly the same pattern of clouds as X, with a slight temporal delay.",
+                    "label": 1
+                },
+                {
+                    "sent": "The point Z, because it's not directly in line with the wind, sees a slightly different set of clouds, but it's going to have the same temporal delay, so this very simply stated is the temporal delay queue.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So this allows us to define a set of linear constraints on the locations of points in the world.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we're going to assume that the wind velocity is given.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is something that we can look up in a database because we can assume that we know the location and the time that the images were captured.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to assume that the wind velocity is given.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the unknowns that we're trying to solve for are the locations of the points in the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now this time, the time that it takes for the clouds to get from point.",
+                    "label": 0
+                },
+                {
+                    "sent": "X to point Y is this T not something that we estimate from the image data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the way that we do that is by taking a pair of pixels and instead of just directly computing correlation between those, we search for the temporal delay that gives the highest correlation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what so we can visualize this.",
+                    "label": 0
+                },
+                {
+                    "sent": "The output of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the following with the following false color images, so we've used the Hue to denote the temporal delay between the pairs of pixels and the brightness to denote the confidence in this estimate of the temporal delay.",
+                    "label": 1
+                },
+                {
+                    "sent": "So you can see at the top there's a point in this far in the distance and you can see that it sees a much broader range of temporal delays due to parallax effects than points that are in the near ground.",
+                    "label": 0
+                },
+                {
+                    "sent": "And another interesting thing to note is that because the wind is blowing from left to right in the scene, and the clouds are fairly small, that the rain, the confidence, the regions of high confidence are fairly narrow and their end of the direction of the wind.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

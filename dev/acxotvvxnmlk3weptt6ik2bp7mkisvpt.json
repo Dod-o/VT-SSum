@@ -1,0 +1,2349 @@
+{
+    "id": "acxotvvxnmlk3weptt6ik2bp7mkisvpt",
+    "title": "Learning Rules: From PCFGs to Adaptor Grammars",
+    "info": {
+        "author": [
+            "Mark Johnson, Brown Laboratory for Linguistic Information Processing, Brown University"
+        ],
+        "published": "Aug. 11, 2008",
+        "recorded": "July 2008",
+        "category": [
+            "Top->Computer Science->Machine Learning->Human Language Technology"
+        ]
+    },
+    "url": "http://videolectures.net/icml08_johnson_lrf/",
+    "segmentation": [
+        [
+            "Alright, so so this is.",
+            "This is sort of based on joint work with Sharon Goldwater and Tom Griffiths.",
+            "In fact, you know.",
+            "So the the basic story is that Tom was at Brown University for about a year and a half and he taught us all this Chinese restaurant, nonparametric Bayes stuff and Sharon implemented several models based on that for her for her thesis and.",
+            "Actually, after a while I was saying, oh, Gee, wouldn't it be good to be able to combine these models together and sharing goes Oh my goodness, each of them is a complicated C++ program.",
+            "You know I'd have to write something incredibly complicated to put them together, and I was thinking, you know, actually they really ought to fit together in some more systematic manner.",
+            "And that's actually what led me to think about these adaptive."
+        ],
+        [
+            "It is.",
+            "So I'll see if I can also connect this to the issue of of prior knowledge as well, so Mark just said I should be controversial and so here's one of my first controversial claims, which is that, roughly speaking, our machine learning methods are successful when we can reduce the problem to parameter estimation.",
+            "And that's really the thing that we know how to do well.",
+            "So if we can reduce the problem to one where there's a objective function, there's a finite vector of parameters, and we're trying to learn the values of those parameters.",
+            "We actually have some tools for doing that, that sort of thing.",
+            "In fact, I actually think the learning problems are essentially solved by the time you've reduced them to that stage.",
+            "The really hard things are to try and figure out what those parameters ought to be.",
+            "How should you character, right?",
+            "What are the right features?",
+            "How should you characterize?",
+            "Your problem, what are the right sorts of rules to use if you're thinking about a grammar rather than just looking at the weights of those things?",
+            "So the thing that actually excites me about?",
+            "The nonparametric Bayes stuff is that I think that it's starting to give us some tools to actually be able to learn what the parameters are, what the rules are, as well as their values.",
+            "So I like to think about things in terms of grammars and so the reason why I came up with this adapter grammar framework is that it's actually a framework for specifying hierarchical nonparametric Bayesian models.",
+            "And as you'll see, these things are actually approximated by probabilistic context free grammars.",
+            "But it's a rather funny sort of approximation where not just the probabilities of the rules, but actually the number of rules and the right hand sides of the rules actually wind up depending on the data.",
+            "So actually the inference algorithm, which I may not have enough time to get into in this talk, actually uses a PC as a proposal distribution, but the PC FG actually changes dynamic.",
+            "The rules in the CFG changes dynamically during the sampling process.",
+            "One of the points that I'm going to try and make here today is that prior knowledge, the shape of possible rules, that's actually what you wind up specifying in the adapter grammar that actually plays a crucial role, and I'll be concentrating on one particular problem that I've been studying for awhile, which is the word segmentation problem.",
+            "Will actually see that because we're doing unsupervised learning, it's actually necessary to balance structure above and below."
+        ],
+        [
+            "Of the world.",
+            "So one big question that I've that's motivated a lot of the work that I've, you know that I'm doing here, is really.",
+            "Is there any light under the hierarchical Bayesian model lamppost?",
+            "For studying for understanding language acquisition?",
+            "And I'm actually interested in trying to evaluate different potential sources of information for language acquisition.",
+            "You'll actually see by changing the grammar we change the types of generalizations that the model can learn, and then then a question, how much knowledge do we actually have to build in, and how much knowledge is actually useful.",
+            "And.",
+            "I think this is actually one thing I'm currently very interested in as synergies and learning, and in fact you will wind up saying that we actually get better performance on a task if we learn several other things at the same."
+        ],
+        [
+            "On with that so.",
+            "You know I'm talking about language learning.",
+            "You might say, well, Gee, why isn't he talking about learning syntax and you know, to be honest with you, if I actually had something interesting to say about learning syntax, I'd be saying that here.",
+            "I I'm a little worried about learning syntax.",
+            "I think there's actually no real evidence that syntax can be learned from strings alone.",
+            "I think syntax really is the framework on which semantics meaning hangs off, and I actually think the justification for syntactic structure is so semantic interpretation can take place.",
+            "If that's the case, there's no reason to expect that you should be able to learn it just by looking purely at the strings alone, unless you.",
+            "Unless you actually get some information about what the meanings are there associated with those strings may not be possible to learn it at all.",
+            "So in this talk I'm going to be focusing on phenomena that are sort of somewhat lower level, so hopefully they are less dependent on meaning.",
+            "We know that these things are learned earlier by children, so hopefully they may be actually easier to learn than syntax, but as you'll see, there still actually exhibits some structural complexities.",
+            "So the first type of problem I'll be looking at.",
+            "Is what I'll just call unsupervised unsupervised morphological analysis.",
+            "So roughly speaking, the input consists of something that looks like expanded.",
+            "And you can see in here there's a potential break between each pair of adjacent characters and what the learner actually has to do is to figure out that in fact, actually there's a morpheme boundary between expand and the D suffix, as the past tense.",
+            "And then later we'll be talking about the issue of trying to do word segmentation by word segmentation.",
+            "What I mean is the input consists of this sort of broad phonemic input here.",
+            "This is you want to see the book, but there's no spaces in between the words, and in fact, that corresponds to the problem that a child faces when it's learning language.",
+            "There's no pauses in between individual words inside of a speech utterance, and so the child needs to segment the speech utterance.",
+            "So we're going to try and see if we can work out where the word boundaries ought to be placed, even though they're not explicitly marked in the end."
+        ],
+        [
+            "OK, alright so."
+        ],
+        [
+            "So I just want to lay out this framework here.",
+            "I think most of you probably know about context free grammars and probabilistic context free grammars.",
+            "We've had several talks of this.",
+            "I CML workshop about these things.",
+            "So a context free grammar is something which tells you essentially how to expand apparent like a sentence into a sequence of children, like a noun phrase and a verb phrase, and so, given a set of context free rules, that's going to generate a set of trees, and those are the trees that can be built out of by treating each of these rules or specifying what the local trees are like, and then composing those together.",
+            "So the rules here will let me build a tree like sandbox, for example, a probabilistic context free grammar is 1, where each one of these rules.",
+            "Is associated with a probability and admission probability, and so the probability of the tree is the product of the probabilities of the rules that are used to build it up."
+        ],
+        [
+            "OK.",
+            "So alright, so given this context free machinery, you might say, well, Gee, can I in fact actually solve this morphological segmentation problem that I was talking about before, so maybe I can write a little context free grammar.",
+            "Now I don't know what the words or the stems or the suffixes are.",
+            "This is unsupervised, so I'm going to write this little grammar so it can generate all possible stems and all possible suffixes.",
+            "And I'll say that a word that very top rule up there says that a word consists of a stem followed by a suffix.",
+            "I don't know anything more about the stem than the fact that it's a sequence of characters or the suffix about a suffix, and then it's a sequence of characters, so that's what that grammar is really expressing.",
+            "So actually, given an input like talking, this grammar is going to wind up, you know, will wind up generating a tree that looks like this.",
+            "And this tree in fact, actually correctly represents the segmentation of talking into the stem talk plus the suffix ING.",
+            "However, if there's any.",
+            "Grammar people in here, you know?",
+            "At this stage they probably sort of looking at this and saying this is nuts, right?",
+            "The reason why this is not so, because if you tried to learn morphology using this sort of grammar, there's not a prayer that it's going to work.",
+            "And the reason why is because the units of generalization, the things which are being learned inside of a context free grammar, are the probabilities on these rules, and so the types of things that you can learn by adjusting the probabilities on these rules here are going to be things like well.",
+            "What the probability is that a character is a T or what the probability is that sequence of characters ends or doesn't end, but there's just simply no rules up there that correspond to learning that talk is a stem, right?",
+            "So even though this grammar can represent the true segmentation into stem plus a suffix, the units of generalization are too small.",
+            "These units of generalization give it doesn't matter how good your learning algorithm is.",
+            "If the only generalizations it's allowed to make.",
+            "Associated with probabilities in these rules, there's no way that it can learn stems and suffixes.",
+            "Is that sort of relative?"
+        ],
+        [
+            "Weekly.",
+            "So the next thing you might wind up saying as well actually, yeah, so maybe what we need rules that encompass far more structure, so I might want to say again that a word consists of a stamina suffix.",
+            "Istem expands to all possible stems and a suffix expands to all possible suffixes, so these rules will then let me generate something like talking consists of a stem talk plus a suffix ING so that actually looks much better now.",
+            "Right now I've actually got the.",
+            "The basic machinery to be able to at least learn a generalization that talk is a stem.",
+            "The only thing is I think you should always keep your hand on your wallet whenever anybody is writing up a formal model, and they have to break into English like I did up there right to write up a little bit of English.",
+            "You know all possible stems, or all possible suffixes.",
+            "So in particular, there's an unbounded number of possible rules Now, so this is no longer a context free grammar, where now actually off in some other space.",
+            "What's actually interesting is that this really isn't actually a practical problem, so given any string like talking here, there's only a finite number of ways in which it could be broken up into a stem and a suffix, right?",
+            "So even though there's an unbounded number of potential rules, there's only a finite number of them which could actually be used to analyze any particular data item.",
+            "And in fact, if our corpus is finite, there's only a finite number of potential rules that can be used to analyze the corpus.",
+            "So there's a sense in which actually this isn't.",
+            "Yeah, this is undefined.",
+            "You know, talking about grammars with infinite numbers of rules, but in fact actually given the data.",
+            "The problem is a nice finite problem, and I actually think that's a crucial insight which the nonparametric Bayesian approaches wind up actually leveraging.",
+            "In fact, in fact specifically.",
+            "You know the algorithm that I wind up using is an MCMC sampler over these Palace trees.",
+            "So even though I'm going to be essentially considering context free grammars, that will have things saying that stems consist of all possible stems or possible sequences of characters.",
+            "Well, I'm actually sampling a past tree for a given string, there's only a finite number of potential trees that I need to be sampling within.",
+            "So that actually says that maybe in fact actually this type of."
+        ],
+        [
+            "Thing is not such a bad way of doing business.",
+            "So sort of now to back off a little bit.",
+            "You know I've already told you that the type of thing I'm interested in, a nonparametric extensions of context free grammars and one reason to think that it makes sense to try and put the nonparametric Bayesian techniques like Dursley processes together with context free grammars is becausw.",
+            "Context.",
+            "Free grammars are essentially products of multinomial's.",
+            "Products of dursley's of the natural conjugate priors for them.",
+            "Dursley Process is of the natural generalization of Dursley Multinomial's.",
+            "So in fact you know you would expect that there ought to be a natural generalization of context.",
+            "Free grammars, Bayesian context, free grammars, a natural nonparametric extension of 'em, and I think there's sort of two obvious ways of going nonparametric with context free grammars, so one is to imagine that we're going to let the number of nonterminals just simply grow unboundedly.",
+            "So the idea is our original grammar might have said sentence goes to noun phrase followed by verb phrase.",
+            "But what I'm going to say is, well, yeah, maybe maybe in fact, actually the grammar was collapsing categories, maybe in fact, actually there's not just one sentence type.",
+            "There's in fact actually 50 different sentence types.",
+            "And so in fact, I might actually have a rule that says say something like sentence type 35 goes to noun phrase type 27 and verb phrase type 17.",
+            "And so now this is certainly going to get an infinite P CFG if I'm not going to put any bound on the number of different sentence types and noun phrase types and verb phrase types that way.",
+            "And this actually leads to the, you know, the PC of the extension of the infinite hmm and that's actually something that the guys at Berkeley have investigated and a number of other people have investigated as well.",
+            "But I think there's another way to also go and nonparametric and that is to actually imagine that the number of rules.",
+            "So we're still going to keep the same number of nonterminals.",
+            "But we're just going to let the number of rules grow unboundedly, and so now we need some mechanism that's actually going to give us new rules.",
+            "We need some base distribution from which we can draw draw new rules when we require them in order to parse a string, and the approach that adaptor grammar takes is it says that the new rules are really actually compositions of multiple.",
+            "Old rules from the original grammar.",
+            "And in fact, that's going to wind up being equivalent to essentially saying that, yeah, we can assign probabilities, not just two rules, but in fact two entire tree fragments.",
+            "And if the original grammar generates an infinite number of trees, then there's going to be an infinite number of these tree fragments, and so that's actually how this adaptive grammars become.",
+            "Nonparametric doesn't unbounded number of fragments that can essentially get their own probabilities, and even though we haven't.",
+            "As far as I know, nobody's actually done it.",
+            "In principle, you should be able to go nonparametric in both ways simultaneously, I don't see any reason why you couldn't."
+        ],
+        [
+            "But so, how do these adapter grammars work?",
+            "Well, you've got a base set of rules, just as in context free grammar, and these actually determine the set of possible structures.",
+            "So the set of possible trees, just the set of trees that the context free rules can let you build.",
+            "When you specify one of these adaptive grammars, you need to say which of the non terminals are adapted.",
+            "And unadapted nonterminals expand.",
+            "Just as you're used to inside of a context free grammar.",
+            "Namely, you expand apparent you find all the rules that expand the parent, and then choose one of them proportional to the probability of the rule.",
+            "Adapted Nonterminals, however, have a special way of expanding right.",
+            "They can expand in two ways.",
+            "They can either expand just like enough ordinary non terminal does, namely by picking a rule and recursively expanding its children or else what you can do is just simply take a previously generated tree and return it and the probability of doing this is in fact proportional to the number of times the trees been previously generated.",
+            "So what this actually means is that each adapted subtree behaves.",
+            "Like a new rule which has been added to the grammar.",
+            "And so the context free rules of the original grammar actually really determined the base distribu."
+        ],
+        [
+            "Over these trees.",
+            "So this is a rather for people that are used to probabilistic models of grammars.",
+            "This is a rather funny grammar model because the sequence of trees that this grammar generates in fact actually aren't independent.",
+            "Some as you tell me the grammar.",
+            "The sequence of trees it produces aren't conditionally independent.",
+            "Given the grammar.",
+            "Instead, with Annette and adaptor grammar.",
+            "Essentially what happens is that the distribution adapts to the probability distribution based on the data that it's already had to generate.",
+            "That that really means that it's learning from the data it's generated previously.",
+            "So if an adapted subtrees been used frequently in the past, it's more likely to be used again.",
+            "We do enjoy the exchange ability property, which is of course crucial to be able to get our sample's to work.",
+            "This just sort of goes over the details again, so remember an unadapted nonterminal expands using a rule a rewrites as beta with some probability that specified in the base context free grammar and adapted non terminal expands to an entire subtree rooted in a with probability proportional to the number of times that the subtree was previously generated.",
+            "And then here's the dish, like concentration parameter Alpha over there.",
+            "It can also expand using the context free rule with probability proportional to the concentration."
+        ],
+        [
+            "At times, the world probability.",
+            "So let's go back to this original grammar, which, as I said, really doesn't work for just at the context free level and will see actually now will work as an adaptor grammar, and so the basic idea is going to be as an adaptor grammar.",
+            "We can actually learn the probabilities of entire subtree fragments, which lets us essentially in the probability that talk and sustem and ING as a suffix.",
+            "And the way in which we'll do that is that will wind up adapting, would stem and suffix inside of this gram."
+        ],
+        [
+            "And so this is the sort of like obligatory Chinese restaurant.",
+            "Model here so inside of an adaptor grammar.",
+            "It's a rather funny Chinese restaurant sort of setup.",
+            "There's there's one Chinese restaurant for each adapted non terminal.",
+            "So in this case we've got one for word, one for STEM and one for suffix.",
+            "And."
+        ],
+        [
+            "So the first customer walks into the word restaurant and these are labeled Chinese restaurant processes, so we need to in fact actually give that customer something to which we need to put a dish of food sitting on the table there.",
+            "There's nothing sitting there yet, but we do have inside of the word restaurant is a recipe for making words, and that says, yeah, word consists of a stem followed by a suffix, so this word restaurant, as I said, it's a funny restaurant.",
+            "What it actually does is it orders out so.",
+            "They send out way."
+        ],
+        [
+            "Does that go to the stamina suffix?",
+            "Restaurant may sit down at the tables there.",
+            "And they say, give me a stamp, give me a suffix.",
+            "And the stand restaurant's got a recipe which says that the stem consists of a sequence of phonemes."
+        ],
+        [
+            "So they generate a sequence of phonemes, maybe like by An's suffix might be yes, and then that food is then taken."
+        ],
+        [
+            "Back to the word restaurant where it's assembled to form a new word like buys OK the next."
+        ],
+        [
+            "Customer can walk in, sit down at a fresh table.",
+            "Again, we need to produce a label, do some food for that."
+        ],
+        [
+            "Customer to eat.",
+            "So we order out producer stamina suffix.",
+            "So is here what we're doing is we're actually producing a fresh stem, but reusing a suffix.",
+            "So we now need to Jenna."
+        ],
+        [
+            "Right and you stand, we might generate, run for example."
+        ],
+        [
+            "So this now gives us runs."
+        ],
+        [
+            "The next customer comes in.",
+            "It might sit down at the same table as the first customer sat, in which case now we don't have to do any generation because the we've already got some food sitting at that."
+        ],
+        [
+            "Apple.",
+            "Met someone like this now.",
+            "Sitting at 1/3."
+        ],
+        [
+            "Generating a third word and that might actually consist of reusing."
+        ],
+        [
+            "Stand by and."
+        ],
+        [
+            "Using a fresh suffix."
+        ],
+        [
+            "Give us by and so on like this.",
+            "Cooking process.",
+            "Yes, yes.",
+            "Just in time manufacturing.",
+            "Yeah yeah.",
+            "Yeah, that's a good idea.",
+            "Yeah.",
+            "So anyway, so what's going to happen here is that we can see this as a hierarchical.",
+            "In fact, it is a hierarchical display process, so we expand each word into a previously generated word with probability proportional to the number of times that we've generated that word before, or else we can expand word into a stem and a suffix with probability proportional to Alpha word times the probability of generating the standard fresh and the probability generating the stuff for the suffix of fresh.",
+            "And then if we ask to generate a new stem.",
+            "Well, that can be expanded into a sequence of phonemes with probability proportional to the number of times that we saw.",
+            "That sequence of phonemes as a stem before or else.",
+            "Proportional essentially to the probability of generating that sequence of findings are fresh.",
+            "And this turns out to be a hierarchical display process, with the stem in the suffix distributions defined the base distrib."
+        ],
+        [
+            "Patience for the word dislike process.",
+            "And in fact, it's sort of one thing that sort of kind of weird is that the Bayesian hierarchy actually inverts the syntactic hierarchy, so.",
+            "Grammatically or syntactically, a word is composed of a statement, a suffix which are in turn composed of characters.",
+            "But in terms of the generative process.",
+            "You essentially sort of generate the lowest level display processes, the one that generates the words.",
+            "And it's only when it's time to generate a fresh table that you actually back off to the stemona suffix restaurants.",
+            "So in fact, lower in the syntactic tree actually means higher in the Bayesian higher."
+        ],
+        [
+            "Rocky.",
+            "Which is sort of kind of interesting.",
+            "There's also a few interesting properties of these adaptive grammars, so the possible trees generated by the context free rules, but the probability of each tree essentially is launched separately.",
+            "And this actually means because the probability of a tree is proportional to the number of times that we've seen before.",
+            "We get a rich get richer zipfian dynamics.",
+            "And one other thing which is sort of kind of interesting, I think, is that compound structures can actually be more probable than their parts which you never get inside of a context free grammar, for example.",
+            "And the CFG rule probabilities are actually estimated from the table labels, which actually means that you wind up learning from types, not tokens.",
+            "And there's another story."
+        ],
+        [
+            "I could tell about why that's a good thing to do.",
+            "Alright, so now let me spend the next 10 minutes just simply going over how we."
+        ],
+        [
+            "Use this adapter grammars for word segmentation here.",
+            "So as I said, the whole purpose of these adaptive grammars was to be able to experiment with a wide range of different hierarchical display process models.",
+            "Sort of fairly easily.",
+            "So this is my original grammar over here, and I'll actually sort of write it in an abbreviated format as over on the right hand side over there, where I'm saying essentially that a sentence consists of a sequence of words.",
+            "And a word which is adapted.",
+            "That's what that blue means.",
+            "Is that the nonterminals adapted consists of a sequence of phonemes.",
+            "So this is actually what Sharon Goldwater called her unigram model of word segmentation implemented as an adaptor grammar, and the sort of pauses that we wind up getting out, suppressing all of the unadapted nonterminals.",
+            "Ones up looking something like this.",
+            "That a sentence consists of a sequence of words, and so this is you want is passed as one word.",
+            "Two is passed as another word.",
+            "See the is passed as the third work and book is passed as the fourth word.",
+            "And in fact, if we run this, you know this adaptive grammar on the same data that Sharon ran her model on.",
+            "We get unsurprisingly about the same word segmentation accuracy."
+        ],
+        [
+            "About 55% score.",
+            "Um?"
+        ],
+        [
+            "And I think I'll just sort of skip this in the interest in time here.",
+            "One thing to note is that the unigram model.",
+            "This is one thing that Sharon noted was the unigram model tends to find collocations.",
+            "And basically, in a language like English, they're very strong into word dependencies, but a unigram model can either.",
+            "I mean basically it's generating words independently at random, so unigram model either can choose to ignore those generalizations, the interword dependencies or also can try to capture them.",
+            "But the only way we can capture them as by positing extremely long words, and so the sort of parser you wind up getting at something like this.",
+            "This is take the dog out and so you can see the doggie is passed as a single word or.",
+            "You want to as fast as a single."
+        ],
+        [
+            "Slow down at the bottom there.",
+            "If you want to know what the grammar actually looks like that you wind up getting from the adapter grammar.",
+            "So given that base grammar up there, you wind up getting a grammar that looks something like this where you've got all these new words, new rules."
+        ],
+        [
+            "Expanding the word non terminal.",
+            "So.",
+            "This was actually the thing I asked Sharon to do and she said would be way too hard with C code to do.",
+            "Basically, I said can't you put together that morphology model that you had with the word segmentation model and it's pretty straight forward with an adaptor grammar.",
+            "You just simply say that a sentence consists of a sequence of words.",
+            "A word consists of a stem followed by an optional suffix and a stamina suffix are both the sequence of phonemes.",
+            "And the sort of pauses that we wind up getting out now look like this.",
+            "So this is wanna close it.",
+            "Or the one over on the right over there is you have to tell me.",
+            "And you can actually see.",
+            "Actually it tends to miss analyze even worse than the unigram model does, so in particular, the stamina suffix.",
+            "It tends to sort of analyzes words, part of what's going on there is because, of course it doesn't know.",
+            "I mean, I've called these things word stem and suffix, but the model doesn't know that the thing that's written STM should capture more FEM stems.",
+            "And in fact."
+        ],
+        [
+            "Get back to this in just a moment here.",
+            "Something else that we can wind up doing little turn out to be important is that we can also write a grammar that generates words or sequences of syllables."
+        ],
+        [
+            "So we can do sort of simultaneous word segmentation and syllabification.",
+            "And I don't expect you to sort of see this, but basically here we're just saying a word consists now of a sequence of syllables and."
+        ],
+        [
+            "Can learn those things too.",
+            "One of the things that turns out to be very important in order to get sort of good segmentation accuracy out of this type of model is that.",
+            "If you try and learn structure above the word level, so here you will see we're saying a sentence consists of a sequence of collocations.",
+            "So collocations are just like groups of words.",
+            "So here the colocation is you want to and then the book over there is another colocation.",
+            "And this actually improves things pretty much in the same way as Sharon Goldwater's by Grandma."
+        ],
+        [
+            "Improve things, get about 75% segmentation accuracy.",
+            "Turns out that if we start to put together the models that we've already had, so if we actually try to do word segmentation now with a model which says that a sentence consists of a sequence of collocations, and each colocation consists of a sequence of words, and each word consists of a sequence of syllables that actually gets us the best word segmentation accuracy of all.",
+            "So we go from about 75% accuracy up to about 84% accuracy here."
+        ],
+        [
+            "And."
+        ],
+        [
+            "What I think is so actually, here's.",
+            "Sort of kind of like a graph that summarizes all of the segmentation stuff.",
+            "So basically these are each each of the entries in.",
+            "There corresponds to a different model in this table.",
+            "On the left hand side, what we're actually seeing is the structure that the model assumes below the word level.",
+            "Whether it assumes any structure, morphemes, or syllables on the right, where we're saying OK, what structure are we assuming above the word?",
+            "Are we assuming one level of colocation, two level of colocation, or three levels of colocation, and you can actually see we wind up getting best performance when even though we're just trying to learn word segmentation.",
+            "If we actually learn collocations above the word, and if we also learn syllables inside of the word.",
+            "And So what we seem to actually be seeing here is an example of like a synergistic interaction inside of language learning.",
+            "In fact, talking about the use of prior knowledge here, right?",
+            "By by learning more stuff, we're essentially doing Bayesian explaining away.",
+            "So if we just simply try to learn word segmentation on its own, the presence of the colocation dependencies and the presence of the syllable generalizations winds up confusing the word segmentation algorithm.",
+            "If we give it the ability to learn more generalizations right?",
+            "I mean, you know the thing I actually originally thought was there's a decent chance that you know the learning algorithm might in fact actually trip itself up.",
+            "Essentially giving itself more rope by which to hang itself, but in fact it actually turns out that by letting it learn these additional generalizations both above the word and below the word level that explains away these potentially sort of confusing aspects inside of the data and actually improves word word segmentation accuracy considerably.",
+            "So actually what I think is sort of kind of interesting is that in fact that seems to be necessary to balance the structure above and below the word.",
+            "That seems to be crucial and.",
+            "You know what's interesting?",
+            "Is that all the grammars are nonparametric, which means that they can in fact actually adapt to any input which is given to them.",
+            "But precisely because they're unsupervised, I want them to adapt in the right kind of way, so it's actually important.",
+            "It's not just enough to say the grammar is nonparametric, it needs to be nonparametric and in the right kind of why it needs to be encouraged to make the right sort."
+        ],
+        [
+            "Generalizations.",
+            "OK, I think I'm going to skip this bit here.",
+            "In the interest on time."
+        ],
+        [
+            "I'm just basically out of time here.",
+            "Let me just."
+        ],
+        [
+            "Go straight on to the conclusion here.",
+            "So I look, I'm a big fan of grammars, I think grammars are a really neat way of specifying models.",
+            "I actually think.",
+            "You know there's a tendency inside of the community to think of grammars is really sort of like being purely linguistic objects, or so I think.",
+            "Grammars are really just like abstract description of various abstract machines in different sorts of ways.",
+            "So grammars have the advantage that they're easy to design and compose adapter grammars.",
+            "I think particularly interesting because they adapt their distribution to the strings of generated because they learn the probabilities of entire adapted Mon terminals.",
+            "That makes them actually nonparametric.",
+            "And so the grammar actually determines the types of generalizations which the determines how this nonparametric model is going to generalize from the data.",
+            "And as I said, there seemed to be synergies and learning.",
+            "That is, you can actually do better at the task by learning other things simultaneously with that task, and that's because I think learning other generalizations as well, learning other kinds of structure as well, explains away potentially confusing data that would have interfered with learning the generalizations that we care about.",
+            "So.",
+            "Thanks very much.",
+            "He didn't say anything about how this compares with previous methods for unsupervised grammar induction.",
+            "Yeah yeah.",
+            "So the wrong way."
+        ],
+        [
+            "Oh, I know what's happening, yeah.",
+            "So basically the best work before was this previous work that Sharon Goldwater had done.",
+            "That was actually, you know, considerably better than the earlier work by people like Michael Brent.",
+            "So so so that I think focus not so much on on this word segmentation problem in general OIC.",
+            "And with like right?",
+            "Yeah, yeah, no so yeah but you know?",
+            "Excessively, right?",
+            "I guess it depends on whether it's a glass, half empty or glass half full thing, but right now this this thing is not as good as the stuff that Dan is doing for his dependency grammar, learning and part of the reason for that is because to try and learn those sorts of syntactic dependencies you don't want to learn entire tree fragments.",
+            "So this model is caching full tree fragments.",
+            "If that don't, that sort of helps a little bit, yeah?",
+            "No, it's it's.",
+            "It's not set up for extracting the sorts of generalizations that you need to learn.",
+            "The type of thing that Dan wants wants to learn.",
+            "I mean right?",
+            "To get good results, as you know he did.",
+            "Right, I mean that's a big part of what's going on here.",
+            "Independent work we've discovered them in not using adaptive grammars, but just simply trying to learn dependency grammars with this like process prize that does seem to give a small but modest improvement so.",
+            "This is a separate research project.",
+            "Basically trying to learn dependency grammars doing unsupervised dependency grammar induction, so that's much closer to what Dan Klein is doing and there going Bayesian does seem to be does does seem to make a bit of an improvement here.",
+            "But I actually think that the big attraction of the Dursley process is not so much the prior on a fixed set of parameters.",
+            "I mean exactly as I think you're hinting.",
+            "Yeah, it makes a small but modest improvement to integrate out the parameter values instead of actually just trying to do map estimates.",
+            "What I was trying to get out here is, I think the really interesting stuff about this thing is that you can actually try to learn the number of relevant parameters themselves.",
+            "So part of.",
+            "Ways to do that, right?",
+            "You could put any prior that you want, but you know the deep fryer is nice because it allows it into it out so so, so at least in terms of the techniques that I I'm aware of, the standard approach is to try and do something like rule learning, which is what's going on here.",
+            "What I sometimes call the Chinese Revolution approach, which is, you know, you let 1000 Flowers bloom.",
+            "And then you kill off most of them, right?",
+            "You know you USM or something else like that.",
+            "Well, so basically what that means is that there's this two stage process and usually the 1000 Flowers bloom component is not really connected in theoretically connected in with the parameter estimation component.",
+            "So I think you know this stuff has.",
+            "It has a conceptual advantage and that it wraps those two components together.",
+            "And in terms of actual algorithmics, it also means that you don't have to have these two separate stages.",
+            "You know a rule proposal stage followed by a parameter estimation stage instead.",
+            "There's a single sampling stage where you're both sampling new rules and also estimating the rule probabilities.",
+            "But yeah, I mean in.",
+            "Yeah yeah, maybe I should, yeah.",
+            "Well, yeah.",
+            "Something, relations I was just wondering what the morphology stuff yes.",
+            "What sort of sizes are we talking about here?",
+            "Against the usual problem of these?",
+            "Yes.",
+            "Trains.",
+            "Yes, that's that's right.",
+            "Yes, yeah, yeah so.",
+            "At Matthews and some of the other guys, do I mean that would be about 30,000,000 words?",
+            "Yeah, so this so this stuff is.",
+            "We've been working on much, much smaller sets than that, so there's a couple of things to say there.",
+            "One thing is that at this stage is I'm mainly interested in developing these models and the types of tools that I've been trying to build.",
+            "Supposed to be as general as possible.",
+            "You know with respect to these models, if you wanted to try and apply them to large datasets like that, you probably would want to write a specialized program rather than.",
+            "I mean, you can think of.",
+            "These grammar based approaches as being like interpreters with the grammar rules of essentially like playing the role of the program statements.",
+            "So you know to work on a large data set, you probably want to compile those things out.",
+            "Shortage of rare languages which don't have large sets, so I've applied this to a couple of other languages.",
+            "Paper up on my website where I've been looking at doing Bantu word segmentation.",
+            "Basically the type of morphological model is really one which were the morphemes combine in the way in which what linguists call Agglutinating.",
+            "So there's basically you just stick the morphemes together inside of a sequence so you don't know.",
+            "And the problem that I was dealing with there you don't know what the number of morphemes are, and you also don't know what the more things themselves are.",
+            "And so that's the sort of thing that an adaptor grammar can deal with pretty well, but there are lots of other languages, say like finish, to pick one where there are also non trivial interactions between the form of 1 morpheme in the next one and this type of adaptor grammar.",
+            "I don't know what that is that's.",
+            "Somebody else is stuff so that I'm not pointing at this particular slide.",
+            "I'm pointing at the at my previous work, right?",
+            "So this type of adaptor grammar still has a context freeness type of property to it right in as much as the communication between separate subtrees is still through the fixed set of nonterminals.",
+            "If you wanted to try and learn the complex sort of Morpho final logical interactions, vowel harmony things for example, that you wind up seeing in a language like Finnish.",
+            "There you probably would want to try and do something like the state splitting that you see in the infinite hmm or the infinite P CFG 'cause you might want to try and pass dependencies through the tree.",
+            "And I think that would be a very interesting thing to work on.",
+            "It's just.",
+            "No, I haven't done it yet, but that would be a great thing to do.",
+            "So this may actually be related over that.",
+            "That's an interesting application about that, so there's sort of two choices.",
+            "It's either all or nothing, right?",
+            "You either pay when you're when you're spending it on terminal.",
+            "You either pick a rule which is 1 layer, or you pick an entire.",
+            "So that's right.",
+            "You could, maybe there's a middle ground where you pick sort of the top part of a subtree used before, and then you're getting something almost like tag and you might be able to explain things like yeah.",
+            "Yeah, so there's a guy Tim O'Donnell at Harvard that's trying to extend adaptive grammars in exactly that way, and in fact it winds up looking awful lot like top right, yes?",
+            "But maybe this is the right way to think about doing estimation inside of gulp.",
+            "So the tree fragments like that so.",
+            "So basically what happens is that he augments the adaptive grammars that I've got here with exit probabilities on side of each non terminal.",
+            "So you wind up saying that.",
+            "When you're generating a fragment of fresh, there's a certain probability that you will just simply decide to essentially insert a fragment boundary.",
+            "At this at this non terminal and so in a sense what he wants up learning.",
+            "It's not really like tag because it still is what they call a context free tree substitution grammar I think is the technical term that you wind up doing, but in a context free tree substitution grammar, the set of rules is usually specified ahead of time.",
+            "Here we're actually learning what those sets of rules are.",
+            "Yeah, OK, yeah, OK right."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so so this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is sort of based on joint work with Sharon Goldwater and Tom Griffiths.",
+                    "label": 1
+                },
+                {
+                    "sent": "In fact, you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the the basic story is that Tom was at Brown University for about a year and a half and he taught us all this Chinese restaurant, nonparametric Bayes stuff and Sharon implemented several models based on that for her for her thesis and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, after a while I was saying, oh, Gee, wouldn't it be good to be able to combine these models together and sharing goes Oh my goodness, each of them is a complicated C++ program.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know I'd have to write something incredibly complicated to put them together, and I was thinking, you know, actually they really ought to fit together in some more systematic manner.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's actually what led me to think about these adaptive.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "It is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll see if I can also connect this to the issue of of prior knowledge as well, so Mark just said I should be controversial and so here's one of my first controversial claims, which is that, roughly speaking, our machine learning methods are successful when we can reduce the problem to parameter estimation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's really the thing that we know how to do well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we can reduce the problem to one where there's a objective function, there's a finite vector of parameters, and we're trying to learn the values of those parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually have some tools for doing that, that sort of thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, I actually think the learning problems are essentially solved by the time you've reduced them to that stage.",
+                    "label": 0
+                },
+                {
+                    "sent": "The really hard things are to try and figure out what those parameters ought to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "How should you character, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "What are the right features?",
+                    "label": 0
+                },
+                {
+                    "sent": "How should you characterize?",
+                    "label": 0
+                },
+                {
+                    "sent": "Your problem, what are the right sorts of rules to use if you're thinking about a grammar rather than just looking at the weights of those things?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the thing that actually excites me about?",
+                    "label": 0
+                },
+                {
+                    "sent": "The nonparametric Bayes stuff is that I think that it's starting to give us some tools to actually be able to learn what the parameters are, what the rules are, as well as their values.",
+                    "label": 1
+                },
+                {
+                    "sent": "So I like to think about things in terms of grammars and so the reason why I came up with this adapter grammar framework is that it's actually a framework for specifying hierarchical nonparametric Bayesian models.",
+                    "label": 1
+                },
+                {
+                    "sent": "And as you'll see, these things are actually approximated by probabilistic context free grammars.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's a rather funny sort of approximation where not just the probabilities of the rules, but actually the number of rules and the right hand sides of the rules actually wind up depending on the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So actually the inference algorithm, which I may not have enough time to get into in this talk, actually uses a PC as a proposal distribution, but the PC FG actually changes dynamic.",
+                    "label": 0
+                },
+                {
+                    "sent": "The rules in the CFG changes dynamically during the sampling process.",
+                    "label": 1
+                },
+                {
+                    "sent": "One of the points that I'm going to try and make here today is that prior knowledge, the shape of possible rules, that's actually what you wind up specifying in the adapter grammar that actually plays a crucial role, and I'll be concentrating on one particular problem that I've been studying for awhile, which is the word segmentation problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "Will actually see that because we're doing unsupervised learning, it's actually necessary to balance structure above and below.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Of the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one big question that I've that's motivated a lot of the work that I've, you know that I'm doing here, is really.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is there any light under the hierarchical Bayesian model lamppost?",
+                    "label": 0
+                },
+                {
+                    "sent": "For studying for understanding language acquisition?",
+                    "label": 1
+                },
+                {
+                    "sent": "And I'm actually interested in trying to evaluate different potential sources of information for language acquisition.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll actually see by changing the grammar we change the types of generalizations that the model can learn, and then then a question, how much knowledge do we actually have to build in, and how much knowledge is actually useful.",
+                    "label": 1
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think this is actually one thing I'm currently very interested in as synergies and learning, and in fact you will wind up saying that we actually get better performance on a task if we learn several other things at the same.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "On with that so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know I'm talking about language learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might say, well, Gee, why isn't he talking about learning syntax and you know, to be honest with you, if I actually had something interesting to say about learning syntax, I'd be saying that here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I I'm a little worried about learning syntax.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think there's actually no real evidence that syntax can be learned from strings alone.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think syntax really is the framework on which semantics meaning hangs off, and I actually think the justification for syntactic structure is so semantic interpretation can take place.",
+                    "label": 0
+                },
+                {
+                    "sent": "If that's the case, there's no reason to expect that you should be able to learn it just by looking purely at the strings alone, unless you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unless you actually get some information about what the meanings are there associated with those strings may not be possible to learn it at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this talk I'm going to be focusing on phenomena that are sort of somewhat lower level, so hopefully they are less dependent on meaning.",
+                    "label": 1
+                },
+                {
+                    "sent": "We know that these things are learned earlier by children, so hopefully they may be actually easier to learn than syntax, but as you'll see, there still actually exhibits some structural complexities.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the first type of problem I'll be looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is what I'll just call unsupervised unsupervised morphological analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "So roughly speaking, the input consists of something that looks like expanded.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see in here there's a potential break between each pair of adjacent characters and what the learner actually has to do is to figure out that in fact, actually there's a morpheme boundary between expand and the D suffix, as the past tense.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then later we'll be talking about the issue of trying to do word segmentation by word segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I mean is the input consists of this sort of broad phonemic input here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is you want to see the book, but there's no spaces in between the words, and in fact, that corresponds to the problem that a child faces when it's learning language.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no pauses in between individual words inside of a speech utterance, and so the child needs to segment the speech utterance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to try and see if we can work out where the word boundaries ought to be placed, even though they're not explicitly marked in the end.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, alright so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I just want to lay out this framework here.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think most of you probably know about context free grammars and probabilistic context free grammars.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've had several talks of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "I CML workshop about these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a context free grammar is something which tells you essentially how to expand apparent like a sentence into a sequence of children, like a noun phrase and a verb phrase, and so, given a set of context free rules, that's going to generate a set of trees, and those are the trees that can be built out of by treating each of these rules or specifying what the local trees are like, and then composing those together.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the rules here will let me build a tree like sandbox, for example, a probabilistic context free grammar is 1, where each one of these rules.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is associated with a probability and admission probability, and so the probability of the tree is the product of the probabilities of the rules that are used to build it up.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So alright, so given this context free machinery, you might say, well, Gee, can I in fact actually solve this morphological segmentation problem that I was talking about before, so maybe I can write a little context free grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I don't know what the words or the stems or the suffixes are.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is unsupervised, so I'm going to write this little grammar so it can generate all possible stems and all possible suffixes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'll say that a word that very top rule up there says that a word consists of a stem followed by a suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know anything more about the stem than the fact that it's a sequence of characters or the suffix about a suffix, and then it's a sequence of characters, so that's what that grammar is really expressing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So actually, given an input like talking, this grammar is going to wind up, you know, will wind up generating a tree that looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this tree in fact, actually correctly represents the segmentation of talking into the stem talk plus the suffix ING.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, if there's any.",
+                    "label": 0
+                },
+                {
+                    "sent": "Grammar people in here, you know?",
+                    "label": 0
+                },
+                {
+                    "sent": "At this stage they probably sort of looking at this and saying this is nuts, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason why this is not so, because if you tried to learn morphology using this sort of grammar, there's not a prayer that it's going to work.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason why is because the units of generalization, the things which are being learned inside of a context free grammar, are the probabilities on these rules, and so the types of things that you can learn by adjusting the probabilities on these rules here are going to be things like well.",
+                    "label": 0
+                },
+                {
+                    "sent": "What the probability is that a character is a T or what the probability is that sequence of characters ends or doesn't end, but there's just simply no rules up there that correspond to learning that talk is a stem, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So even though this grammar can represent the true segmentation into stem plus a suffix, the units of generalization are too small.",
+                    "label": 1
+                },
+                {
+                    "sent": "These units of generalization give it doesn't matter how good your learning algorithm is.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the only generalizations it's allowed to make.",
+                    "label": 1
+                },
+                {
+                    "sent": "Associated with probabilities in these rules, there's no way that it can learn stems and suffixes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that sort of relative?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Weekly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the next thing you might wind up saying as well actually, yeah, so maybe what we need rules that encompass far more structure, so I might want to say again that a word consists of a stamina suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Istem expands to all possible stems and a suffix expands to all possible suffixes, so these rules will then let me generate something like talking consists of a stem talk plus a suffix ING so that actually looks much better now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right now I've actually got the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The basic machinery to be able to at least learn a generalization that talk is a stem.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only thing is I think you should always keep your hand on your wallet whenever anybody is writing up a formal model, and they have to break into English like I did up there right to write up a little bit of English.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know all possible stems, or all possible suffixes.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in particular, there's an unbounded number of possible rules Now, so this is no longer a context free grammar, where now actually off in some other space.",
+                    "label": 0
+                },
+                {
+                    "sent": "What's actually interesting is that this really isn't actually a practical problem, so given any string like talking here, there's only a finite number of ways in which it could be broken up into a stem and a suffix, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So even though there's an unbounded number of potential rules, there's only a finite number of them which could actually be used to analyze any particular data item.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in fact, if our corpus is finite, there's only a finite number of potential rules that can be used to analyze the corpus.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a sense in which actually this isn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, this is undefined.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, talking about grammars with infinite numbers of rules, but in fact actually given the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is a nice finite problem, and I actually think that's a crucial insight which the nonparametric Bayesian approaches wind up actually leveraging.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, in fact specifically.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know the algorithm that I wind up using is an MCMC sampler over these Palace trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So even though I'm going to be essentially considering context free grammars, that will have things saying that stems consist of all possible stems or possible sequences of characters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I'm actually sampling a past tree for a given string, there's only a finite number of potential trees that I need to be sampling within.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that actually says that maybe in fact actually this type of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Thing is not such a bad way of doing business.",
+                    "label": 0
+                },
+                {
+                    "sent": "So sort of now to back off a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know I've already told you that the type of thing I'm interested in, a nonparametric extensions of context free grammars and one reason to think that it makes sense to try and put the nonparametric Bayesian techniques like Dursley processes together with context free grammars is becausw.",
+                    "label": 0
+                },
+                {
+                    "sent": "Context.",
+                    "label": 0
+                },
+                {
+                    "sent": "Free grammars are essentially products of multinomial's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Products of dursley's of the natural conjugate priors for them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dursley Process is of the natural generalization of Dursley Multinomial's.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in fact you know you would expect that there ought to be a natural generalization of context.",
+                    "label": 0
+                },
+                {
+                    "sent": "Free grammars, Bayesian context, free grammars, a natural nonparametric extension of 'em, and I think there's sort of two obvious ways of going nonparametric with context free grammars, so one is to imagine that we're going to let the number of nonterminals just simply grow unboundedly.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the idea is our original grammar might have said sentence goes to noun phrase followed by verb phrase.",
+                    "label": 0
+                },
+                {
+                    "sent": "But what I'm going to say is, well, yeah, maybe maybe in fact, actually the grammar was collapsing categories, maybe in fact, actually there's not just one sentence type.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's in fact actually 50 different sentence types.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so in fact, I might actually have a rule that says say something like sentence type 35 goes to noun phrase type 27 and verb phrase type 17.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so now this is certainly going to get an infinite P CFG if I'm not going to put any bound on the number of different sentence types and noun phrase types and verb phrase types that way.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this actually leads to the, you know, the PC of the extension of the infinite hmm and that's actually something that the guys at Berkeley have investigated and a number of other people have investigated as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I think there's another way to also go and nonparametric and that is to actually imagine that the number of rules.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're still going to keep the same number of nonterminals.",
+                    "label": 1
+                },
+                {
+                    "sent": "But we're just going to let the number of rules grow unboundedly, and so now we need some mechanism that's actually going to give us new rules.",
+                    "label": 1
+                },
+                {
+                    "sent": "We need some base distribution from which we can draw draw new rules when we require them in order to parse a string, and the approach that adaptor grammar takes is it says that the new rules are really actually compositions of multiple.",
+                    "label": 0
+                },
+                {
+                    "sent": "Old rules from the original grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, that's going to wind up being equivalent to essentially saying that, yeah, we can assign probabilities, not just two rules, but in fact two entire tree fragments.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if the original grammar generates an infinite number of trees, then there's going to be an infinite number of these tree fragments, and so that's actually how this adaptive grammars become.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nonparametric doesn't unbounded number of fragments that can essentially get their own probabilities, and even though we haven't.",
+                    "label": 0
+                },
+                {
+                    "sent": "As far as I know, nobody's actually done it.",
+                    "label": 0
+                },
+                {
+                    "sent": "In principle, you should be able to go nonparametric in both ways simultaneously, I don't see any reason why you couldn't.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "But so, how do these adapter grammars work?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you've got a base set of rules, just as in context free grammar, and these actually determine the set of possible structures.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the set of possible trees, just the set of trees that the context free rules can let you build.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you specify one of these adaptive grammars, you need to say which of the non terminals are adapted.",
+                    "label": 0
+                },
+                {
+                    "sent": "And unadapted nonterminals expand.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just as you're used to inside of a context free grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Namely, you expand apparent you find all the rules that expand the parent, and then choose one of them proportional to the probability of the rule.",
+                    "label": 0
+                },
+                {
+                    "sent": "Adapted Nonterminals, however, have a special way of expanding right.",
+                    "label": 0
+                },
+                {
+                    "sent": "They can expand in two ways.",
+                    "label": 1
+                },
+                {
+                    "sent": "They can either expand just like enough ordinary non terminal does, namely by picking a rule and recursively expanding its children or else what you can do is just simply take a previously generated tree and return it and the probability of doing this is in fact proportional to the number of times the trees been previously generated.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what this actually means is that each adapted subtree behaves.",
+                    "label": 1
+                },
+                {
+                    "sent": "Like a new rule which has been added to the grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so the context free rules of the original grammar actually really determined the base distribu.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Over these trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a rather for people that are used to probabilistic models of grammars.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a rather funny grammar model because the sequence of trees that this grammar generates in fact actually aren't independent.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some as you tell me the grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "The sequence of trees it produces aren't conditionally independent.",
+                    "label": 1
+                },
+                {
+                    "sent": "Given the grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instead, with Annette and adaptor grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially what happens is that the distribution adapts to the probability distribution based on the data that it's already had to generate.",
+                    "label": 0
+                },
+                {
+                    "sent": "That that really means that it's learning from the data it's generated previously.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if an adapted subtrees been used frequently in the past, it's more likely to be used again.",
+                    "label": 1
+                },
+                {
+                    "sent": "We do enjoy the exchange ability property, which is of course crucial to be able to get our sample's to work.",
+                    "label": 1
+                },
+                {
+                    "sent": "This just sort of goes over the details again, so remember an unadapted nonterminal expands using a rule a rewrites as beta with some probability that specified in the base context free grammar and adapted non terminal expands to an entire subtree rooted in a with probability proportional to the number of times that the subtree was previously generated.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then here's the dish, like concentration parameter Alpha over there.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can also expand using the context free rule with probability proportional to the concentration.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "At times, the world probability.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's go back to this original grammar, which, as I said, really doesn't work for just at the context free level and will see actually now will work as an adaptor grammar, and so the basic idea is going to be as an adaptor grammar.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can actually learn the probabilities of entire subtree fragments, which lets us essentially in the probability that talk and sustem and ING as a suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the way in which we'll do that is that will wind up adapting, would stem and suffix inside of this gram.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And so this is the sort of like obligatory Chinese restaurant.",
+                    "label": 0
+                },
+                {
+                    "sent": "Model here so inside of an adaptor grammar.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's a rather funny Chinese restaurant sort of setup.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's there's one Chinese restaurant for each adapted non terminal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this case we've got one for word, one for STEM and one for suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the first customer walks into the word restaurant and these are labeled Chinese restaurant processes, so we need to in fact actually give that customer something to which we need to put a dish of food sitting on the table there.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's nothing sitting there yet, but we do have inside of the word restaurant is a recipe for making words, and that says, yeah, word consists of a stem followed by a suffix, so this word restaurant, as I said, it's a funny restaurant.",
+                    "label": 0
+                },
+                {
+                    "sent": "What it actually does is it orders out so.",
+                    "label": 0
+                },
+                {
+                    "sent": "They send out way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Does that go to the stamina suffix?",
+                    "label": 1
+                },
+                {
+                    "sent": "Restaurant may sit down at the tables there.",
+                    "label": 0
+                },
+                {
+                    "sent": "And they say, give me a stamp, give me a suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the stand restaurant's got a recipe which says that the stem consists of a sequence of phonemes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So they generate a sequence of phonemes, maybe like by An's suffix might be yes, and then that food is then taken.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Back to the word restaurant where it's assembled to form a new word like buys OK the next.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Customer can walk in, sit down at a fresh table.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, we need to produce a label, do some food for that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Customer to eat.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we order out producer stamina suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So is here what we're doing is we're actually producing a fresh stem, but reusing a suffix.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we now need to Jenna.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Right and you stand, we might generate, run for example.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this now gives us runs.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The next customer comes in.",
+                    "label": 0
+                },
+                {
+                    "sent": "It might sit down at the same table as the first customer sat, in which case now we don't have to do any generation because the we've already got some food sitting at that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Apple.",
+                    "label": 0
+                },
+                {
+                    "sent": "Met someone like this now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sitting at 1/3.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Generating a third word and that might actually consist of reusing.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Stand by and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Using a fresh suffix.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Give us by and so on like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cooking process.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just in time manufacturing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, that's a good idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So anyway, so what's going to happen here is that we can see this as a hierarchical.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, it is a hierarchical display process, so we expand each word into a previously generated word with probability proportional to the number of times that we've generated that word before, or else we can expand word into a stem and a suffix with probability proportional to Alpha word times the probability of generating the standard fresh and the probability generating the stuff for the suffix of fresh.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then if we ask to generate a new stem.",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, that can be expanded into a sequence of phonemes with probability proportional to the number of times that we saw.",
+                    "label": 1
+                },
+                {
+                    "sent": "That sequence of phonemes as a stem before or else.",
+                    "label": 0
+                },
+                {
+                    "sent": "Proportional essentially to the probability of generating that sequence of findings are fresh.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this turns out to be a hierarchical display process, with the stem in the suffix distributions defined the base distrib.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Patience for the word dislike process.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, it's sort of one thing that sort of kind of weird is that the Bayesian hierarchy actually inverts the syntactic hierarchy, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Grammatically or syntactically, a word is composed of a statement, a suffix which are in turn composed of characters.",
+                    "label": 1
+                },
+                {
+                    "sent": "But in terms of the generative process.",
+                    "label": 0
+                },
+                {
+                    "sent": "You essentially sort of generate the lowest level display processes, the one that generates the words.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it's only when it's time to generate a fresh table that you actually back off to the stemona suffix restaurants.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in fact, lower in the syntactic tree actually means higher in the Bayesian higher.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Rocky.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is sort of kind of interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's also a few interesting properties of these adaptive grammars, so the possible trees generated by the context free rules, but the probability of each tree essentially is launched separately.",
+                    "label": 1
+                },
+                {
+                    "sent": "And this actually means because the probability of a tree is proportional to the number of times that we've seen before.",
+                    "label": 1
+                },
+                {
+                    "sent": "We get a rich get richer zipfian dynamics.",
+                    "label": 1
+                },
+                {
+                    "sent": "And one other thing which is sort of kind of interesting, I think, is that compound structures can actually be more probable than their parts which you never get inside of a context free grammar, for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the CFG rule probabilities are actually estimated from the table labels, which actually means that you wind up learning from types, not tokens.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's another story.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I could tell about why that's a good thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so now let me spend the next 10 minutes just simply going over how we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Use this adapter grammars for word segmentation here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as I said, the whole purpose of these adaptive grammars was to be able to experiment with a wide range of different hierarchical display process models.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of fairly easily.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is my original grammar over here, and I'll actually sort of write it in an abbreviated format as over on the right hand side over there, where I'm saying essentially that a sentence consists of a sequence of words.",
+                    "label": 0
+                },
+                {
+                    "sent": "And a word which is adapted.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what that blue means.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that the nonterminals adapted consists of a sequence of phonemes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is actually what Sharon Goldwater called her unigram model of word segmentation implemented as an adaptor grammar, and the sort of pauses that we wind up getting out, suppressing all of the unadapted nonterminals.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ones up looking something like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "That a sentence consists of a sequence of words, and so this is you want is passed as one word.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two is passed as another word.",
+                    "label": 0
+                },
+                {
+                    "sent": "See the is passed as the third work and book is passed as the fourth word.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact, if we run this, you know this adaptive grammar on the same data that Sharon ran her model on.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get unsurprisingly about the same word segmentation accuracy.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "About 55% score.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And I think I'll just sort of skip this in the interest in time here.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing to note is that the unigram model.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is one thing that Sharon noted was the unigram model tends to find collocations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And basically, in a language like English, they're very strong into word dependencies, but a unigram model can either.",
+                    "label": 1
+                },
+                {
+                    "sent": "I mean basically it's generating words independently at random, so unigram model either can choose to ignore those generalizations, the interword dependencies or also can try to capture them.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the only way we can capture them as by positing extremely long words, and so the sort of parser you wind up getting at something like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is take the dog out and so you can see the doggie is passed as a single word or.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want to as fast as a single.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Slow down at the bottom there.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to know what the grammar actually looks like that you wind up getting from the adapter grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "So given that base grammar up there, you wind up getting a grammar that looks something like this where you've got all these new words, new rules.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Expanding the word non terminal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was actually the thing I asked Sharon to do and she said would be way too hard with C code to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, I said can't you put together that morphology model that you had with the word segmentation model and it's pretty straight forward with an adaptor grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just simply say that a sentence consists of a sequence of words.",
+                    "label": 0
+                },
+                {
+                    "sent": "A word consists of a stem followed by an optional suffix and a stamina suffix are both the sequence of phonemes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the sort of pauses that we wind up getting out now look like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is wanna close it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or the one over on the right over there is you have to tell me.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can actually see.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually it tends to miss analyze even worse than the unigram model does, so in particular, the stamina suffix.",
+                    "label": 1
+                },
+                {
+                    "sent": "It tends to sort of analyzes words, part of what's going on there is because, of course it doesn't know.",
+                    "label": 1
+                },
+                {
+                    "sent": "I mean, I've called these things word stem and suffix, but the model doesn't know that the thing that's written STM should capture more FEM stems.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Get back to this in just a moment here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something else that we can wind up doing little turn out to be important is that we can also write a grammar that generates words or sequences of syllables.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can do sort of simultaneous word segmentation and syllabification.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I don't expect you to sort of see this, but basically here we're just saying a word consists now of a sequence of syllables and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Can learn those things too.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of the things that turns out to be very important in order to get sort of good segmentation accuracy out of this type of model is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you try and learn structure above the word level, so here you will see we're saying a sentence consists of a sequence of collocations.",
+                    "label": 0
+                },
+                {
+                    "sent": "So collocations are just like groups of words.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here the colocation is you want to and then the book over there is another colocation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this actually improves things pretty much in the same way as Sharon Goldwater's by Grandma.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Improve things, get about 75% segmentation accuracy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turns out that if we start to put together the models that we've already had, so if we actually try to do word segmentation now with a model which says that a sentence consists of a sequence of collocations, and each colocation consists of a sequence of words, and each word consists of a sequence of syllables that actually gets us the best word segmentation accuracy of all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we go from about 75% accuracy up to about 84% accuracy here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What I think is so actually, here's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of kind of like a graph that summarizes all of the segmentation stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically these are each each of the entries in.",
+                    "label": 0
+                },
+                {
+                    "sent": "There corresponds to a different model in this table.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the left hand side, what we're actually seeing is the structure that the model assumes below the word level.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whether it assumes any structure, morphemes, or syllables on the right, where we're saying OK, what structure are we assuming above the word?",
+                    "label": 0
+                },
+                {
+                    "sent": "Are we assuming one level of colocation, two level of colocation, or three levels of colocation, and you can actually see we wind up getting best performance when even though we're just trying to learn word segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we actually learn collocations above the word, and if we also learn syllables inside of the word.",
+                    "label": 1
+                },
+                {
+                    "sent": "And So what we seem to actually be seeing here is an example of like a synergistic interaction inside of language learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, talking about the use of prior knowledge here, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "By by learning more stuff, we're essentially doing Bayesian explaining away.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we just simply try to learn word segmentation on its own, the presence of the colocation dependencies and the presence of the syllable generalizations winds up confusing the word segmentation algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we give it the ability to learn more generalizations right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you know the thing I actually originally thought was there's a decent chance that you know the learning algorithm might in fact actually trip itself up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially giving itself more rope by which to hang itself, but in fact it actually turns out that by letting it learn these additional generalizations both above the word and below the word level that explains away these potentially sort of confusing aspects inside of the data and actually improves word word segmentation accuracy considerably.",
+                    "label": 1
+                },
+                {
+                    "sent": "So actually what I think is sort of kind of interesting is that in fact that seems to be necessary to balance the structure above and below the word.",
+                    "label": 0
+                },
+                {
+                    "sent": "That seems to be crucial and.",
+                    "label": 1
+                },
+                {
+                    "sent": "You know what's interesting?",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that all the grammars are nonparametric, which means that they can in fact actually adapt to any input which is given to them.",
+                    "label": 0
+                },
+                {
+                    "sent": "But precisely because they're unsupervised, I want them to adapt in the right kind of way, so it's actually important.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not just enough to say the grammar is nonparametric, it needs to be nonparametric and in the right kind of why it needs to be encouraged to make the right sort.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Generalizations.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I think I'm going to skip this bit here.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the interest on time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm just basically out of time here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me just.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Go straight on to the conclusion here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I look, I'm a big fan of grammars, I think grammars are a really neat way of specifying models.",
+                    "label": 0
+                },
+                {
+                    "sent": "I actually think.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know there's a tendency inside of the community to think of grammars is really sort of like being purely linguistic objects, or so I think.",
+                    "label": 0
+                },
+                {
+                    "sent": "Grammars are really just like abstract description of various abstract machines in different sorts of ways.",
+                    "label": 0
+                },
+                {
+                    "sent": "So grammars have the advantage that they're easy to design and compose adapter grammars.",
+                    "label": 1
+                },
+                {
+                    "sent": "I think particularly interesting because they adapt their distribution to the strings of generated because they learn the probabilities of entire adapted Mon terminals.",
+                    "label": 1
+                },
+                {
+                    "sent": "That makes them actually nonparametric.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so the grammar actually determines the types of generalizations which the determines how this nonparametric model is going to generalize from the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as I said, there seemed to be synergies and learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, you can actually do better at the task by learning other things simultaneously with that task, and that's because I think learning other generalizations as well, learning other kinds of structure as well, explains away potentially confusing data that would have interfered with learning the generalizations that we care about.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thanks very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "He didn't say anything about how this compares with previous methods for unsupervised grammar induction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the wrong way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Oh, I know what's happening, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically the best work before was this previous work that Sharon Goldwater had done.",
+                    "label": 0
+                },
+                {
+                    "sent": "That was actually, you know, considerably better than the earlier work by people like Michael Brent.",
+                    "label": 0
+                },
+                {
+                    "sent": "So so so that I think focus not so much on on this word segmentation problem in general OIC.",
+                    "label": 0
+                },
+                {
+                    "sent": "And with like right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah, no so yeah but you know?",
+                    "label": 0
+                },
+                {
+                    "sent": "Excessively, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess it depends on whether it's a glass, half empty or glass half full thing, but right now this this thing is not as good as the stuff that Dan is doing for his dependency grammar, learning and part of the reason for that is because to try and learn those sorts of syntactic dependencies you don't want to learn entire tree fragments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this model is caching full tree fragments.",
+                    "label": 0
+                },
+                {
+                    "sent": "If that don't, that sort of helps a little bit, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "No, it's it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not set up for extracting the sorts of generalizations that you need to learn.",
+                    "label": 0
+                },
+                {
+                    "sent": "The type of thing that Dan wants wants to learn.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean right?",
+                    "label": 0
+                },
+                {
+                    "sent": "To get good results, as you know he did.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, I mean that's a big part of what's going on here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Independent work we've discovered them in not using adaptive grammars, but just simply trying to learn dependency grammars with this like process prize that does seem to give a small but modest improvement so.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a separate research project.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically trying to learn dependency grammars doing unsupervised dependency grammar induction, so that's much closer to what Dan Klein is doing and there going Bayesian does seem to be does does seem to make a bit of an improvement here.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I actually think that the big attraction of the Dursley process is not so much the prior on a fixed set of parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean exactly as I think you're hinting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, it makes a small but modest improvement to integrate out the parameter values instead of actually just trying to do map estimates.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I was trying to get out here is, I think the really interesting stuff about this thing is that you can actually try to learn the number of relevant parameters themselves.",
+                    "label": 0
+                },
+                {
+                    "sent": "So part of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ways to do that, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You could put any prior that you want, but you know the deep fryer is nice because it allows it into it out so so, so at least in terms of the techniques that I I'm aware of, the standard approach is to try and do something like rule learning, which is what's going on here.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I sometimes call the Chinese Revolution approach, which is, you know, you let 1000 Flowers bloom.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you kill off most of them, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know you USM or something else like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so basically what that means is that there's this two stage process and usually the 1000 Flowers bloom component is not really connected in theoretically connected in with the parameter estimation component.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think you know this stuff has.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has a conceptual advantage and that it wraps those two components together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in terms of actual algorithmics, it also means that you don't have to have these two separate stages.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know a rule proposal stage followed by a parameter estimation stage instead.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a single sampling stage where you're both sampling new rules and also estimating the rule probabilities.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yeah, I mean in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah, maybe I should, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something, relations I was just wondering what the morphology stuff yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "What sort of sizes are we talking about here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Against the usual problem of these?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Trains.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, that's that's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yeah, yeah so.",
+                    "label": 0
+                },
+                {
+                    "sent": "At Matthews and some of the other guys, do I mean that would be about 30,000,000 words?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so this so this stuff is.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've been working on much, much smaller sets than that, so there's a couple of things to say there.",
+                    "label": 0
+                },
+                {
+                    "sent": "One thing is that at this stage is I'm mainly interested in developing these models and the types of tools that I've been trying to build.",
+                    "label": 0
+                },
+                {
+                    "sent": "Supposed to be as general as possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know with respect to these models, if you wanted to try and apply them to large datasets like that, you probably would want to write a specialized program rather than.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you can think of.",
+                    "label": 0
+                },
+                {
+                    "sent": "These grammar based approaches as being like interpreters with the grammar rules of essentially like playing the role of the program statements.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you know to work on a large data set, you probably want to compile those things out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Shortage of rare languages which don't have large sets, so I've applied this to a couple of other languages.",
+                    "label": 0
+                },
+                {
+                    "sent": "Paper up on my website where I've been looking at doing Bantu word segmentation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically the type of morphological model is really one which were the morphemes combine in the way in which what linguists call Agglutinating.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's basically you just stick the morphemes together inside of a sequence so you don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the problem that I was dealing with there you don't know what the number of morphemes are, and you also don't know what the more things themselves are.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so that's the sort of thing that an adaptor grammar can deal with pretty well, but there are lots of other languages, say like finish, to pick one where there are also non trivial interactions between the form of 1 morpheme in the next one and this type of adaptor grammar.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know what that is that's.",
+                    "label": 0
+                },
+                {
+                    "sent": "Somebody else is stuff so that I'm not pointing at this particular slide.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm pointing at the at my previous work, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this type of adaptor grammar still has a context freeness type of property to it right in as much as the communication between separate subtrees is still through the fixed set of nonterminals.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you wanted to try and learn the complex sort of Morpho final logical interactions, vowel harmony things for example, that you wind up seeing in a language like Finnish.",
+                    "label": 0
+                },
+                {
+                    "sent": "There you probably would want to try and do something like the state splitting that you see in the infinite hmm or the infinite P CFG 'cause you might want to try and pass dependencies through the tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I think that would be a very interesting thing to work on.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, I haven't done it yet, but that would be a great thing to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this may actually be related over that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's an interesting application about that, so there's sort of two choices.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's either all or nothing, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You either pay when you're when you're spending it on terminal.",
+                    "label": 0
+                },
+                {
+                    "sent": "You either pick a rule which is 1 layer, or you pick an entire.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's right.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could, maybe there's a middle ground where you pick sort of the top part of a subtree used before, and then you're getting something almost like tag and you might be able to explain things like yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so there's a guy Tim O'Donnell at Harvard that's trying to extend adaptive grammars in exactly that way, and in fact it winds up looking awful lot like top right, yes?",
+                    "label": 0
+                },
+                {
+                    "sent": "But maybe this is the right way to think about doing estimation inside of gulp.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the tree fragments like that so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically what happens is that he augments the adaptive grammars that I've got here with exit probabilities on side of each non terminal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you wind up saying that.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you're generating a fragment of fresh, there's a certain probability that you will just simply decide to essentially insert a fragment boundary.",
+                    "label": 0
+                },
+                {
+                    "sent": "At this at this non terminal and so in a sense what he wants up learning.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not really like tag because it still is what they call a context free tree substitution grammar I think is the technical term that you wind up doing, but in a context free tree substitution grammar, the set of rules is usually specified ahead of time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we're actually learning what those sets of rules are.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, OK, yeah, OK right.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

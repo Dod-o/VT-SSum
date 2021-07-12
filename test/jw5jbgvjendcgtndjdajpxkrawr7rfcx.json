@@ -1,0 +1,2434 @@
+{
+    "id": "jw5jbgvjendcgtndjdajpxkrawr7rfcx",
+    "title": "Infer.NET - Practical Implementation Issues and a Comparison of Approximation Techniques",
+    "info": {
+        "author": [
+            "John Winn, Microsoft Research, Cambridge, Microsoft Research"
+        ],
+        "published": "Dec. 31, 2007",
+        "recorded": "December 2007",
+        "category": [
+            "Top->Computer Science->Machine Learning->Statistical Learning"
+        ]
+    },
+    "url": "http://videolectures.net/abi07_winn_ipi/",
+    "segmentation": [
+        [
+            "Very well, thank you very much for inviting me to speak what I want to talk about is the experiences that Tom and myself had when developingtheinfer.net inference framework, and in particular I'm going to look today at comparing expectation propagation and variational message passing winter 2 message passing algorithms of 20 familiar which allow you to do approximate inference.",
+            "And I'm also going to provide a demonstration.",
+            "Using the info.net framework to compare these two, but when we were developing infernet, we really came across some of interesting behaviors of both of these algorithms and what I want to present today is a summary of our experiences, some of which I think we can say we've sort of addressed, and some of which are very much open problems that the Community."
+        ],
+        [
+            "Could look at so this is the overview of the talk I'm just going to perhaps repeat a little bit of what matesa talked about in terms of looking at the family of approximate inference algorithms, but.",
+            "The main meat of the talk is going to be looking at several concrete cases for both expectation propagation and for variational message passing, and look at the behaviors of each algorithm.",
+            "In these concrete cases and trying to isolate where they succeed and where they fail and why we think this is the case.",
+            "So I'm more of a an expert on the variational side, and obviously Tom is the expert on the expectation propagation side, so hopefully between us will be able to answer questions and take part in the discussion."
+        ],
+        [
+            "That may arise.",
+            "So if we just crack on.",
+            "So the many approximate inference algorithms can be put into this very nice divergance minimization framework where you simply have your family of approximating distributions Q and all you aim to do.",
+            "Is optimized within that family to minimize some divergance measure.",
+            "And if we choose the divergent measure to be, for example the Alpha divergent, then we get this nice complete suite of approximate inference algorithms for different values of the Alpha for the alphabet version.",
+            "So that's this picture here is from Tom's paper on divergent minimization message passing algorithms and what it shows is the behavior of the Alpha divergent for different values of Alpha.",
+            "I'm sure you're familiar with the sort of KL divergences forwards and backwards, but the output avoidance becomes the KL divergent for Alpha equals zero in Alpha equals one for the forward and backwards alphabet vergence, but it also it has defined behaviors in each of these intermediate cases, and if you perform this divergent minimization algorithm with different values of the Alpha, then what you get a number of familiar.",
+            "Inference methods, so if you look at expectation propagation and belief propagation, are the concrete instantiation of this method for Alpha equals one variational Bayes is what you get if you put out for equals zero and then these fractional belief propagation methods.",
+            "TRW is what you get for Alpha moving greater than one and then the most general form of this is the more recently introduced.",
+            "How EP where you can simply just set what the Alpha is going to be for for different parts of your graph and Parry.",
+            "P covers this in spot entire spectrum.",
+            "So the question is when would you want to use different Alpha divergences?"
+        ],
+        [
+            "Let's just move and look at the behaviors of these different Alpha divergences so.",
+            "I'm getting the end of the slide cut off but never mind, so if you look at the left hand side when you had a negative Infinity and your Alpha then you get this behavior of seeking absolutely the largest mode.",
+            "So here we have, uh, sorry, should've said the approximating families Q is just a Gaussian and then we have our bimodal true distribution.",
+            "So when Alpha goes to minus Infinity you are absolutely seek the mode with the largest mass, not with the highest peak, but with the largest mass.",
+            "And then the variational Bayes is doing something more like that and then as you move through to Alpha equals positive Infinity, you get an upper envelope.",
+            "So you're trying to.",
+            "This is for an unnormalized Q distribution.",
+            "Then you get an upper envelope on your approximation, and thus you're going to try and include all of the mass in your distribution.",
+            "Similarly, you can look at the behavior of different divergences with respect to zeros in the P distribution, and you move from this exclusive zero forcing behavior.",
+            "Whereas if there's a zero in P, there must be a zero in Q.",
+            "So that you have regions where.",
+            "Which will mean that you tend to underestimate the variance of ovpi moving through to the other behavior, where Q will try and cover all of the mass of P, even if there are zeros in P. Finally, if you look at the unnormalized key distribution that minimizes diversions, you'll see that the posterior mass of Q moves from being an underestimate at Alpha equals minus Infinity.",
+            "Through to be actually the correct math at Alpha equals one and then over to be an over estimate at Alpha equals positive Infinity.",
+            "And so I think, as you the reasons for moving between different alphas, I'm not really going to address that in this talk.",
+            "But some sorts of reasons might be.",
+            "One is going to be tractability of when these computations are going to be valid for different graphs.",
+            "Otherwise, what sort of approximation you're looking to get which parts of the posterior you're actually interested in.",
+            "If you could exactly minimize the obvious one case, yes, the approximation.",
+            "Yes, but that exact minimization is not going to be.",
+            "Only in the global sense.",
+            "And.",
+            "Yeah.",
+            "OK, so that was just a brief overview to set the scene and then all I'm really going to look at today.",
+            "The two settings Alpha equals zero in our equals one for variational Bayes and expectation propagation."
+        ],
+        [
+            "So the nice thing is that we can apply this the minute divergent minimization by message passing in a graph.",
+            "So I'm going to use a factor graph notation.",
+            "We have variables A&B, we have a factor F and we're just going to look at the message from A to F in the message from F to B.",
+            "So just to remind everyone who might not be familiar, this is the update equation for expectation propagation.",
+            "And So what you have is you have a sentence of some product like term where you just summing from the incoming message from a over the factor, marginally marginalizing out a something over A and then what EP is going to do is it's going to take the backwards message from B to F. Multiply that in.",
+            "And then do a projection which is going to project the resulting distribution back into the family that we're going to allow for our messages.",
+            "And then we're going to divide again by that backwards that reverse message.",
+            "And so one way of thinking about this is that, well, firstly, we should note that if that projection is exact, if it turns out that the result of this multiplication is in the family of distributions, which you're going to be able to approximate, then what you get is just BP.",
+            "You recover belief propagation because these two just simply cancel out.",
+            "So what about the case where you're going to have to make that approximation?",
+            "You're going to have to take this possibly unpleasantly formed distribution and projected back into, say, the Gaussian family or whatever you're using.",
+            "Then how is this reverse message influencing that projection?",
+            "One nice way of thinking about it as a hint to the algorithm as to where it should make that that approximation accurate.",
+            "So the reverse messages going to say I'm going to suggest that you try and make the projection accurate.",
+            "In this sort of region of space, that's quite a nice way.",
+            "I think you know, as we move towards richer family of messages then that message will get increasingly ignored.",
+            "But then when we try and simplify message family then it's going to have to use more information to try and find out where best to approximate this awkward message distribution.",
+            "No variational message passing doesn't use that reverse method and always uses the same form of the.",
+            "Message computation, which is already being covered, just this log form of the.",
+            "Belief propagation.",
+            "Message."
+        ],
+        [
+            "OK, so I'm just going to take those message passing computations and apply them to a number of cases so we can see the behavior of these two algorithm."
+        ],
+        [
+            "And the first is a is a really simple example, so all my graphs are going to have exactly 1 factor.",
+            "Almost all of them have one factor in a very few variables that keep things very simple.",
+            "So here we're just going to have the factor is a Bernoulli.",
+            "And the we're looking in a sense that the upward messages here.",
+            "So a is going to be one or zero, and B is the probability of it being one.",
+            "So this is the.",
+            "Benary and this is the parameter if you like.",
+            "So let's have a look at what happens in the case of variational message passing.",
+            "When the input messages some than any distribution where the probability P of being true.",
+            "Then after you pass through the factor, the message to be is now going to be a beta distribution.",
+            "With these parameters, one plus play 1 + 1 -- P. Now.",
+            "What is the uncertainty in this message?",
+            "So you can think about the uncertainty in the input messages as moving from being very uncertain when it's .5 through to being very certain when it's one or zero.",
+            "But the output uncertainty is given by the concentration of the beta, which is just the sum of these two parameters and what's interesting is that for variational message passing you can see if you add these two up you'll always get 3.",
+            "So the concentration of the message to be or the certainty in this message is constant, independent of the uncertainty in the input message, and that seems like a slightly strange undesirable behavior, and just to contrast with that behavior, if we look at the EP behavior.",
+            "And this is independent of the reverse message.",
+            "Look at the P behavior when we put in the maximally uncertain input message.",
+            "So 5050 true false.",
+            "Then the message to be is has concentration 2.",
+            "And if we put in the maximally certain message, then the output messages concentration through, so we're getting propagation of the uncertainty in the input message through to the output message.",
+            "In fact, what you see is that variational methods are is giving the confidence in the output message that you would get if they implemented was certain.",
+            "Right, so if we were totally confident in the value of a.",
+            "Then we would get this case where the concentration is 3 and variational Bayes is giving that all the time.",
+            "So that seems we know that variational Bayes is overconfident.",
+            "But this is kind of ridiculous, right?",
+            "It's it's.",
+            "It's confident as if you observed a. I just want to."
+        ],
+        [
+            "Look at another example of that.",
+            "So this is a sense and even simpler example we're going to now take a as being the output of a Gaussian, where B is the mean.",
+            "And the precision of the variance is just fixed Sigma squared.",
+            "And let's suppose A is observed with noise, and so we're going to say that the input messages, some Gaussian mean mu with some.",
+            "Variance town squared.",
+            "Then if we compute the message to be, you'll see that it is just a Gaussian with the same mean, but where the variance is exactly the fixed variance that we specified here so strangely.",
+            "The uncertainty in a is completely ignored, is just replaced by the variance of the fixed Gaussian.",
+            "Conversely, if we look at EP.",
+            "You'll see that the output message takes into account both the uncertainty variance associated with the factor and the variance associated with the.",
+            "Uncertainty in a."
+        ],
+        [
+            "So the summary from this part of the talk is kind of surprising is that variational Bayes variational message passing does not propagate message uncertainty.",
+            "It will not propagate it through more than one node and that expectation propagation does.",
+            "So you might think that at this point in the talk I'm saying use EP never use Variational Bayes.",
+            "Which from coming from me would be a strange statement.",
+            "But there's more to come, so, and let's start on a positive Note 4 four."
+        ],
+        [
+            "AP, So I want to try and keep things grounded in a pragmatic.",
+            "So they also want to show off info.net little bit.",
+            "This is the Alpha version.",
+            "The plan is to release this for.",
+            "Academic use in the spring.",
+            "So what we have here is.",
+            "Exactly the example I just gave, so we've got we're trying to learn the mean of a Gaussian given some data.",
+            "So here we have our.",
+            "Infer.net program.",
+            "What we do is we have some data 123.",
+            "We're going to set up the mean of the prior on them, which is going to be a very broad Gaussian zero 1000.",
+            "And then for each point in our data, we're going to create a random variable and say that it's mean is the mean and the variance is fixed at one, and then we're going to constrain that variable to be equal to the data.",
+            "So this is how you write.",
+            "Modelsininfer.net and do inference.",
+            "We create an inference engine here and then we can use different algorithms and we can use the engine to infer the distribution over the mean.",
+            "So this is a. Hopefully readable way of writing down exactly that problem in a few lines of code.",
+            "So I shall run this algorithm with expectation propagation.",
+            "And.",
+            "You'll find it does.",
+            "The sensible thing gives the meaning of roughly 2 and some uncertainty in that mean distribution.",
+            "And if I switch the algorithm.",
+            "Two variational methods.",
+            "Again.",
+            "You see, you get exactly the same result, so that's kind of what we expected.",
+            "But if we then moved the case where we have soft observations, we have uncertainty in our data.",
+            "So now you'll see that this line has changed and rather than constraining our variable to be equal to the data, we're going to continue to be equal to a sample from that were a Gaussian.",
+            "His mean is the data, but his precision is is very, very small number, so its variance is very large.",
+            "So if we now saying this massive noise, all these observations affectively ignore them, right?",
+            "One variable by tree.",
+            "Thank you, I'm sorry.",
+            "So we got we're learning the mean of three data points.",
+            "Yeah yeah yeah.",
+            "So it should be X brackets I I just didn't do that.",
+            "So now we're going to say OK, these are like being soft observations.",
+            "The line above the X = 1 -- 8 and then divide the load.",
+            "This is the fixed.",
+            "This is the fixed.",
+            "Precision of the factor here, so we're fixing we're fixing.",
+            "We're fixing the precision to be one for the fact that this is the uncertainty in the observation here, OK?",
+            "When you say constraint or random.",
+            "I'm actually driving right now, so it's a bad name, but we haven't got better one yet and open to suggestions.",
+            "Constraint constraint equal to distribution if you like.",
+            "The thing is, this is written as if you were doing sampling, but you're not doing something that was kind of the original intent, so you just write a sampler and that would be your distribution.",
+            "Yeah, you can think of it that way.",
+            "But we write it with.",
+            "Yeah, I'm happy to give more detailed discussion of Internet like in the brakes, but some questions Now a good too.",
+            "So what would you expect here?",
+            "Then we were saying we have some observations with massive variance, so we should just get back the prior.",
+            "So if I switch the algorithm to EP.",
+            "And run this example.",
+            "Then we get back the prior so zero or thousands.",
+            "But if we switch it to variational methods and I really should make a shortcut key for doing this switch.",
+            "And run it.",
+            "Then what do we get?",
+            "We get something which is remarkably close to what we got before three base gone all data and has ignored the uncertainty that we just added and is giving us essentially the same answer as we had before.",
+            "The slight difference is due to the fact that we're not just looking at messages in isolation.",
+            "We're iterating to convergence, but you can still see the point here, but it says it's ignoring the uncertainty in those observations, so that's a clear one.",
+            "Nil to EP.",
+            "So.",
+            "What happened well?",
+            "What you see is if you iterate, it does affect the.",
+            "What happens is because the data is now uncertain, it gets introduced as of as a latent variable in the graph and then.",
+            "It does mean that you don't get exactly the same results as before, but you can see it's still giving extremely incorrect behavior.",
+            "I can't make any simple statements about what that result is, but that's why I wanted to give the demo to show that in practice it does give you a bizarre result.",
+            "So when you showed was iterating it or yeah, that was iterating it.",
+            "Yes, yeah, that was actually trading it to convergence."
+        ],
+        [
+            "So let's look at another example and I'm into my difficult model, so let's learn both the mean and the precision of.",
+            "Again, just crazy hard problem.",
+            "And no one in their right mind would want to tackle.",
+            "So here we have it.",
+            "And just to just 'cause I'm interested in learning from huge datasets, we're going to have two data points.",
+            "And probably in the wrong session for learning for Big Data.",
+            "But So what we're going to do is going to.",
+            "We're going to aim to learn the mean and the precision of these two data points, and we're going to use EP this time because we've decided that EP is much cooler than."
+        ],
+        [
+            "Original base.",
+            "So I'm going to just do a slightly hand WAVY description because the mast isn't helpful, but the intuition comes from from looking at so without loss of generality, I'm going to look 1st at the left hand factor, 'cause it's symmetric and the first thing that's interesting is that we can.",
+            "We're going to propagate basically the prior down to that factor, 'cause at this point that's all we can do.",
+            "And then on the first thing I'm interested in doing is."
+        ],
+        [
+            "Computing what the messages are going to be.",
+            "Up to the mean from its first data point, so the message up to for the mean is going to have mean of that data point.",
+            "And it's going to have some variants, which is going to depend on a lot of things, but primarily can depend on the prior over the precision.",
+            "I'm not going to what that is, but there is some variance that's going to be, and it's going to depend on this prior up here.",
+            "And then because I'm assuming the prize is somewhat broad.",
+            "And so therefore when we compute the message down to two G, it's going to be rough."
+        ],
+        [
+            "Actually the same.",
+            "Because Town Square is going to be much less than our broad prior.",
+            "And again, this is roughly the prior as well.",
+            "So what situation do we then get when we're computing the message from G backup to the mean?",
+            "Well, we can get this situation where if the Tau is too small.",
+            "With respect to the difference between our two data points, then what G is saying to the mean is your way too confident man become less confident, OK?",
+            "And you can see there are lots of settings of the private lead to this situation.",
+            "And So what we send back is a Gaussian with negative variance.",
+            "So that when it's multiplied in with the the other messages into mean into the mean.",
+            "Then we'll get an appropriately confident posterior over the mean.",
+            "But this is an improper message, right?",
+            "So when it comes to computing all the messages now out for F, say we're trying to compute expectations under an improper Gaussian distribution.",
+            "And what do we do?",
+            "That's not a defined operation, and so we kind of."
+        ],
+        [
+            "Give up, that's what we do in the moment so.",
+            "Expectation propagation gonna have improper message of this form.",
+            "If you look at the variational message, is there always fine because they're not trying to propagate this kind of information around, it's not propagating.",
+            "Uncertainty events always re estimating uncertainty locally from its neighbors.",
+            "Noisy PS1 propagate uncertainty long distance and it's sometimes therefore having to say become more confident."
+        ],
+        [
+            "So.",
+            "Only.",
+            "What would happen if you would give them the 1st update?",
+            "Can I come back to that question in a moment?",
+            "So just because I like to give damage.",
+            "Let's just give a demo.",
+            "This is very exciting.",
+            "So all we've changed now is that rather than the one we had before.",
+            "We now have introduced the precision as a random variable.",
+            "With a very broad gamma prior.",
+            "And.",
+            "Other than that, it's exactly the same.",
+            "Except that I've gone back to the sharp observation, the non noisy observations.",
+            "And we are going to infer the mean am again further precision.",
+            "So if we run this variationally.",
+            "And then we get a sensible answer.",
+            "If we run it using EP.",
+            "Let me get an exception.",
+            "Improper infant proper distribution during inference so.",
+            "Yep.",
+            "What you do with the distribution to something algebraically?",
+            "I mean you're not actually having a mass of things and then you do, and actually integral that you do something another bright Corporation.",
+            "Is there anyway instead of doing it?",
+            "Kind of an analytic continuation, you said, well, I'm just computing something and I could compute the same element algebraic expression.",
+            "So Tom can feel free to button at this point if he wants, but I you can to certain extent do that.",
+            "But then what you find is that you end up, for example, pushing the mean of wet in the wrong direction.",
+            "You end up with like the variance might be dealt with correctly, but then the message for the mean become negative, so they end up dying.",
+            "So basically you end up with a diverging algorithm if you try and do that.",
+            "That you you could not bridge yeah so wrong.",
+            "Yep.",
+            "So the problem is not that is not the message from G to me."
+        ],
+        [
+            "It was improper.",
+            "That's perfectly fine.",
+            "The problem is when you then go to process African, he will receive an improper message from you.",
+            "So now F has no idea what the description of you exactly supposed to be.",
+            "And I have to somehow computer message and then that's where the problem is.",
+            "So we've looked at some."
+        ],
+        [
+            "Fixes oh, I should just say one sort of argument is that, well, there must be something fundamentally wrong here because we shouldn't be having improper messages in this algorithm, But let's just simplify the graph further for a second.",
+            "And instead of assuming that the message that this is Tau squared message arose from some computation due to how we initialize the system or something, let's assume that it was just the prior on the mean.",
+            "Then, if that is true, that prime is over confident, and this X2 is sufficiently far away from X1.",
+            "Will get exactly the same negative variance message, and this time it's not going to cause any problems.",
+            "In fact, it's going to give us exact moments for the main enemy.",
+            "So as Tom said, it's not the message from G to mu.",
+            "That's the problem is the fact that we don't have to use that propagate that message onwards.",
+            "That's going to lead to.",
+            "Problems, so let's look at it some."
+        ],
+        [
+            "Fixes that we thought about.",
+            "So it's all the problem is always for F. It receives this improper message and now it has to do something with it.",
+            "And so there's some simple things you can do that you can say that.",
+            "Suppose that that message is just uniform.",
+            "If you do that, then you just never converges.",
+            "So you can say, well, it's a negative variance.",
+            "So let's try and move the variance back to the closest valid proper method, which is appointments, right?",
+            "What that means is you then suddenly become massively overconfident again locally about your distribution, which means that everything around you in the graph something says, oh, you've got to become less confident, so you get tons more improper messages.",
+            "And you don't get convergence to a good solution.",
+            "And there are other things you can do.",
+            "You can try resending the last message, which again is the problem that you never converge, or you can never converge.",
+            "Then more more hacky things, you can try just sending the last message again, but less confidently 'cause you know that at some point somebody said you know to be less certain.",
+            "So let's just try doing that and the other the other sort of suggestions that are coming up with is just sort of locally or temporarily switch to variational message passing, which were saying that that we know that this uncertainty that we're getting is not very.",
+            "Useful is not locally, it's not clearly it's not valid, it's outside the space of valid to beliefs.",
+            "So let's just switch instead to making a local estimation, but I haven't had any success getting that to work, so this is still an open an open question, but this is a serious problem.",
+            "Via message passing and not looking at the whole picture and perhaps adapting other messages in the global.",
+            "Is that possible?",
+            "Or does that not help either?",
+            "I mean, in other words, is a problem?",
+            "Associated with only looking locally it is.",
+            "It is turning said yes because if you ask the at the point where you receive the first improper message you asked the entire graph.",
+            "What is my posterior over the mean?",
+            "It will be a valid posterior is just because locally we've divided out the effect of the of the upper message that we get this this locally improper message.",
+            "So in some sense you're right, but.",
+            "Yeah, so another solution that I've been trying to play with is exactly that is trying to just sort of say temporarily we're going to ignore dividing out the backward method and keep it in so that we know that the marginal is valid.",
+            "Doesn't work either.",
+            "So this is it.",
+            "Sounds like something that would be easy to fix and the message from this is just that we tried lots of different things and none of them seem to work and getting increasingly hacky towards the bottom as we get increasingly desperate.",
+            "Messages occur even if exact inference.",
+            "We ended up doing this.",
+            "These messages are are in some sense stays fixed point iteration.",
+            "Sometimes you see then the following.",
+            "Exactly, or the step that is suggested by this message by this direct projection takes you out of your.",
+            "Set.",
+            "You could just shorten the steps.",
+            "That's what we're trying to do with sort of point mass approximation, but maybe there's better, better ways of projecting it back into the same direction.",
+            "In order to see if the original step is too large, you have to look at your neighbors.",
+            "If your neighbors will be able to continue on.",
+            "Sending OK. And that doesn't really solve the problem, because it empirically, it seems as if you're hugging the boundary of where you're allowed to go and things slowed down dramatically, yeah?",
+            "Well, that would at least make it valid.",
+            "Yeah, so there's probably some sense we can do that brings it back into the valid space, but again, you can interested about convergence.",
+            "And as you say, what might be the case that you just end up.",
+            "Just continue to be sitting on the boundary of the valid space and not actually converging to the solution.",
+            "Oh sorry.",
+            "Classes.",
+            "What happens if you said?",
+            "But the problem with that is that you have to prove it won't diverge, presumably because, but what you'll get is that the message that you will get.",
+            "You try and project it back into the Gaussian family would then.",
+            "Then not be in the in the Gaussian family.",
+            "Histogram distribution.",
+            "Convert.",
+            "Can I find the best?",
+            "OK, so that's Tom can help Tom the question the question was, if I discretize all my continuous distributions and use a discrete representation, I'm not going to get improper messages.",
+            "That's correct, so why do we get improper messages in this case?",
+            "What what happened to?",
+            "The Gaussian family, if you discretize and you will not be essentially allowing any distribution right?",
+            "So you don't even need the project anymore basically.",
+            "So if we if we discretize and then reproject back onto the Gaussian, following discretization would be distilled.",
+            "Yeah, yeah.",
+            "Yep.",
+            "Pee pee larger clusters.",
+            "Sure.",
+            "Yeah, so if you look at large clusters you might be sort of like Neil's point is like looking at a larger scope.",
+            "I just I'm.",
+            "I'm pretty sure that it might help in this case, but there's still going to be cases where this arises and we need to have a sort of strategy for dealing with it.",
+            "I'm not always.",
+            "I mean, it's not that it's just a little bit more expensive, it's just cut off.",
+            "So you cannot just go to larger cubes usually.",
+            "Yeah, but she ignoring the problems introduced by going to logically, I still think this issue will arise.",
+            "OK, how much?",
+            "As you have.",
+            "Larger works very logically larger networks.",
+            "So I don't know.",
+            "I don't have tons of experience with this problem.",
+            "My my first experiences.",
+            "I tried to exactly this problem.",
+            "I thought OK, I just test out learning the meaning gas sense of meaning, precision of data and EP failed and I thought, well this is a good example.",
+            "They have to have some experience.",
+            "He wants to share and the question was did you move to larger models?",
+            "Do improper messages still arise or more or less frequently?",
+            "You're getting unlucky in the message schedule, so.",
+            "So basically two data points which are processed sequentially in there very far apart.",
+            "That's when this problem happens.",
+            "If you have a lot of data points and you happen to process them in a way that every that's sequential points are very close together, you're pretty much safe.",
+            "Right?",
+            "In general, if you can sort of collect a lot of evidence from many parts of the graph before you consider other parts of the graphics are giving contradictory evidence, then they generally will be safe in EP.",
+            "But if you sort of randomly bounce around that, you still sometimes get these collisions where you get these messages fighting each other, and that's when you have a problem.",
+            "In practice, people think when they encounter this they often just reorder the updates, not intelligently, but that's effectively what I'm saying.",
+            "I mean, you could do it intelligently, right?",
+            "But in your case you got two data points and we have no, we have no options.",
+            "Yeah, there is no ordering of the updates that will solve this problem in this case.",
+            "OK, I'm just going to move on to how much longer I got."
+        ],
+        [
+            "It's OK. Nathan unbounded time.",
+            "OK, I just want to address the third problem, which is even less.",
+            "Well characterized 'cause we've been working on it in the last two weeks.",
+            "So this is a really open problem and it's the problem of multiplying 2 numbers together.",
+            "And.",
+            "Sort of that, but here we have a noisy multiplication, so X is a * B plus unit variance Karen noise.",
+            "And the question that the message I'm interested in is if I observe X is 10.",
+            "And I have some uncertainty in be, let's say beers 5 variants.",
+            "One what should the message to a be so intuitively it's going to be sort of 10 over bees with some uncertain."
+        ],
+        [
+            "So what is variational message passing say?",
+            "So this is the general solution to the variational update.",
+            "What you find interesting thing is that.",
+            "In terms of the natural parameters of these distributions, you never actually do any division in various messages.",
+            "One sort of nice stability measure, so although there is a division here, it's just because I'm actually explicitly representing the mean in the precision.",
+            "But when you keep it in the natural parameter form, that never happens, so you just see that we have the mean, which is sort of like X over being, which is good, but the variance of this method is bizarre.",
+            "What we find is that as we get more uncertain about B.",
+            "We get more certain.",
+            "About a so now this is again rather odd behavior, so as as the as the variance in B increases, the variance in the message to a decreases and that's a very.",
+            "Undesirable property I would say of.",
+            "Of this of this algorithm, this was supposed to be, by the way, another pro variational Bayes example in VMP can actually deal with this factor and we thought that Yep."
+        ],
+        [
+            "Couldn't.",
+            "And the reason why?",
+            "That we thought EP couldn't is that if you think about what this message is going to look like, it's going to look like.",
+            "So you know, imagine that that becomes very uncertain.",
+            "This is going to just look like a 1 / a distribution which doesn't have moments, doesn't have moments like actually like distribution.",
+            "And so it doesn't have moments.",
+            "Then we can't compute the EP message.",
+            "So does that mean if so?",
+            "But so.",
+            "When we were looking at this we thought can't handle it, then we're forgotten.",
+            "Is that assume that there's some sensible prior over a when we multiply in that prior, then the primal dominate over this this and you'll actually be able to compute the moments here and we can draw a picture.",
+            "In this case we can draw."
+        ],
+        [
+            "Picture the exact posterior of a given by sampling and you can see it actually does have a nice, well behaved behavior.",
+            "With a peak at two and some sort of variance.",
+            "So that seemed promising.",
+            "OK, so we can we actually can compute some moments, provided we have some sensible prior.",
+            "If we have uniform on a, then we're still going to be in trouble."
+        ],
+        [
+            "So let's look at the behavior and this is again actually the exact behavior.",
+            "This is this is not EP.",
+            "This is this is exact sampling.",
+            "So we're going to take that example.",
+            "We just need to change the variance of B and look at what the exact variance that aid us, and you'd think I mean.",
+            "Intuitively, you'd think as I might be less certain.",
+            "My variance in posterior variance in a is just going to monotonically increase and become less certain.",
+            "And what you find is you get a peak in the variance of a.",
+            "So as you make be less certain.",
+            "The variance of a increases to a peak and then decreases.",
+            "And to a different value, and the mean does something weird as well.",
+            "So we sort of sat and looked at this and went.",
+            "Why is there a peak?",
+            "Here any guesses?",
+            "OK, so.",
+            "What was the prior?",
+            "Let me go back to."
+        ],
+        [
+            "The.",
+            "No.",
+            "And I think one's got the answer, so the reason."
+        ],
+        [
+            "Why we get this peak is because neither A nor B are constrained to be positive, so we have this bimodal solution where we consider the uncertainty in B is leading to a positive solution for A and a negative solution into A and actually the peak in the mean here corresponds to when the the the standard deviation in the distribution never be passes over 0.",
+            "So that's when the two.",
+            "Loads of this distribution started to interact, and So what we're getting is this sort of fairly strange behavior.",
+            "Because we're considering both modes of a simultaneously.",
+            "Now that's fine if you really are interested in your model in modeling some physical system where.",
+            "There is uncertainty and you need to represent both of these modes, but often when you're using a product, you're just doing factor analysis or something.",
+            "You just want to say this data is made up of a number of underlying components come together or something, and you don't.",
+            "Actually, you actually caring about whether they sit at near 0 and have this bimodal behavior or sit far away from zero and don't have this bimodal behavior."
+        ],
+        [
+            "And so if you then constrain A to be positive, so you're only looking at one of these two modes, then you get much more sensible, stable behavior.",
+            "And you need to constrain one of your arguments to be positive.",
+            "So now if you constrain positive HIV positive, then you get this sensible behavior of the variance monotonically increasing as the B variance increases.",
+            "So it seems like when we go to put this when we get to use one of these factors, that the default behavior should be to use a product with with one argument constrained to be positive.",
+            "You have a lot of factors when coming from each data point, but I don't see how you could then make the stories to say, well, this.",
+            "So if you want to be able to allow what was sort of, you know if you if you if you wanted to do factory methods, for example, where the fact is allowed positive and negative components, so you won't be able to subtract and well as well as well as add, then you can just divide it into one entirely positive factor in one entirely negative factor containing the negative components.",
+            "So you can divide it into which is basically like saying we're going to.",
+            "We're just going to take that bimetal separation and model the two modes explicitly in separately, which will make the local messages better approximations so.",
+            "So this is these sorts of that sort of tricks that we can maybe incorporate automatically or you need to think about when you're designing the model to make sure that the inference is.",
+            "The methods used to approximate a unimodal rather than bimodal when you're using a unimodal family."
+        ],
+        [
+            "OK, the demo is really boring because it doesn't work for EP 'cause we haven't implemented this last bit."
+        ],
+        [
+            "I should stop.",
+            "So yeah, that's the summary.",
+            "And yeah, thank you very much."
+        ],
+        [
+            "Yeah, so it should just a couple of things that will be publicly available sometime in the spring.",
+            "It's going to have EP variational message passing Gibson playing.",
+            "It's extensible so you can add your own modeling elements to it.",
+            "You can even add better implementations of the existing algorithm that's very, very freely extensible and it's really fast and download it and try it when it when it's available.",
+            "So again, sorry.",
+            "Algorithms for EB.",
+            "Do there exist double loop algorithms?",
+            "Yeah, but.",
+            "So we don't support them natively, but you can you can you can do the outer loop yourself and then the inner loop would be something that you could use Internet for.",
+            "Discussed.",
+            "It's just a different schedule right?",
+            "For so for the proper message example, there's no schedule that will that will prevent proper message.",
+            "I think that for other examples, changing the schedule will certainly help overcome some of these problems.",
+            "Yeah."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Very well, thank you very much for inviting me to speak what I want to talk about is the experiences that Tom and myself had when developingtheinfer.net inference framework, and in particular I'm going to look today at comparing expectation propagation and variational message passing winter 2 message passing algorithms of 20 familiar which allow you to do approximate inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I'm also going to provide a demonstration.",
+                    "label": 0
+                },
+                {
+                    "sent": "Using the info.net framework to compare these two, but when we were developing infernet, we really came across some of interesting behaviors of both of these algorithms and what I want to present today is a summary of our experiences, some of which I think we can say we've sort of addressed, and some of which are very much open problems that the Community.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Could look at so this is the overview of the talk I'm just going to perhaps repeat a little bit of what matesa talked about in terms of looking at the family of approximate inference algorithms, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "The main meat of the talk is going to be looking at several concrete cases for both expectation propagation and for variational message passing, and look at the behaviors of each algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "In these concrete cases and trying to isolate where they succeed and where they fail and why we think this is the case.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm more of a an expert on the variational side, and obviously Tom is the expert on the expectation propagation side, so hopefully between us will be able to answer questions and take part in the discussion.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That may arise.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we just crack on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the many approximate inference algorithms can be put into this very nice divergance minimization framework where you simply have your family of approximating distributions Q and all you aim to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is optimized within that family to minimize some divergance measure.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we choose the divergent measure to be, for example the Alpha divergent, then we get this nice complete suite of approximate inference algorithms for different values of the Alpha for the alphabet version.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's this picture here is from Tom's paper on divergent minimization message passing algorithms and what it shows is the behavior of the Alpha divergent for different values of Alpha.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm sure you're familiar with the sort of KL divergences forwards and backwards, but the output avoidance becomes the KL divergent for Alpha equals zero in Alpha equals one for the forward and backwards alphabet vergence, but it also it has defined behaviors in each of these intermediate cases, and if you perform this divergent minimization algorithm with different values of the Alpha, then what you get a number of familiar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Inference methods, so if you look at expectation propagation and belief propagation, are the concrete instantiation of this method for Alpha equals one variational Bayes is what you get if you put out for equals zero and then these fractional belief propagation methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "TRW is what you get for Alpha moving greater than one and then the most general form of this is the more recently introduced.",
+                    "label": 0
+                },
+                {
+                    "sent": "How EP where you can simply just set what the Alpha is going to be for for different parts of your graph and Parry.",
+                    "label": 0
+                },
+                {
+                    "sent": "P covers this in spot entire spectrum.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the question is when would you want to use different Alpha divergences?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let's just move and look at the behaviors of these different Alpha divergences so.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm getting the end of the slide cut off but never mind, so if you look at the left hand side when you had a negative Infinity and your Alpha then you get this behavior of seeking absolutely the largest mode.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we have, uh, sorry, should've said the approximating families Q is just a Gaussian and then we have our bimodal true distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when Alpha goes to minus Infinity you are absolutely seek the mode with the largest mass, not with the highest peak, but with the largest mass.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then the variational Bayes is doing something more like that and then as you move through to Alpha equals positive Infinity, you get an upper envelope.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you're trying to.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is for an unnormalized Q distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you get an upper envelope on your approximation, and thus you're going to try and include all of the mass in your distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, you can look at the behavior of different divergences with respect to zeros in the P distribution, and you move from this exclusive zero forcing behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whereas if there's a zero in P, there must be a zero in Q.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that you have regions where.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which will mean that you tend to underestimate the variance of ovpi moving through to the other behavior, where Q will try and cover all of the mass of P, even if there are zeros in P. Finally, if you look at the unnormalized key distribution that minimizes diversions, you'll see that the posterior mass of Q moves from being an underestimate at Alpha equals minus Infinity.",
+                    "label": 0
+                },
+                {
+                    "sent": "Through to be actually the correct math at Alpha equals one and then over to be an over estimate at Alpha equals positive Infinity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so I think, as you the reasons for moving between different alphas, I'm not really going to address that in this talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "But some sorts of reasons might be.",
+                    "label": 0
+                },
+                {
+                    "sent": "One is going to be tractability of when these computations are going to be valid for different graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise, what sort of approximation you're looking to get which parts of the posterior you're actually interested in.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you could exactly minimize the obvious one case, yes, the approximation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, but that exact minimization is not going to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only in the global sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that was just a brief overview to set the scene and then all I'm really going to look at today.",
+                    "label": 0
+                },
+                {
+                    "sent": "The two settings Alpha equals zero in our equals one for variational Bayes and expectation propagation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the nice thing is that we can apply this the minute divergent minimization by message passing in a graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to use a factor graph notation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have variables A&B, we have a factor F and we're just going to look at the message from A to F in the message from F to B.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just to remind everyone who might not be familiar, this is the update equation for expectation propagation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what you have is you have a sentence of some product like term where you just summing from the incoming message from a over the factor, marginally marginalizing out a something over A and then what EP is going to do is it's going to take the backwards message from B to F. Multiply that in.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then do a projection which is going to project the resulting distribution back into the family that we're going to allow for our messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we're going to divide again by that backwards that reverse message.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so one way of thinking about this is that, well, firstly, we should note that if that projection is exact, if it turns out that the result of this multiplication is in the family of distributions, which you're going to be able to approximate, then what you get is just BP.",
+                    "label": 0
+                },
+                {
+                    "sent": "You recover belief propagation because these two just simply cancel out.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what about the case where you're going to have to make that approximation?",
+                    "label": 0
+                },
+                {
+                    "sent": "You're going to have to take this possibly unpleasantly formed distribution and projected back into, say, the Gaussian family or whatever you're using.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then how is this reverse message influencing that projection?",
+                    "label": 0
+                },
+                {
+                    "sent": "One nice way of thinking about it as a hint to the algorithm as to where it should make that that approximation accurate.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the reverse messages going to say I'm going to suggest that you try and make the projection accurate.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this sort of region of space, that's quite a nice way.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think you know, as we move towards richer family of messages then that message will get increasingly ignored.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then when we try and simplify message family then it's going to have to use more information to try and find out where best to approximate this awkward message distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "No variational message passing doesn't use that reverse method and always uses the same form of the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Message computation, which is already being covered, just this log form of the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Belief propagation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Message.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so I'm just going to take those message passing computations and apply them to a number of cases so we can see the behavior of these two algorithm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the first is a is a really simple example, so all my graphs are going to have exactly 1 factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "Almost all of them have one factor in a very few variables that keep things very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we're just going to have the factor is a Bernoulli.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the we're looking in a sense that the upward messages here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a is going to be one or zero, and B is the probability of it being one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Benary and this is the parameter if you like.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's have a look at what happens in the case of variational message passing.",
+                    "label": 0
+                },
+                {
+                    "sent": "When the input messages some than any distribution where the probability P of being true.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then after you pass through the factor, the message to be is now going to be a beta distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "With these parameters, one plus play 1 + 1 -- P. Now.",
+                    "label": 0
+                },
+                {
+                    "sent": "What is the uncertainty in this message?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can think about the uncertainty in the input messages as moving from being very uncertain when it's .5 through to being very certain when it's one or zero.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the output uncertainty is given by the concentration of the beta, which is just the sum of these two parameters and what's interesting is that for variational message passing you can see if you add these two up you'll always get 3.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the concentration of the message to be or the certainty in this message is constant, independent of the uncertainty in the input message, and that seems like a slightly strange undesirable behavior, and just to contrast with that behavior, if we look at the EP behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is independent of the reverse message.",
+                    "label": 0
+                },
+                {
+                    "sent": "Look at the P behavior when we put in the maximally uncertain input message.",
+                    "label": 0
+                },
+                {
+                    "sent": "So 5050 true false.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the message to be is has concentration 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we put in the maximally certain message, then the output messages concentration through, so we're getting propagation of the uncertainty in the input message through to the output message.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, what you see is that variational methods are is giving the confidence in the output message that you would get if they implemented was certain.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, so if we were totally confident in the value of a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we would get this case where the concentration is 3 and variational Bayes is giving that all the time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that seems we know that variational Bayes is overconfident.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is kind of ridiculous, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's confident as if you observed a. I just want to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Look at another example of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a sense and even simpler example we're going to now take a as being the output of a Gaussian, where B is the mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the precision of the variance is just fixed Sigma squared.",
+                    "label": 0
+                },
+                {
+                    "sent": "And let's suppose A is observed with noise, and so we're going to say that the input messages, some Gaussian mean mu with some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Variance town squared.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then if we compute the message to be, you'll see that it is just a Gaussian with the same mean, but where the variance is exactly the fixed variance that we specified here so strangely.",
+                    "label": 0
+                },
+                {
+                    "sent": "The uncertainty in a is completely ignored, is just replaced by the variance of the fixed Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "Conversely, if we look at EP.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll see that the output message takes into account both the uncertainty variance associated with the factor and the variance associated with the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uncertainty in a.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the summary from this part of the talk is kind of surprising is that variational Bayes variational message passing does not propagate message uncertainty.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will not propagate it through more than one node and that expectation propagation does.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you might think that at this point in the talk I'm saying use EP never use Variational Bayes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which from coming from me would be a strange statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's more to come, so, and let's start on a positive Note 4 four.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "AP, So I want to try and keep things grounded in a pragmatic.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they also want to show off info.net little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the Alpha version.",
+                    "label": 0
+                },
+                {
+                    "sent": "The plan is to release this for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Academic use in the spring.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we have here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly the example I just gave, so we've got we're trying to learn the mean of a Gaussian given some data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we have our.",
+                    "label": 0
+                },
+                {
+                    "sent": "Infer.net program.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we do is we have some data 123.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to set up the mean of the prior on them, which is going to be a very broad Gaussian zero 1000.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then for each point in our data, we're going to create a random variable and say that it's mean is the mean and the variance is fixed at one, and then we're going to constrain that variable to be equal to the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is how you write.",
+                    "label": 0
+                },
+                {
+                    "sent": "Modelsininfer.net and do inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "We create an inference engine here and then we can use different algorithms and we can use the engine to infer the distribution over the mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a. Hopefully readable way of writing down exactly that problem in a few lines of code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I shall run this algorithm with expectation propagation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll find it does.",
+                    "label": 0
+                },
+                {
+                    "sent": "The sensible thing gives the meaning of roughly 2 and some uncertainty in that mean distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I switch the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two variational methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again.",
+                    "label": 0
+                },
+                {
+                    "sent": "You see, you get exactly the same result, so that's kind of what we expected.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if we then moved the case where we have soft observations, we have uncertainty in our data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now you'll see that this line has changed and rather than constraining our variable to be equal to the data, we're going to continue to be equal to a sample from that were a Gaussian.",
+                    "label": 0
+                },
+                {
+                    "sent": "His mean is the data, but his precision is is very, very small number, so its variance is very large.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we now saying this massive noise, all these observations affectively ignore them, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "One variable by tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you, I'm sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we got we're learning the mean of three data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah yeah yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it should be X brackets I I just didn't do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we're going to say OK, these are like being soft observations.",
+                    "label": 0
+                },
+                {
+                    "sent": "The line above the X = 1 -- 8 and then divide the load.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the fixed.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the fixed.",
+                    "label": 0
+                },
+                {
+                    "sent": "Precision of the factor here, so we're fixing we're fixing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're fixing the precision to be one for the fact that this is the uncertainty in the observation here, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "When you say constraint or random.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm actually driving right now, so it's a bad name, but we haven't got better one yet and open to suggestions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Constraint constraint equal to distribution if you like.",
+                    "label": 0
+                },
+                {
+                    "sent": "The thing is, this is written as if you were doing sampling, but you're not doing something that was kind of the original intent, so you just write a sampler and that would be your distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, you can think of it that way.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we write it with.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, I'm happy to give more detailed discussion of Internet like in the brakes, but some questions Now a good too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what would you expect here?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we were saying we have some observations with massive variance, so we should just get back the prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I switch the algorithm to EP.",
+                    "label": 0
+                },
+                {
+                    "sent": "And run this example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we get back the prior so zero or thousands.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if we switch it to variational methods and I really should make a shortcut key for doing this switch.",
+                    "label": 0
+                },
+                {
+                    "sent": "And run it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then what do we get?",
+                    "label": 0
+                },
+                {
+                    "sent": "We get something which is remarkably close to what we got before three base gone all data and has ignored the uncertainty that we just added and is giving us essentially the same answer as we had before.",
+                    "label": 0
+                },
+                {
+                    "sent": "The slight difference is due to the fact that we're not just looking at messages in isolation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're iterating to convergence, but you can still see the point here, but it says it's ignoring the uncertainty in those observations, so that's a clear one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Nil to EP.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "What happened well?",
+                    "label": 0
+                },
+                {
+                    "sent": "What you see is if you iterate, it does affect the.",
+                    "label": 0
+                },
+                {
+                    "sent": "What happens is because the data is now uncertain, it gets introduced as of as a latent variable in the graph and then.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does mean that you don't get exactly the same results as before, but you can see it's still giving extremely incorrect behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "I can't make any simple statements about what that result is, but that's why I wanted to give the demo to show that in practice it does give you a bizarre result.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when you showed was iterating it or yeah, that was iterating it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, yeah, that was actually trading it to convergence.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's look at another example and I'm into my difficult model, so let's learn both the mean and the precision of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, just crazy hard problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And no one in their right mind would want to tackle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we have it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And just to just 'cause I'm interested in learning from huge datasets, we're going to have two data points.",
+                    "label": 1
+                },
+                {
+                    "sent": "And probably in the wrong session for learning for Big Data.",
+                    "label": 0
+                },
+                {
+                    "sent": "But So what we're going to do is going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to aim to learn the mean and the precision of these two data points, and we're going to use EP this time because we've decided that EP is much cooler than.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Original base.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to just do a slightly hand WAVY description because the mast isn't helpful, but the intuition comes from from looking at so without loss of generality, I'm going to look 1st at the left hand factor, 'cause it's symmetric and the first thing that's interesting is that we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to propagate basically the prior down to that factor, 'cause at this point that's all we can do.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then on the first thing I'm interested in doing is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Computing what the messages are going to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Up to the mean from its first data point, so the message up to for the mean is going to have mean of that data point.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's going to have some variants, which is going to depend on a lot of things, but primarily can depend on the prior over the precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not going to what that is, but there is some variance that's going to be, and it's going to depend on this prior up here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then because I'm assuming the prize is somewhat broad.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so therefore when we compute the message down to two G, it's going to be rough.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Actually the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because Town Square is going to be much less than our broad prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "And again, this is roughly the prior as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what situation do we then get when we're computing the message from G backup to the mean?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we can get this situation where if the Tau is too small.",
+                    "label": 1
+                },
+                {
+                    "sent": "With respect to the difference between our two data points, then what G is saying to the mean is your way too confident man become less confident, OK?",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can see there are lots of settings of the private lead to this situation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what we send back is a Gaussian with negative variance.",
+                    "label": 1
+                },
+                {
+                    "sent": "So that when it's multiplied in with the the other messages into mean into the mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we'll get an appropriately confident posterior over the mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is an improper message, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So when it comes to computing all the messages now out for F, say we're trying to compute expectations under an improper Gaussian distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what do we do?",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not a defined operation, and so we kind of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Give up, that's what we do in the moment so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Expectation propagation gonna have improper message of this form.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at the variational message, is there always fine because they're not trying to propagate this kind of information around, it's not propagating.",
+                    "label": 0
+                },
+                {
+                    "sent": "Uncertainty events always re estimating uncertainty locally from its neighbors.",
+                    "label": 0
+                },
+                {
+                    "sent": "Noisy PS1 propagate uncertainty long distance and it's sometimes therefore having to say become more confident.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only.",
+                    "label": 0
+                },
+                {
+                    "sent": "What would happen if you would give them the 1st update?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I come back to that question in a moment?",
+                    "label": 0
+                },
+                {
+                    "sent": "So just because I like to give damage.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's just give a demo.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is very exciting.",
+                    "label": 0
+                },
+                {
+                    "sent": "So all we've changed now is that rather than the one we had before.",
+                    "label": 0
+                },
+                {
+                    "sent": "We now have introduced the precision as a random variable.",
+                    "label": 0
+                },
+                {
+                    "sent": "With a very broad gamma prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Other than that, it's exactly the same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Except that I've gone back to the sharp observation, the non noisy observations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we are going to infer the mean am again further precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we run this variationally.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we get a sensible answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we run it using EP.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me get an exception.",
+                    "label": 0
+                },
+                {
+                    "sent": "Improper infant proper distribution during inference so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you do with the distribution to something algebraically?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean you're not actually having a mass of things and then you do, and actually integral that you do something another bright Corporation.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is there anyway instead of doing it?",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of an analytic continuation, you said, well, I'm just computing something and I could compute the same element algebraic expression.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Tom can feel free to button at this point if he wants, but I you can to certain extent do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But then what you find is that you end up, for example, pushing the mean of wet in the wrong direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "You end up with like the variance might be dealt with correctly, but then the message for the mean become negative, so they end up dying.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically you end up with a diverging algorithm if you try and do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you you could not bridge yeah so wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem is not that is not the message from G to me.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It was improper.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's perfectly fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is when you then go to process African, he will receive an improper message from you.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now F has no idea what the description of you exactly supposed to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I have to somehow computer message and then that's where the problem is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've looked at some.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Fixes oh, I should just say one sort of argument is that, well, there must be something fundamentally wrong here because we shouldn't be having improper messages in this algorithm, But let's just simplify the graph further for a second.",
+                    "label": 0
+                },
+                {
+                    "sent": "And instead of assuming that the message that this is Tau squared message arose from some computation due to how we initialize the system or something, let's assume that it was just the prior on the mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then, if that is true, that prime is over confident, and this X2 is sufficiently far away from X1.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will get exactly the same negative variance message, and this time it's not going to cause any problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, it's going to give us exact moments for the main enemy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as Tom said, it's not the message from G to mu.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the problem is the fact that we don't have to use that propagate that message onwards.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's going to lead to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Problems, so let's look at it some.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Fixes that we thought about.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's all the problem is always for F. It receives this improper message and now it has to do something with it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so there's some simple things you can do that you can say that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Suppose that that message is just uniform.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do that, then you just never converges.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can say, well, it's a negative variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's try and move the variance back to the closest valid proper method, which is appointments, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "What that means is you then suddenly become massively overconfident again locally about your distribution, which means that everything around you in the graph something says, oh, you've got to become less confident, so you get tons more improper messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you don't get convergence to a good solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are other things you can do.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can try resending the last message, which again is the problem that you never converge, or you can never converge.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then more more hacky things, you can try just sending the last message again, but less confidently 'cause you know that at some point somebody said you know to be less certain.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's just try doing that and the other the other sort of suggestions that are coming up with is just sort of locally or temporarily switch to variational message passing, which were saying that that we know that this uncertainty that we're getting is not very.",
+                    "label": 0
+                },
+                {
+                    "sent": "Useful is not locally, it's not clearly it's not valid, it's outside the space of valid to beliefs.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's just switch instead to making a local estimation, but I haven't had any success getting that to work, so this is still an open an open question, but this is a serious problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Via message passing and not looking at the whole picture and perhaps adapting other messages in the global.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that possible?",
+                    "label": 0
+                },
+                {
+                    "sent": "Or does that not help either?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, in other words, is a problem?",
+                    "label": 0
+                },
+                {
+                    "sent": "Associated with only looking locally it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is turning said yes because if you ask the at the point where you receive the first improper message you asked the entire graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "What is my posterior over the mean?",
+                    "label": 0
+                },
+                {
+                    "sent": "It will be a valid posterior is just because locally we've divided out the effect of the of the upper message that we get this this locally improper message.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in some sense you're right, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so another solution that I've been trying to play with is exactly that is trying to just sort of say temporarily we're going to ignore dividing out the backward method and keep it in so that we know that the marginal is valid.",
+                    "label": 0
+                },
+                {
+                    "sent": "Doesn't work either.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sounds like something that would be easy to fix and the message from this is just that we tried lots of different things and none of them seem to work and getting increasingly hacky towards the bottom as we get increasingly desperate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Messages occur even if exact inference.",
+                    "label": 0
+                },
+                {
+                    "sent": "We ended up doing this.",
+                    "label": 0
+                },
+                {
+                    "sent": "These messages are are in some sense stays fixed point iteration.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes you see then the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exactly, or the step that is suggested by this message by this direct projection takes you out of your.",
+                    "label": 0
+                },
+                {
+                    "sent": "Set.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could just shorten the steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what we're trying to do with sort of point mass approximation, but maybe there's better, better ways of projecting it back into the same direction.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to see if the original step is too large, you have to look at your neighbors.",
+                    "label": 0
+                },
+                {
+                    "sent": "If your neighbors will be able to continue on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sending OK. And that doesn't really solve the problem, because it empirically, it seems as if you're hugging the boundary of where you're allowed to go and things slowed down dramatically, yeah?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, that would at least make it valid.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so there's probably some sense we can do that brings it back into the valid space, but again, you can interested about convergence.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as you say, what might be the case that you just end up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just continue to be sitting on the boundary of the valid space and not actually converging to the solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "Classes.",
+                    "label": 0
+                },
+                {
+                    "sent": "What happens if you said?",
+                    "label": 0
+                },
+                {
+                    "sent": "But the problem with that is that you have to prove it won't diverge, presumably because, but what you'll get is that the message that you will get.",
+                    "label": 0
+                },
+                {
+                    "sent": "You try and project it back into the Gaussian family would then.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then not be in the in the Gaussian family.",
+                    "label": 0
+                },
+                {
+                    "sent": "Histogram distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "Convert.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can I find the best?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so that's Tom can help Tom the question the question was, if I discretize all my continuous distributions and use a discrete representation, I'm not going to get improper messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's correct, so why do we get improper messages in this case?",
+                    "label": 0
+                },
+                {
+                    "sent": "What what happened to?",
+                    "label": 0
+                },
+                {
+                    "sent": "The Gaussian family, if you discretize and you will not be essentially allowing any distribution right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So you don't even need the project anymore basically.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we if we discretize and then reproject back onto the Gaussian, following discretization would be distilled.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yep.",
+                    "label": 0
+                },
+                {
+                    "sent": "Pee pee larger clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so if you look at large clusters you might be sort of like Neil's point is like looking at a larger scope.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just I'm.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm pretty sure that it might help in this case, but there's still going to be cases where this arises and we need to have a sort of strategy for dealing with it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not always.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, it's not that it's just a little bit more expensive, it's just cut off.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you cannot just go to larger cubes usually.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, but she ignoring the problems introduced by going to logically, I still think this issue will arise.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, how much?",
+                    "label": 0
+                },
+                {
+                    "sent": "As you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "Larger works very logically larger networks.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I don't know.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have tons of experience with this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "My my first experiences.",
+                    "label": 0
+                },
+                {
+                    "sent": "I tried to exactly this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "I thought OK, I just test out learning the meaning gas sense of meaning, precision of data and EP failed and I thought, well this is a good example.",
+                    "label": 0
+                },
+                {
+                    "sent": "They have to have some experience.",
+                    "label": 0
+                },
+                {
+                    "sent": "He wants to share and the question was did you move to larger models?",
+                    "label": 0
+                },
+                {
+                    "sent": "Do improper messages still arise or more or less frequently?",
+                    "label": 0
+                },
+                {
+                    "sent": "You're getting unlucky in the message schedule, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically two data points which are processed sequentially in there very far apart.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's when this problem happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have a lot of data points and you happen to process them in a way that every that's sequential points are very close together, you're pretty much safe.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right?",
+                    "label": 0
+                },
+                {
+                    "sent": "In general, if you can sort of collect a lot of evidence from many parts of the graph before you consider other parts of the graphics are giving contradictory evidence, then they generally will be safe in EP.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you sort of randomly bounce around that, you still sometimes get these collisions where you get these messages fighting each other, and that's when you have a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "In practice, people think when they encounter this they often just reorder the updates, not intelligently, but that's effectively what I'm saying.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you could do it intelligently, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "But in your case you got two data points and we have no, we have no options.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, there is no ordering of the updates that will solve this problem in this case.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I'm just going to move on to how much longer I got.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's OK. Nathan unbounded time.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, I just want to address the third problem, which is even less.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well characterized 'cause we've been working on it in the last two weeks.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is a really open problem and it's the problem of multiplying 2 numbers together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sort of that, but here we have a noisy multiplication, so X is a * B plus unit variance Karen noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the question that the message I'm interested in is if I observe X is 10.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I have some uncertainty in be, let's say beers 5 variants.",
+                    "label": 0
+                },
+                {
+                    "sent": "One what should the message to a be so intuitively it's going to be sort of 10 over bees with some uncertain.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what is variational message passing say?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the general solution to the variational update.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you find interesting thing is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "In terms of the natural parameters of these distributions, you never actually do any division in various messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "One sort of nice stability measure, so although there is a division here, it's just because I'm actually explicitly representing the mean in the precision.",
+                    "label": 0
+                },
+                {
+                    "sent": "But when you keep it in the natural parameter form, that never happens, so you just see that we have the mean, which is sort of like X over being, which is good, but the variance of this method is bizarre.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we find is that as we get more uncertain about B.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get more certain.",
+                    "label": 0
+                },
+                {
+                    "sent": "About a so now this is again rather odd behavior, so as as the as the variance in B increases, the variance in the message to a decreases and that's a very.",
+                    "label": 0
+                },
+                {
+                    "sent": "Undesirable property I would say of.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of this of this algorithm, this was supposed to be, by the way, another pro variational Bayes example in VMP can actually deal with this factor and we thought that Yep.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Couldn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason why?",
+                    "label": 0
+                },
+                {
+                    "sent": "That we thought EP couldn't is that if you think about what this message is going to look like, it's going to look like.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you know, imagine that that becomes very uncertain.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is going to just look like a 1 / a distribution which doesn't have moments, doesn't have moments like actually like distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so it doesn't have moments.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can't compute the EP message.",
+                    "label": 0
+                },
+                {
+                    "sent": "So does that mean if so?",
+                    "label": 0
+                },
+                {
+                    "sent": "But so.",
+                    "label": 0
+                },
+                {
+                    "sent": "When we were looking at this we thought can't handle it, then we're forgotten.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that assume that there's some sensible prior over a when we multiply in that prior, then the primal dominate over this this and you'll actually be able to compute the moments here and we can draw a picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case we can draw.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Picture the exact posterior of a given by sampling and you can see it actually does have a nice, well behaved behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "With a peak at two and some sort of variance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that seemed promising.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so we can we actually can compute some moments, provided we have some sensible prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have uniform on a, then we're still going to be in trouble.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's look at the behavior and this is again actually the exact behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is this is not EP.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is this is exact sampling.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to take that example.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just need to change the variance of B and look at what the exact variance that aid us, and you'd think I mean.",
+                    "label": 0
+                },
+                {
+                    "sent": "Intuitively, you'd think as I might be less certain.",
+                    "label": 0
+                },
+                {
+                    "sent": "My variance in posterior variance in a is just going to monotonically increase and become less certain.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you find is you get a peak in the variance of a.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as you make be less certain.",
+                    "label": 0
+                },
+                {
+                    "sent": "The variance of a increases to a peak and then decreases.",
+                    "label": 0
+                },
+                {
+                    "sent": "And to a different value, and the mean does something weird as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we sort of sat and looked at this and went.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why is there a peak?",
+                    "label": 0
+                },
+                {
+                    "sent": "Here any guesses?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "What was the prior?",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me go back to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The.",
+                    "label": 0
+                },
+                {
+                    "sent": "No.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I think one's got the answer, so the reason.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Why we get this peak is because neither A nor B are constrained to be positive, so we have this bimodal solution where we consider the uncertainty in B is leading to a positive solution for A and a negative solution into A and actually the peak in the mean here corresponds to when the the the standard deviation in the distribution never be passes over 0.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's when the two.",
+                    "label": 0
+                },
+                {
+                    "sent": "Loads of this distribution started to interact, and So what we're getting is this sort of fairly strange behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because we're considering both modes of a simultaneously.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now that's fine if you really are interested in your model in modeling some physical system where.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is uncertainty and you need to represent both of these modes, but often when you're using a product, you're just doing factor analysis or something.",
+                    "label": 0
+                },
+                {
+                    "sent": "You just want to say this data is made up of a number of underlying components come together or something, and you don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actually, you actually caring about whether they sit at near 0 and have this bimodal behavior or sit far away from zero and don't have this bimodal behavior.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And so if you then constrain A to be positive, so you're only looking at one of these two modes, then you get much more sensible, stable behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you need to constrain one of your arguments to be positive.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now if you constrain positive HIV positive, then you get this sensible behavior of the variance monotonically increasing as the B variance increases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it seems like when we go to put this when we get to use one of these factors, that the default behavior should be to use a product with with one argument constrained to be positive.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a lot of factors when coming from each data point, but I don't see how you could then make the stories to say, well, this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you want to be able to allow what was sort of, you know if you if you if you wanted to do factory methods, for example, where the fact is allowed positive and negative components, so you won't be able to subtract and well as well as well as add, then you can just divide it into one entirely positive factor in one entirely negative factor containing the negative components.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can divide it into which is basically like saying we're going to.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're just going to take that bimetal separation and model the two modes explicitly in separately, which will make the local messages better approximations so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is these sorts of that sort of tricks that we can maybe incorporate automatically or you need to think about when you're designing the model to make sure that the inference is.",
+                    "label": 0
+                },
+                {
+                    "sent": "The methods used to approximate a unimodal rather than bimodal when you're using a unimodal family.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, the demo is really boring because it doesn't work for EP 'cause we haven't implemented this last bit.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I should stop.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, that's the summary.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, thank you very much.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah, so it should just a couple of things that will be publicly available sometime in the spring.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's going to have EP variational message passing Gibson playing.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's extensible so you can add your own modeling elements to it.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can even add better implementations of the existing algorithm that's very, very freely extensible and it's really fast and download it and try it when it when it's available.",
+                    "label": 0
+                },
+                {
+                    "sent": "So again, sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "Algorithms for EB.",
+                    "label": 0
+                },
+                {
+                    "sent": "Do there exist double loop algorithms?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we don't support them natively, but you can you can you can do the outer loop yourself and then the inner loop would be something that you could use Internet for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Discussed.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just a different schedule right?",
+                    "label": 0
+                },
+                {
+                    "sent": "For so for the proper message example, there's no schedule that will that will prevent proper message.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think that for other examples, changing the schedule will certainly help overcome some of these problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

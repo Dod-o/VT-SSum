@@ -1,0 +1,2705 @@
+{
+    "id": "qhhkpdum64doere4t7gtgdq4eqpi6bwg",
+    "title": "The Parameter Server",
+    "info": {
+        "author": [
+            "Alex Smola, Amazon"
+        ],
+        "published": "Jan. 16, 2013",
+        "recorded": "December 2012",
+        "category": [
+            "Top->Computer Science->Optimization Methods"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2012_smola_parameter_server/",
+    "segmentation": [
+        [
+            "No, not many equations will be harmed in the process of presenting those slides, so this is probably a good thing that this is at the end of the workshop, so you can relax.",
+            "I said what I hope to convey at least a little bit is that there are various design patterns.",
+            "How you can take.",
+            "You know algorithms problems that look reasonably well?",
+            "Maybe on, you know, single core single machine and actually paralyzed him with not too much, at least conceptually.",
+            "For it.",
+            "I mean, you still afterwards need to prove your theorems and everything to first of all multicore and Secondly multi machine.",
+            "And the good thing is that actually most problems are not as nasty as they seem, so you can actually get quite somewhere.",
+            "So, as understory mentioned, I'm going to be at Carnegie Mellon from 1st of January on.",
+            "At the moment I'm Google research and, well, that joint affiliation may very well continue after that."
+        ],
+        [
+            "This is work done with a lot of really great folks, so I'm rock maiden University.",
+            "Joy Gonzales Shravan, Nana Murty, Sergei Matusevich, Markus Weimer.",
+            "We all used to be at Yahoo at some point so you can roughly figure out where actually a large part of the work was done.",
+            "So I'm really indebted to them."
+        ],
+        [
+            "Now now.",
+            "So what I'm going to do is I'm going to show you based on a couple of examples how you can paralyze those things an well.",
+            "So if you wanted to use that for different optimization problems, this would be reasonably straightforward by simply taking the same design patterns and applying them to different problems.",
+            "OK, So what I'm going to do is, I'll first briefly mention multicore.",
+            "Basically what you do for multiple machines.",
+            "I'll give you essentially 23 vignettes of how you can do this.",
+            "And finally, whenever you see this edge sketch, you can forget anything that I said before."
+        ],
+        [
+            "R. So."
+        ],
+        [
+            "Let me just first motivate the problem a little bit.",
+            "So you could either build a large service center by spending a lot of money.",
+            "And taking very bespoke hardware, or you take something that's cheap and faulty."
+        ],
+        [
+            "And since you're taking something that's cheap and faulty, it will actually fail, says this slide from Jeff Dean.",
+            "I guess.",
+            "Probably took him some time until he got that cleared, but what you can see is in a year in a typical cluster, alot of things can go wrong.",
+            "It will go wrong, so you need to design algorithms that can to some extent handle this."
+        ],
+        [
+            "And you do have scaling problems, so you know 10 billion documents is not unusual.",
+            "Most major Internet services have at least 100 million users.",
+            "You might have over 1,000,000 days of video on YouTube and I think over many more than 10 billion images on Facebook.",
+            "So this just gets you the order of magnitude, right?",
+            "I mean, it might be off by a factor of 10, maybe a factor of 100, but probably not more than that.",
+            "So the problem is that.",
+            "You know, in a single machine, you can't really process reasonably more than, let's say a TB an hour.",
+            "OK, sure, maybe you can get two or three terabytes, but it's in the order of terabytes.",
+            "So the reason why you can do more than that is very simple.",
+            "You can't get more data than that out of your hard drive in a reasonable time.",
+            "OK, so these are going to be faster and so on, but that's kind of a limit, so if you have a lot more data than that and you want to solve it on a single machine, you're out of luck.",
+            "The second thing is that your parameter space is actually quite large.",
+            "It's typically going to be so large that it doesn't fit into a single machine.",
+            "But it's also typically not too large in the sense that if you spread out in a reasonable way over many machines, it will fit very comfortably with a lot of extra space leftover.",
+            "So the goal therefore is we need to process data on many cores.",
+            "That's the first step, and Secondly, machines.",
+            "So I'm going to show you a couple of you know problems that you can run into this something."
+        ],
+        [
+            "Good old fashioned supervised learning, so classification, regression tagging, entity extraction.",
+            "You might want to factorize a graph.",
+            "You might want to sample.",
+            "You might want to actually infer the structure of things.",
+            "And so, for instance, you might want to combine information from web pages, databases, human generated data, semi structured everything into one big beast.",
+            "And that's where.",
+            "You know you need to actually distribute the problem, and you need to have reasonably efficient algorithms for automatically partitioning things."
+        ],
+        [
+            "So the question is basically how do we?"
+        ],
+        [
+            "Solve all of this at scale."
+        ],
+        [
+            "And this talk is about the methods.",
+            "So the first thing is how do you make it multi?"
+        ],
+        [
+            "Or and.",
+            "I'm again, I'm going to limit myself to the very simple strategies, but they actually tend to work fairly well and most likely for the problems that you have.",
+            "If you wanted to scale them up, you could use some metrics.",
+            "So one way how to deal with this is so let's say we have many processor cores.",
+            "I could just decompose things into separate tasks.",
+            "Each processor core you know get started from some data source.",
+            "It computes some loss gradient or some other update to your parameter space.",
+            "And then since this update along.",
+            "Now since you have shared memories well, you can, you know do something like have exact estimates and that unfortunately requires locking.",
+            "So for instance graph.",
+            "You can do that very easily.",
+            "And that's great if the problem can be declared decomposed fairly cleanly.",
+            "In other words, if you actually have something that you can.",
+            "Well partitioned unfortunately.",
+            "If you have if you work on documents then there are some words that are very frequent.",
+            "And when the words are very frequent in a lot of you know, cores will want to access those words.",
+            "So if you start locking things slow down badly.",
+            "You could delay the updates.",
+            "That's what we did.",
+            "And it works fairly well.",
+            "So basically you have two separate stages, one that actually computes the update and one that incorporates them.",
+            "And that works if any local change is not going to affect the global system dramatically.",
+            "And this sounds you know the anathema of what you would do in discrete optimization.",
+            "But actually, as it turns out, in discrete optimization this paper by surplus Mac ready and I forgot the third author, which I think in 95 showed that actually if you do those types of decentralized updates and aggregate things, you can actually.",
+            "Well, by some essentially mean field hand WAVY reasoning and then also experimentally show that this type of optimization works very well.",
+            "The lostness quite that was quite surprising, is what they called Hog wild updates.",
+            "Basically you don't lock anything in, you just overwrite and it turns out that this works too.",
+            "So here's the simplest thing that you could do.",
+            "This is the most primitive stochastic great dissenter algorithm in the."
+        ],
+        [
+            "That's paralyzed, so you basically.",
+            "Get the data and in round Robin fashion you just incorporate the past gradients.",
+            "And of course, since you're doing this you get a delay of tall.",
+            "So if I have 12 + 1 processors have a delay of tall between the time when I am busy in my core, computing that gradient and when it actually gets incorporated into my promises.",
+            "And."
+        ],
+        [
+            "Turns out you can actually prove useful things for that, and they go basically as follows that in the worst case.",
+            "Parallelism doesn't help you.",
+            "And that's actually to be expected, because if I have a delay of tall, I just send talk copies of the same problem to tall processors, since each of them gets the problem in dependently and it takes me, you know, basically one round before things get incorporated, so I can you know this is about the most evil thing I could do to my processors.",
+            "So no lock.",
+            "However usually I have a bit of freedom to reshuffle things, so there's not a big deal.",
+            "And So what I just told you is this lower bound is actually tight.",
+            "However, if you have IID data, then you can get rid of this delay in tall and basically what it means, for instance.",
+            "It is here that you get now perfect speedup.",
+            "Ignore all this detail.",
+            "That's just technical stuff here, and you just need to do it in order to make sure that things are OK, but.",
+            "Effectively what it means is the following thing.",
+            "If you look at stochastic gradient descent, you have an initial phase where basically you're really far away from optimality in every instance tells you will walk over there.",
+            "At some point you switch over to a regime where reasonably close to optimality, so each step isn't going to change things so much anymore, and it's actually more on averaging procedure rather than just a procedure of getting closer to optimality.",
+            "And at this point delaying updates doesn't hurt you very much, because you're reasonably closely to optimality and all you're doing now is variance reduction for your parameters.",
+            "And so this is exactly why you have this effect."
+        ],
+        [
+            "You know you have an upfront cost and then asymptotics term.",
+            "That doesn't really depend on the delay anymore.",
+            "An if you have strong convexity, you get essentially the same argument and there are lots of others who've done similar proofs after us.",
+            "So for instance, been raped.",
+            "Chris rained in writing Hog Wild with that.",
+            "And yeah, you get my speed up.",
+            "We use the very same template for."
+        ],
+        [
+            "LDA and.",
+            "So basically, this template that you saw before it should look familiar.",
+            "Basically the data comes in from disk.",
+            "You have separate samples which you know deal with one document each.",
+            "You then update your parameters, maybe add some diagnostics, whatever and you push it to file into state.",
+            "If you want to do this in a single machine, Intel threading building blocks is actually a pretty useful tool in terms of open source code.",
+            "You might have some other tools if you work in a company, but for open source is actually pretty decent.",
+            "And the good thing is that you know this keeps things reasonably synchronized because you only have a small buffer of where things come in.",
+            "Out."
+        ],
+        [
+            "OK, so this is.",
+            "Is basically what we did here.",
+            "You could use similar techniques where you basically have, you know, the VW style LDA which is single thread variational, But again uses that type of setting.",
+            "You could have a sparse version there off.",
+            "The old version that's Parolin Mimnaugh in Mallet by they remember at all.",
+            "That's probably not so useful, because basically the amount of memory that you need is linear.",
+            "The number of cores.",
+            "And that means as you get a multicore machine, you run out of memory and it also doesn't mix so well.",
+            "So what you really want to do is you want to have a joint state space, and you want to do everything that you can to avoid having a separate synchronization phase where you process some data and then you re aggregate the parameters."
+        ],
+        [
+            "So that's where I stayed here.",
+            "This works in many other cases.",
+            "So for instance, there's a shotgun algorithm for L1.",
+            "By using low joy Gonzalez, archaeology pics and Carlos Guestrin into Hellerstein from 2010.",
+            "Or much earlier, the paper by Microti Siaperas in Kaufman, where they basically use the same thing for SAT solving.",
+            "And OK the proof technique is different in each of those problems, but essentially the idea is joint state space.",
+            "Small changes by each unit, and then you in aggregate.",
+            "OK, that was fairly easy."
+        ],
+        [
+            "Alright, so."
+        ],
+        [
+            "What if we have?"
+        ],
+        [
+            "Machines, so then you need a mechanism to essentially fake that shared memory structure.",
+            "When you know in combining many machines."
+        ],
+        [
+            "This is exactly what the parameters overdose, so this parameter server has been invented or reinvented at at least three four different places.",
+            "So for instance, the Google Brain project that has a parameter server is a similar system that was built at Facebook.",
+            "There's a similar system.",
+            "While there was a system that's built at Yahoo, there is a similar device in Graphlab and it's probably 2, three others, and it's not very surprising because essentially you know everybody had the same problems and so given hardware constraints it's only natural to come up with the same solution.",
+            "So let me first explain why map reduce is not the."
+        ],
+        [
+            "Answer.",
+            "Or why in some cases you might actually be able to get away with map reduce, so map reduce?",
+            "I mean what it does?",
+            "Map takes, you know key value pairs, does something with it and emits this reduce takes key value pairs and basically for a given key in all the values are integrated aggregated and then produces something.",
+            "So it's like this it Maps reduces and that's really a parameter exchange mechanism because you know the map are, you know, go through all your data, does something interesting, then reduce combines those parameters and you should spread them out again and you.",
+            "Keep on iterating.",
+            "The problem is that the synchronization only happens at the end of 1 pass.",
+            "So for instance, imagine you were to do clustering.",
+            "Each machine does clustering separately and only you aggregate at the end.",
+            "You might have found very different clustering solutions on different machines.",
+            "Sure, you could solve that, maybe with some assignment problem.",
+            "However, for instance as experiments by the UC Irvine groups are to Cynthiana, coworkers showed that doesn't actually help you very much so.",
+            "Don't.",
+            "So basically, MapReduce Ala Hadoop style is a bad idea for many, many reasons.",
+            "You lose state and so on, so don't.",
+            "There are other versions of Hadoop or high Loop or whatever that are slightly better, but it still doesn't solve the inner entire.",
+            "So here's why."
+        ],
+        [
+            "Do you want to do instead?",
+            "So let's say we have some clients, so they have the data and we have a server.",
+            "Don't worry about the bandwidth here yet, I'll show you how to deal with that in a moment.",
+            "But basically the clients have a local copy of some parameters that they care about.",
+            "You could exchange those parameters in the peer to peer fashion, but that's really bad.",
+            "We have in square connections, so there is actually a paper by adolescente on it all, which do something like that for topic models.",
+            "And it's an amazing headache and approximations and so on that they have to go through to make it to work.",
+            "It's an amazing piece of work, but very painful, so there's an easier way, so basically rather than a.",
+            "You know complete graph.",
+            "You turn this into a star by adding one movie Vertex.",
+            "That's really what's happening here.",
+            "And then you need to resolve three issues.",
+            "You need to address.",
+            "You know, how do you actually reconcile the parameters that are possibly different on different machines?",
+            "You need to address.",
+            "You know how you synchronize things.",
+            "Basically, when you send the data out, do you actually have barriers and so on?",
+            "And in general, asynchronous beat synchronous quite a bit.",
+            "And finally, you need to actually also decide you know how to distribute parameters over several servers, because typically you wouldn't want to have only a single server here.",
+            "Otherwise this person will get completely overloaded from all of its clients.",
+            "We'll get to that in a moment, so let's look at the parallelism first, so."
+        ],
+        [
+            "Let's say we have many clients.",
+            "And I'm going to assume that we essentially have just as many servers, so this is essentially the unfolded version of this guy here.",
+            "And now each master has a different subset, different slice of the entire state space that's actually needed because the state space is typically so large it wouldn't fit into a single machine.",
+            "But since each.",
+            "Master has a different slice.",
+            "The clients can just pull together from, you know whatever they need and get their parameters and they of course write it back.",
+            "So unfortunately, if you do that and you have like 1000 machines, then you get a complete graph and that's really not so good.",
+            "But you can use randomization to address that.",
+            "That would be some details otherwise, but.",
+            "If you collapse all this together, I mean, this is really what it looks like, except that the server now has extremely high bandwidth."
+        ],
+        [
+            "What you need to do is you basically need to make sure I'm sorry.",
+            "Let's go back.",
+            "So you really want to get load distribution right?",
+            "You need to have a mechanism such that you don't really need a central registry to decide where which key goes, and you want to make sure you get load balancing in all the useful properties.",
+            "I'm going to show you how that works."
+        ],
+        [
+            "So the first trick is to have what's called a random caching tree.",
+            "And this is essentially idea that we gleaned from Karger from this paper from 99.",
+            "This is a beautiful paper to read, while beautiful is relative, because basically what he does is he proves exactly for pairwise independent hash functions.",
+            "That is, mechanism is well behaved and all that.",
+            "Most more mere mortals prove it for ideal hash functions.",
+            "He proved it for pairwise hash functions, which is a lot harder, so you may or may not enjoy the paper.",
+            "OK, so basically what happens is you have a different.",
+            "Let's suppose I have some mechanism which tells me for any given key which is maybe a part of my parameter space for topic models it might be for instance the topic distribution for a word for a user personalization model.",
+            "It might be, you know the parameters pertaining to a user.",
+            "And so for each key, I designate a different machine as the master.",
+            "So why do these machines can do other things as well, so masses and clients are actually the same machine, it's just a different thread running on that machine.",
+            "So for the right key we have this machine for the blue on this and for green key.",
+            "So if we do this we basically pick a random master."
+        ],
+        [
+            "We really get the complete graph, which is exactly what we want now.",
+            "You would worry that.",
+            "Maybe you know this is not really a good match for you network infrastructure.",
+            "And as a matter of fact, if you use your University service center, most likely this will not work very well 'cause you typically have a very hierarchical way.",
+            "How you tie together machines.",
+            "So you would tie all the machines in one rack together and then you have a central master switch and you will get heavy oversubscription.",
+            "In other words, the bandwidth between racks is a lot lower their ways how to address this, so this is called plus networks.",
+            "And so, for instance, that it melts from Microsoft, has written a couple of nice papers describing that architecture, and if you use EC2, you can probably measure similar is fairly uniform bandwidth, so you can draw your own conclusions about that.",
+            "What that means for the industry as a whole if you don't have that, it just means that you need to also solve a quadratic assignment problem to layout problems in a meaningful way in some cases.",
+            "OK, so let me show you how you lay things out.",
+            "This is a very very simple idea."
+        ],
+        [
+            "So who hasn't?",
+            "Who knows what the hash function is?",
+            "OK.",
+            "But 2/3 OK.",
+            "So let me briefly explain what hash function is think of a random number generator that initialized with a seed.",
+            "OK.",
+            "So now think of a random number generator where you map you turn this into a function and the function takes as argument the seed and it emits a number.",
+            "OK, that's a hash function.",
+            "Amongst other things.",
+            "So in other words, therefore, if you want to ever recompute that random value, all you need to do is feed the same seed and again, and you get the same number back.",
+            "So now the seed in our case is going to be the key for whatever we want to map, so therefore, if I and the seed can in this is the nice thing about hash functions.",
+            "It doesn't only have to be an integer, but it can just be an arbitrary byte sequence.",
+            "So basically what I can do is I can designate a machine as the master by just taking the argument over the hashes of the combination between you know the key that I want to store, so that would be for instance the word idea, the user or whatever in the machine ID.",
+            "So if I do this you can easily check that this gives me a uniform distribution of keys of the machines.",
+            "It's fully determined by this hash function, so I don't need to have a separate table that actually tells me where the key is.",
+            "And if we want to add or remove a machine, then I only really need to change the smallest possible fraction of keys and reassign them.",
+            "So basically what we've just done is we've got load balancing.",
+            "And we also have a reasonable amount of fault tolerance, at least if we were to allow losing values.",
+            "Now if I want to have replications, then what I do is I just take this list and take the K smallest guys.",
+            "So now if we add or remove a machine, then we only really need to reassign K / M fraction.",
+            "This also means I can do efficient self repair.",
+            "So the problem with this, as you can immediately see I have to compute the argument over the hash for chain, so it's not a big deal if I have maybe 2030 machines, but it's a big deal if I have 1000 machines because I need to compute basically thousand hashes and there's a beautiful solution.",
+            "This is also at least 1015 years old, is called a distributed hash table."
+        ],
+        [
+            "So if you used a peer to peer software, you would have probably seen this.",
+            "And basically what happens is you map those machines into a ring, as in the mathematical ring of in keys, and then if I want to find out where a particular key goes, I have map hash this key also into that ring and just find the nearest machine and now this becomes log log number of machines for the look up rather than linear.",
+            "So things like pastry for instance, use that for distributed storage.",
+            "The good thing is that now if I you know killer machine.",
+            "Well this only affects the neighbor.",
+            "The problem is it's a huge problem for the neighborhood already immediately inherits a large amount of workload.",
+            "So what you do is you basically don't insert the machine only once, but the inserted login times.",
+            "You don't really pay much overhead, but you basically only pay log log in over here and that way you get reasonably uniform load balancing.",
+            "What you should not do is do essentially the message Cassandra style manual imbalancing.",
+            "That's in Cassandra, I don't know whether it's still there, but in their paper what they described do not do this.",
+            "Read the Dynamo paper from Amazon.",
+            "So if you have K term replication, you can just pick the.",
+            "OK, lift most distinct machines, so not a big deal."
+        ],
+        [
+            "So this."
+        ],
+        [
+            "See what happens.",
+            "OK, now exact synchronization, so let me show you a very."
+        ],
+        [
+            "Simple case.",
+            "You want to motivate, at least in some way, so this is the simplest latent variable model that I can think of clustering.",
+            "So it's very primitive, right?",
+            "Do you have some global state that's just the means of the data, and then I have at my local state.",
+            "That's basically, you know what cluster this data point belongs to, and there's the data itself.",
+            "And the nice property of this partitioning is that essentially those two pieces that this local state doesn't really ever need to go explicitly to the global state.",
+            "Here I only care about aggregates."
+        ],
+        [
+            "I.",
+            "So now if I have many machines, what I do is I basically make replicas of that global state on each local machine.",
+            "And so this is exactly what I meant with how to parallelize a.",
+            "An algorithm that you have for a single machine.",
+            "To many machines.",
+            "You basically take your single machine implementation that's reasonably efficient and possibly multicore.",
+            "And you tie together by having this global parameter server that synchronizes things.",
+            "And so now what you of course have as a problem is the problem that you created that this copy may be a little bit stale relative to your global state, and you need to make sure that whatever you do to reconcile those two is actually mean."
+        ],
+        [
+            "So here's an example.",
+            "Same.",
+            "Exponential families if you collapse out the natural parameter, then what happens is that the statistic that the collapsed likelihood of all the data is just given by, you know the sufficient statistic of the data.",
+            "So I'm just summing over all the statistics of the individual observations and you can immediately see that this is an abelian group.",
+            "That's exactly what you need in order to make this operation meaningful, namely the order in which I insert things doesn't matter.",
+            "I must be able to take differences.",
+            "And yet that's about it.",
+            "So it turns out that actually many, many problems fall into this category.",
+            "And we're not the only ones who discovered this.",
+            "So for instance, we Cashman sinker in with Navya systems, was looking at very similar things that they call exchangeable random processes, which are effectively glorified version of this.",
+            "I don't know whether they ever published it, but basically that's what they do.",
+            "So what do you really have to do is maintain this aggregate statistic.",
+            "The good thing is if M is large, which is exactly the case when you want to parallelize changing a few of those terms in here doesn't matter very much, so this paralyzing parallelization will be very lousy.",
+            "If I have 1000 observations, but it'll be great if I have, you know, 100 million observations, because then small changes in here don't really affect the overall statistic very much.",
+            "So this is what I meant with you want to have a problem where small changes do not necessarily.",
+            "May all the sudden make a problem feasible or infeasible.",
+            "However, even in those cases, as said in the paper by my credit and see us.",
+            "You can often get situations where the problem is at least approximately local and well behaved, and you will still make reasonable progress."
+        ],
+        [
+            "OK season."
+        ],
+        [
+            "Example, user profiling with LDA.",
+            "Basically you have a global state, which is you know the overall distribution over interests.",
+            "You have a local state which is basically, you know the interest distribution for that user.",
+            "So this is standard LDA as you would know it.",
+            "This is making it all temporal so it gets a little bit messier, but it's essentially still the same thing.",
+            "And now the global state actually consists of two parts, namely the activity model for topic and the overall interest distribution and the local state is now the annotation of all the observations in the.",
+            "And the data comes in as well.",
+            "So how do we distribute?"
+        ],
+        [
+            "Things we do exactly what I mentioned before.",
+            "We basically synchronize between global and replica."
+        ],
+        [
+            "And if we have a cluster, so if you have basically server stat, you know an old-fashioned rack at home, then you might actually have a hierarchical replication.",
+            "But for flat networks you may not even need."
+        ],
+        [
+            "But OK.",
+            "So let's just go through the synchronization protocol for topic models, or just in general exponential families reasonably explicitly.",
+            "So what happens is that the child locally, you know, starts with some common States and you know it stores the old and new state and it just keeps unhappily updating and then whenever it's time to actually send the change it.",
+            "Since the death to the global machine now, why would it send the diff?",
+            "Well, because usually this is considerably smaller than the global state.",
+            "So for instance, if I'd only have applied changes to a subset of topics or a subset of words, or you know a subset of parameters because it might not even have everything else.",
+            "OK, and since old was meant to track what the global state of the world looks like, it then retraces that.",
+            "And on the global server, we incorporate that if.",
+            "So this is exactly why you need the group structure, because you need to be able to take differences here.",
+            "Then from global to local, it's quite reasonable to assume that actually globally a lot has changed, so you go and just send the entire global state to local.",
+            "Locally you compare between its global between the global state and the old assumption of what the global state looked like.",
+            "And you incorporate that into the local variable and you retrace excelled.",
+            "Now there's only one thing that can go wrong.",
+            "Suppose I have a message in coming from here and at the same time I've got a message out going here.",
+            "Then things will go bad because basically local will assume that the state has been incorporated.",
+            "The update has been incorporated and it actually hasn't, so you need essentially just the flag to check that you don't have messages.",
+            "Painting that haven't been equal price yet, but it's a simple technical detail.",
+            "However, if you don't do it, and if you don't manage the queues properly, algorithm will not be very happy to put it politely.",
+            "The other good thing about this is that this is a fully asynchronous protocol, so you've noticed that you could essentially run this part separately.",
+            "You could run this part separately on different keys at different times, and you never need to wait for an acknowledgement of things being incorporated.",
+            "You can just keep on sending.",
+            "This is crucial because.",
+            "Well, bandwidth is fairly high.",
+            "I mean you would have at least a Gigabit network.",
+            "You might have, you know, InfiniBand or whatever you definitely will have reasonably high latency's.",
+            "So if you have high latency's and you need to wait for the ACH, then you're essentially killing all the bandwidth unless you open a lot of threads and cause all sorts of other problems.",
+            "So you basically want to design this in such a way that you have a continuous data stream hammering either the client or the servers."
+        ],
+        [
+            "OK, and Abelian groups there's a lot of them.",
+            "Basically anything that you know satisfying the generalized distributive law would work for this.",
+            "So yeah, the Dom approach is just something you should not do, so don't use."
+        ],
+        [
+            "I'm Katie.",
+            "So here's what happens.",
+            "You know this is number of users in.",
+            "You know this is."
+        ],
+        [
+            "Basically effectively 2 billion users.",
+            "While you think you know which service has 2 billion users, they're not necessarily real users, but there you know use the like entities and you can see that you know on the 1000 machines, so this would be.",
+            "Many thousands, of course.",
+            "You get, well, not quite linear scaling, but it works reasonably well and if you fix the number of machines you get essentially linear time for Gibbs sampler."
+        ],
+        [
+            "So.",
+            "To sum this up, the exact strategy is, you know, you send the local changes the global.",
+            "You push the global changes to local and you ignore the fact that things might be slightly out of sync, and this works whenever you have exact sufficient statistics.",
+            "And when this these delays do not necessarily make the album diverge.",
+            "So for instance, the Google Brain Project in their paper they describe more or less the same algorithm for a distributed stochastic gradient ascent or PGS procedure.",
+            "I think they actually have barriers occasionally, but other than that it's essentially the same template the problem is.",
+            "This thing is not fault tolerant.",
+            "At least for you know these count models becausw as soon as a single machine in my parameter server fails.",
+            "I need to re instantiate everything because I don't necessarily know beforehand where which key wind and stale keys are no good, because otherwise you might actually end up with negative counts and then everything goes haywire.",
+            "And if I have delays, this actually will destroy convergence properties eventually as in tried and tested.",
+            "Unfortunately, So what do you do if?"
+        ],
+        [
+            "You have delays and the delays are meaningful.",
+            "How do you still make it converge so?",
+            "Basically."
+        ],
+        [
+            "How do you do approximate synchronization?",
+            "So there's a very nice paper by Stephen Boyd on dual decomposition.",
+            "So hmm, if you've seen recent talk by Stephen, he would have probably talked about it being actually very enthusiastic about this great idea.",
+            "So here's what you do.",
+            "Let's take a step back.",
+            "Let's say we have a distributed optimization problem and we have, you know, some over a 5X and let's at the moment assume that it's actually the same state space.",
+            "Now you partition those subproblems where each if I is on a different processor and what we do is we now need to exchange these local solutions with the parameter server so we.",
+            "Such that overall we get a consensus solution.",
+            "And well.",
+            "Unfortunately, we cannot assume that you know each subset of parameters is separate, so that's why you actually need to be a little bit more clever."
+        ],
+        [
+            "So the nice thing is this is actually reasonably fault tolerant.",
+            "It works really well for deep belief networks, so this is an amazing paper here.",
+            "However, it fails to converge on large numbers of machines for graph factorization for instance.",
+            "So what you can actually observe if you do this is.",
+            "The system will initially converge, converge, converge and at some point it will blow up.",
+            "And this is due to the fact that you have a delay between when you locally perform the updates and when they are pushed to all the other machines.",
+            "So whatever happens is that in this delay means that you overcompensate anything, and so you can.",
+            "Essentially, you can prove that things get unstable.",
+            "But that's what you would expect.",
+            "So here's how you fix this.",
+            "You basically assume that."
+        ],
+        [
+            "Well, OK, so let's rewrite this optimization problem.",
+            "So you could minimize this problem, or equivalently, you could say, well, you minimize if I of XI.",
+            "So now I have local solutions under the constraint that those local solutions all agree.",
+            "So those two problems are identical.",
+            "Now I could, you know, write a LaGrange function out and I could for instance say well, you know this is summer.",
+            "If I of XI plus Lambda sum over the norm squared of X, I'm honest said it's like a penalty decomposition.",
+            "You can also add explicitly the constraint XI equals said with another LaGrange multiplier, so you can.",
+            "We recently created them to have slightly different conversions properties, but they all have the same flavor.",
+            "The same flavor being that you now have subproblems which each of which you can solve on a separate machine, and then you push the updates back to a global system where you reconcile things and you push them back out."
+        ],
+        [
+            "OK.",
+            "So here's a synchronous version.",
+            "This is basically what Stephen Boyd describes.",
+            "You solve each of those problems separately.",
+            "And then in a global reduced step, you go an average.",
+            "Effectively all the exercise.",
+            "That's what this problem tells you to get and use it.",
+            "And then you send this new value of set to all the local machines and you update the LaGrange multiplier, maybe by gradient descent, and reroll rebroadcast.",
+            "That's not that.",
+            "And you know you can actually do useful things with it.",
+            "The problem is that this is actually gradient descent, so you might want to use a slightly faster 2nd order method here.",
+            "This great dissent in the outer loop of an optimization procedure is not a.",
+            "Very effective thing.",
+            "So the asynchronous version is base."
+        ],
+        [
+            "It is at each machine whenever it's ready, does this now?",
+            "Why would you care about this?",
+            "Well, you care about it as follows.",
+            "So suppose I have, you know.",
+            "1000 machines, each of those machines.",
+            "Requires some random time to do to do its job.",
+            "And if I have 1000 machines and have to wait for the last of those machines, I basically I'm taking the maximum over random variable from which I've taken 1000 draws.",
+            "Now if I do this then I will end up very very far in the tail of that distribution.",
+            "In other words, among 1000 machines, the probability that something goes wrong with at least one machine is reasonably high.",
+            "So that one machine will systematically feel like everything.",
+            "Now you could say, well, OK, let's get rid of that machine, speculatively evaluate whatever it is.",
+            "That's kind of a band aid, so you don't want to do this.",
+            "Instead, you do things asynchronously.",
+            "Because while you can reasonably well assume if the machine is very terrible, it will get replaced anyway by some management system an basically that way occasionally some machines can be slow and you still benefit on top of that.",
+            "Basically the slow machines will benefit insofar as the value of Z will now get closer to the optimal solution anyway, so.",
+            "Let me show you a little bit in."
+        ],
+        [
+            "Pictures what this means and actually let me show you."
+        ],
+        [
+            "Log scale this is basically for a graph factorization with 200 million vertices.",
+            "Asynchronous versus synchronous, you can see that the time to converge on the same objective function is considerably less for the asynchronous version.",
+            "Spot factor of 10 less.",
+            "So that's why you want to be asynchronous."
+        ],
+        [
+            "OK, likewise here for a single machine versus 32 nodes.",
+            "So these are all reasonable."
+        ],
+        [
+            "Numbers here you have some more scaling.",
+            "And well, what you can see is basically you know.",
+            "If you.",
+            "Scale the amount of data with the size of the graph.",
+            "Then you know your runtime for sweep is about the same and otherwise, of course it increases linearly.",
+            "So that's what you want, because you know, typically you want to make sure that if you have twice as many customers, you can still solve the problem in about the same time."
+        ],
+        [
+            "So this is by far I said not the only version how to do this.",
+            "So Graph Lab has similar constructs in their Facebook.",
+            "the Facebook parameter server that'll fabric talked about, I think at some point for expectation propagation has a very similar structure, so they are the updates are not just you know averaging, but you actually have to update, you know the mean and the variance of the parameters and they have slightly different mechanism for fault tolerance and so on but.",
+            "By and large, it's the same structure.",
+            "the Google brain projects.",
+            "It uses the same thing without the dual decomposition.",
+            "It just solves in averages.",
+            "And for graph factorization as I mentioned here, Now this is an invitation to try out similar strategies for your algorithm.",
+            "If you have something that works reasonably well on a single machine you want to solve in a larger problem, sure, you need to think about how to partition the problem.",
+            "That's a separate question, but you can basically scale things up now from January 2013 on, I'll be at CMU and we're working on an open source version of something like this such that everybody can just tie there.",
+            "You know solvers into it.",
+            "So if you want to contribute, ping me and maybe we can figure something out.",
+            "This actually brings me to the end of that."
+        ],
+        [
+            "I think I'm running a bit ahead of time, but that means simply you guys can look at more posters.",
+            "So what I showed you a little bit is that for multicore you know, essentially shared memory, local small updates and aggregation is actually fairly effective.",
+            "And for multiple machines, well, if you can get away with exact synchronization, it's good, but if not, it's not the end of the world.",
+            "You basically add a penalty that captures how how different your solutions are.",
+            "An example, for instance, is what my columns did for.",
+            "Corresponding decomposition problems when you have discrete optimization problems and so in LP.",
+            "So there's I think a reasonable evidence that actually in a lot of realistic cases those types of decomposition gives you.",
+            "Decent solutions.",
+            "Whether it works for you specific problem, of course is not that clear, but I think it's a reasonably useful template that you should check out if you want to parallelize.",
+            "That's the end of the talk."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "No, not many equations will be harmed in the process of presenting those slides, so this is probably a good thing that this is at the end of the workshop, so you can relax.",
+                    "label": 0
+                },
+                {
+                    "sent": "I said what I hope to convey at least a little bit is that there are various design patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "How you can take.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know algorithms problems that look reasonably well?",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe on, you know, single core single machine and actually paralyzed him with not too much, at least conceptually.",
+                    "label": 0
+                },
+                {
+                    "sent": "For it.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, you still afterwards need to prove your theorems and everything to first of all multicore and Secondly multi machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the good thing is that actually most problems are not as nasty as they seem, so you can actually get quite somewhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, as understory mentioned, I'm going to be at Carnegie Mellon from 1st of January on.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the moment I'm Google research and, well, that joint affiliation may very well continue after that.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This is work done with a lot of really great folks, so I'm rock maiden University.",
+                    "label": 0
+                },
+                {
+                    "sent": "Joy Gonzales Shravan, Nana Murty, Sergei Matusevich, Markus Weimer.",
+                    "label": 1
+                },
+                {
+                    "sent": "We all used to be at Yahoo at some point so you can roughly figure out where actually a large part of the work was done.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm really indebted to them.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Now now.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I'm going to do is I'm going to show you based on a couple of examples how you can paralyze those things an well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you wanted to use that for different optimization problems, this would be reasonably straightforward by simply taking the same design patterns and applying them to different problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, So what I'm going to do is, I'll first briefly mention multicore.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically what you do for multiple machines.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'll give you essentially 23 vignettes of how you can do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, whenever you see this edge sketch, you can forget anything that I said before.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "R. So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let me just first motivate the problem a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you could either build a large service center by spending a lot of money.",
+                    "label": 0
+                },
+                {
+                    "sent": "And taking very bespoke hardware, or you take something that's cheap and faulty.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And since you're taking something that's cheap and faulty, it will actually fail, says this slide from Jeff Dean.",
+                    "label": 0
+                },
+                {
+                    "sent": "I guess.",
+                    "label": 0
+                },
+                {
+                    "sent": "Probably took him some time until he got that cleared, but what you can see is in a year in a typical cluster, alot of things can go wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will go wrong, so you need to design algorithms that can to some extent handle this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And you do have scaling problems, so you know 10 billion documents is not unusual.",
+                    "label": 1
+                },
+                {
+                    "sent": "Most major Internet services have at least 100 million users.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might have over 1,000,000 days of video on YouTube and I think over many more than 10 billion images on Facebook.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this just gets you the order of magnitude, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, it might be off by a factor of 10, maybe a factor of 100, but probably not more than that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, in a single machine, you can't really process reasonably more than, let's say a TB an hour.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, sure, maybe you can get two or three terabytes, but it's in the order of terabytes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the reason why you can do more than that is very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can't get more data than that out of your hard drive in a reasonable time.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so these are going to be faster and so on, but that's kind of a limit, so if you have a lot more data than that and you want to solve it on a single machine, you're out of luck.",
+                    "label": 0
+                },
+                {
+                    "sent": "The second thing is that your parameter space is actually quite large.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's typically going to be so large that it doesn't fit into a single machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's also typically not too large in the sense that if you spread out in a reasonable way over many machines, it will fit very comfortably with a lot of extra space leftover.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the goal therefore is we need to process data on many cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the first step, and Secondly, machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to show you a couple of you know problems that you can run into this something.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Good old fashioned supervised learning, so classification, regression tagging, entity extraction.",
+                    "label": 1
+                },
+                {
+                    "sent": "You might want to factorize a graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might want to sample.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might want to actually infer the structure of things.",
+                    "label": 1
+                },
+                {
+                    "sent": "And so, for instance, you might want to combine information from web pages, databases, human generated data, semi structured everything into one big beast.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's where.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know you need to actually distribute the problem, and you need to have reasonably efficient algorithms for automatically partitioning things.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the question is basically how do we?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Solve all of this at scale.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And this talk is about the methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first thing is how do you make it multi?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Or and.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm again, I'm going to limit myself to the very simple strategies, but they actually tend to work fairly well and most likely for the problems that you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you wanted to scale them up, you could use some metrics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one way how to deal with this is so let's say we have many processor cores.",
+                    "label": 1
+                },
+                {
+                    "sent": "I could just decompose things into separate tasks.",
+                    "label": 1
+                },
+                {
+                    "sent": "Each processor core you know get started from some data source.",
+                    "label": 0
+                },
+                {
+                    "sent": "It computes some loss gradient or some other update to your parameter space.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then since this update along.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now since you have shared memories well, you can, you know do something like have exact estimates and that unfortunately requires locking.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can do that very easily.",
+                    "label": 1
+                },
+                {
+                    "sent": "And that's great if the problem can be declared decomposed fairly cleanly.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, if you actually have something that you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well partitioned unfortunately.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have if you work on documents then there are some words that are very frequent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when the words are very frequent in a lot of you know, cores will want to access those words.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you start locking things slow down badly.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could delay the updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what we did.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it works fairly well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically you have two separate stages, one that actually computes the update and one that incorporates them.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that works if any local change is not going to affect the global system dramatically.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this sounds you know the anathema of what you would do in discrete optimization.",
+                    "label": 0
+                },
+                {
+                    "sent": "But actually, as it turns out, in discrete optimization this paper by surplus Mac ready and I forgot the third author, which I think in 95 showed that actually if you do those types of decentralized updates and aggregate things, you can actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, by some essentially mean field hand WAVY reasoning and then also experimentally show that this type of optimization works very well.",
+                    "label": 0
+                },
+                {
+                    "sent": "The lostness quite that was quite surprising, is what they called Hog wild updates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically you don't lock anything in, you just overwrite and it turns out that this works too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the simplest thing that you could do.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the most primitive stochastic great dissenter algorithm in the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That's paralyzed, so you basically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get the data and in round Robin fashion you just incorporate the past gradients.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, since you're doing this you get a delay of tall.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I have 12 + 1 processors have a delay of tall between the time when I am busy in my core, computing that gradient and when it actually gets incorporated into my promises.",
+                    "label": 0
+                },
+                {
+                    "sent": "And.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Turns out you can actually prove useful things for that, and they go basically as follows that in the worst case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Parallelism doesn't help you.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's actually to be expected, because if I have a delay of tall, I just send talk copies of the same problem to tall processors, since each of them gets the problem in dependently and it takes me, you know, basically one round before things get incorporated, so I can you know this is about the most evil thing I could do to my processors.",
+                    "label": 0
+                },
+                {
+                    "sent": "So no lock.",
+                    "label": 0
+                },
+                {
+                    "sent": "However usually I have a bit of freedom to reshuffle things, so there's not a big deal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what I just told you is this lower bound is actually tight.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, if you have IID data, then you can get rid of this delay in tall and basically what it means, for instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "It is here that you get now perfect speedup.",
+                    "label": 0
+                },
+                {
+                    "sent": "Ignore all this detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's just technical stuff here, and you just need to do it in order to make sure that things are OK, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Effectively what it means is the following thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at stochastic gradient descent, you have an initial phase where basically you're really far away from optimality in every instance tells you will walk over there.",
+                    "label": 0
+                },
+                {
+                    "sent": "At some point you switch over to a regime where reasonably close to optimality, so each step isn't going to change things so much anymore, and it's actually more on averaging procedure rather than just a procedure of getting closer to optimality.",
+                    "label": 0
+                },
+                {
+                    "sent": "And at this point delaying updates doesn't hurt you very much, because you're reasonably closely to optimality and all you're doing now is variance reduction for your parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this is exactly why you have this effect.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You know you have an upfront cost and then asymptotics term.",
+                    "label": 0
+                },
+                {
+                    "sent": "That doesn't really depend on the delay anymore.",
+                    "label": 0
+                },
+                {
+                    "sent": "An if you have strong convexity, you get essentially the same argument and there are lots of others who've done similar proofs after us.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, been raped.",
+                    "label": 0
+                },
+                {
+                    "sent": "Chris rained in writing Hog Wild with that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, you get my speed up.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use the very same template for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "LDA and.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically, this template that you saw before it should look familiar.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically the data comes in from disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have separate samples which you know deal with one document each.",
+                    "label": 0
+                },
+                {
+                    "sent": "You then update your parameters, maybe add some diagnostics, whatever and you push it to file into state.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to do this in a single machine, Intel threading building blocks is actually a pretty useful tool in terms of open source code.",
+                    "label": 1
+                },
+                {
+                    "sent": "You might have some other tools if you work in a company, but for open source is actually pretty decent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the good thing is that you know this keeps things reasonably synchronized because you only have a small buffer of where things come in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Out.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is basically what we did here.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could use similar techniques where you basically have, you know, the VW style LDA which is single thread variational, But again uses that type of setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could have a sparse version there off.",
+                    "label": 0
+                },
+                {
+                    "sent": "The old version that's Parolin Mimnaugh in Mallet by they remember at all.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's probably not so useful, because basically the amount of memory that you need is linear.",
+                    "label": 0
+                },
+                {
+                    "sent": "The number of cores.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that means as you get a multicore machine, you run out of memory and it also doesn't mix so well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you really want to do is you want to have a joint state space, and you want to do everything that you can to avoid having a separate synchronization phase where you process some data and then you re aggregate the parameters.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So that's where I stayed here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This works in many other cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, there's a shotgun algorithm for L1.",
+                    "label": 1
+                },
+                {
+                    "sent": "By using low joy Gonzalez, archaeology pics and Carlos Guestrin into Hellerstein from 2010.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or much earlier, the paper by Microti Siaperas in Kaufman, where they basically use the same thing for SAT solving.",
+                    "label": 0
+                },
+                {
+                    "sent": "And OK the proof technique is different in each of those problems, but essentially the idea is joint state space.",
+                    "label": 1
+                },
+                {
+                    "sent": "Small changes by each unit, and then you in aggregate.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that was fairly easy.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What if we have?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Machines, so then you need a mechanism to essentially fake that shared memory structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you know in combining many machines.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "This is exactly what the parameters overdose, so this parameter server has been invented or reinvented at at least three four different places.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, the Google Brain project that has a parameter server is a similar system that was built at Facebook.",
+                    "label": 1
+                },
+                {
+                    "sent": "There's a similar system.",
+                    "label": 0
+                },
+                {
+                    "sent": "While there was a system that's built at Yahoo, there is a similar device in Graphlab and it's probably 2, three others, and it's not very surprising because essentially you know everybody had the same problems and so given hardware constraints it's only natural to come up with the same solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me first explain why map reduce is not the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or why in some cases you might actually be able to get away with map reduce, so map reduce?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean what it does?",
+                    "label": 0
+                },
+                {
+                    "sent": "Map takes, you know key value pairs, does something with it and emits this reduce takes key value pairs and basically for a given key in all the values are integrated aggregated and then produces something.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's like this it Maps reduces and that's really a parameter exchange mechanism because you know the map are, you know, go through all your data, does something interesting, then reduce combines those parameters and you should spread them out again and you.",
+                    "label": 1
+                },
+                {
+                    "sent": "Keep on iterating.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that the synchronization only happens at the end of 1 pass.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, imagine you were to do clustering.",
+                    "label": 1
+                },
+                {
+                    "sent": "Each machine does clustering separately and only you aggregate at the end.",
+                    "label": 1
+                },
+                {
+                    "sent": "You might have found very different clustering solutions on different machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sure, you could solve that, maybe with some assignment problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, for instance as experiments by the UC Irvine groups are to Cynthiana, coworkers showed that doesn't actually help you very much so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't.",
+                    "label": 1
+                },
+                {
+                    "sent": "So basically, MapReduce Ala Hadoop style is a bad idea for many, many reasons.",
+                    "label": 0
+                },
+                {
+                    "sent": "You lose state and so on, so don't.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are other versions of Hadoop or high Loop or whatever that are slightly better, but it still doesn't solve the inner entire.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's why.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Do you want to do instead?",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say we have some clients, so they have the data and we have a server.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't worry about the bandwidth here yet, I'll show you how to deal with that in a moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "But basically the clients have a local copy of some parameters that they care about.",
+                    "label": 1
+                },
+                {
+                    "sent": "You could exchange those parameters in the peer to peer fashion, but that's really bad.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have in square connections, so there is actually a paper by adolescente on it all, which do something like that for topic models.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's an amazing headache and approximations and so on that they have to go through to make it to work.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's an amazing piece of work, but very painful, so there's an easier way, so basically rather than a.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know complete graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "You turn this into a star by adding one movie Vertex.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's really what's happening here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you need to resolve three issues.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need to address.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, how do you actually reconcile the parameters that are possibly different on different machines?",
+                    "label": 0
+                },
+                {
+                    "sent": "You need to address.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know how you synchronize things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically, when you send the data out, do you actually have barriers and so on?",
+                    "label": 0
+                },
+                {
+                    "sent": "And in general, asynchronous beat synchronous quite a bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, you need to actually also decide you know how to distribute parameters over several servers, because typically you wouldn't want to have only a single server here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Otherwise this person will get completely overloaded from all of its clients.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'll get to that in a moment, so let's look at the parallelism first, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Let's say we have many clients.",
+                    "label": 1
+                },
+                {
+                    "sent": "And I'm going to assume that we essentially have just as many servers, so this is essentially the unfolded version of this guy here.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now each master has a different subset, different slice of the entire state space that's actually needed because the state space is typically so large it wouldn't fit into a single machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "But since each.",
+                    "label": 0
+                },
+                {
+                    "sent": "Master has a different slice.",
+                    "label": 0
+                },
+                {
+                    "sent": "The clients can just pull together from, you know whatever they need and get their parameters and they of course write it back.",
+                    "label": 1
+                },
+                {
+                    "sent": "So unfortunately, if you do that and you have like 1000 machines, then you get a complete graph and that's really not so good.",
+                    "label": 0
+                },
+                {
+                    "sent": "But you can use randomization to address that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That would be some details otherwise, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you collapse all this together, I mean, this is really what it looks like, except that the server now has extremely high bandwidth.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What you need to do is you basically need to make sure I'm sorry.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's go back.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you really want to get load distribution right?",
+                    "label": 0
+                },
+                {
+                    "sent": "You need to have a mechanism such that you don't really need a central registry to decide where which key goes, and you want to make sure you get load balancing in all the useful properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to show you how that works.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the first trick is to have what's called a random caching tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is essentially idea that we gleaned from Karger from this paper from 99.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a beautiful paper to read, while beautiful is relative, because basically what he does is he proves exactly for pairwise independent hash functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is, mechanism is well behaved and all that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Most more mere mortals prove it for ideal hash functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "He proved it for pairwise hash functions, which is a lot harder, so you may or may not enjoy the paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so basically what happens is you have a different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's suppose I have some mechanism which tells me for any given key which is maybe a part of my parameter space for topic models it might be for instance the topic distribution for a word for a user personalization model.",
+                    "label": 0
+                },
+                {
+                    "sent": "It might be, you know the parameters pertaining to a user.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so for each key, I designate a different machine as the master.",
+                    "label": 0
+                },
+                {
+                    "sent": "So why do these machines can do other things as well, so masses and clients are actually the same machine, it's just a different thread running on that machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for the right key we have this machine for the blue on this and for green key.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we do this we basically pick a random master.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We really get the complete graph, which is exactly what we want now.",
+                    "label": 0
+                },
+                {
+                    "sent": "You would worry that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe you know this is not really a good match for you network infrastructure.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as a matter of fact, if you use your University service center, most likely this will not work very well 'cause you typically have a very hierarchical way.",
+                    "label": 0
+                },
+                {
+                    "sent": "How you tie together machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you would tie all the machines in one rack together and then you have a central master switch and you will get heavy oversubscription.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, the bandwidth between racks is a lot lower their ways how to address this, so this is called plus networks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so, for instance, that it melts from Microsoft, has written a couple of nice papers describing that architecture, and if you use EC2, you can probably measure similar is fairly uniform bandwidth, so you can draw your own conclusions about that.",
+                    "label": 0
+                },
+                {
+                    "sent": "What that means for the industry as a whole if you don't have that, it just means that you need to also solve a quadratic assignment problem to layout problems in a meaningful way in some cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let me show you how you lay things out.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a very very simple idea.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So who hasn't?",
+                    "label": 0
+                },
+                {
+                    "sent": "Who knows what the hash function is?",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "But 2/3 OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me briefly explain what hash function is think of a random number generator that initialized with a seed.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now think of a random number generator where you map you turn this into a function and the function takes as argument the seed and it emits a number.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, that's a hash function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Amongst other things.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in other words, therefore, if you want to ever recompute that random value, all you need to do is feed the same seed and again, and you get the same number back.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now the seed in our case is going to be the key for whatever we want to map, so therefore, if I and the seed can in this is the nice thing about hash functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't only have to be an integer, but it can just be an arbitrary byte sequence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically what I can do is I can designate a machine as the master by just taking the argument over the hashes of the combination between you know the key that I want to store, so that would be for instance the word idea, the user or whatever in the machine ID.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I do this you can easily check that this gives me a uniform distribution of keys of the machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's fully determined by this hash function, so I don't need to have a separate table that actually tells me where the key is.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we want to add or remove a machine, then I only really need to change the smallest possible fraction of keys and reassign them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically what we've just done is we've got load balancing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we also have a reasonable amount of fault tolerance, at least if we were to allow losing values.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if I want to have replications, then what I do is I just take this list and take the K smallest guys.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now if we add or remove a machine, then we only really need to reassign K / M fraction.",
+                    "label": 0
+                },
+                {
+                    "sent": "This also means I can do efficient self repair.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem with this, as you can immediately see I have to compute the argument over the hash for chain, so it's not a big deal if I have maybe 2030 machines, but it's a big deal if I have 1000 machines because I need to compute basically thousand hashes and there's a beautiful solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is also at least 1015 years old, is called a distributed hash table.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So if you used a peer to peer software, you would have probably seen this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And basically what happens is you map those machines into a ring, as in the mathematical ring of in keys, and then if I want to find out where a particular key goes, I have map hash this key also into that ring and just find the nearest machine and now this becomes log log number of machines for the look up rather than linear.",
+                    "label": 0
+                },
+                {
+                    "sent": "So things like pastry for instance, use that for distributed storage.",
+                    "label": 0
+                },
+                {
+                    "sent": "The good thing is that now if I you know killer machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well this only affects the neighbor.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is it's a huge problem for the neighborhood already immediately inherits a large amount of workload.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you do is you basically don't insert the machine only once, but the inserted login times.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't really pay much overhead, but you basically only pay log log in over here and that way you get reasonably uniform load balancing.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you should not do is do essentially the message Cassandra style manual imbalancing.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's in Cassandra, I don't know whether it's still there, but in their paper what they described do not do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Read the Dynamo paper from Amazon.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have K term replication, you can just pick the.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, lift most distinct machines, so not a big deal.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "See what happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now exact synchronization, so let me show you a very.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Simple case.",
+                    "label": 0
+                },
+                {
+                    "sent": "You want to motivate, at least in some way, so this is the simplest latent variable model that I can think of clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's very primitive, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you have some global state that's just the means of the data, and then I have at my local state.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's basically, you know what cluster this data point belongs to, and there's the data itself.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the nice property of this partitioning is that essentially those two pieces that this local state doesn't really ever need to go explicitly to the global state.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I only care about aggregates.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now if I have many machines, what I do is I basically make replicas of that global state on each local machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this is exactly what I meant with how to parallelize a.",
+                    "label": 0
+                },
+                {
+                    "sent": "An algorithm that you have for a single machine.",
+                    "label": 0
+                },
+                {
+                    "sent": "To many machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "You basically take your single machine implementation that's reasonably efficient and possibly multicore.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you tie together by having this global parameter server that synchronizes things.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so now what you of course have as a problem is the problem that you created that this copy may be a little bit stale relative to your global state, and you need to make sure that whatever you do to reconcile those two is actually mean.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So here's an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Same.",
+                    "label": 0
+                },
+                {
+                    "sent": "Exponential families if you collapse out the natural parameter, then what happens is that the statistic that the collapsed likelihood of all the data is just given by, you know the sufficient statistic of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm just summing over all the statistics of the individual observations and you can immediately see that this is an abelian group.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's exactly what you need in order to make this operation meaningful, namely the order in which I insert things doesn't matter.",
+                    "label": 0
+                },
+                {
+                    "sent": "I must be able to take differences.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yet that's about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it turns out that actually many, many problems fall into this category.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we're not the only ones who discovered this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, we Cashman sinker in with Navya systems, was looking at very similar things that they call exchangeable random processes, which are effectively glorified version of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know whether they ever published it, but basically that's what they do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what do you really have to do is maintain this aggregate statistic.",
+                    "label": 0
+                },
+                {
+                    "sent": "The good thing is if M is large, which is exactly the case when you want to parallelize changing a few of those terms in here doesn't matter very much, so this paralyzing parallelization will be very lousy.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I have 1000 observations, but it'll be great if I have, you know, 100 million observations, because then small changes in here don't really affect the overall statistic very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is what I meant with you want to have a problem where small changes do not necessarily.",
+                    "label": 0
+                },
+                {
+                    "sent": "May all the sudden make a problem feasible or infeasible.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, even in those cases, as said in the paper by my credit and see us.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can often get situations where the problem is at least approximately local and well behaved, and you will still make reasonable progress.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK season.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Example, user profiling with LDA.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically you have a global state, which is you know the overall distribution over interests.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a local state which is basically, you know the interest distribution for that user.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is standard LDA as you would know it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is making it all temporal so it gets a little bit messier, but it's essentially still the same thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now the global state actually consists of two parts, namely the activity model for topic and the overall interest distribution and the local state is now the annotation of all the observations in the.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the data comes in as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do we distribute?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Things we do exactly what I mentioned before.",
+                    "label": 0
+                },
+                {
+                    "sent": "We basically synchronize between global and replica.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And if we have a cluster, so if you have basically server stat, you know an old-fashioned rack at home, then you might actually have a hierarchical replication.",
+                    "label": 0
+                },
+                {
+                    "sent": "But for flat networks you may not even need.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's just go through the synchronization protocol for topic models, or just in general exponential families reasonably explicitly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what happens is that the child locally, you know, starts with some common States and you know it stores the old and new state and it just keeps unhappily updating and then whenever it's time to actually send the change it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Since the death to the global machine now, why would it send the diff?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, because usually this is considerably smaller than the global state.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, if I'd only have applied changes to a subset of topics or a subset of words, or you know a subset of parameters because it might not even have everything else.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and since old was meant to track what the global state of the world looks like, it then retraces that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And on the global server, we incorporate that if.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is exactly why you need the group structure, because you need to be able to take differences here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then from global to local, it's quite reasonable to assume that actually globally a lot has changed, so you go and just send the entire global state to local.",
+                    "label": 0
+                },
+                {
+                    "sent": "Locally you compare between its global between the global state and the old assumption of what the global state looked like.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you incorporate that into the local variable and you retrace excelled.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now there's only one thing that can go wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "Suppose I have a message in coming from here and at the same time I've got a message out going here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then things will go bad because basically local will assume that the state has been incorporated.",
+                    "label": 0
+                },
+                {
+                    "sent": "The update has been incorporated and it actually hasn't, so you need essentially just the flag to check that you don't have messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "Painting that haven't been equal price yet, but it's a simple technical detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, if you don't do it, and if you don't manage the queues properly, algorithm will not be very happy to put it politely.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other good thing about this is that this is a fully asynchronous protocol, so you've noticed that you could essentially run this part separately.",
+                    "label": 0
+                },
+                {
+                    "sent": "You could run this part separately on different keys at different times, and you never need to wait for an acknowledgement of things being incorporated.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can just keep on sending.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is crucial because.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, bandwidth is fairly high.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean you would have at least a Gigabit network.",
+                    "label": 0
+                },
+                {
+                    "sent": "You might have, you know, InfiniBand or whatever you definitely will have reasonably high latency's.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have high latency's and you need to wait for the ACH, then you're essentially killing all the bandwidth unless you open a lot of threads and cause all sorts of other problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you basically want to design this in such a way that you have a continuous data stream hammering either the client or the servers.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, and Abelian groups there's a lot of them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically anything that you know satisfying the generalized distributive law would work for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, the Dom approach is just something you should not do, so don't use.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm Katie.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's what happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know this is number of users in.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know this is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Basically effectively 2 billion users.",
+                    "label": 0
+                },
+                {
+                    "sent": "While you think you know which service has 2 billion users, they're not necessarily real users, but there you know use the like entities and you can see that you know on the 1000 machines, so this would be.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many thousands, of course.",
+                    "label": 0
+                },
+                {
+                    "sent": "You get, well, not quite linear scaling, but it works reasonably well and if you fix the number of machines you get essentially linear time for Gibbs sampler.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "To sum this up, the exact strategy is, you know, you send the local changes the global.",
+                    "label": 0
+                },
+                {
+                    "sent": "You push the global changes to local and you ignore the fact that things might be slightly out of sync, and this works whenever you have exact sufficient statistics.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when this these delays do not necessarily make the album diverge.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, the Google Brain Project in their paper they describe more or less the same algorithm for a distributed stochastic gradient ascent or PGS procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think they actually have barriers occasionally, but other than that it's essentially the same template the problem is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This thing is not fault tolerant.",
+                    "label": 0
+                },
+                {
+                    "sent": "At least for you know these count models becausw as soon as a single machine in my parameter server fails.",
+                    "label": 0
+                },
+                {
+                    "sent": "I need to re instantiate everything because I don't necessarily know beforehand where which key wind and stale keys are no good, because otherwise you might actually end up with negative counts and then everything goes haywire.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I have delays, this actually will destroy convergence properties eventually as in tried and tested.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, So what do you do if?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You have delays and the delays are meaningful.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you still make it converge so?",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "How do you do approximate synchronization?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a very nice paper by Stephen Boyd on dual decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "So hmm, if you've seen recent talk by Stephen, he would have probably talked about it being actually very enthusiastic about this great idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's what you do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's take a step back.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say we have a distributed optimization problem and we have, you know, some over a 5X and let's at the moment assume that it's actually the same state space.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you partition those subproblems where each if I is on a different processor and what we do is we now need to exchange these local solutions with the parameter server so we.",
+                    "label": 0
+                },
+                {
+                    "sent": "Such that overall we get a consensus solution.",
+                    "label": 0
+                },
+                {
+                    "sent": "And well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, we cannot assume that you know each subset of parameters is separate, so that's why you actually need to be a little bit more clever.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the nice thing is this is actually reasonably fault tolerant.",
+                    "label": 0
+                },
+                {
+                    "sent": "It works really well for deep belief networks, so this is an amazing paper here.",
+                    "label": 0
+                },
+                {
+                    "sent": "However, it fails to converge on large numbers of machines for graph factorization for instance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you can actually observe if you do this is.",
+                    "label": 0
+                },
+                {
+                    "sent": "The system will initially converge, converge, converge and at some point it will blow up.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is due to the fact that you have a delay between when you locally perform the updates and when they are pushed to all the other machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "So whatever happens is that in this delay means that you overcompensate anything, and so you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially, you can prove that things get unstable.",
+                    "label": 0
+                },
+                {
+                    "sent": "But that's what you would expect.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's how you fix this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You basically assume that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Well, OK, so let's rewrite this optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you could minimize this problem, or equivalently, you could say, well, you minimize if I of XI.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now I have local solutions under the constraint that those local solutions all agree.",
+                    "label": 0
+                },
+                {
+                    "sent": "So those two problems are identical.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I could, you know, write a LaGrange function out and I could for instance say well, you know this is summer.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I of XI plus Lambda sum over the norm squared of X, I'm honest said it's like a penalty decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can also add explicitly the constraint XI equals said with another LaGrange multiplier, so you can.",
+                    "label": 0
+                },
+                {
+                    "sent": "We recently created them to have slightly different conversions properties, but they all have the same flavor.",
+                    "label": 0
+                },
+                {
+                    "sent": "The same flavor being that you now have subproblems which each of which you can solve on a separate machine, and then you push the updates back to a global system where you reconcile things and you push them back out.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a synchronous version.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is basically what Stephen Boyd describes.",
+                    "label": 0
+                },
+                {
+                    "sent": "You solve each of those problems separately.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then in a global reduced step, you go an average.",
+                    "label": 0
+                },
+                {
+                    "sent": "Effectively all the exercise.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what this problem tells you to get and use it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you send this new value of set to all the local machines and you update the LaGrange multiplier, maybe by gradient descent, and reroll rebroadcast.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's not that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you know you can actually do useful things with it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem is that this is actually gradient descent, so you might want to use a slightly faster 2nd order method here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This great dissent in the outer loop of an optimization procedure is not a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very effective thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the asynchronous version is base.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It is at each machine whenever it's ready, does this now?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why would you care about this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, you care about it as follows.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose I have, you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "1000 machines, each of those machines.",
+                    "label": 0
+                },
+                {
+                    "sent": "Requires some random time to do to do its job.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I have 1000 machines and have to wait for the last of those machines, I basically I'm taking the maximum over random variable from which I've taken 1000 draws.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if I do this then I will end up very very far in the tail of that distribution.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, among 1000 machines, the probability that something goes wrong with at least one machine is reasonably high.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that one machine will systematically feel like everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you could say, well, OK, let's get rid of that machine, speculatively evaluate whatever it is.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's kind of a band aid, so you don't want to do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Instead, you do things asynchronously.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because while you can reasonably well assume if the machine is very terrible, it will get replaced anyway by some management system an basically that way occasionally some machines can be slow and you still benefit on top of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically the slow machines will benefit insofar as the value of Z will now get closer to the optimal solution anyway, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me show you a little bit in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_51": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Pictures what this means and actually let me show you.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Log scale this is basically for a graph factorization with 200 million vertices.",
+                    "label": 0
+                },
+                {
+                    "sent": "Asynchronous versus synchronous, you can see that the time to converge on the same objective function is considerably less for the asynchronous version.",
+                    "label": 0
+                },
+                {
+                    "sent": "Spot factor of 10 less.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's why you want to be asynchronous.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, likewise here for a single machine versus 32 nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are all reasonable.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_54": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Numbers here you have some more scaling.",
+                    "label": 0
+                },
+                {
+                    "sent": "And well, what you can see is basically you know.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Scale the amount of data with the size of the graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you know your runtime for sweep is about the same and otherwise, of course it increases linearly.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's what you want, because you know, typically you want to make sure that if you have twice as many customers, you can still solve the problem in about the same time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_55": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is by far I said not the only version how to do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Graph Lab has similar constructs in their Facebook.",
+                    "label": 0
+                },
+                {
+                    "sent": "the Facebook parameter server that'll fabric talked about, I think at some point for expectation propagation has a very similar structure, so they are the updates are not just you know averaging, but you actually have to update, you know the mean and the variance of the parameters and they have slightly different mechanism for fault tolerance and so on but.",
+                    "label": 0
+                },
+                {
+                    "sent": "By and large, it's the same structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "the Google brain projects.",
+                    "label": 0
+                },
+                {
+                    "sent": "It uses the same thing without the dual decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "It just solves in averages.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for graph factorization as I mentioned here, Now this is an invitation to try out similar strategies for your algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have something that works reasonably well on a single machine you want to solve in a larger problem, sure, you need to think about how to partition the problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a separate question, but you can basically scale things up now from January 2013 on, I'll be at CMU and we're working on an open source version of something like this such that everybody can just tie there.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know solvers into it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you want to contribute, ping me and maybe we can figure something out.",
+                    "label": 0
+                },
+                {
+                    "sent": "This actually brings me to the end of that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I think I'm running a bit ahead of time, but that means simply you guys can look at more posters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what I showed you a little bit is that for multicore you know, essentially shared memory, local small updates and aggregation is actually fairly effective.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for multiple machines, well, if you can get away with exact synchronization, it's good, but if not, it's not the end of the world.",
+                    "label": 0
+                },
+                {
+                    "sent": "You basically add a penalty that captures how how different your solutions are.",
+                    "label": 0
+                },
+                {
+                    "sent": "An example, for instance, is what my columns did for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Corresponding decomposition problems when you have discrete optimization problems and so in LP.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's I think a reasonable evidence that actually in a lot of realistic cases those types of decomposition gives you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Decent solutions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Whether it works for you specific problem, of course is not that clear, but I think it's a reasonably useful template that you should check out if you want to parallelize.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the end of the talk.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

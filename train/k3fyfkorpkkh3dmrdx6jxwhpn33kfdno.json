@@ -1,0 +1,2555 @@
+{
+    "id": "k3fyfkorpkkh3dmrdx6jxwhpn33kfdno",
+    "title": "A Tour of Modern \"Image Processing\"",
+    "info": {
+        "author": [
+            "Peyman Milanfar, Jack Baskin School of Engineering, University of California Santa Cruz"
+        ],
+        "published": "Jan. 12, 2011",
+        "recorded": "December 2010",
+        "category": [
+            "Top->Computer Science->Computer Vision->Computational Photography"
+        ]
+    },
+    "url": "http://videolectures.net/nipsworkshops2010_milanfar_tmi/",
+    "segmentation": [
+        [
+            "Now I should say the reason I'm putting this."
+        ],
+        [
+            "Yeah.",
+            "Image processing in quotes is because the what we've sort of traditionally called image processing has really evolved and merged in many ways with lots of other activities.",
+            "So going back, we've had a lot of work traditionally in the signal processing community on this topic, and more recently in computational photography, where in fact computational photography more or less is image processing, which is published in SIGGRAPH.",
+            "So that's another way to think about it.",
+            "So one of the key concepts that's recently become very popular is this idea of nonlocal means.",
+            "Some of you may have heard about it.",
+            "Now going on the computer vision, we've had algorithms that have been developed in the in the vision community for anisotropic diffusion.",
+            "We're all probably familiar to some extent or another with these things.",
+            "The bilateral filter, which has now found applications in lots of places, including graphics.",
+            "Now going to graphics, there's been the idea of moving least squares for interpolating 3D scan data into smooth surfaces.",
+            "People have been using this in graphics for a long long time and it turns out we've been using it and image processing and people in vision have been using similar idea, but just calling it different things.",
+            "And then you have ideas from machine learning and statistics, including boosting, spectral clustering and various other concepts that have again found their way into what we traditionally called image processing and also in applied math.",
+            "Fairly recently there's been a lot of interest, in fact, the Siam Journal on Imaging Sciences, a new Journal that publishes image processing things with a heavy mathematical bent.",
+            "So really, there's been a convergence of ideas across a lot of different fields, and hopefully my presentation will give you at least a rough idea of how these ideas.",
+            "All relate to each other."
+        ],
+        [
+            "OK, so let me at least from my perspective give you an overview of the computational problems in imaging that we deal with.",
+            "So typically you have a real scene which gets blurred and downsampled and noisy, and the measurements may look like this.",
+            "And then what we might call inverse problems or reconstruction problems could be just denoising.",
+            "It could be upscaling or interpolation, it could be deblurring for the purposes of this talk I'll be concentrating on the denoising problems, but a lot of what I say will have applications and in fact direct use.",
+            "In a bunch of these other areas as well, so the framework is general enough to sort of subsume algorithms in all of these different app."
+        ],
+        [
+            "Locations.",
+            "OK, so let me get down to the specifics a little bit.",
+            "The common framework for all of these concepts is basically nonparametric ways of estimating functions or point estimation procedures as they are known in statistics.",
+            "So the problem is a data fitting problem.",
+            "So let's imagine like I said, the problem of denoising where you're given an image or a video and you'd like to reduce the amount of noise present in this data.",
+            "So let's say Yi.",
+            "Here are the pixels that are noisy.",
+            "Z of XI are pixel values at some position XI and then E. Here is the error.",
+            "So the data model is like this.",
+            "So as I said, these are the samples.",
+            "This is what we call Z is what we call the regression function.",
+            "The function we sort of try to fit.",
+            "And the noise.",
+            "We just assume it to be 0 mean IID noise.",
+            "But we make no other distributional assumptions, so I'm not assuming the noise is Gaussian or Laplacian or anything, just that so if you look at this picture, the idea is that you have a bunch of data points.",
+            "And what you like to do is to estimate the value of the function at a particular point given this data.",
+            "So now this data I've denoted here Y1Y2 through YN.",
+            "This data could be the entire image, or it could be just some Patch of the image, right?",
+            "So essentially what you're interested in is estimating the value of 1 pixel.",
+            "Given either the whole image or some Patch of the image.",
+            "And the particular form of Z of X is going to remain unspecified for the time being, and this is actually part of the strength of this is that we are not using a model based approach in typical traditional approaches in image processing.",
+            "What we've done is we've sort of assumed some kind of parametric or global model for Z of X and then gone after estimating those parameters.",
+            "Here not, that's not what we're doing.",
+            "We're estimating the values of Z1 point at a time."
+        ],
+        [
+            "OK, so once again you have this data and one very simple way to estimate the value of this scalar.",
+            "And remember this is just a scalar pixel value is to do a very elementary least squares.",
+            "OK, so if I just write this least squares cost function and minimize it over the scalar Z of XJ, then the solution would just be the average of the pixel values that I'm giving, right?",
+            "So that's not very exciting.",
+            "Now going one step further from this you might say, well, this formulation actually gives equal weight to all the data, right?",
+            "So if you solve this, you just get the average, so the weight in front of each of the data points is just one over N. So why not give different weights to the data so that gives rise to a weight function K?",
+            "This is what we call the Colonel.",
+            "And this weight function is not going to make this a weighted least squares problem.",
+            "OK, not terribly more complicated than before.",
+            "The only difference is that this weight function is now somehow going to measure similarity between the data points at J, which you have and the data points around it, and in some sense penalizes things that are not similar enough to this location at hand.",
+            "OK, now the way this particular function is measured is going to give you a cacophony of different types of algorithms.",
+            "Many of which you will be immediately familiar with.",
+            "OK, so the bottom line here is it's very simple.",
+            "It's just a weighted least squares formulation, but it leads to a lot of interesting insights."
+        ],
+        [
+            "So let me go, sort of the next step.",
+            "So let's write the weighted least squares problem in this vector notation, so I'm going to stack all the data Y one through Y in this vector Y, I'm going to define this vector of ones is 1 sub N and then the values of this kernel function are going to be stacked into a diagonal of this diagonal matrix KJ, so I can write this quadratic cost function to minimize.",
+            "And when I do this."
+        ],
+        [
+            "Simple minimization what I get is the value of the pixel at XJ is just this expression on the right hand side.",
+            "OK, in writing it sort of in longhand.",
+            "What you have is a sum of a bunch of coefficients times the data points.",
+            "OK, now what's interesting here is that if you look at these data points, if you look at these costs, sorry if you look at these weights.",
+            "The weights are normalized.",
+            "OK, so they sum up to one.",
+            "There are also positive.",
+            "OK, and here the way I've written it.",
+            "The weights are a function of the positions and also the actual Gray values at those positions.",
+            "OK, so the fairly general the bottom line here is that the solution to this optimization problem is a convex combination of all the data that you considered convex.",
+            "Because these weights are positive and they also sum up to one.",
+            "OK.",
+            "So this is basically an optimization problem we solve for estimating every pixel value that we're interested in, and we sort of move this optimization problem around, and in fact this is exactly what the what the moving least squares idea in graphics is as well.",
+            "It's just weighted least squares and you move it around the image and you get your answer.",
+            "OK, so I'm just going to write this as a vector vector inner product where this W just contains these weights and the Y again contains all the data.",
+            "OK."
+        ],
+        [
+            "Alright."
+        ],
+        [
+            "So now let's see what happens if we make different choices for this.",
+            "For this kernel function."
+        ],
+        [
+            "OK, so here's the simplest case.",
+            "If you take this kernel function to be a simple exponential with the exponent being the spatial distance sort of the Euclidean distance between the two spatial positions where these two samples are.",
+            "If you want to measure the similarity between these two, and you use this metric, then all you're using is the.",
+            "Kleidion distance what you get is the classical Gaussian linear filters.",
+            "That we all know from basic sort of signals and systems or signal processing.",
+            "OK, now I should also say that these filters, even though they are linear, could be spatially varying.",
+            "So depending on how your data is sampled, if your data is sampled regularly then that's fine.",
+            "But if the data is sampled irregularly, then depending on where you center this J, then the profile of these wait functions can change depending on the density of the samples around you.",
+            "So they're linear, but they can be."
+        ],
+        [
+            "Shift bearing.",
+            "Now, if you not only include the spatial distance but also the photometric distance, namely the Gray value difference between these pixels, you get the filters that are bilateral.",
+            "Filter and nonlocal means, and these two things turn out to be very very similar in principle to one another.",
+            "In fact, what they do is they pick a Gaussian for the distance between for the photometric kernel and a Gaussian for the spatial kernel, and they literally multiply these and the net effect of that is that you're measuring the Euclidean distance between these two points, as opposed to just the.",
+            "X distance or the Y distance."
+        ],
+        [
+            "OK.",
+            "So here's a quick example of the bilateral filter.",
+            "The spatial distance.",
+            "I'm showing these values of these kernels in non overlapping patches just for convenience of illustration.",
+            "Typically these things are measured in a dense fashion all the way across the image, so this term is just the spatial similarity.",
+            "This term here is the photometric similarity, and then these two things get multiplied point by point and you get this arrangement of kernels which is then used for constructing the filters."
+        ],
+        [
+            "OK, now if you go to non local means which has made a big splash in in our community in the last few years, the difference?"
+        ],
+        [
+            "Is really minor.",
+            "The only thing that's changed is that instead of take."
+        ],
+        [
+            "In the pixel wise differences here you take the differences between two patches centered at that pixel, and also you let this HX go to Infinity, which is what makes it non local right?",
+            "So if this is some small number then you're looking at the weights are large only in a small spatial area around the pixel of interest, but if you let that go to a large number then you're looking all over the image OK. And so the the result here is that you can get."
+        ],
+        [
+            "Kind of a smoothing effect."
+        ],
+        [
+            "From the bilaterals to the to this other scenario."
+        ],
+        [
+            "Now another special case is something that both Kimmel and his group and our group I've come up with, namely the Beltrami Flow kernel, an work for locally adaptive regression kernels, and the idea here is that instead of measuring the Euclidean distance between these two points, what we instead do is we estimate the geodesic distance between the two points given the intermediate points."
+        ],
+        [
+            "So let me be a little bit more specific about how we do this.",
+            "Our kernel looks like this.",
+            "So it's a quadratic again in the exponent, except for the fact that we have.",
+            "There's a sort of inverse covariance matrix sitting in the exponent here, and this covariance matrix is basically the covariance of the local gradient estimates, so we take the pixel and we estimate the gradients, and we compute the covariance from that.",
+            "And this is if you're a little bit familiar with the literature.",
+            "This is just called the structure tensor.",
+            "In a lot of image in work and machine vision work, it's also known as the metric tensor.",
+            "In fact, if you think about it.",
+            "This quadratic function here is nothing but a learned distance metrics.",
+            "All the work that is being done in machine learning for distance metric learning is.",
+            "This is a very very simple case of learning a simple geodesic distance.",
+            "So what it's doing is measuring the nearest measuring the shortest distance between two points on the manifold on which the image sits.",
+            "OK, So what this does is it actually produces something more."
+        ],
+        [
+            "Stated that is both better than the bilateral and the nonlocal means in the sense that it retains details, but at the same time also gets rid of some of the sort of instability with respect to noise and so.",
+            "OK."
+        ],
+        [
+            "So now let's think about this formulation that I just gave you and see some various ways in which we can generalize these ideas.",
+            "So one would be.",
+            "If you take this general formulation for the Gaussian kernel.",
+            "If you take this Q to be a block diagonal matrix.",
+            "Now if you if you allow this QX and qy to be various different matrices, all of the filters that I just described to you are special cases, so the classical would be just this.",
+            "QX is identity, and Qi would be 0, and so on.",
+            "OK, so this simple formulation actually captures, probably I don't know three 400 different papers in all these different.",
+            "Area so this is 1 simple way to."
+        ],
+        [
+            "To look at a generalization now you can also do various other things.",
+            "Just pick this Q to be a symmetric positive definite matrix.",
+            "Certainly introduce off diagonal elements, so no algorithms currently exist for doing anything like that right now.",
+            "It's not necessarily the case that if you introduce off diagonal elements, you would get a better algorithm, which is probably why it hasn't been done.",
+            "Another thing you could do is this T. Here the way I defined it before."
+        ],
+        [
+            "If I just skip back, it's simply a concatenation of the position and the Gray value of the pixels.",
+            "It doesn't have to be this T can be any feature that you like.",
+            "Remember, all the kernel is doing is measuring is similarity between two pixels.",
+            "Here I've just chosen this."
+        ],
+        [
+            "Other way of selecting T, but it doesn't have to be.",
+            "And finally, you can also use the idea of reproducing kernels to come up with a much more general.",
+            "Form."
+        ],
+        [
+            "Leyshon, namely, the class of admissible kernels that you can use our functions that are symmetric in their arguments and their positive definite in the sense that for any collection of N samples, this gram matrix kij is symmetric positive definite.",
+            "So if you design AK in this fashion, it doesn't have to be either the minus something.",
+            "It's generally going to be valid, and in fact if you designed if you have two admissible kernels, then you can have.",
+            "An endless number of new constructions by doing things like a positive linear combination of the two colonels or product of the two colonels or not.",
+            "Any number of different things.",
+            "So the reason I'm bringing all of this up is just to put in perspective the idea that things like the bilateral filter and the nonlocal means, and so on.",
+            "These are tiny, tiny special cases of some something very very broad that can be done."
+        ],
+        [
+            "OK, so before going any further let me sort of back off the equations a little bit and show you some examples.",
+            "We've applied these ideas to a lot of different applications.",
+            "I'm going to show you some examples just for denoising an for focus stacking.",
+            "We've also applied it to interpolation and super resolution and deblurring and these two things.",
+            "In fact we've commercialized in a company that we started five years ago, which produces software for doing video enhancement for.",
+            "Lots of different applications."
+        ],
+        [
+            "OK, so for denoising let me give you an example.",
+            "So here's a a photo of JFK.",
+            "This is actually a real 35 millimeter photo that has been scanned to digital form.",
+            "So certainly the noise in this image is not Gaussian, it's not even on correlated.",
+            "It's in fact a combination of film grain noise and scanning artifacts and so on.",
+            "So here's the noisy image an."
+        ],
+        [
+            "Here's the denoise version using our algorithm which uses this locally adaptive regression kernel.",
+            "So let me just go back and."
+        ],
+        [
+            "4th"
+        ],
+        [
+            "As you can see, the Fidelity is very, very high.",
+            "You can hardly tell the difference.",
+            "You'd have to look at this image for a fair amount of time to see."
+        ],
+        [
+            "Difference and in fact it's interesting if now you kind of scan the literature and look at the algorithms that are sort of state of the art.",
+            "So here's a plot that shows you the mean squared error.",
+            "For that case, I couldn't show you the mean squared error 'cause the image is just given to us.",
+            "I don't have the ground truth, but if you do a bunch of Monte Carlo simulations, you can look at the mean squared error versus the standard deviation of the noise added to the image and what you see is that sort of the top few algorithms that are out there for denoising are sort of clumped together in a very tight band, and we've also done a paper called is Denoising Dead Witch.",
+            "It came out a few months ago where we computed lower bounds.",
+            "Krammer are lower bounds and what we've noticed is that all of these algorithms are very tightly bunched, but there's still room for improvement depending on the type of image that you have, and also later on was dollars.",
+            "Talk in.",
+            "This session will also give another perspective on on these ideas as well.",
+            "The previous example showed."
+        ],
+        [
+            "Do the denoising in the full RGB space or do you do it separately on different jobs?",
+            "We actually transfer the image to YCB CR, do it there, and then transfer back to RGB.",
+            "Well yeah, So what you want to do is to be much more careful about the the luminance channel.",
+            "The Chroma channel makes much less difference, so we can be more aggressive in denoising.",
+            "In the chroma channels."
+        ],
+        [
+            "OK, so another quick application and this is something that is a common problem that's been around for a long time.",
+            "When you have limited depth of focus, one of the things you can do is take multiple images with different focal lengths and then combine these images together and these ideas.",
+            "This sort of regression weighted least squares idea that I talked about.",
+            "It doesn't have to be done just for it, just in space.",
+            "If you have multiple images, this can also be done if multiple systems images are in time.",
+            "It can also be done in time or in any other dimension.",
+            "In this case it happens to be focal length.",
+            "So we've also used this."
+        ],
+        [
+            "These ideas to combine these images together to get one fully focused image, and this is the idea that's been around in microscopy for a long time.",
+            "We have a very simple solution to it that works really well.",
+            "It's just the extension of some of the algorithms I showed you with the proper weight selection and the weight selection basically measures how close the different pieces of the different images are in terms of how sharp or blurry they are, and So what it does is it ends up managing to combine the sharpest parts of all of these images together to give you this result.",
+            "Registration problems.",
+            "It assumes the registration problem solved, that's right."
+        ],
+        [
+            "OK so here let me go back.",
+            "Now to the Matrix formulation and talk about the mathematics a little bit more.",
+            "So now let's take this formulation that we had, which was this linear combination of all the pixels and also let me remind you, even though this is a linear combination, these weights W are actually a function of the data, so this is not really a linear filter, but it just sort of looks that way.",
+            "OK, so now if I take all of these wait functions and I stack them into a matrix, I can write the whole image, the hack, the whole reconstructed image, the hat as a function of the input, noisy image Y with a matrix W and this matrix W is going to be generally data dependent.",
+            "So from this point on I'm going to be working with this equation Z hat equals W * Y and what I want to do is talk about the properties of this matrix W."
+        ],
+        [
+            "So let's discuss this.",
+            "W is a very special matrix.",
+            "This is just a reminder of what each row of this matrix W does.",
+            "One way we can rewrite this in matrix form is to write W as D inverse K, where K is the matrix KIJ&D inverse is just a diagonal matrix which has the normalization factors simply along this diagonal.",
+            "OK.",
+            "So this is just a shorthand way of writing the whole thing all at once.",
+            "Now I can factor this D inverse K by breaking up the inverse into the minus 1/2, the other minus 1/2, and then putting and factoring the identity into the minus half due to the one half and writing this W in this fashion.",
+            "Now it turns out that this data the minus one.",
+            "Sorry, due to the 1/2 is positive definite, and because K is positive definite and this is just a product of it on the left and right with.",
+            "Positive definite diagonal matrices then both L&E to the minus one had the 1/2 are positive definite so it turns out W is in fact a positive definite matrix as well, so but W is positive definite but it is not symmetric.",
+            "OK, this is a little bit sort of unexpected in a sense, so it's positive definite because it inherits that property from K. But if you simply look at this equation here, you can see that K is symmetric positive definite.",
+            "But because it gets multiplied on the left by D inverse, W can't be symmetric, but it still is positive definite because of this decomposition.",
+            "So that's kind of interesting.",
+            "Turns out that even though W is not symmetric, it is very close to being symmetric and I will make that precise very shortly, and it turns out approximating it with a symmetric matrix has a lot of benefits as."
+        ],
+        [
+            "We'll see.",
+            "OK, so let me discuss a few of the other properties.",
+            "So the matrix W as we said is positive definite an it's also row stochastic, which means that the sum of each of its rows equals one.",
+            "So for matrices like this, there's a whole theory that Perron Frobenius theory for positive stochastic matrices, one of the properties is that its spectral radius is 1, so the top eigenvalue is 1 and it also turns out to be an unrepeated eigenvalue, so it's unique and the dominant eigenvector corresponding to this eigenvalue is all ones OK with the normalization factor of 1 over N 1 / sqrt N. There's also these measures also have an exotic properties, so if you take W to the case power, so if you apply this filter many, many times you don't get zero, you get a matrix of rank one where this U one is the dominant left.",
+            "Singular is left eigenvalue corresponding to this Lambda one.",
+            "OK, now if I go back to this for a second, there is an interesting intuition behind this.",
+            "What this tells you is that because the dominant eigenvector is just constant, what it means is that this filter W is invariant to constant images.",
+            "So if you give it an image that doesn't vary, then it just gives it back to you OK, which is what you would want for denoising filter.",
+            "So that's nice.",
+            "The math and the intuition kind of rhyme."
+        ],
+        [
+            "So let's go on and talk about other interpretations of W, obviously.",
+            "You can think of W as a probability transition matrix for Markov chain, so this is sort of the standard interpretation for row stochastic matrices, but also in terms of graphical models of data and spectral methods.",
+            "There's interesting interpretation, so let's say you take a pixel at position J and then think about pixels around it or anywhere in the image indexed by I, and now think of this as a node in a tree, and these are the branches of the tree, and so this is basically a weighted graph with the weights on each of the branches between I&J being kij.",
+            "OK, so now if you take these weights K and construct the matrix K from them, if you then normalize it the way I just described in the previous slide, and then if you take this W and normalize it further using this.",
+            "Minus I what you get is precisely what's called the graph Laplacian.",
+            "In these other applications, and of course the graph Laplacian has been used in so many different applications all around, so the point of this is that what I'm going to do is I'm going to be studying the spectrum of this matrix W to gain a lot of insight about processing and people have been studying the spectrum of the graph Laplacian for all kinds of other applications really equivalent.",
+            "OK, so the study that I'm going to show you if you know about the spectrum of the graph Laplacian, this stuff ought to make a lot of sense."
+        ],
+        [
+            "OK, so let's take a look at the particular spectral for the particular Larke filter.",
+            "This is the one that we invented.",
+            "What I've done here is I've taken an image and I've chopped up various patches from this image.",
+            "And what I'm showing you is the spectrum of the corresponding W matrix for each of these different patches.",
+            "OK, so let's start here.",
+            "If you look at these flat patches so these are patches where the pixel value doesn't change very much more or less uniform, what you see is that the spectrum for the corresponding W starts at one as it should, and it very quickly sort of drops down at a very fast decay rate.",
+            "OK, what does that mean?",
+            "The very fast decay rate means that the filter is very aggressive in these flat regions.",
+            "The filter is doing a lot of denoising.",
+            "Is doing some very heavy averaging.",
+            "Now let's go to an edge.",
+            "This is sort of a mild edge, and what you see is that the spectrum of the corresponding W has sort of lifted up.",
+            "What that means is that this filter is less aggressive denoising then these ones.",
+            "Why?",
+            "Because it notices that there is some structure here and selectively decides to change the corresponding spectrum to try to protect that edge.",
+            "OK, an as we go to more and more complex structures, what ends up happening is that the spectrum sort of lifts.",
+            "And all of this is of course being done automatically by adapting to the data that's given.",
+            "And when you get to get to fairly complicated textures, then the filter is really being very careful about which directions it is averaging and which direction is sort of leaving alone.",
+            "OK, so it's a very nice to be able to see that because it gives you a real intuition for how the filter is behaving in an adaptive way in an unsupervised way to the content of the image that it finds.",
+            "It also turns out that this spectrum.",
+            "Is very very stable with respect to noise, so if you take the image and you compute these now, I computed these Spectra on the clean image, but if you add noise to this image, there's a lot of averaging that goes on in the process of calculating these kernels, so that tends to really tamper down the effect of the noise, and so the spectrum stays fairly close to this even when you add a fairly significant amount of noise to it."
+        ],
+        [
+            "OK, so now I mentioned that W is almost symmetric.",
+            "It turns out that if we actually use a symmetric approximation to West, this gives.",
+            "This gives a lot of useful.",
+            "Properties so the way we do it is we use something called stinkhorns iterative scaling algorithm.",
+            "This is simply you take W and you normalize the Rosen, normalize the columns and normalize the Rose.",
+            "Normalize the columns and it turns out this thing is guaranteed to converge for any strictly positive W an what it gives it gives an approximation which is symmetric positive definite and doubly stochastic is doubly stochastic because now it's symmetric is row stochastic and column stochastic, so it's doubly stochastic."
+        ],
+        [
+            "So this approximation turns out to be good in the sense that it minimizes the cross entropy between the given W&W hat in the class of all doubly stochastic matrices, so it's optimal in this sense.",
+            "Of course, this is not going to give you a very good metric bound as to how close the approximation W hat is."
+        ],
+        [
+            "To the given W, but we have that as well.",
+            "This is some work that we did recently.",
+            "It turns out that if you look at the Frobenius norm of the difference between these two matrices, you get something that looks like this.",
+            "So it is basically dominated by the sub dominant eigenvalue of W, and then there's these terms that decay with the dimension.",
+            "OK, so as the dimension of the matrix gets big this approximation, these terms collapse in the approximation just becomes proportionally approximation error becomes proportional to.",
+            "The subdominant eigenvalue.",
+            "There's an interesting side note here that some of you may be interested in.",
+            "It turns out that if you now pick W, If you choose W to be random row stochastic matrix, it means that it has random rows, each of which sum up to one.",
+            "And of course these come up all the time in directly stick breaking processes.",
+            "So if you take a stick of length one and randomly break it, it always adds up to one right, so that becomes the links of those pieces become the elements in the row of W. If you do that, then it turns out this subdominant eigenvalue actually collapses with dimension.",
+            "And so if you now take this and replace it in here, what you see is that there the symmetric approximation and the original W are in fact asymptotically equivalent.",
+            "For large enough N, so this approximation is very very good for this."
+        ],
+        [
+            "OK, so now if I use this cemitas symmetrized form, I can write the spectrum of the power."
+        ],
+        [
+            "W this way, and since I know I'm getting close to being out of time, I'm going to skip through some of these.",
+            "I'm going to be able to approximate the bias and the variance of my estimate using this approximation of the spectrum and the mean squared error is Now the square of the bias plus."
+        ],
+        [
+            "The trace of the covariance and if I write the image underlying image Z in terms of the eigenvectors of W in this basis, then let me just direct your attention to this.",
+            "So this BI B0I are the coefficients of Z.",
+            "In the column space of.",
+            "V. OK. You get the mean squared error having this expression and Sigma squared here being the variance of the."
+        ],
+        [
+            "Now you can ask what's the ideal spectrum?",
+            "So remember we designed these filters from the beginning without really thinking about their optimality at the end.",
+            "For minimizing mean squared error.",
+            "So we designed the spectrum for that we designed to W for the bilateral filter and just kind of do it."
+        ],
+        [
+            "Now, if you have this expression, you could ask.",
+            "You know, sort of clairvoyantly.",
+            "How would you design W?"
+        ],
+        [
+            "I have the best spectrum possible.",
+            "Well just take this quadratic function an and differentiate it well.",
+            "If you do that, you get the optimal spectrum.",
+            "Is this formulation?",
+            "And this is nothing but the Wiener filter.",
+            "OK, so if you somehow clairvoyantly knew what this signal to noise ratio was ahead of time, if you knew what these coefficients were ahead of time, then you would design W accordingly to minimize this quantity.",
+            "And in fact it turns out that all the state of the art denoising algorithms.",
+            "In one way or another are implicitly struggling to do this.",
+            "Even though nobody quite realizes that that's the case, in fact, the algorithm that works the best.",
+            "Which is this BM 3D.",
+            "It's very well known algorithm.",
+            "Explicitly tries to estimate these Lambda eyes from the given noisy data and then constructs a W by doing VSV transpose, where the V that they use in fact ECT.",
+            "OK, they use DCT coefficients so they don't construct the kernel and then from that go to the W they actually constructed W using a spectral decomposition, with this being optimized so we can understand now."
+        ],
+        [
+            "What's going on there?",
+            "Before I ran around, this part is probably the most important segment, so.",
+            "Anything that we've done so far has yielded non ideal filters.",
+            "OK because we don't have this clairvoyant idea of what to do.",
+            "So now the concept is, how do we improve?",
+            "Can we improve these non ideal filters by some sort of iterative process?",
+            "And it turns out we can.",
+            "One way to do it is diffusion.",
+            "Diffusion is nothing but applying this filter W multiple times, and I'll spare you the proof.",
+            "But basically if you just rewrite this equation into this form, what you see is that the left hand side basically becomes a discretization of the derivative and the right hand side becomes something that looks very much like the the Laplacian.",
+            "So if you do diffusion in this way and this has been done, obviously in many diff."
+        ],
+        [
+            "In places."
+        ],
+        [
+            "That's one way to improve your estimate, and it turns out it has some."
+        ],
+        [
+            "Pluses and minuses.",
+            "Another way to do it, which is much less known, is something called twice ING.",
+            "This was an idea that was introduced by two key back in 1977.",
+            "John Tukey more recently has been rediscovered by Buehlman and you called L2 boosting.",
+            "This has been published mainly in statistics and machine learning literature, and then there's something called Bregman iterations, which has been promulgated by folks in.",
+            "In applied mathematics, namely Stan OSHA and his group.",
+            "Now what this does is it constructs an iteration that adds roughness to the estimate.",
+            "So the iteration of the iteratee K is the iterate K -- 1 plus the filter applied to the residuals.",
+            "OK, and it turns out that if you do this, so let me just do this for one step and give you an idea of what it looks like.",
+            "So Z1 is 0 plus this W times the first residual.",
+            "If you rewrite this, what you get is 2 I minus W times WI.",
+            "Well, what's WI?",
+            "This is one step of diffusion, right?",
+            "So there's a blurring process, whereas two I -- W is a sort of inverse diffusion.",
+            "OK, so it basically the two steps of this.",
+            "You do a step of diffusion and then you do a step of inverse diffusion.",
+            "And of course you can repeat this over and over again."
+        ],
+        [
+            "And it turns out that if you do this, you get very different behaviors for the mean squared error from these two methods.",
+            "If I write that for diffusion and residual based iteration here, the bias goes up with iterations and the variance goes down.",
+            "Here the exact reverse happens, the bias goes down and the variance goes up, and then there's a question of which one of these should use.",
+            "If you start with a quote, unquote dumb W, and you want to iteratively improve, it should use this one or should use."
+        ],
+        [
+            "This one and."
+        ],
+        [
+            "We've derived can do."
+        ],
+        [
+            "'cause I'll skip through the examples.",
+            "We have derived conditions that tell you what happens.",
+            "It turns out the mathematical condition is that diffusion is better if the filter is kind of weak.",
+            "In other words, it it's not very sophisticated.",
+            "OK, and this is the condition.",
+            "This is a mathematical condition and it turns out the left hand side is nothing but the channel capacity, which involves that SNR.",
+            "So this gives you from an information theoretic point of view, a condition that has to be satisfied for you to use one filter or another.",
+            "And the exact reverse.",
+            "It turns out this inequality is just reverse it.",
+            "It tells you the residual is better, so it gives you a recipe for designing a W and then."
+        ],
+        [
+            "Citing how you're going to improve the iterations, there are connections also to base."
+        ],
+        [
+            "Let me skip to this one.",
+            "This is probably the more interesting one.",
+            "If you write this regularization formulation.",
+            "So this is an optimization problem.",
+            "And write a steepest descent iteration."
+        ],
+        [
+            "Of it, and then make a comparison between the iterations for steepest descent and the residuals and the diffusion.",
+            "So if you just write these equations down and then compare the right hand sides of these two and then compare the right hand sides of the."
+        ],
+        [
+            "Two, what you get is you can get an expression for the gradient of this.",
+            "Stabilization function for this regularization function an.",
+            "Under proper conditions, you can integrate both sides of this to get an expression for the regularization.",
+            "What it shows you is that.",
+            "The regularization function is basically a quadratic function that involves W, But it's a quadratic function of the residuals, so it's not a standard prior.",
+            "That you might use in in standard Bayesian approach, so it's a.",
+            "It's a Bayesian.",
+            "It's sort of a naive Bayesian approach.",
+            "If you want to think of it that way.",
+            "OK."
+        ],
+        [
+            "So."
+        ],
+        [
+            "Well."
+        ],
+        [
+            "Just one last example.",
+            "We also use these weights for doing visual search by comparing the coefficients that we get here to a given image, and we're able to very robust."
+        ],
+        [
+            "Identify objects."
+        ],
+        [
+            "Such as this.",
+            "This is just an example where we have video.",
+            "We do the same thing, so here's the.",
+            "Query an here's the detection is that we get.",
+            "There's no requirement for motion estimation.",
+            "No segmentation or learning is just literally matching the W coefficients for these images or for these video sequence to the coefficients in a dense way.",
+            "For the sequence that you see on the right hand side.",
+            "So without any learning."
+        ],
+        [
+            "OK, so that's it.",
+            "Just to conclude, I just want to say I, as it turns out, that the scholars in literature and film tend to think that there are only seven basic plots right there, comedy, tragedy, Quest, Rebirth and every other book film ever made is some combination of these ideas.",
+            "So in some sense we've arrived at this point where I think there's sort of basic plots for modern image processing as well, and I think they are adaptiveness to the data you some nonparametrics.",
+            "And doing these kinds of iterations and everything that we've done is sort of revolved around these three main concepts over the last few years.",
+            "And so, as I've hopefully shown you, there are many applications and still more to be to be discovered.",
+            "You know, I'm sorry I went over time, but that's it.",
+            "Thank you.",
+            "Yeah, so we have time for couple of questions and use the voice off anyway, so.",
+            "Yeah.",
+            "The one in Europe derivation being mentioned that you want to get functionality of the document matrix go very large numbers.",
+            "For the.",
+            "Expedients, we keep the search radius right much smaller than the whole image, correct?",
+            "How does it breakdown well?",
+            "So when I say large, I'm talking about.",
+            "If you take the.",
+            "Takes the window size to be, let's say 15 by 15.",
+            "That's big enough for a lot of these bounds to be very accurately true.",
+            "After that I mean typically from psychovisual.",
+            "MSE is really bad major, yes, so.",
+            "When you get the beer, but often that psychic vision is not really the right.",
+            "Unfortunately I don't have a cycle visual way to quantify performance, and as soon as I have it I will try to optimize it, so that's still an ongoing thing, an ongoing struggle to understand.",
+            "Any other ones?",
+            "And then we proceed with the next door.",
+            "Yeah.",
+            "This is not very impressive to play service.",
+            "No, it's it's aggressive to flat surfaces, but right?",
+            "I don't know anything about a noise because you said yes.",
+            "With respect to noise, but if I add noise to someplace else.",
+            "So then pick up some aggressive right so it becomes non aggressive in particular directions and it decides which directions to become non aggressive in because of the fact that we're computing that covariance matrix.",
+            "Remember the covariance matrix?",
+            "See that I showed you is being computed from the gradients.",
+            "And so basically the idea is that even with addition of noise, the dominant orientation within that Patch is still identifiable.",
+            "And that's really the key factor here.",
+            "So the filter is able to decide OK in this direction there is a discontinuity that I want to try to preserve, but in this other direction everything is flat.",
+            "So I'm going to be aggressively denoising there.",
+            "I hope that helps.",
+            "Speak again."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now I should say the reason I'm putting this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "Image processing in quotes is because the what we've sort of traditionally called image processing has really evolved and merged in many ways with lots of other activities.",
+                    "label": 0
+                },
+                {
+                    "sent": "So going back, we've had a lot of work traditionally in the signal processing community on this topic, and more recently in computational photography, where in fact computational photography more or less is image processing, which is published in SIGGRAPH.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's another way to think about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one of the key concepts that's recently become very popular is this idea of nonlocal means.",
+                    "label": 0
+                },
+                {
+                    "sent": "Some of you may have heard about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now going on the computer vision, we've had algorithms that have been developed in the in the vision community for anisotropic diffusion.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're all probably familiar to some extent or another with these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "The bilateral filter, which has now found applications in lots of places, including graphics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now going to graphics, there's been the idea of moving least squares for interpolating 3D scan data into smooth surfaces.",
+                    "label": 0
+                },
+                {
+                    "sent": "People have been using this in graphics for a long long time and it turns out we've been using it and image processing and people in vision have been using similar idea, but just calling it different things.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you have ideas from machine learning and statistics, including boosting, spectral clustering and various other concepts that have again found their way into what we traditionally called image processing and also in applied math.",
+                    "label": 0
+                },
+                {
+                    "sent": "Fairly recently there's been a lot of interest, in fact, the Siam Journal on Imaging Sciences, a new Journal that publishes image processing things with a heavy mathematical bent.",
+                    "label": 0
+                },
+                {
+                    "sent": "So really, there's been a convergence of ideas across a lot of different fields, and hopefully my presentation will give you at least a rough idea of how these ideas.",
+                    "label": 0
+                },
+                {
+                    "sent": "All relate to each other.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so let me at least from my perspective give you an overview of the computational problems in imaging that we deal with.",
+                    "label": 0
+                },
+                {
+                    "sent": "So typically you have a real scene which gets blurred and downsampled and noisy, and the measurements may look like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then what we might call inverse problems or reconstruction problems could be just denoising.",
+                    "label": 0
+                },
+                {
+                    "sent": "It could be upscaling or interpolation, it could be deblurring for the purposes of this talk I'll be concentrating on the denoising problems, but a lot of what I say will have applications and in fact direct use.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a bunch of these other areas as well, so the framework is general enough to sort of subsume algorithms in all of these different app.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Locations.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let me get down to the specifics a little bit.",
+                    "label": 0
+                },
+                {
+                    "sent": "The common framework for all of these concepts is basically nonparametric ways of estimating functions or point estimation procedures as they are known in statistics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the problem is a data fitting problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's imagine like I said, the problem of denoising where you're given an image or a video and you'd like to reduce the amount of noise present in this data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say Yi.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here are the pixels that are noisy.",
+                    "label": 0
+                },
+                {
+                    "sent": "Z of XI are pixel values at some position XI and then E. Here is the error.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the data model is like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as I said, these are the samples.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is what we call Z is what we call the regression function.",
+                    "label": 0
+                },
+                {
+                    "sent": "The function we sort of try to fit.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "We just assume it to be 0 mean IID noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we make no other distributional assumptions, so I'm not assuming the noise is Gaussian or Laplacian or anything, just that so if you look at this picture, the idea is that you have a bunch of data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what you like to do is to estimate the value of the function at a particular point given this data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now this data I've denoted here Y1Y2 through YN.",
+                    "label": 0
+                },
+                {
+                    "sent": "This data could be the entire image, or it could be just some Patch of the image, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So essentially what you're interested in is estimating the value of 1 pixel.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given either the whole image or some Patch of the image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the particular form of Z of X is going to remain unspecified for the time being, and this is actually part of the strength of this is that we are not using a model based approach in typical traditional approaches in image processing.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we've done is we've sort of assumed some kind of parametric or global model for Z of X and then gone after estimating those parameters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here not, that's not what we're doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're estimating the values of Z1 point at a time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so once again you have this data and one very simple way to estimate the value of this scalar.",
+                    "label": 0
+                },
+                {
+                    "sent": "And remember this is just a scalar pixel value is to do a very elementary least squares.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so if I just write this least squares cost function and minimize it over the scalar Z of XJ, then the solution would just be the average of the pixel values that I'm giving, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's not very exciting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now going one step further from this you might say, well, this formulation actually gives equal weight to all the data, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you solve this, you just get the average, so the weight in front of each of the data points is just one over N. So why not give different weights to the data so that gives rise to a weight function K?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is what we call the Colonel.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this weight function is not going to make this a weighted least squares problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, not terribly more complicated than before.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only difference is that this weight function is now somehow going to measure similarity between the data points at J, which you have and the data points around it, and in some sense penalizes things that are not similar enough to this location at hand.",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, now the way this particular function is measured is going to give you a cacophony of different types of algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many of which you will be immediately familiar with.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the bottom line here is it's very simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just a weighted least squares formulation, but it leads to a lot of interesting insights.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let me go, sort of the next step.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's write the weighted least squares problem in this vector notation, so I'm going to stack all the data Y one through Y in this vector Y, I'm going to define this vector of ones is 1 sub N and then the values of this kernel function are going to be stacked into a diagonal of this diagonal matrix KJ, so I can write this quadratic cost function to minimize.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when I do this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Simple minimization what I get is the value of the pixel at XJ is just this expression on the right hand side.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, in writing it sort of in longhand.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you have is a sum of a bunch of coefficients times the data points.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now what's interesting here is that if you look at these data points, if you look at these costs, sorry if you look at these weights.",
+                    "label": 0
+                },
+                {
+                    "sent": "The weights are normalized.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so they sum up to one.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are also positive.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and here the way I've written it.",
+                    "label": 0
+                },
+                {
+                    "sent": "The weights are a function of the positions and also the actual Gray values at those positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the fairly general the bottom line here is that the solution to this optimization problem is a convex combination of all the data that you considered convex.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because these weights are positive and they also sum up to one.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is basically an optimization problem we solve for estimating every pixel value that we're interested in, and we sort of move this optimization problem around, and in fact this is exactly what the what the moving least squares idea in graphics is as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just weighted least squares and you move it around the image and you get your answer.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so I'm just going to write this as a vector vector inner product where this W just contains these weights and the Y again contains all the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now let's see what happens if we make different choices for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "For this kernel function.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so here's the simplest case.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you take this kernel function to be a simple exponential with the exponent being the spatial distance sort of the Euclidean distance between the two spatial positions where these two samples are.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to measure the similarity between these two, and you use this metric, then all you're using is the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kleidion distance what you get is the classical Gaussian linear filters.",
+                    "label": 1
+                },
+                {
+                    "sent": "That we all know from basic sort of signals and systems or signal processing.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now I should also say that these filters, even though they are linear, could be spatially varying.",
+                    "label": 0
+                },
+                {
+                    "sent": "So depending on how your data is sampled, if your data is sampled regularly then that's fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if the data is sampled irregularly, then depending on where you center this J, then the profile of these wait functions can change depending on the density of the samples around you.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they're linear, but they can be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Shift bearing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, if you not only include the spatial distance but also the photometric distance, namely the Gray value difference between these pixels, you get the filters that are bilateral.",
+                    "label": 0
+                },
+                {
+                    "sent": "Filter and nonlocal means, and these two things turn out to be very very similar in principle to one another.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, what they do is they pick a Gaussian for the distance between for the photometric kernel and a Gaussian for the spatial kernel, and they literally multiply these and the net effect of that is that you're measuring the Euclidean distance between these two points, as opposed to just the.",
+                    "label": 0
+                },
+                {
+                    "sent": "X distance or the Y distance.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a quick example of the bilateral filter.",
+                    "label": 0
+                },
+                {
+                    "sent": "The spatial distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm showing these values of these kernels in non overlapping patches just for convenience of illustration.",
+                    "label": 1
+                },
+                {
+                    "sent": "Typically these things are measured in a dense fashion all the way across the image, so this term is just the spatial similarity.",
+                    "label": 0
+                },
+                {
+                    "sent": "This term here is the photometric similarity, and then these two things get multiplied point by point and you get this arrangement of kernels which is then used for constructing the filters.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, now if you go to non local means which has made a big splash in in our community in the last few years, the difference?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Is really minor.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only thing that's changed is that instead of take.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In the pixel wise differences here you take the differences between two patches centered at that pixel, and also you let this HX go to Infinity, which is what makes it non local right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if this is some small number then you're looking at the weights are large only in a small spatial area around the pixel of interest, but if you let that go to a large number then you're looking all over the image OK. And so the the result here is that you can get.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Kind of a smoothing effect.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "From the bilaterals to the to this other scenario.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now another special case is something that both Kimmel and his group and our group I've come up with, namely the Beltrami Flow kernel, an work for locally adaptive regression kernels, and the idea here is that instead of measuring the Euclidean distance between these two points, what we instead do is we estimate the geodesic distance between the two points given the intermediate points.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let me be a little bit more specific about how we do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our kernel looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a quadratic again in the exponent, except for the fact that we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a sort of inverse covariance matrix sitting in the exponent here, and this covariance matrix is basically the covariance of the local gradient estimates, so we take the pixel and we estimate the gradients, and we compute the covariance from that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is if you're a little bit familiar with the literature.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just called the structure tensor.",
+                    "label": 0
+                },
+                {
+                    "sent": "In a lot of image in work and machine vision work, it's also known as the metric tensor.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact, if you think about it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This quadratic function here is nothing but a learned distance metrics.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the work that is being done in machine learning for distance metric learning is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a very very simple case of learning a simple geodesic distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what it's doing is measuring the nearest measuring the shortest distance between two points on the manifold on which the image sits.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, So what this does is it actually produces something more.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Stated that is both better than the bilateral and the nonlocal means in the sense that it retains details, but at the same time also gets rid of some of the sort of instability with respect to noise and so.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So now let's think about this formulation that I just gave you and see some various ways in which we can generalize these ideas.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one would be.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you take this general formulation for the Gaussian kernel.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you take this Q to be a block diagonal matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if you if you allow this QX and qy to be various different matrices, all of the filters that I just described to you are special cases, so the classical would be just this.",
+                    "label": 0
+                },
+                {
+                    "sent": "QX is identity, and Qi would be 0, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so this simple formulation actually captures, probably I don't know three 400 different papers in all these different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Area so this is 1 simple way to.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To look at a generalization now you can also do various other things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just pick this Q to be a symmetric positive definite matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Certainly introduce off diagonal elements, so no algorithms currently exist for doing anything like that right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not necessarily the case that if you introduce off diagonal elements, you would get a better algorithm, which is probably why it hasn't been done.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another thing you could do is this T. Here the way I defined it before.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "If I just skip back, it's simply a concatenation of the position and the Gray value of the pixels.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't have to be this T can be any feature that you like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Remember, all the kernel is doing is measuring is similarity between two pixels.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here I've just chosen this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Other way of selecting T, but it doesn't have to be.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, you can also use the idea of reproducing kernels to come up with a much more general.",
+                    "label": 0
+                },
+                {
+                    "sent": "Form.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Leyshon, namely, the class of admissible kernels that you can use our functions that are symmetric in their arguments and their positive definite in the sense that for any collection of N samples, this gram matrix kij is symmetric positive definite.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you design AK in this fashion, it doesn't have to be either the minus something.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's generally going to be valid, and in fact if you designed if you have two admissible kernels, then you can have.",
+                    "label": 0
+                },
+                {
+                    "sent": "An endless number of new constructions by doing things like a positive linear combination of the two colonels or product of the two colonels or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any number of different things.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the reason I'm bringing all of this up is just to put in perspective the idea that things like the bilateral filter and the nonlocal means, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are tiny, tiny special cases of some something very very broad that can be done.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so before going any further let me sort of back off the equations a little bit and show you some examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've applied these ideas to a lot of different applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to show you some examples just for denoising an for focus stacking.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've also applied it to interpolation and super resolution and deblurring and these two things.",
+                    "label": 0
+                },
+                {
+                    "sent": "In fact we've commercialized in a company that we started five years ago, which produces software for doing video enhancement for.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lots of different applications.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so for denoising let me give you an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a a photo of JFK.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually a real 35 millimeter photo that has been scanned to digital form.",
+                    "label": 0
+                },
+                {
+                    "sent": "So certainly the noise in this image is not Gaussian, it's not even on correlated.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's in fact a combination of film grain noise and scanning artifacts and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's the noisy image an.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Here's the denoise version using our algorithm which uses this locally adaptive regression kernel.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me just go back and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "4th",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "As you can see, the Fidelity is very, very high.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can hardly tell the difference.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'd have to look at this image for a fair amount of time to see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Difference and in fact it's interesting if now you kind of scan the literature and look at the algorithms that are sort of state of the art.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here's a plot that shows you the mean squared error.",
+                    "label": 0
+                },
+                {
+                    "sent": "For that case, I couldn't show you the mean squared error 'cause the image is just given to us.",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't have the ground truth, but if you do a bunch of Monte Carlo simulations, you can look at the mean squared error versus the standard deviation of the noise added to the image and what you see is that sort of the top few algorithms that are out there for denoising are sort of clumped together in a very tight band, and we've also done a paper called is Denoising Dead Witch.",
+                    "label": 0
+                },
+                {
+                    "sent": "It came out a few months ago where we computed lower bounds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Krammer are lower bounds and what we've noticed is that all of these algorithms are very tightly bunched, but there's still room for improvement depending on the type of image that you have, and also later on was dollars.",
+                    "label": 0
+                },
+                {
+                    "sent": "Talk in.",
+                    "label": 0
+                },
+                {
+                    "sent": "This session will also give another perspective on on these ideas as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "The previous example showed.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Do the denoising in the full RGB space or do you do it separately on different jobs?",
+                    "label": 0
+                },
+                {
+                    "sent": "We actually transfer the image to YCB CR, do it there, and then transfer back to RGB.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well yeah, So what you want to do is to be much more careful about the the luminance channel.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Chroma channel makes much less difference, so we can be more aggressive in denoising.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the chroma channels.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": []
+        },
+        "clip_33": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so another quick application and this is something that is a common problem that's been around for a long time.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you have limited depth of focus, one of the things you can do is take multiple images with different focal lengths and then combine these images together and these ideas.",
+                    "label": 0
+                },
+                {
+                    "sent": "This sort of regression weighted least squares idea that I talked about.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't have to be done just for it, just in space.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you have multiple images, this can also be done if multiple systems images are in time.",
+                    "label": 0
+                },
+                {
+                    "sent": "It can also be done in time or in any other dimension.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case it happens to be focal length.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've also used this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "These ideas to combine these images together to get one fully focused image, and this is the idea that's been around in microscopy for a long time.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a very simple solution to it that works really well.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's just the extension of some of the algorithms I showed you with the proper weight selection and the weight selection basically measures how close the different pieces of the different images are in terms of how sharp or blurry they are, and So what it does is it ends up managing to combine the sharpest parts of all of these images together to give you this result.",
+                    "label": 0
+                },
+                {
+                    "sent": "Registration problems.",
+                    "label": 0
+                },
+                {
+                    "sent": "It assumes the registration problem solved, that's right.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK so here let me go back.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now to the Matrix formulation and talk about the mathematics a little bit more.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now let's take this formulation that we had, which was this linear combination of all the pixels and also let me remind you, even though this is a linear combination, these weights W are actually a function of the data, so this is not really a linear filter, but it just sort of looks that way.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now if I take all of these wait functions and I stack them into a matrix, I can write the whole image, the hack, the whole reconstructed image, the hat as a function of the input, noisy image Y with a matrix W and this matrix W is going to be generally data dependent.",
+                    "label": 0
+                },
+                {
+                    "sent": "So from this point on I'm going to be working with this equation Z hat equals W * Y and what I want to do is talk about the properties of this matrix W.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's discuss this.",
+                    "label": 0
+                },
+                {
+                    "sent": "W is a very special matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just a reminder of what each row of this matrix W does.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way we can rewrite this in matrix form is to write W as D inverse K, where K is the matrix KIJ&D inverse is just a diagonal matrix which has the normalization factors simply along this diagonal.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is just a shorthand way of writing the whole thing all at once.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now I can factor this D inverse K by breaking up the inverse into the minus 1/2, the other minus 1/2, and then putting and factoring the identity into the minus half due to the one half and writing this W in this fashion.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now it turns out that this data the minus one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, due to the 1/2 is positive definite, and because K is positive definite and this is just a product of it on the left and right with.",
+                    "label": 0
+                },
+                {
+                    "sent": "Positive definite diagonal matrices then both L&E to the minus one had the 1/2 are positive definite so it turns out W is in fact a positive definite matrix as well, so but W is positive definite but it is not symmetric.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, this is a little bit sort of unexpected in a sense, so it's positive definite because it inherits that property from K. But if you simply look at this equation here, you can see that K is symmetric positive definite.",
+                    "label": 0
+                },
+                {
+                    "sent": "But because it gets multiplied on the left by D inverse, W can't be symmetric, but it still is positive definite because of this decomposition.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's kind of interesting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turns out that even though W is not symmetric, it is very close to being symmetric and I will make that precise very shortly, and it turns out approximating it with a symmetric matrix has a lot of benefits as.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We'll see.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let me discuss a few of the other properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the matrix W as we said is positive definite an it's also row stochastic, which means that the sum of each of its rows equals one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for matrices like this, there's a whole theory that Perron Frobenius theory for positive stochastic matrices, one of the properties is that its spectral radius is 1, so the top eigenvalue is 1 and it also turns out to be an unrepeated eigenvalue, so it's unique and the dominant eigenvector corresponding to this eigenvalue is all ones OK with the normalization factor of 1 over N 1 / sqrt N. There's also these measures also have an exotic properties, so if you take W to the case power, so if you apply this filter many, many times you don't get zero, you get a matrix of rank one where this U one is the dominant left.",
+                    "label": 0
+                },
+                {
+                    "sent": "Singular is left eigenvalue corresponding to this Lambda one.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, now if I go back to this for a second, there is an interesting intuition behind this.",
+                    "label": 0
+                },
+                {
+                    "sent": "What this tells you is that because the dominant eigenvector is just constant, what it means is that this filter W is invariant to constant images.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you give it an image that doesn't vary, then it just gives it back to you OK, which is what you would want for denoising filter.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "The math and the intuition kind of rhyme.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_38": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So let's go on and talk about other interpretations of W, obviously.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can think of W as a probability transition matrix for Markov chain, so this is sort of the standard interpretation for row stochastic matrices, but also in terms of graphical models of data and spectral methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's interesting interpretation, so let's say you take a pixel at position J and then think about pixels around it or anywhere in the image indexed by I, and now think of this as a node in a tree, and these are the branches of the tree, and so this is basically a weighted graph with the weights on each of the branches between I&J being kij.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so now if you take these weights K and construct the matrix K from them, if you then normalize it the way I just described in the previous slide, and then if you take this W and normalize it further using this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Minus I what you get is precisely what's called the graph Laplacian.",
+                    "label": 0
+                },
+                {
+                    "sent": "In these other applications, and of course the graph Laplacian has been used in so many different applications all around, so the point of this is that what I'm going to do is I'm going to be studying the spectrum of this matrix W to gain a lot of insight about processing and people have been studying the spectrum of the graph Laplacian for all kinds of other applications really equivalent.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so the study that I'm going to show you if you know about the spectrum of the graph Laplacian, this stuff ought to make a lot of sense.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_39": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so let's take a look at the particular spectral for the particular Larke filter.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the one that we invented.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I've done here is I've taken an image and I've chopped up various patches from this image.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I'm showing you is the spectrum of the corresponding W matrix for each of these different patches.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so let's start here.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look at these flat patches so these are patches where the pixel value doesn't change very much more or less uniform, what you see is that the spectrum for the corresponding W starts at one as it should, and it very quickly sort of drops down at a very fast decay rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, what does that mean?",
+                    "label": 0
+                },
+                {
+                    "sent": "The very fast decay rate means that the filter is very aggressive in these flat regions.",
+                    "label": 0
+                },
+                {
+                    "sent": "The filter is doing a lot of denoising.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is doing some very heavy averaging.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now let's go to an edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is sort of a mild edge, and what you see is that the spectrum of the corresponding W has sort of lifted up.",
+                    "label": 0
+                },
+                {
+                    "sent": "What that means is that this filter is less aggressive denoising then these ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because it notices that there is some structure here and selectively decides to change the corresponding spectrum to try to protect that edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, an as we go to more and more complex structures, what ends up happening is that the spectrum sort of lifts.",
+                    "label": 0
+                },
+                {
+                    "sent": "And all of this is of course being done automatically by adapting to the data that's given.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when you get to get to fairly complicated textures, then the filter is really being very careful about which directions it is averaging and which direction is sort of leaving alone.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so it's a very nice to be able to see that because it gives you a real intuition for how the filter is behaving in an adaptive way in an unsupervised way to the content of the image that it finds.",
+                    "label": 0
+                },
+                {
+                    "sent": "It also turns out that this spectrum.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is very very stable with respect to noise, so if you take the image and you compute these now, I computed these Spectra on the clean image, but if you add noise to this image, there's a lot of averaging that goes on in the process of calculating these kernels, so that tends to really tamper down the effect of the noise, and so the spectrum stays fairly close to this even when you add a fairly significant amount of noise to it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_40": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so now I mentioned that W is almost symmetric.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that if we actually use a symmetric approximation to West, this gives.",
+                    "label": 0
+                },
+                {
+                    "sent": "This gives a lot of useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "Properties so the way we do it is we use something called stinkhorns iterative scaling algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is simply you take W and you normalize the Rosen, normalize the columns and normalize the Rose.",
+                    "label": 0
+                },
+                {
+                    "sent": "Normalize the columns and it turns out this thing is guaranteed to converge for any strictly positive W an what it gives it gives an approximation which is symmetric positive definite and doubly stochastic is doubly stochastic because now it's symmetric is row stochastic and column stochastic, so it's doubly stochastic.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_41": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this approximation turns out to be good in the sense that it minimizes the cross entropy between the given W&W hat in the class of all doubly stochastic matrices, so it's optimal in this sense.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, this is not going to give you a very good metric bound as to how close the approximation W hat is.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_42": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "To the given W, but we have that as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is some work that we did recently.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that if you look at the Frobenius norm of the difference between these two matrices, you get something that looks like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it is basically dominated by the sub dominant eigenvalue of W, and then there's these terms that decay with the dimension.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so as the dimension of the matrix gets big this approximation, these terms collapse in the approximation just becomes proportionally approximation error becomes proportional to.",
+                    "label": 0
+                },
+                {
+                    "sent": "The subdominant eigenvalue.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's an interesting side note here that some of you may be interested in.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that if you now pick W, If you choose W to be random row stochastic matrix, it means that it has random rows, each of which sum up to one.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course these come up all the time in directly stick breaking processes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you take a stick of length one and randomly break it, it always adds up to one right, so that becomes the links of those pieces become the elements in the row of W. If you do that, then it turns out this subdominant eigenvalue actually collapses with dimension.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so if you now take this and replace it in here, what you see is that there the symmetric approximation and the original W are in fact asymptotically equivalent.",
+                    "label": 0
+                },
+                {
+                    "sent": "For large enough N, so this approximation is very very good for this.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_43": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so now if I use this cemitas symmetrized form, I can write the spectrum of the power.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_44": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "W this way, and since I know I'm getting close to being out of time, I'm going to skip through some of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to be able to approximate the bias and the variance of my estimate using this approximation of the spectrum and the mean squared error is Now the square of the bias plus.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_45": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The trace of the covariance and if I write the image underlying image Z in terms of the eigenvectors of W in this basis, then let me just direct your attention to this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this BI B0I are the coefficients of Z.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the column space of.",
+                    "label": 0
+                },
+                {
+                    "sent": "V. OK. You get the mean squared error having this expression and Sigma squared here being the variance of the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_46": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now you can ask what's the ideal spectrum?",
+                    "label": 0
+                },
+                {
+                    "sent": "So remember we designed these filters from the beginning without really thinking about their optimality at the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "For minimizing mean squared error.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we designed the spectrum for that we designed to W for the bilateral filter and just kind of do it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_47": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now, if you have this expression, you could ask.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, sort of clairvoyantly.",
+                    "label": 0
+                },
+                {
+                    "sent": "How would you design W?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_48": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I have the best spectrum possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well just take this quadratic function an and differentiate it well.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you do that, you get the optimal spectrum.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is this formulation?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is nothing but the Wiener filter.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so if you somehow clairvoyantly knew what this signal to noise ratio was ahead of time, if you knew what these coefficients were ahead of time, then you would design W accordingly to minimize this quantity.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in fact it turns out that all the state of the art denoising algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "In one way or another are implicitly struggling to do this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Even though nobody quite realizes that that's the case, in fact, the algorithm that works the best.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is this BM 3D.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very well known algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Explicitly tries to estimate these Lambda eyes from the given noisy data and then constructs a W by doing VSV transpose, where the V that they use in fact ECT.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, they use DCT coefficients so they don't construct the kernel and then from that go to the W they actually constructed W using a spectral decomposition, with this being optimized so we can understand now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_49": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "What's going on there?",
+                    "label": 0
+                },
+                {
+                    "sent": "Before I ran around, this part is probably the most important segment, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anything that we've done so far has yielded non ideal filters.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK because we don't have this clairvoyant idea of what to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now the concept is, how do we improve?",
+                    "label": 0
+                },
+                {
+                    "sent": "Can we improve these non ideal filters by some sort of iterative process?",
+                    "label": 0
+                },
+                {
+                    "sent": "And it turns out we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way to do it is diffusion.",
+                    "label": 0
+                },
+                {
+                    "sent": "Diffusion is nothing but applying this filter W multiple times, and I'll spare you the proof.",
+                    "label": 0
+                },
+                {
+                    "sent": "But basically if you just rewrite this equation into this form, what you see is that the left hand side basically becomes a discretization of the derivative and the right hand side becomes something that looks very much like the the Laplacian.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you do diffusion in this way and this has been done, obviously in many diff.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_50": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "In places.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_51": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That's one way to improve your estimate, and it turns out it has some.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_52": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Pluses and minuses.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another way to do it, which is much less known, is something called twice ING.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was an idea that was introduced by two key back in 1977.",
+                    "label": 0
+                },
+                {
+                    "sent": "John Tukey more recently has been rediscovered by Buehlman and you called L2 boosting.",
+                    "label": 0
+                },
+                {
+                    "sent": "This has been published mainly in statistics and machine learning literature, and then there's something called Bregman iterations, which has been promulgated by folks in.",
+                    "label": 0
+                },
+                {
+                    "sent": "In applied mathematics, namely Stan OSHA and his group.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now what this does is it constructs an iteration that adds roughness to the estimate.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the iteration of the iteratee K is the iterate K -- 1 plus the filter applied to the residuals.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and it turns out that if you do this, so let me just do this for one step and give you an idea of what it looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Z1 is 0 plus this W times the first residual.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you rewrite this, what you get is 2 I minus W times WI.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, what's WI?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is one step of diffusion, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So there's a blurring process, whereas two I -- W is a sort of inverse diffusion.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so it basically the two steps of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You do a step of diffusion and then you do a step of inverse diffusion.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course you can repeat this over and over again.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_53": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And it turns out that if you do this, you get very different behaviors for the mean squared error from these two methods.",
+                    "label": 0
+                },
+                {
+                    "sent": "If I write that for diffusion and residual based iteration here, the bias goes up with iterations and the variance goes down.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here the exact reverse happens, the bias goes down and the variance goes up, and then there's a question of which one of these should use.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you start with a quote, unquote dumb W, and you want to iteratively improve, it should use this one or should use.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_54": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This one and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_55": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We've derived can do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_56": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "'cause I'll skip through the examples.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have derived conditions that tell you what happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out the mathematical condition is that diffusion is better if the filter is kind of weak.",
+                    "label": 0
+                },
+                {
+                    "sent": "In other words, it it's not very sophisticated.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and this is the condition.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a mathematical condition and it turns out the left hand side is nothing but the channel capacity, which involves that SNR.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this gives you from an information theoretic point of view, a condition that has to be satisfied for you to use one filter or another.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the exact reverse.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out this inequality is just reverse it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It tells you the residual is better, so it gives you a recipe for designing a W and then.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_57": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Citing how you're going to improve the iterations, there are connections also to base.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_58": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Let me skip to this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is probably the more interesting one.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you write this regularization formulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is an optimization problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "And write a steepest descent iteration.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_59": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Of it, and then make a comparison between the iterations for steepest descent and the residuals and the diffusion.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you just write these equations down and then compare the right hand sides of these two and then compare the right hand sides of the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_60": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Two, what you get is you can get an expression for the gradient of this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Stabilization function for this regularization function an.",
+                    "label": 0
+                },
+                {
+                    "sent": "Under proper conditions, you can integrate both sides of this to get an expression for the regularization.",
+                    "label": 0
+                },
+                {
+                    "sent": "What it shows you is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The regularization function is basically a quadratic function that involves W, But it's a quadratic function of the residuals, so it's not a standard prior.",
+                    "label": 0
+                },
+                {
+                    "sent": "That you might use in in standard Bayesian approach, so it's a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a Bayesian.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's sort of a naive Bayesian approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to think of it that way.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_61": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_62": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_63": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Just one last example.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also use these weights for doing visual search by comparing the coefficients that we get here to a given image, and we're able to very robust.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_64": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Identify objects.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_65": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Such as this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just an example where we have video.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do the same thing, so here's the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Query an here's the detection is that we get.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no requirement for motion estimation.",
+                    "label": 1
+                },
+                {
+                    "sent": "No segmentation or learning is just literally matching the W coefficients for these images or for these video sequence to the coefficients in a dense way.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the sequence that you see on the right hand side.",
+                    "label": 0
+                },
+                {
+                    "sent": "So without any learning.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_66": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just to conclude, I just want to say I, as it turns out, that the scholars in literature and film tend to think that there are only seven basic plots right there, comedy, tragedy, Quest, Rebirth and every other book film ever made is some combination of these ideas.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in some sense we've arrived at this point where I think there's sort of basic plots for modern image processing as well, and I think they are adaptiveness to the data you some nonparametrics.",
+                    "label": 0
+                },
+                {
+                    "sent": "And doing these kinds of iterations and everything that we've done is sort of revolved around these three main concepts over the last few years.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so, as I've hopefully shown you, there are many applications and still more to be to be discovered.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, I'm sorry I went over time, but that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, so we have time for couple of questions and use the voice off anyway, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "The one in Europe derivation being mentioned that you want to get functionality of the document matrix go very large numbers.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Expedients, we keep the search radius right much smaller than the whole image, correct?",
+                    "label": 0
+                },
+                {
+                    "sent": "How does it breakdown well?",
+                    "label": 0
+                },
+                {
+                    "sent": "So when I say large, I'm talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you take the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Takes the window size to be, let's say 15 by 15.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's big enough for a lot of these bounds to be very accurately true.",
+                    "label": 0
+                },
+                {
+                    "sent": "After that I mean typically from psychovisual.",
+                    "label": 0
+                },
+                {
+                    "sent": "MSE is really bad major, yes, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you get the beer, but often that psychic vision is not really the right.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately I don't have a cycle visual way to quantify performance, and as soon as I have it I will try to optimize it, so that's still an ongoing thing, an ongoing struggle to understand.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any other ones?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we proceed with the next door.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is not very impressive to play service.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, it's it's aggressive to flat surfaces, but right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't know anything about a noise because you said yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "With respect to noise, but if I add noise to someplace else.",
+                    "label": 0
+                },
+                {
+                    "sent": "So then pick up some aggressive right so it becomes non aggressive in particular directions and it decides which directions to become non aggressive in because of the fact that we're computing that covariance matrix.",
+                    "label": 0
+                },
+                {
+                    "sent": "Remember the covariance matrix?",
+                    "label": 0
+                },
+                {
+                    "sent": "See that I showed you is being computed from the gradients.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so basically the idea is that even with addition of noise, the dominant orientation within that Patch is still identifiable.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's really the key factor here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the filter is able to decide OK in this direction there is a discontinuity that I want to try to preserve, but in this other direction everything is flat.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to be aggressively denoising there.",
+                    "label": 0
+                },
+                {
+                    "sent": "I hope that helps.",
+                    "label": 0
+                },
+                {
+                    "sent": "Speak again.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

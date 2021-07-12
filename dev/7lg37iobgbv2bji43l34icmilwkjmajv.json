@@ -1,0 +1,1211 @@
+{
+    "id": "7lg37iobgbv2bji43l34icmilwkjmajv",
+    "title": "Data-driven Joint Debugging of the DBpedia Mappings and Ontology",
+    "info": {
+        "author": [
+            "Heiko Paulheim, Institut f\u00fcr Informatik, University of Mannheim"
+        ],
+        "published": "July 10, 2017",
+        "recorded": "June 2017",
+        "category": [
+            "Top->Computer Science->Big Data",
+            "Top->Computer Science->Semantic Web"
+        ]
+    },
+    "url": "http://videolectures.net/eswc2017_paulheim_joint_debugging/",
+    "segmentation": [
+        [
+            "Before I start talking about this paper, I briefly want to spend some slides on a different paper I published in the beginning of this year in the Semantic Web Journal, and there we reviewed various approaches of people trying to make knowledge graphs better in one or the other respects of filling in missing knowledge or fine."
+        ],
+        [
+            "Bing errors and we especially looking into works on finding errors here and in this.",
+            "In the survey we found 17 approaches to do that in 15 out of those, 17 were evaluated on DVD and so DPD as much in the focus there.",
+            "Many of them are only evaluated on DB pedia, but that's a different story.",
+            "The question I'm going to tackle today is how does the pedia actually benefit from those works?",
+            "I mean, if there is more than a dozen groups and people trying to spot errors in the Knowledge Graph, we should probably be able to make it better.",
+            "Question is how do we?",
+            "Leverage that knowledge best.",
+            "So what we get out of those research works that people do.",
+            "Sometimes people publish lists of statements that they deem to be wrong.",
+            "Sometimes they come with confidence scores, sometimes they come without.",
+            "Sometimes you find some source code on GitHub, repository's more or less document."
+        ],
+        [
+            "Touch and all that stuff.",
+            "So this is this is usually the outcomes, and sometimes it's more documented, sometimes less documented.",
+            "And how do we?",
+            "How do we actually leverage that knowledge when we try to make the pedia better?"
+        ],
+        [
+            "There is one option we have is given that people provide those lists of errorless triples, we could just take those lists and then remove them from the pedia after the PDS created.",
+            "So this would change the change of process as shown here.",
+            "So, after running the extraction framework and producing a release, we will just run a post filter and subtract the set of Iran's triples, right?",
+            "There are some challenges here.",
+            "First of all, these approaches are summer better, some others.",
+            "So you may also remove some correct pressure.",
+            "Actions you may need to impose some thresholds there because people say, OK, I have some confidence scores here and then you have to make a decision whether to remove everything at a confidence above 95% ninety percent 80%.",
+            "So it's a non trivial decision we need to repeat this for every release that is built and then sometimes you arise change and these things may become valid or invalid.",
+            "And last but not least, this requires that people materialize their results on all of DB pedia."
+        ],
+        [
+            "And if you look into this 2017 server, you see that this is the case for only half of the approaches roughly, and the rest says, yeah, we tried that for a sample of 200 statements and the results are online, which means that in the end we can maybe remove 20 errors, which is probably not worth the effort doing so.",
+            "So this is the first prerequisite.",
+            "In that case, people would need to do it on all of the PDF, but only half the people do it."
+        ],
+        [
+            "OK, the other option we have is if people say this is a way to remove wrong statements from the pedia.",
+            "We could integrate this into the extraction framework.",
+            "So tweak the extraction framework at some point and say there we have there we have a way to introduce those filters.",
+            "This was first of all introduce some development workload.",
+            "The DPD extraction framework is actually a huge bunch of code, so even people who do this post processing are not necessarily able to plug that in.",
+            "The DB Pedia extraction framework out of the box.",
+            "So this is something not very trivial.",
+            "Anne.",
+            "Next, there are some approaches that are not fully automated.",
+            "Some are technically not fully automated, which means that people say, yeah, we run this script.",
+            "Then we take the results, load them in R, run the following our script, and the output is then passed through this Python script.",
+            "And this is the result then, and things like these are very difficult to integrate.",
+            "So which means that they would need a full implementation, others are not fully automated by design as they impose some crowdsourcing games with a purpose.",
+            "Stuff like that and last but not least."
+        ],
+        [
+            "Scalability is an issue, and again, looking at this survey, only six out of these 15 actually analyzed the scalability of their approach and I have to mention that analyze does not imply it's actually scalable, it just means they looked into whether it is scalable.",
+            "Actually, one of those down Bear which uses this quiz game, they made a scalability analysis and set to test all of the PDF for its validity.",
+            "With this approach would take 450 days, so this is not what you want to integrate into the extraction framework code.",
+            "So this is another challenge."
+        ],
+        [
+            "And question is coming, do we only have these three these two options?",
+            "Or is there maybe third way to do and this is what this paper is about and in 2015 we had this this paper in IIS WC where we showed that a major portion of inconsistencies that you find in the pedia actually boil down to a very small number of common root causes.",
+            "So there is some things that are wrong that are responsible for a large majority of errors.",
+            "I have to.",
+            "To say here, inconsistency is not the same as a wrong statement, so some are inconsistent with the ontology but still correct.",
+            "Others are consistent with the ontology, but still incorrect.",
+            "But these are at least easy to find automatically and they make up a larger fraction of the wrong statements.",
+            "So that being said, if they boil down to very small number of root causes, the question is can we identify those root causes automatically and then then just fix those and this is what we do here.",
+            "So we build and we build a release of the pedia.",
+            "Then we run some inconsistency.",
+            "Detection and then we try to identify the root cause and the root cause may be either in the ontology or in the mapping.",
+            "So either some mappings are wrong for the pedia or the ontology is wrong and I will show you an example of what this actually means.",
+            "The overall goal is done just to fix fix this either in the ontology or the mappings and then then it's fixed once and for all.",
+            "So once we build the next release of DB pedia, we don't have to do it again because these things have been fixed unless somebody else breaks it because it's a wiki.",
+            "And in the wiki everybody can also remove correct things and replace them by incorrect ones, but we hope that this will not happen."
+        ],
+        [
+            "OK, here is an example.",
+            "I will use as a running example and yesterday band was standing here saying please stop using Obama examples and so I'm happy to state that this is an Obama free example I'm using here.",
+            "So this is the.",
+            "This is the info box for the Agua Caliente Airport somewhere in the US.",
+            "And in this info box there is there is this key pointing to the operator of this airport and down here you'll see a snippet of the mapping wiki where this operator of the airport is mapped to some property operator in the ontology.",
+            "And when we run the extraction framework we create something like this.",
+            "So we have the airport.",
+            "We have the operator and since these infoboxes have types we also know that the airport is of type airport and the operator which is the San Diego County in California is of type settlement.",
+            "And so this is given by the Vicky's and the mapping Vicki and the infobox Vicky's.",
+            "And then there is the DVD ontology which says that settlement is populated place in a populated places a place and on the other hand side the operator property expects an organization in the object position and organizations and places are disjoint, so this would actually be an inconsistency here.",
+            "So we would see we extract a statement and the statement is not consistent with the ontology.",
+            "In that case I will come back to this.",
+            "This example later on and see how we resolve this.",
+            "Huh?"
+        ],
+        [
+            "So the approach that we take here is.",
+            "First we find those inconsistencies in the extracted statements.",
+            "So we run a post check on all the extracted statements using the DB Pedia ontology and also using the dulcian top level Ontology because it gives us more inconsistencies than the ones that are in the DB pedia ontology alone.",
+            "And then we try to trace them back to the mappings.",
+            "And in the example I just showed you, there were three three mappings involved in the creation of this inconsistency.",
+            "So the one that Maps the property to the operator property in the ontology.",
+            "The one that Maps the infobox to the airport class and the one that Maps the objects info box to the settlement class, and in these three they are candidates for a possible root causes of this problem.",
+            "This would be easy if we had that information which which statement was created by which mapping, but that information is not there, so we have the.",
+            "We have some provenance information, DB pedia.",
+            "But it's not fine grained on the statement levels so that we can say this statement comes into existence because of those mappings.",
+            "For example, all those extraction steps.",
+            "This is just not there.",
+            "So what we need to do before we can do such analysis in the first step, we have to heuristically reconstruct that information and.",
+            "Find out which mapping was actually responsible for this mapping to come into place."
+        ],
+        [
+            "To do so, we use the RML representation of the mapping wiki context.",
+            "So in the mapping wiki we have all those mappings and they have been converted to armelle, nothing.",
+            "Carmel is also also used now in the DB Pedia extraction framework this has been shown last year by Anastazya at ISC 2016 and a bunch of other people from this recently renamed Institution, better known as Rubens Lab.",
+            "As far as I've been told.",
+            "So this is what you get out of the mappings wiki in.",
+            "In terms of RML and then we know what we know in terms of provenances, which Wikipedia page uses, which of those mappings, and we also know which DB pedia resource corresponds to which Wikipedia page.",
+            "With that, we can try to reconstruct this on a statement level to find out what was actually responsible to create that statement.",
+            "We also know the."
+        ],
+        [
+            "But if we have a triple map that Maps to a class, we have the connection to the ontology class and then we can intersect those, say which which mappings have been used on this Wikipedia page and which mappings are there that map to this ontology class and the intersection is the set of heuristically reconstructed mapping elements that actually create a class assertion statement, and we."
+        ],
+        [
+            "Then do the same for properties so we know for each of those property mappings which of those actually correspond to a certain TV pedia ontology property.",
+            "And we know which of those mapping mappings are used on the Wikipedia page.",
+            "And then we can also build intersection and find out this is probably the candidate.",
+            "This is heuristic.",
+            "It's not 100% accurate, but it's accurate enough for our purposes.",
+            "So let's now assume that we know which mapping element was was responsible for creating which statement."
+        ],
+        [
+            "Then next week and try assigning scores to those mapping elements so we look at each statement for each statement we know which mapping elements constructed the statement, and then we then we determine whether the statement is consistent with the ontology and we used consistency as a proxy for correctness here, and we look at all the mappings that have been involved in the statement and if the statement is incorrect, we try to find out which of the mappings has something to do with the explanation of the inconsistency.",
+            "And for those that are involved in the explanation for an inconsistent statement, we increase the counter of this mapping.",
+            "Being involved in an inconsistency and for all others we increase the counter for those being involved in a consistency.",
+            "So in the end, for each mapping element we have two counters.",
+            "One says this element was so often involved in inconsistency and it was so often involved in a consistency, and we know how."
+        ],
+        [
+            "Often these mapping elements were used in total.",
+            "So given those two counters, we can now define two measures which help us.",
+            "Support the hypothesis that particular mapping element is problematic.",
+            "Can we borrow 2 measures here from Association rule mining?",
+            "One is the support and want us to confidence.",
+            "Support says how is the fraction of inconsistent statements that this mapping element is involved in.",
+            "And confidence says how likely is it that is this mapping element is actually defective."
+        ],
+        [
+            "So what we want is we want to identify then those mapping elements which have high support and high confidence.",
+            "The reason is if you fix a wrong mapping element with high support then we fix a lot of defective statements with just one single fix.",
+            "That's what support stands for here and confidence says if you have a high confidence that this mapping element is mostly involved in inconsistencies, so it's likely that we don't break anything else if we fix it.",
+            "So if both support and confidence are higher than it's worth.",
+            "Looking at this mapping element and trying to fix it.",
+            "If we want to unify them in a common score, like using an average or harmonic mean, we have the problem that those come it very different scales, although theoretically both fall into the 01 interval.",
+            "Practically they come at very different scales, so using just an average or harmonic mean or something like that just won't workout.",
+            "So we do a little trick here and replace the support by a log arhythmic support measure by just counting the taking both the logarithm of the nominator and denominator, and this gives us a.",
+            "A measure called lock support, which falls into the same interval as confidence and once we have that, we can just unify them."
+        ],
+        [
+            "By using the harmonic mean and this is what's shown in this plot.",
+            "So every black dot here stands for a mapping element.",
+            "We have investigated and the more the closer they are to the upper right corner, the more interesting they are.",
+            "So this means they have both a high confidence and a high support, and these isobar lines, here they are the harmonic means of 0.25 zero point 5 and 0.75.",
+            "So this is what we use as an overall score, and then we look at the top scoring mapping elements and say this is what's really worth investigating because this.",
+            "Most likely to have a good impact on the PDR.",
+            "OK, So what does this buy us?",
+            "What sort of stuff do we find with that?",
+            "So the first case?"
+        ],
+        [
+            "Find we have a mapping which goes to a wrong property in the ontology.",
+            "So here we have the branch infobox key for some military units and it's mapped to the DPD Ontology concept.",
+            "Military branch and military branch on the other hand has persons as its domain so this is something that breaks the ontology instead and the correct thing there to use would be command structure.",
+            "So if you scan the ontology this is what you find.",
+            "If you link military unit 2.",
+            "So it's super unit than command structure is the property to use, not military command, not military branch.",
+            "So this one has an overall score in this harmonic mean of 0.7 something and if you fix that we fixed 12,000 statements with one with one single change in the mappings wiki."
+        ],
+        [
+            "OK, another case of findings.",
+            "There is also some rare cases where we should just remove a mapping because it doesn't do anything meaningful at all, and one of those examples is the picture property.",
+            "There are lots of statements that have the property, picture and the objects are so roughly 2/3 of the objects are places, 23% are persons, so it's just mixed things, but there are rarely any pictures in the object position.",
+            "Why does that happen?",
+            "The reason is that these statements are actually extracted from the from the caption of the picture, not the picture as such.",
+            "So in that case we have bricks and Academy has the picture bricks them because brick stones in the caption of that picture and the same for justify my love has the picture Madonna the entertainer, just because it's in the caption of that of that picture.",
+            "So in that sounds we decide OK, probably dropping the DBO picture property entirely, unless we find a way of extracting the pictures as such.",
+            "Not the caption text is for the moment the best thing to do."
+        ],
+        [
+            "On the other hand side, there may also be problems in the ontology and not in the and not in the mappings.",
+            "So in one case this might be domains and ranges, so we have seen this introductory example.",
+            "We have the airport and the airport has an operator and the operator is some populated place in the US and this is something that happens quite often.",
+            "So many many cities or countries they serve as an operator for something else.",
+            "And the reason the underlying reason here is that.",
+            "These populated places, cities, countries and the like.",
+            "We use them both in their function of a place and an organization, but in the ontology they are just subclasses of place.",
+            "Sometimes we have organizations here, so at that point we should probably change the ontology to sort of cover for that policy me, but this is something which which raises a lot of philosophical questions, and something that you don't want to dare doing just on your own cell phone.",
+            "This let's just change this.",
+            "You should probably.",
+            "We should probably discuss this properly with some ontology experts, but it has to be reflected somewhere because it uses it used to break a lot of things.",
+            "Another example are these properties.",
+            "I picked a number here.",
+            "They all share something, so this architect, designer and engineer and all of those have persons as their range and in reality you find a lot of organizations and the object positions.",
+            "So sometimes the architect or the designer or the engineer of a product of a building or something is just a company or an architectural design office or something like that.",
+            "So in that case we should go to the ontology and just broaden the range to also allow organizations and persons so essentially.",
+            "Allow any instance of agent in the range in the range position."
+        ],
+        [
+            "I'm on the 4th case of defects.",
+            "We find our missing properties, so one example here is president.",
+            "President is used as with its domain and range to Lincoln Organization to its president.",
+            "So, for example, linking the US 2 oh, I should probably not continue this sentence.",
+            "So the majority majority use.",
+            "However, is it links a person to the president that he or she served for.",
+            "So it's a minister that served as a foreign minister for some president.",
+            "So this hints at there is some property missing here.",
+            "So one we have the president which links an organization to its president and the other one links some person to another person he or she served for and we need a second property here.",
+            "An another example that we that is quite prominent, so there are couple of thousands of those instrument is the property instrument is used to link an artist to the instrument.",
+            "He or she plays on the other end.",
+            "You often find that between Aurora and an instrument saying this is the correct characteristic instrument for this genre, so you have, for example, heavy metal instrument guitar.",
+            "So we probably need a second property here, which says characteristic instrument for example."
+        ],
+        [
+            "OK, so I've shown you these four categories of things that may happen, so we have ontology defects, mapping effects and other errors.",
+            "And currently we have to.",
+            "We have to find out by hand what what happens here.",
+            "So the current approach allows us to pinpoint these things and it shows.",
+            "OK there was something wrong in this or that area of the either the ontology or the mapping, but we cannot be kind of distinguish those fully automatically.",
+            "So far we have some ongoing ongoing work to do this where we use different language editions of DB pedia.",
+            "And simplified, you can say if you have multiple language additions that show the same defect, then it's likely to be in the ontology because it's unlikely that the same mapping is done wrong in many languages.",
+            "On the other hand, if it's only prominent for one language, then it's very likely that the problem is in the mapping, not the ontology.",
+            "And a longer story be used various features there as like the spread across languages, the spread across the spread across mappings and so on.",
+            "Then trained a neural network which tells us which of those is likely to be the case, and this is submitted to SWC 2017.",
+            "Another thing we would like to do is somehow integrate that again into into DB pedia so that we don't have to rerun this after the release and then pinpoint those things.",
+            "So one thing we could think of is like on the fly validations of edits you make in the mapping sticky.",
+            "So you change something in the mappings wiki and then you run this analysis in the back end and say OK this is maybe a wrong attitude you proposing here."
+        ],
+        [
+            "Some takeaways, so there is a lot of nice works on fixing box and knowledge graphs and many of them are just one time solutions, so people do this and then they publish the code and all the triples they found and they say OK. Now I do something different.",
+            "Preserving those efforts and actually making use of them in the long run to improve something that pedia is not a straightforward task.",
+            "What we have proposed here is to use these defects and use them to identify the root problem in either the mappings or the ontology.",
+            "Or if you think more generally in the construction process, so tries, think of a large bunch of errors and a system that takes these errors and then pinpoints user.",
+            "This is probably the root cause.",
+            "There we have a scoring mechanism that helps us identify the interesting problems, so those that are worth investigating because they are responsible for many errors and at the same time.",
+            "Also worth fixing because they are most likely actual errors in the problem and this helps us preserve the efforts by eliminating those rules called root causes.",
+            "And last but not least, provenance is something that is just not there for fun, but it's actually something very useful.",
+            "The more we know about how a certain statement about a certain action gets into a knowledge graph, the better we can automate this error analysis.",
+            "So remember, for this work, we still had to juristically reconstruct that information.",
+            "But if we think of approaches like these, it's it's really helpful if we build knowledge graphs, then at the same time we also record all the provenance information that tells us how did that statement come into existence?",
+            "And these this information will later on then help us automatically identifying where do things go wrong.",
+            "And that's the end of my talk.",
+            "Thank you very much."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Before I start talking about this paper, I briefly want to spend some slides on a different paper I published in the beginning of this year in the Semantic Web Journal, and there we reviewed various approaches of people trying to make knowledge graphs better in one or the other respects of filling in missing knowledge or fine.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Bing errors and we especially looking into works on finding errors here and in this.",
+                    "label": 1
+                },
+                {
+                    "sent": "In the survey we found 17 approaches to do that in 15 out of those, 17 were evaluated on DVD and so DPD as much in the focus there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many of them are only evaluated on DB pedia, but that's a different story.",
+                    "label": 0
+                },
+                {
+                    "sent": "The question I'm going to tackle today is how does the pedia actually benefit from those works?",
+                    "label": 1
+                },
+                {
+                    "sent": "I mean, if there is more than a dozen groups and people trying to spot errors in the Knowledge Graph, we should probably be able to make it better.",
+                    "label": 0
+                },
+                {
+                    "sent": "Question is how do we?",
+                    "label": 0
+                },
+                {
+                    "sent": "Leverage that knowledge best.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we get out of those research works that people do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes people publish lists of statements that they deem to be wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes they come with confidence scores, sometimes they come without.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes you find some source code on GitHub, repository's more or less document.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Touch and all that stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is this is usually the outcomes, and sometimes it's more documented, sometimes less documented.",
+                    "label": 0
+                },
+                {
+                    "sent": "And how do we?",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we actually leverage that knowledge when we try to make the pedia better?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "There is one option we have is given that people provide those lists of errorless triples, we could just take those lists and then remove them from the pedia after the PDS created.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this would change the change of process as shown here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, after running the extraction framework and producing a release, we will just run a post filter and subtract the set of Iran's triples, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "There are some challenges here.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, these approaches are summer better, some others.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you may also remove some correct pressure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Actions you may need to impose some thresholds there because people say, OK, I have some confidence scores here and then you have to make a decision whether to remove everything at a confidence above 95% ninety percent 80%.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's a non trivial decision we need to repeat this for every release that is built and then sometimes you arise change and these things may become valid or invalid.",
+                    "label": 0
+                },
+                {
+                    "sent": "And last but not least, this requires that people materialize their results on all of DB pedia.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And if you look into this 2017 server, you see that this is the case for only half of the approaches roughly, and the rest says, yeah, we tried that for a sample of 200 statements and the results are online, which means that in the end we can maybe remove 20 errors, which is probably not worth the effort doing so.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the first prerequisite.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that case, people would need to do it on all of the PDF, but only half the people do it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, the other option we have is if people say this is a way to remove wrong statements from the pedia.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could integrate this into the extraction framework.",
+                    "label": 1
+                },
+                {
+                    "sent": "So tweak the extraction framework at some point and say there we have there we have a way to introduce those filters.",
+                    "label": 1
+                },
+                {
+                    "sent": "This was first of all introduce some development workload.",
+                    "label": 1
+                },
+                {
+                    "sent": "The DPD extraction framework is actually a huge bunch of code, so even people who do this post processing are not necessarily able to plug that in.",
+                    "label": 0
+                },
+                {
+                    "sent": "The DB Pedia extraction framework out of the box.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is something not very trivial.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anne.",
+                    "label": 0
+                },
+                {
+                    "sent": "Next, there are some approaches that are not fully automated.",
+                    "label": 1
+                },
+                {
+                    "sent": "Some are technically not fully automated, which means that people say, yeah, we run this script.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we take the results, load them in R, run the following our script, and the output is then passed through this Python script.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is the result then, and things like these are very difficult to integrate.",
+                    "label": 0
+                },
+                {
+                    "sent": "So which means that they would need a full implementation, others are not fully automated by design as they impose some crowdsourcing games with a purpose.",
+                    "label": 0
+                },
+                {
+                    "sent": "Stuff like that and last but not least.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Scalability is an issue, and again, looking at this survey, only six out of these 15 actually analyzed the scalability of their approach and I have to mention that analyze does not imply it's actually scalable, it just means they looked into whether it is scalable.",
+                    "label": 1
+                },
+                {
+                    "sent": "Actually, one of those down Bear which uses this quiz game, they made a scalability analysis and set to test all of the PDF for its validity.",
+                    "label": 0
+                },
+                {
+                    "sent": "With this approach would take 450 days, so this is not what you want to integrate into the extraction framework code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is another challenge.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And question is coming, do we only have these three these two options?",
+                    "label": 1
+                },
+                {
+                    "sent": "Or is there maybe third way to do and this is what this paper is about and in 2015 we had this this paper in IIS WC where we showed that a major portion of inconsistencies that you find in the pedia actually boil down to a very small number of common root causes.",
+                    "label": 1
+                },
+                {
+                    "sent": "So there is some things that are wrong that are responsible for a large majority of errors.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "To say here, inconsistency is not the same as a wrong statement, so some are inconsistent with the ontology but still correct.",
+                    "label": 1
+                },
+                {
+                    "sent": "Others are consistent with the ontology, but still incorrect.",
+                    "label": 0
+                },
+                {
+                    "sent": "But these are at least easy to find automatically and they make up a larger fraction of the wrong statements.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that being said, if they boil down to very small number of root causes, the question is can we identify those root causes automatically and then then just fix those and this is what we do here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we build and we build a release of the pedia.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we run some inconsistency.",
+                    "label": 0
+                },
+                {
+                    "sent": "Detection and then we try to identify the root cause and the root cause may be either in the ontology or in the mapping.",
+                    "label": 0
+                },
+                {
+                    "sent": "So either some mappings are wrong for the pedia or the ontology is wrong and I will show you an example of what this actually means.",
+                    "label": 0
+                },
+                {
+                    "sent": "The overall goal is done just to fix fix this either in the ontology or the mappings and then then it's fixed once and for all.",
+                    "label": 0
+                },
+                {
+                    "sent": "So once we build the next release of DB pedia, we don't have to do it again because these things have been fixed unless somebody else breaks it because it's a wiki.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in the wiki everybody can also remove correct things and replace them by incorrect ones, but we hope that this will not happen.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, here is an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will use as a running example and yesterday band was standing here saying please stop using Obama examples and so I'm happy to state that this is an Obama free example I'm using here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the info box for the Agua Caliente Airport somewhere in the US.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in this info box there is there is this key pointing to the operator of this airport and down here you'll see a snippet of the mapping wiki where this operator of the airport is mapped to some property operator in the ontology.",
+                    "label": 0
+                },
+                {
+                    "sent": "And when we run the extraction framework we create something like this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have the airport.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have the operator and since these infoboxes have types we also know that the airport is of type airport and the operator which is the San Diego County in California is of type settlement.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so this is given by the Vicky's and the mapping Vicki and the infobox Vicky's.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there is the DVD ontology which says that settlement is populated place in a populated places a place and on the other hand side the operator property expects an organization in the object position and organizations and places are disjoint, so this would actually be an inconsistency here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we would see we extract a statement and the statement is not consistent with the ontology.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that case I will come back to this.",
+                    "label": 0
+                },
+                {
+                    "sent": "This example later on and see how we resolve this.",
+                    "label": 0
+                },
+                {
+                    "sent": "Huh?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the approach that we take here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "First we find those inconsistencies in the extracted statements.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we run a post check on all the extracted statements using the DB Pedia ontology and also using the dulcian top level Ontology because it gives us more inconsistencies than the ones that are in the DB pedia ontology alone.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we try to trace them back to the mappings.",
+                    "label": 1
+                },
+                {
+                    "sent": "And in the example I just showed you, there were three three mappings involved in the creation of this inconsistency.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the one that Maps the property to the operator property in the ontology.",
+                    "label": 0
+                },
+                {
+                    "sent": "The one that Maps the infobox to the airport class and the one that Maps the objects info box to the settlement class, and in these three they are candidates for a possible root causes of this problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "This would be easy if we had that information which which statement was created by which mapping, but that information is not there, so we have the.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have some provenance information, DB pedia.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it's not fine grained on the statement levels so that we can say this statement comes into existence because of those mappings.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, all those extraction steps.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is just not there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we need to do before we can do such analysis in the first step, we have to heuristically reconstruct that information and.",
+                    "label": 1
+                },
+                {
+                    "sent": "Find out which mapping was actually responsible for this mapping to come into place.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To do so, we use the RML representation of the mapping wiki context.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in the mapping wiki we have all those mappings and they have been converted to armelle, nothing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Carmel is also also used now in the DB Pedia extraction framework this has been shown last year by Anastazya at ISC 2016 and a bunch of other people from this recently renamed Institution, better known as Rubens Lab.",
+                    "label": 0
+                },
+                {
+                    "sent": "As far as I've been told.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is what you get out of the mappings wiki in.",
+                    "label": 0
+                },
+                {
+                    "sent": "In terms of RML and then we know what we know in terms of provenances, which Wikipedia page uses, which of those mappings, and we also know which DB pedia resource corresponds to which Wikipedia page.",
+                    "label": 0
+                },
+                {
+                    "sent": "With that, we can try to reconstruct this on a statement level to find out what was actually responsible to create that statement.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also know the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But if we have a triple map that Maps to a class, we have the connection to the ontology class and then we can intersect those, say which which mappings have been used on this Wikipedia page and which mappings are there that map to this ontology class and the intersection is the set of heuristically reconstructed mapping elements that actually create a class assertion statement, and we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Then do the same for properties so we know for each of those property mappings which of those actually correspond to a certain TV pedia ontology property.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we know which of those mapping mappings are used on the Wikipedia page.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we can also build intersection and find out this is probably the candidate.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is heuristic.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not 100% accurate, but it's accurate enough for our purposes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's now assume that we know which mapping element was was responsible for creating which statement.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Then next week and try assigning scores to those mapping elements so we look at each statement for each statement we know which mapping elements constructed the statement, and then we then we determine whether the statement is consistent with the ontology and we used consistency as a proxy for correctness here, and we look at all the mappings that have been involved in the statement and if the statement is incorrect, we try to find out which of the mappings has something to do with the explanation of the inconsistency.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for those that are involved in the explanation for an inconsistent statement, we increase the counter of this mapping.",
+                    "label": 0
+                },
+                {
+                    "sent": "Being involved in an inconsistency and for all others we increase the counter for those being involved in a consistency.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in the end, for each mapping element we have two counters.",
+                    "label": 0
+                },
+                {
+                    "sent": "One says this element was so often involved in inconsistency and it was so often involved in a consistency, and we know how.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Often these mapping elements were used in total.",
+                    "label": 0
+                },
+                {
+                    "sent": "So given those two counters, we can now define two measures which help us.",
+                    "label": 0
+                },
+                {
+                    "sent": "Support the hypothesis that particular mapping element is problematic.",
+                    "label": 1
+                },
+                {
+                    "sent": "Can we borrow 2 measures here from Association rule mining?",
+                    "label": 0
+                },
+                {
+                    "sent": "One is the support and want us to confidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "Support says how is the fraction of inconsistent statements that this mapping element is involved in.",
+                    "label": 0
+                },
+                {
+                    "sent": "And confidence says how likely is it that is this mapping element is actually defective.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So what we want is we want to identify then those mapping elements which have high support and high confidence.",
+                    "label": 1
+                },
+                {
+                    "sent": "The reason is if you fix a wrong mapping element with high support then we fix a lot of defective statements with just one single fix.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's what support stands for here and confidence says if you have a high confidence that this mapping element is mostly involved in inconsistencies, so it's likely that we don't break anything else if we fix it.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if both support and confidence are higher than it's worth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looking at this mapping element and trying to fix it.",
+                    "label": 1
+                },
+                {
+                    "sent": "If we want to unify them in a common score, like using an average or harmonic mean, we have the problem that those come it very different scales, although theoretically both fall into the 01 interval.",
+                    "label": 0
+                },
+                {
+                    "sent": "Practically they come at very different scales, so using just an average or harmonic mean or something like that just won't workout.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we do a little trick here and replace the support by a log arhythmic support measure by just counting the taking both the logarithm of the nominator and denominator, and this gives us a.",
+                    "label": 0
+                },
+                {
+                    "sent": "A measure called lock support, which falls into the same interval as confidence and once we have that, we can just unify them.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "By using the harmonic mean and this is what's shown in this plot.",
+                    "label": 1
+                },
+                {
+                    "sent": "So every black dot here stands for a mapping element.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have investigated and the more the closer they are to the upper right corner, the more interesting they are.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this means they have both a high confidence and a high support, and these isobar lines, here they are the harmonic means of 0.25 zero point 5 and 0.75.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is what we use as an overall score, and then we look at the top scoring mapping elements and say this is what's really worth investigating because this.",
+                    "label": 1
+                },
+                {
+                    "sent": "Most likely to have a good impact on the PDR.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, So what does this buy us?",
+                    "label": 0
+                },
+                {
+                    "sent": "What sort of stuff do we find with that?",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first case?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Find we have a mapping which goes to a wrong property in the ontology.",
+                    "label": 1
+                },
+                {
+                    "sent": "So here we have the branch infobox key for some military units and it's mapped to the DPD Ontology concept.",
+                    "label": 0
+                },
+                {
+                    "sent": "Military branch and military branch on the other hand has persons as its domain so this is something that breaks the ontology instead and the correct thing there to use would be command structure.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if you scan the ontology this is what you find.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you link military unit 2.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's super unit than command structure is the property to use, not military command, not military branch.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this one has an overall score in this harmonic mean of 0.7 something and if you fix that we fixed 12,000 statements with one with one single change in the mappings wiki.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, another case of findings.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is also some rare cases where we should just remove a mapping because it doesn't do anything meaningful at all, and one of those examples is the picture property.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are lots of statements that have the property, picture and the objects are so roughly 2/3 of the objects are places, 23% are persons, so it's just mixed things, but there are rarely any pictures in the object position.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why does that happen?",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason is that these statements are actually extracted from the from the caption of the picture, not the picture as such.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in that case we have bricks and Academy has the picture bricks them because brick stones in the caption of that picture and the same for justify my love has the picture Madonna the entertainer, just because it's in the caption of that of that picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in that sounds we decide OK, probably dropping the DBO picture property entirely, unless we find a way of extracting the pictures as such.",
+                    "label": 0
+                },
+                {
+                    "sent": "Not the caption text is for the moment the best thing to do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "On the other hand side, there may also be problems in the ontology and not in the and not in the mappings.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in one case this might be domains and ranges, so we have seen this introductory example.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have the airport and the airport has an operator and the operator is some populated place in the US and this is something that happens quite often.",
+                    "label": 0
+                },
+                {
+                    "sent": "So many many cities or countries they serve as an operator for something else.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the reason the underlying reason here is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "These populated places, cities, countries and the like.",
+                    "label": 1
+                },
+                {
+                    "sent": "We use them both in their function of a place and an organization, but in the ontology they are just subclasses of place.",
+                    "label": 1
+                },
+                {
+                    "sent": "Sometimes we have organizations here, so at that point we should probably change the ontology to sort of cover for that policy me, but this is something which which raises a lot of philosophical questions, and something that you don't want to dare doing just on your own cell phone.",
+                    "label": 0
+                },
+                {
+                    "sent": "This let's just change this.",
+                    "label": 0
+                },
+                {
+                    "sent": "You should probably.",
+                    "label": 0
+                },
+                {
+                    "sent": "We should probably discuss this properly with some ontology experts, but it has to be reflected somewhere because it uses it used to break a lot of things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another example are these properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "I picked a number here.",
+                    "label": 1
+                },
+                {
+                    "sent": "They all share something, so this architect, designer and engineer and all of those have persons as their range and in reality you find a lot of organizations and the object positions.",
+                    "label": 1
+                },
+                {
+                    "sent": "So sometimes the architect or the designer or the engineer of a product of a building or something is just a company or an architectural design office or something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in that case we should go to the ontology and just broaden the range to also allow organizations and persons so essentially.",
+                    "label": 0
+                },
+                {
+                    "sent": "Allow any instance of agent in the range in the range position.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I'm on the 4th case of defects.",
+                    "label": 0
+                },
+                {
+                    "sent": "We find our missing properties, so one example here is president.",
+                    "label": 0
+                },
+                {
+                    "sent": "President is used as with its domain and range to Lincoln Organization to its president.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for example, linking the US 2 oh, I should probably not continue this sentence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the majority majority use.",
+                    "label": 1
+                },
+                {
+                    "sent": "However, is it links a person to the president that he or she served for.",
+                    "label": 1
+                },
+                {
+                    "sent": "So it's a minister that served as a foreign minister for some president.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this hints at there is some property missing here.",
+                    "label": 1
+                },
+                {
+                    "sent": "So one we have the president which links an organization to its president and the other one links some person to another person he or she served for and we need a second property here.",
+                    "label": 1
+                },
+                {
+                    "sent": "An another example that we that is quite prominent, so there are couple of thousands of those instrument is the property instrument is used to link an artist to the instrument.",
+                    "label": 0
+                },
+                {
+                    "sent": "He or she plays on the other end.",
+                    "label": 0
+                },
+                {
+                    "sent": "You often find that between Aurora and an instrument saying this is the correct characteristic instrument for this genre, so you have, for example, heavy metal instrument guitar.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we probably need a second property here, which says characteristic instrument for example.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so I've shown you these four categories of things that may happen, so we have ontology defects, mapping effects and other errors.",
+                    "label": 1
+                },
+                {
+                    "sent": "And currently we have to.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to find out by hand what what happens here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the current approach allows us to pinpoint these things and it shows.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK there was something wrong in this or that area of the either the ontology or the mapping, but we cannot be kind of distinguish those fully automatically.",
+                    "label": 0
+                },
+                {
+                    "sent": "So far we have some ongoing ongoing work to do this where we use different language editions of DB pedia.",
+                    "label": 1
+                },
+                {
+                    "sent": "And simplified, you can say if you have multiple language additions that show the same defect, then it's likely to be in the ontology because it's unlikely that the same mapping is done wrong in many languages.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the other hand, if it's only prominent for one language, then it's very likely that the problem is in the mapping, not the ontology.",
+                    "label": 0
+                },
+                {
+                    "sent": "And a longer story be used various features there as like the spread across languages, the spread across the spread across mappings and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then trained a neural network which tells us which of those is likely to be the case, and this is submitted to SWC 2017.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another thing we would like to do is somehow integrate that again into into DB pedia so that we don't have to rerun this after the release and then pinpoint those things.",
+                    "label": 0
+                },
+                {
+                    "sent": "So one thing we could think of is like on the fly validations of edits you make in the mapping sticky.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you change something in the mappings wiki and then you run this analysis in the back end and say OK this is maybe a wrong attitude you proposing here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Some takeaways, so there is a lot of nice works on fixing box and knowledge graphs and many of them are just one time solutions, so people do this and then they publish the code and all the triples they found and they say OK. Now I do something different.",
+                    "label": 0
+                },
+                {
+                    "sent": "Preserving those efforts and actually making use of them in the long run to improve something that pedia is not a straightforward task.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we have proposed here is to use these defects and use them to identify the root problem in either the mappings or the ontology.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or if you think more generally in the construction process, so tries, think of a large bunch of errors and a system that takes these errors and then pinpoints user.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is probably the root cause.",
+                    "label": 0
+                },
+                {
+                    "sent": "There we have a scoring mechanism that helps us identify the interesting problems, so those that are worth investigating because they are responsible for many errors and at the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also worth fixing because they are most likely actual errors in the problem and this helps us preserve the efforts by eliminating those rules called root causes.",
+                    "label": 0
+                },
+                {
+                    "sent": "And last but not least, provenance is something that is just not there for fun, but it's actually something very useful.",
+                    "label": 0
+                },
+                {
+                    "sent": "The more we know about how a certain statement about a certain action gets into a knowledge graph, the better we can automate this error analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "So remember, for this work, we still had to juristically reconstruct that information.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if we think of approaches like these, it's it's really helpful if we build knowledge graphs, then at the same time we also record all the provenance information that tells us how did that statement come into existence?",
+                    "label": 0
+                },
+                {
+                    "sent": "And these this information will later on then help us automatically identifying where do things go wrong.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's the end of my talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you very much.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

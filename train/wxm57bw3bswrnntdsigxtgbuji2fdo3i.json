@@ -1,0 +1,1052 @@
+{
+    "id": "wxm57bw3bswrnntdsigxtgbuji2fdo3i",
+    "title": "Exploiting Temporal Features for Structured Queries",
+    "info": {
+        "author": [
+            "Albrecht Schmidt, European Space Research & Technology Centre, European Space Agency (ESA)"
+        ],
+        "published": "Feb. 25, 2007",
+        "recorded": "May 2006",
+        "category": [
+            "Top->Computer Science->Machine Learning"
+        ]
+    },
+    "url": "http://videolectures.net/fws06_schmidt_etfsq/",
+    "segmentation": [
+        [
+            "Yes, thanks for reminding so long here.",
+            "This at this workshop's personalities me, it's it's up to me to wet your appetite for for the conference banquet, but I want to talk about is actually something completely different.",
+            "I want to focus on exploring some of the temporal features of workloads for structured queries and describe some of the experiences that we had while while working with various systems.",
+            "So this is joint work with a Christian as handsome and.",
+            "See Marshall, Tennis an and a couple of students of mine."
+        ],
+        [
+            "So before before I present the core ideas, maybe just let me give you an introductory example.",
+            "So recently at the space agency we had the following issues so.",
+            "People are trying more and more to move the administration to to electronic environments, and what actually often happens is that the following is required by law, so certain administrative instructions, informative instructions, etc have to be made available at a certain point in time.",
+            "So let's say at a certain day at noon, document should be available on the web because from then on it's it's considered valid and people have to implement what it prescribes the workflow or whatever now.",
+            "In the European Space Agency, how people?",
+            "Typically, search for these documents is they don't do a full text search lighter like the author of the document or and some keywords that might appear in the title.",
+            "What they do is they they just enter a term like Adm fifteen 1995 for 15th Administrative document in the 1995.",
+            "So what users prefer to do is they prefer to browse for documents by essentially by the by the object identifier.",
+            "So they want to use full text search to kind of.",
+            "With the right document and what one issue is now that very often full text systems, at least in the ones in place at the agency.",
+            "There is a certainty coupling between the original document database and the fulltext index, so updates to the original document database are not immediately reflected in the fulltext index, and it usually takes some time for the index to rebuild.",
+            "And what I would actually so one thing I would actually like to address today is how to try to bridge this gap.",
+            "So how can we make sure?",
+            "How can we add some kind of transactional guarantee that once we commit a document to fulltext search engine, that from this moment on or from a specified moment on later in time it is available for acquiring users so that users can find the document?",
+            "So this is what I want to describe what I described as work towards more dynamic systems, so make.",
+            "Make full text indexes dynamic so that they quickly retain reflect changes from the real world.",
+            "So this is 1 idea from the temporal world.",
+            "Another idea from the temporal world is how can we exploit knowledge when we combine structured and full text retrieval that we already have about the life cycle of the data when we actually commit the documents to the document database onto a fulltext index.",
+            "So the core ideas.",
+            "But I want to talk about is there this thrive towards more dynamic systems.",
+            "We want to reason about when a data available.",
+            "So what about the currency of data and we also and also talk a bit about when data what happens when data seems to be available.",
+            "So what what happened in the case of expiry or expiration of documents?",
+            "And I also want to talk about combination of full text search and relation data so the overview of my talk will be the following.",
+            "So I'm going to 1st talk first, talk about some temporal aspects of fulltext indexes.",
+            "And then at some implementation ideas, how we managed to make these full text indexes more dynamic?",
+            "And then I'm going to briefly discuss how to incorporate these expiration times that I mentioned.",
+            "When what do I do when I know that at a certain point in time the document becomes invalid?",
+            "How can I do that in query processing?",
+            "So when I for example use fulltext data, unstructured data to derive new information, how can I make sure that this derived information stays up to date?",
+            "And this is what I'm going to before I conclude."
+        ],
+        [
+            "So.",
+            "Full text indexes.",
+            "So what are some temporal aspects of already hinted at?",
+            "Some of the issues?",
+            "So for us fulltext indexes are data structure that.",
+            "Maps terms to lists of locations, so very much standard definitions, and in practice it happens for these fulltext indexes, frequently rebuilds in many applications, so people prefer for algorithmic reasons and for reasons of simplicity to rebuild indexes rather than incremental Patch indexes with new updates.",
+            "However, these rebuilding strategies often create some kind of tension with respect to to index currency and recency, so in it in a transaction environment it is not quite clear that the index is current or even.",
+            "What with respect to a given transaction at the definition of currency might mean in our index.",
+            "And it's also not certain that the index is recent in the sense that it can contain stale data.",
+            "So what happens is that documents are typically added to queue before they are added, and then this Q. Evaluated and the updates that are described in this queue are increasingly reflected in the index.",
+            "If we look at this from a temporal perspective from temporal databases, we might ask question OK, when I commit a document to an index, what kind of time stamp would I like to associate with with this document with the commitment process of this with the commit process of this document?",
+            "Ideally, temporal databases tell us that this is the time stamp.",
+            "Essentially, when this document is available for querying, so it's kind of denotes the end of the transaction of adding this document.",
+            "And then, but if I have these frequent rebuilds then obviously this timestamp would be the time of the time when the rebuild is finished and live that, as I hinted at in my original example, this is not what we might want to achieve and similar the notion of transactions itself.",
+            "The notion of isolation, rollback, consistent state in a similar fashion are quite hard to define to describe to apply if we think of these notions as.",
+            "Traditional database, it was tradition dictated database semantics.",
+            "So I wish list would be make actual documents available as early as they are added.",
+            "So kind of reduce the latency between the addition of a document and when it's available for querying and possibly add some transaction guarantees.",
+            "So if I have a command line tool.",
+            "And it says add document to the database, essentially in a transaction context, it probably means something like when kind of execution of this program terminates.",
+            "So when I get a shell prompt again, I would like to be certain in in the sense of transaction of acid guarantees that the document is added.",
+            "And our second item on the wish list is integrate this with structured query processing.",
+            "There is a caveat in my talk that what I'm going to say in the following is subject to workload model so.",
+            "You probably can always come up with workloads for which the ideas that I'm going to describe.",
+            "Work pathologically, but in many applications we think that they work fine.",
+            "Oh, by the way, if you want to have details about the stuff that I've presented a you might want to look at some of that.",
+            "Our recent publications in CHM."
+        ],
+        [
+            "ICD industrial wear.",
+            "The details are described so.",
+            "Sorry, could I skip something?",
+            "So temporal aspects of fulltext indexes.",
+            "So what happens is full text indexes are often implemented with B tree, like data structures or there be trees are often a bit of an overkill for this kind of things, because a fulltext indexes necessitate probably a different notion of transaction.",
+            "Don't need the fine grain transaction guarantees that the trees provide.",
+            "And as as rebuild techniques, the usual bulk loading techniques are often applied.",
+            "So we kind of sort.",
+            "On the terms and then essentially fill the Petri or with a with a linear scan over the disk.",
+            "So this is similar to Excel merge sort, where essentially do only append operations so that you can fill that reading in that time that.",
+            "As with many barcode applications, you don't have any transaction guarantees.",
+            "So the vision workload for this work is, as I already hinted and.",
+            "Kind of we don't make any uniformity assumption.",
+            "We assume that updates to a file updates to a file come in clusters.",
+            "So in the spirit of 8020 rules, you can think of a desktop user who works in a file and and frequently commits the file to disk and overrides periodically and old versions of the file.",
+            "If there are public updates, let's say somebody somebody copies a number of files from a CD or DVD to hard disk, one probably resort to.",
+            "To traditional budgeting techniques, so the implementation ideas is based on the notion that these updates."
+        ],
+        [
+            "Clustered and some kind of reasonable size constraints and documents, which means are not larger than, let's say a couple of megabytes.",
+            "We can achieve this recency so and we do this by actually are combining a number of different techniques.",
+            "For example, petition indexes.",
+            "So our starting point where petition petition be trees.",
+            "The core idea behind petition be trees is that each petition represents of the B tree represents kind of time slice.",
+            "When the data that's stored in this petition with current and as data age as they become older, they.",
+            "Frequently moved to partitions that represent older data, so.",
+            "What typically happens is that you have an exponentially cascade, so you have a small partition for data that are recently updated and as data age as they become older and therefore less likely to be updated again, the partitions become larger and probably also employs slightly different data structures.",
+            "In some sense you can view these partition be trees as a variant of traditional Delta files, so.",
+            "In the sense that they record the differences between database states.",
+            "So what partition be trees do is they make updates cheaper but increase the cost of query since you have to look for the same for a given key in the different partitions."
+        ],
+        [
+            "What you then need is immigration policy.",
+            "So if a document reaches a certain age, 1 should move it from one petition, and to petition that represents older data are more stable data.",
+            "If.",
+            "If we indeed have this workload assumption, namely one of these.",
+            "Self self similar structures.",
+            "Um?",
+            "We can actually identify.",
+            "The partition sizes with.",
+            "With the size of the cluster server of the current.",
+            "So when a document is updated and is overwritten again in this cluster, then.",
+            "We can, let's say, make a conservative estimate.",
+            "We take the cluster size and add.",
+            "A bit more.",
+            "To make sure about.",
+            "Certain irregularities are covered and then we move the document.",
+            "Once it's aged one, it is faster to a larger cluster.",
+            "Cascade of indexes then reflects essentially the probability that a certain document is changed.",
+            "So in in our implementation we had a small dynamic index which only contains very recent documents, large static index which contains a documents that haven't been updated in a long time.",
+            "So for example PDF files.",
+            "Juices tend to store their happiness between this small dynamic index and this very large index.",
+            "There might be a number of intermediate indexes.",
+            "In our case it was just one intermediate index since it it worked for us and the migration policy.",
+            "The actual migration policy and then dependent index size and the age of of the documents."
+        ],
+        [
+            "Physically, partition B tree indexes are implemented by introducing an artificial leading column which is used for clustering by insertion time.",
+            "So for a given time interval.",
+            "You add a certain.",
+            "Leading column but his friend used to identify and to make sure that up all updates go into this time.",
+            "And sorry into this particular position.",
+            "The idea behind this is that small partitions are usually cashed in main memory and thus provide much better update performance than one would have when merging a single document into the large fulltext index.",
+            "Um?",
+            "The thing that updates are clustered and and.",
+            "And only go into this very small partition.",
+            "Also has the nice property that of course in this hotspot versions that are frequently updated also replace each other.",
+            "What I should say is that in our implementation we actually used the trees mainly for the disk, resident storage structures and decided to use more efficient main memory and data structures that also.",
+            "But also, we're more space efficient for the memory indexes."
+        ],
+        [
+            "One issue that caused a bit of trouble.",
+            "OK, when we have two petitions in the beauty, let's say petition am petition be.",
+            "And we want to merge these two partitions so we have a small partition.",
+            "A petition be that is exponentially exponentially larger than petition A.",
+            "How should we merge them?",
+            "Should we merge A&B into B or intercede?",
+            "And it turns out that it's often better to merge to create a new partition to avoid to avoid fragmentation of the of the B tree.",
+            "Rather than merging the small one, the small petition a into the petition be so."
+        ],
+        [
+            "Um?",
+            "What I want to talk."
+        ],
+        [
+            "The remaining 5 minutes is how to incorporate this notion of exploration into query processing.",
+            "So suppose what we want to do is.",
+            "We want to when we rank the results of a fulltext search, we want to actually combine the full text search with some contextual information.",
+            "Let's say recent user behavior we make we predict and this information about recent user behaviors based on the time window.",
+            "Let's say the past 10 minutes so.",
+            "This might be used to to nicely capture the spikes that we sometimes seen in behavior, so how and it actually turns out that we can.",
+            "In these situations we can use the notion of expiration time by saying, OK, the contents are.",
+            "These towels are only valid for a certain amount of time, and.",
+            "It turns out that.",
+            "When we want to put these these ideas into practice, only a small extensions to the relation model actually used.",
+            "So essentially what we add is a function that Maps couples to timestamps.",
+            "So that means a certain tuple is not valid anymore after the time indicated by this time stamp.",
+            "When we define a function that works in relations and essentially filters out.",
+            "Wool or couples from a relation that whose lifetimes actually passed the time stamp that was identified is returned by the previous function.",
+            "And for the data model, that's it, the transaction subsystem may require some further adaptation, which I'm not going to go into.",
+            "The idea is that you can actually exploit these exploration kinds of query processing.",
+            "I'm going to give you a very simple example with the selections actually and.",
+            "Simplest example possible.",
+            "So suppose you have a relation.",
+            "And suppose then there no updates to this relation when you do a selection on this relation.",
+            "And select you select all tables that satisfy certain predicate but standard and Additionally with these expiration times, tables that are also current.",
+            "Done, what happens later is if you materialize the results of of this relation and when.",
+            "When there are no updates and when you ask query again selection query.",
+            "For example at a later point you don't have to go back to the original instance, but what you can do is you can execute the selection again on the previously stored materialized view.",
+            "And the expiration times of the results in in this case actually the same as in the original, and as in the original instance there just fewer couples in the result and we can summarize this over the following observation.",
+            "So, so selection was actually the simplest operator, but it turns out that many relation operators."
+        ],
+        [
+            "Two different, so for projection it is equally simple.",
+            "Unfortunately, the computational complexity for projections and goes a bit higher goes up to N log N instead of instead of linear.",
+            "For union.",
+            "It stays the same I'm I'm just going to show you these formula formula.",
+            "Try to convince you that it doesn't incur much additional complexity.",
+            "For a cross product.",
+            "You can see."
+        ],
+        [
+            "The same things here.",
+            "So these algebraic operators are declarative operators.",
+            "They don't tell us anything, and what happens on the physical level, so we may actually purge state tables during scans.",
+            "We use more complex data structures.",
+            "That's up to us, and we can leave this decision to the database system."
+        ],
+        [
+            "So let me conclude.",
+            "So in this presentation I talked about a combination of several ideas, namely, petition, indexes, fulltext indexes, data exploration and I took some ideas from transaction time stamping, and I've tried to share that for certain workloads.",
+            "What we can do is we can work towards currency of fulltext indexes.",
+            "So for a given fulltext index we actually can provide transaction guarantees.",
+            "What I didn't want to Skip was that we can do this indexing behind this key themes so we can do it for many workloads in interactive time from any typical workload.",
+            "And we can do automatic handling of expired is expired data in derived expressions.",
+            "So if we draw some conclusions from data we can update.",
+            "We can update the conclusions as the data expire from which the computers were drawn.",
+            "A future work and what I would like to work on is using modeling work towards performance guarantees.",
+            "So let's say for a search engine arrive at something like given a workload of this kind, can we provide certain guarantees?",
+            "Regarding quality of service and I would also like to see some more formal integration of exploration in data models and eventually maybe arrive at modeling tools and that can take over some of the OR some automatic code generation's that levers knows the complexity of writing applications for application developers."
+        ],
+        [
+            "This is what I wanted to talk about.",
+            "Thank you very much for listening."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Yes, thanks for reminding so long here.",
+                    "label": 0
+                },
+                {
+                    "sent": "This at this workshop's personalities me, it's it's up to me to wet your appetite for for the conference banquet, but I want to talk about is actually something completely different.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to focus on exploring some of the temporal features of workloads for structured queries and describe some of the experiences that we had while while working with various systems.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this is joint work with a Christian as handsome and.",
+                    "label": 0
+                },
+                {
+                    "sent": "See Marshall, Tennis an and a couple of students of mine.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So before before I present the core ideas, maybe just let me give you an introductory example.",
+                    "label": 0
+                },
+                {
+                    "sent": "So recently at the space agency we had the following issues so.",
+                    "label": 0
+                },
+                {
+                    "sent": "People are trying more and more to move the administration to to electronic environments, and what actually often happens is that the following is required by law, so certain administrative instructions, informative instructions, etc have to be made available at a certain point in time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say at a certain day at noon, document should be available on the web because from then on it's it's considered valid and people have to implement what it prescribes the workflow or whatever now.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the European Space Agency, how people?",
+                    "label": 0
+                },
+                {
+                    "sent": "Typically, search for these documents is they don't do a full text search lighter like the author of the document or and some keywords that might appear in the title.",
+                    "label": 0
+                },
+                {
+                    "sent": "What they do is they they just enter a term like Adm fifteen 1995 for 15th Administrative document in the 1995.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what users prefer to do is they prefer to browse for documents by essentially by the by the object identifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they want to use full text search to kind of.",
+                    "label": 0
+                },
+                {
+                    "sent": "With the right document and what one issue is now that very often full text systems, at least in the ones in place at the agency.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a certainty coupling between the original document database and the fulltext index, so updates to the original document database are not immediately reflected in the fulltext index, and it usually takes some time for the index to rebuild.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what I would actually so one thing I would actually like to address today is how to try to bridge this gap.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how can we make sure?",
+                    "label": 0
+                },
+                {
+                    "sent": "How can we add some kind of transactional guarantee that once we commit a document to fulltext search engine, that from this moment on or from a specified moment on later in time it is available for acquiring users so that users can find the document?",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is what I want to describe what I described as work towards more dynamic systems, so make.",
+                    "label": 1
+                },
+                {
+                    "sent": "Make full text indexes dynamic so that they quickly retain reflect changes from the real world.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is 1 idea from the temporal world.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another idea from the temporal world is how can we exploit knowledge when we combine structured and full text retrieval that we already have about the life cycle of the data when we actually commit the documents to the document database onto a fulltext index.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the core ideas.",
+                    "label": 0
+                },
+                {
+                    "sent": "But I want to talk about is there this thrive towards more dynamic systems.",
+                    "label": 1
+                },
+                {
+                    "sent": "We want to reason about when a data available.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what about the currency of data and we also and also talk a bit about when data what happens when data seems to be available.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what what happened in the case of expiry or expiration of documents?",
+                    "label": 1
+                },
+                {
+                    "sent": "And I also want to talk about combination of full text search and relation data so the overview of my talk will be the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to 1st talk first, talk about some temporal aspects of fulltext indexes.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then at some implementation ideas, how we managed to make these full text indexes more dynamic?",
+                    "label": 1
+                },
+                {
+                    "sent": "And then I'm going to briefly discuss how to incorporate these expiration times that I mentioned.",
+                    "label": 0
+                },
+                {
+                    "sent": "When what do I do when I know that at a certain point in time the document becomes invalid?",
+                    "label": 0
+                },
+                {
+                    "sent": "How can I do that in query processing?",
+                    "label": 0
+                },
+                {
+                    "sent": "So when I for example use fulltext data, unstructured data to derive new information, how can I make sure that this derived information stays up to date?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is what I'm going to before I conclude.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Full text indexes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what are some temporal aspects of already hinted at?",
+                    "label": 1
+                },
+                {
+                    "sent": "Some of the issues?",
+                    "label": 0
+                },
+                {
+                    "sent": "So for us fulltext indexes are data structure that.",
+                    "label": 1
+                },
+                {
+                    "sent": "Maps terms to lists of locations, so very much standard definitions, and in practice it happens for these fulltext indexes, frequently rebuilds in many applications, so people prefer for algorithmic reasons and for reasons of simplicity to rebuild indexes rather than incremental Patch indexes with new updates.",
+                    "label": 1
+                },
+                {
+                    "sent": "However, these rebuilding strategies often create some kind of tension with respect to to index currency and recency, so in it in a transaction environment it is not quite clear that the index is current or even.",
+                    "label": 0
+                },
+                {
+                    "sent": "What with respect to a given transaction at the definition of currency might mean in our index.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's also not certain that the index is recent in the sense that it can contain stale data.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what happens is that documents are typically added to queue before they are added, and then this Q. Evaluated and the updates that are described in this queue are increasingly reflected in the index.",
+                    "label": 1
+                },
+                {
+                    "sent": "If we look at this from a temporal perspective from temporal databases, we might ask question OK, when I commit a document to an index, what kind of time stamp would I like to associate with with this document with the commitment process of this with the commit process of this document?",
+                    "label": 0
+                },
+                {
+                    "sent": "Ideally, temporal databases tell us that this is the time stamp.",
+                    "label": 0
+                },
+                {
+                    "sent": "Essentially, when this document is available for querying, so it's kind of denotes the end of the transaction of adding this document.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then, but if I have these frequent rebuilds then obviously this timestamp would be the time of the time when the rebuild is finished and live that, as I hinted at in my original example, this is not what we might want to achieve and similar the notion of transactions itself.",
+                    "label": 0
+                },
+                {
+                    "sent": "The notion of isolation, rollback, consistent state in a similar fashion are quite hard to define to describe to apply if we think of these notions as.",
+                    "label": 0
+                },
+                {
+                    "sent": "Traditional database, it was tradition dictated database semantics.",
+                    "label": 1
+                },
+                {
+                    "sent": "So I wish list would be make actual documents available as early as they are added.",
+                    "label": 0
+                },
+                {
+                    "sent": "So kind of reduce the latency between the addition of a document and when it's available for querying and possibly add some transaction guarantees.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if I have a command line tool.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it says add document to the database, essentially in a transaction context, it probably means something like when kind of execution of this program terminates.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when I get a shell prompt again, I would like to be certain in in the sense of transaction of acid guarantees that the document is added.",
+                    "label": 0
+                },
+                {
+                    "sent": "And our second item on the wish list is integrate this with structured query processing.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a caveat in my talk that what I'm going to say in the following is subject to workload model so.",
+                    "label": 0
+                },
+                {
+                    "sent": "You probably can always come up with workloads for which the ideas that I'm going to describe.",
+                    "label": 0
+                },
+                {
+                    "sent": "Work pathologically, but in many applications we think that they work fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Oh, by the way, if you want to have details about the stuff that I've presented a you might want to look at some of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Our recent publications in CHM.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "ICD industrial wear.",
+                    "label": 0
+                },
+                {
+                    "sent": "The details are described so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, could I skip something?",
+                    "label": 0
+                },
+                {
+                    "sent": "So temporal aspects of fulltext indexes.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what happens is full text indexes are often implemented with B tree, like data structures or there be trees are often a bit of an overkill for this kind of things, because a fulltext indexes necessitate probably a different notion of transaction.",
+                    "label": 0
+                },
+                {
+                    "sent": "Don't need the fine grain transaction guarantees that the trees provide.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as as rebuild techniques, the usual bulk loading techniques are often applied.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we kind of sort.",
+                    "label": 0
+                },
+                {
+                    "sent": "On the terms and then essentially fill the Petri or with a with a linear scan over the disk.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is similar to Excel merge sort, where essentially do only append operations so that you can fill that reading in that time that.",
+                    "label": 0
+                },
+                {
+                    "sent": "As with many barcode applications, you don't have any transaction guarantees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the vision workload for this work is, as I already hinted and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of we don't make any uniformity assumption.",
+                    "label": 0
+                },
+                {
+                    "sent": "We assume that updates to a file updates to a file come in clusters.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in the spirit of 8020 rules, you can think of a desktop user who works in a file and and frequently commits the file to disk and overrides periodically and old versions of the file.",
+                    "label": 0
+                },
+                {
+                    "sent": "If there are public updates, let's say somebody somebody copies a number of files from a CD or DVD to hard disk, one probably resort to.",
+                    "label": 0
+                },
+                {
+                    "sent": "To traditional budgeting techniques, so the implementation ideas is based on the notion that these updates.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Clustered and some kind of reasonable size constraints and documents, which means are not larger than, let's say a couple of megabytes.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can achieve this recency so and we do this by actually are combining a number of different techniques.",
+                    "label": 1
+                },
+                {
+                    "sent": "For example, petition indexes.",
+                    "label": 1
+                },
+                {
+                    "sent": "So our starting point where petition petition be trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "The core idea behind petition be trees is that each petition represents of the B tree represents kind of time slice.",
+                    "label": 0
+                },
+                {
+                    "sent": "When the data that's stored in this petition with current and as data age as they become older, they.",
+                    "label": 0
+                },
+                {
+                    "sent": "Frequently moved to partitions that represent older data, so.",
+                    "label": 1
+                },
+                {
+                    "sent": "What typically happens is that you have an exponentially cascade, so you have a small partition for data that are recently updated and as data age as they become older and therefore less likely to be updated again, the partitions become larger and probably also employs slightly different data structures.",
+                    "label": 0
+                },
+                {
+                    "sent": "In some sense you can view these partition be trees as a variant of traditional Delta files, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the sense that they record the differences between database states.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what partition be trees do is they make updates cheaper but increase the cost of query since you have to look for the same for a given key in the different partitions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "What you then need is immigration policy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if a document reaches a certain age, 1 should move it from one petition, and to petition that represents older data are more stable data.",
+                    "label": 0
+                },
+                {
+                    "sent": "If.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we indeed have this workload assumption, namely one of these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Self self similar structures.",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "We can actually identify.",
+                    "label": 0
+                },
+                {
+                    "sent": "The partition sizes with.",
+                    "label": 0
+                },
+                {
+                    "sent": "With the size of the cluster server of the current.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when a document is updated and is overwritten again in this cluster, then.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can, let's say, make a conservative estimate.",
+                    "label": 0
+                },
+                {
+                    "sent": "We take the cluster size and add.",
+                    "label": 0
+                },
+                {
+                    "sent": "A bit more.",
+                    "label": 0
+                },
+                {
+                    "sent": "To make sure about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Certain irregularities are covered and then we move the document.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once it's aged one, it is faster to a larger cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cascade of indexes then reflects essentially the probability that a certain document is changed.",
+                    "label": 1
+                },
+                {
+                    "sent": "So in in our implementation we had a small dynamic index which only contains very recent documents, large static index which contains a documents that haven't been updated in a long time.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example PDF files.",
+                    "label": 1
+                },
+                {
+                    "sent": "Juices tend to store their happiness between this small dynamic index and this very large index.",
+                    "label": 0
+                },
+                {
+                    "sent": "There might be a number of intermediate indexes.",
+                    "label": 1
+                },
+                {
+                    "sent": "In our case it was just one intermediate index since it it worked for us and the migration policy.",
+                    "label": 0
+                },
+                {
+                    "sent": "The actual migration policy and then dependent index size and the age of of the documents.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Physically, partition B tree indexes are implemented by introducing an artificial leading column which is used for clustering by insertion time.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for a given time interval.",
+                    "label": 0
+                },
+                {
+                    "sent": "You add a certain.",
+                    "label": 0
+                },
+                {
+                    "sent": "Leading column but his friend used to identify and to make sure that up all updates go into this time.",
+                    "label": 0
+                },
+                {
+                    "sent": "And sorry into this particular position.",
+                    "label": 0
+                },
+                {
+                    "sent": "The idea behind this is that small partitions are usually cashed in main memory and thus provide much better update performance than one would have when merging a single document into the large fulltext index.",
+                    "label": 1
+                },
+                {
+                    "sent": "Um?",
+                    "label": 1
+                },
+                {
+                    "sent": "The thing that updates are clustered and and.",
+                    "label": 0
+                },
+                {
+                    "sent": "And only go into this very small partition.",
+                    "label": 1
+                },
+                {
+                    "sent": "Also has the nice property that of course in this hotspot versions that are frequently updated also replace each other.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I should say is that in our implementation we actually used the trees mainly for the disk, resident storage structures and decided to use more efficient main memory and data structures that also.",
+                    "label": 0
+                },
+                {
+                    "sent": "But also, we're more space efficient for the memory indexes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "One issue that caused a bit of trouble.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, when we have two petitions in the beauty, let's say petition am petition be.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we want to merge these two partitions so we have a small partition.",
+                    "label": 0
+                },
+                {
+                    "sent": "A petition be that is exponentially exponentially larger than petition A.",
+                    "label": 0
+                },
+                {
+                    "sent": "How should we merge them?",
+                    "label": 0
+                },
+                {
+                    "sent": "Should we merge A&B into B or intercede?",
+                    "label": 0
+                },
+                {
+                    "sent": "And it turns out that it's often better to merge to create a new partition to avoid to avoid fragmentation of the of the B tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "Rather than merging the small one, the small petition a into the petition be so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "What I want to talk.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The remaining 5 minutes is how to incorporate this notion of exploration into query processing.",
+                    "label": 1
+                },
+                {
+                    "sent": "So suppose what we want to do is.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to when we rank the results of a fulltext search, we want to actually combine the full text search with some contextual information.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say recent user behavior we make we predict and this information about recent user behaviors based on the time window.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say the past 10 minutes so.",
+                    "label": 0
+                },
+                {
+                    "sent": "This might be used to to nicely capture the spikes that we sometimes seen in behavior, so how and it actually turns out that we can.",
+                    "label": 0
+                },
+                {
+                    "sent": "In these situations we can use the notion of expiration time by saying, OK, the contents are.",
+                    "label": 0
+                },
+                {
+                    "sent": "These towels are only valid for a certain amount of time, and.",
+                    "label": 0
+                },
+                {
+                    "sent": "It turns out that.",
+                    "label": 1
+                },
+                {
+                    "sent": "When we want to put these these ideas into practice, only a small extensions to the relation model actually used.",
+                    "label": 0
+                },
+                {
+                    "sent": "So essentially what we add is a function that Maps couples to timestamps.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that means a certain tuple is not valid anymore after the time indicated by this time stamp.",
+                    "label": 0
+                },
+                {
+                    "sent": "When we define a function that works in relations and essentially filters out.",
+                    "label": 0
+                },
+                {
+                    "sent": "Wool or couples from a relation that whose lifetimes actually passed the time stamp that was identified is returned by the previous function.",
+                    "label": 0
+                },
+                {
+                    "sent": "And for the data model, that's it, the transaction subsystem may require some further adaptation, which I'm not going to go into.",
+                    "label": 1
+                },
+                {
+                    "sent": "The idea is that you can actually exploit these exploration kinds of query processing.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm going to give you a very simple example with the selections actually and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Simplest example possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose you have a relation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And suppose then there no updates to this relation when you do a selection on this relation.",
+                    "label": 0
+                },
+                {
+                    "sent": "And select you select all tables that satisfy certain predicate but standard and Additionally with these expiration times, tables that are also current.",
+                    "label": 0
+                },
+                {
+                    "sent": "Done, what happens later is if you materialize the results of of this relation and when.",
+                    "label": 0
+                },
+                {
+                    "sent": "When there are no updates and when you ask query again selection query.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example at a later point you don't have to go back to the original instance, but what you can do is you can execute the selection again on the previously stored materialized view.",
+                    "label": 1
+                },
+                {
+                    "sent": "And the expiration times of the results in in this case actually the same as in the original, and as in the original instance there just fewer couples in the result and we can summarize this over the following observation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, so selection was actually the simplest operator, but it turns out that many relation operators.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Two different, so for projection it is equally simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unfortunately, the computational complexity for projections and goes a bit higher goes up to N log N instead of instead of linear.",
+                    "label": 0
+                },
+                {
+                    "sent": "For union.",
+                    "label": 0
+                },
+                {
+                    "sent": "It stays the same I'm I'm just going to show you these formula formula.",
+                    "label": 0
+                },
+                {
+                    "sent": "Try to convince you that it doesn't incur much additional complexity.",
+                    "label": 0
+                },
+                {
+                    "sent": "For a cross product.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can see.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The same things here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these algebraic operators are declarative operators.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't tell us anything, and what happens on the physical level, so we may actually purge state tables during scans.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use more complex data structures.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's up to us, and we can leave this decision to the database system.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let me conclude.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this presentation I talked about a combination of several ideas, namely, petition, indexes, fulltext indexes, data exploration and I took some ideas from transaction time stamping, and I've tried to share that for certain workloads.",
+                    "label": 1
+                },
+                {
+                    "sent": "What we can do is we can work towards currency of fulltext indexes.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for a given fulltext index we actually can provide transaction guarantees.",
+                    "label": 0
+                },
+                {
+                    "sent": "What I didn't want to Skip was that we can do this indexing behind this key themes so we can do it for many workloads in interactive time from any typical workload.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can do automatic handling of expired is expired data in derived expressions.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if we draw some conclusions from data we can update.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can update the conclusions as the data expire from which the computers were drawn.",
+                    "label": 0
+                },
+                {
+                    "sent": "A future work and what I would like to work on is using modeling work towards performance guarantees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's say for a search engine arrive at something like given a workload of this kind, can we provide certain guarantees?",
+                    "label": 0
+                },
+                {
+                    "sent": "Regarding quality of service and I would also like to see some more formal integration of exploration in data models and eventually maybe arrive at modeling tools and that can take over some of the OR some automatic code generation's that levers knows the complexity of writing applications for application developers.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is what I wanted to talk about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you very much for listening.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

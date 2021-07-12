@@ -1,0 +1,1719 @@
+{
+    "id": "2tlqdan77arj2dxyflhhzpur6ioilz5v",
+    "title": "The Design and Implementation of Minimal RDFS Backward Reasoning in 4store",
+    "info": {
+        "author": [
+            "Manuel Salvadores, University of Southampton"
+        ],
+        "published": "July 7, 2011",
+        "recorded": "May 2011",
+        "category": [
+            "Top->Computer Science->Semantic Web->RDF - Resource Description Framework"
+        ]
+    },
+    "url": "http://videolectures.net/eswc2011_salvadores_reasoning/",
+    "segmentation": [
+        [
+            "Hello everybody, my name is Manosalva dress.",
+            "I'm a research fellow at the University of south London and I'm here presenting my paper on the design and implementation of minimal our DFS bug or reasoning in poster.",
+            "I did this work together with my colleagues John Luca Correndo, Steve Harris, Nick giving, son Professor Noticeable."
+        ],
+        [
+            "Throughout this presentation I'll be following this table of contents will I'll try to start motivating the audience with where they need, why?",
+            "Why we really needed to implement this?",
+            "This type of reasoning for store?",
+            "Follow up with some background study on how fast for stories build and what is minimal or DFS.",
+            "After that I will get into the design and implementation of for us Sir.",
+            "An I'll I'll finish with the scalability evaluation and conclusions."
+        ],
+        [
+            "So.",
+            "So why why why we need a burger chain?",
+            "Reasoning in in triple stores, and in this case in Foster so triple and quad stores are are good for schema, less data engineering.",
+            "But when you start using them, if they don't provide any reasoning, realize that whatever I mean, what you really need.",
+            "Sometimes it's some sort of semantics and with very little semantics.",
+            "You can go along way.",
+            "You don't need to go for all two full reasoning.",
+            "With sometimes we just start DFS.",
+            "You can.",
+            "You can really do much better engineering of your data and your applications.",
+            "In that sense, normally you have two options.",
+            "You can go an.",
+            "Get your data a expand it all and do forward chain reasoning asserted into a triple store and then you have all your entailments in there so you can query it with sparkle and that's it.",
+            "But there's a problem with that.",
+            "That type of reasoning can be very expensive in a space.",
+            "We've seen lots of papers in the last years where they expand our DFS closures of 1 billion triples and they end up with 100 billion triples.",
+            "They use MapReduce techniques, or they use supercomputers with shared memory of very expensive computers to do this kind of job.",
+            "In an Moreover, the problem is that when we update the data, we changed our data.",
+            "We need to recompute those containments.",
+            "So.",
+            "Now with with the process of standardization of Sparkle 1.1 and Sparkle update, some people will start a certain data updating data and they might want to have some sort of semantics implemented.",
+            "Then is when you really need backward change reasoning, because you might want to assert, update, assert, update and then query and you don't want to wait like 6 hours to recompute all your entailments.",
+            "This is the.",
+            "This is the real motivation of the work we've done here."
+        ],
+        [
+            "So to start with a bit of background, I will start commenting some some notes on 1st or for stories becoming a triple store code stored that is quite using the Community.",
+            "I would like to watch the ask the audience who who who has heard of Foster or who knows about Foster.",
+            "OK.",
+            "Thank you Ann, who has used Foster at these ones.",
+            "OK, so people that's good.",
+            "Thank you so.",
+            "First reason is it's a cluster and distributed cloud storage.",
+            "Every quote in foster guest gets distributed based on a hunch and a hash function over the subject of the quote on every quote.",
+            "Only research resides in one data segment that's important.",
+            "The data is distributed and quotes are only in one segment is not replicated.",
+            "Storage is fully distributed.",
+            "He's written in C. It implements a native storage.",
+            "There is no relational database, and behind the scenes basically it uses 2 radics tries or Patricia trees.",
+            "Predicate one day in one day index is the subject in the other is the object of the quote and for Contacts or for models.",
+            "It uses a hash table for every segment.",
+            "It uses a native communication protocol on top of TCP IP written in C as well an in the last LB LBM benchmark.",
+            "It is corporate well it it was I think.",
+            "Second on import second inquiry and 1st on updates so.",
+            "This is more or less the tool can also be cause it's being implemented by some former researchers from Southampton.",
+            "We have very good access to the the the the Intel to in order to know how to how to tweak the system.",
+            "That's also a reason why we used.",
+            "First we have to say that."
+        ],
+        [
+            "Social.",
+            "So the bind operation in Foster is important to mention this because in the bind operation is where all the reasoning happens.",
+            "I will explain that afterwards so but it's important that we get a rough idea of how it works, so we have a sparkle query.",
+            "Let's say we want to get all the name some pages for all X where name is a variable name and now the homepage is paid and then those subjects are based near DV Pedia, London.",
+            "This, depending on how the optimizer works.",
+            "It will do it in different ways, but the most likely thing to happen is that it will run two bind operations busy rose.",
+            "The is the first bind operation where it will bind base near and London and it will bind this one first because she's the most restrictive pattern.",
+            "Then the result of this bind operation will do.",
+            "Reply a replacement in the second Vine.",
+            "As we can see the dashed blue arrow.",
+            "Tell us that the result of that buying goes into the second Vine, and for that buying we get their name on the day we buy Neymar home page.",
+            "At.",
+            "Why we want to implement reasoning in the Bible in Divine Declaration?",
+            "Because in first order bind operation is is is distributed, it runs parallel at the same time for every data segment.",
+            "So if we want to do fast reasoning, we want to be able to and we want to scale up want to.",
+            "A may want to implement that in some place where we know that can be paralyzed.",
+            "If we had implemented our reasoning, the query engine that that thing was versus QE is the query engine.",
+            "Is there is a.",
+            "Is the responsible of the query planning if we implement reasoning in there, that's a single process is not distributed.",
+            "The chances to scale up are less, so that's that's the main motivation to implement."
+        ],
+        [
+            "To implement their reasoning in the minimal, our DFS minimal are the affairs refers to a paper that was written by.",
+            "Die by killing news and the title was simple and efficient minimal.",
+            "Our DFS was published in the Journal of Where Semantics in 2009 and basically is a paper that exposes all the.",
+            "Inconsistencies in RDF is that even though it's a very lightweight vocabulary, there are many, mostly for data types.",
+            "On a container, membership issues as well.",
+            "Another problem with our the affairs is that there is no differentiation between the language constructors and ontology vocabulary.",
+            "So we could say we can say something that something like my property is an RDF sub property of RDF sub property.",
+            "And even though we might get a rough idea of how that should work, sometimes it doesn't in some reason is.",
+            "So sometimes we try to rename our DFS properties and that most of the time is not a.",
+            "It's not a good idea.",
+            "So basically, what minimal RDF does and what this paper did is too.",
+            "Argue.",
+            "Why are you the completeness and soundness of a very small fragment of our DFS there at the end is the small fragment that most people need in their applications.",
+            "Which is.",
+            "Sub property of subclass of domain range and all this constructor together with RDF type of cloth.",
+            "Because most of this is about inferencing.",
+            "Class membership in RFS.",
+            "Apart from some property of of course.",
+            "So.",
+            "Left out is a.",
+            "Many, I mean a lot of reasoning about.",
+            "About the class.",
+            "About John Teologi itself.",
+            "So, for instance, would you say that?",
+            "RDF is class reasoning.",
+            "For instance, if you say this thing is.",
+            "This person is type of 4th person, then you can infer that fourth person is an RDF S class.",
+            "That is left out some reasoning for datatypes excess, the excess risks and schema datatypes.",
+            "Things like, but it's also coming from RDF.",
+            "Things like if you say you have like a quote triple, say, subject, predicate, object, you infer that predicate is type of RDF property, which I mean you can get that type of thing with very simple sparkle.",
+            "I mean you can just do a distinct property overall.",
+            "Journalist base knowledge base and you get that.",
+            "So in the end is basically is metadata about the ontology.",
+            "What you are lifting.",
+            "You left out this.",
+            "With my experience, I mean of course for every application is different on my from my experience, this is what most people need."
+        ],
+        [
+            "So if we, I mean the the the the distributed model that we've implemented in enforced or builds up from 2 definitions.",
+            "First the road draw the segment that is, is this assignment the subset of constructor that I've just listed?",
+            "And this is the this is coming from the minimum minimal and efficient target for semantics.",
+            "And also we say that a quote is an MMRF quote if and only if P. Belongs to the Arrow ADF segment, but is not RDF type, so we left out RDF type in this case to define what is a murder."
+        ],
+        [
+            "Segment.",
+            "And these are the rules that basically.",
+            "Are part of the RDF semantics and were more LAX, reformulated in in in the minimal or DFS paper, and basically what we have for instance with SP Serial we get like sub property transiti transitivity with SC0 will get subclass transitivity, then SP SP1 and SP1 is.",
+            "Yes, this this sub property inference on SC One is the membership of a class for supplier relationship and then the domains and ranges is just the reasoning of of domains and legacy and ranges in our DFS.",
+            "But these are there rules that are bees are implemented for this subset of constructors."
+        ],
+        [
+            "So if we if we paint.",
+            "All that all the rules that we can trigger all the possible rules that we can trigger with with this set of rules we can see few different interesting things.",
+            "So in that in that figure, with with with star are marked the.",
+            "There are am RDF quotes an in both non am EM RDF quotes, So what we see.",
+            "Is that?",
+            "Which what we see is that in every possible.",
+            "Lots of rules, only Guan.",
+            "Non M. RVF quote is used.",
+            "This is this is this is the root.",
+            "Of the distributed model, why becausw?",
+            "Then we can actually replicate the M RDF quotes.",
+            "Through every segment.",
+            "And run parallel reasoning becausw we will need any other triples that are residing in other segments.",
+            "An it normally happens that the the triples that we use for which we use the constructors subclass of domain range or sub property, is a small subset of the triples that we have in our knowledge.",
+            "Base is normally we have lots lots of instance data and very few triples for the for the for the schema.",
+            "So we just need to replicate this schema.",
+            "The schema reduces the row.",
+            "VF constructors.",
+            "That does the trick of the system."
+        ],
+        [
+            "So with that model, this is the.",
+            "This is the architecture what we do, what we've done to four stories with added a third Arthur process.",
+            "So we have the processing node, the storage nodes, and now we have another node that does the RDF synchronization, but this node does is just every time there is an update or an assertion.",
+            "It looks if there is any.",
+            "Any idea first constructor in that update or in that assertion or later with whatever and basically replicates on ads?",
+            "That layer of our DFS quotes to the rest of the storage nodes."
+        ],
+        [
+            "So this is what more or less it looks like.",
+            "The simplified algorithm algorithm of the original buying in for store.",
+            "And basically the input is for a list of resources to bind.",
+            "And what we I mean what normally do is it traverses the radics trees or the OR the Patricia trees for every combination of those resources.",
+            "If.",
+            "If that if condition applies, then the quote is is asserted to the to the resources."
+        ],
+        [
+            "I'm not going to go into detail in in having all the semantics of all the functions that we've implemented in order to modify that bind, but basically what we do is we create a small graph with the subclass subclass closure.",
+            "There's a property closure and another graph with all the domain and range is extensions for every part of property.",
+            "This this graph is replicated to every data storage.",
+            "No.",
+            "And this is what the original needs in order to implement the RDF semantics."
+        ],
+        [
+            "So this is how it looks then modified bind operation in enforced or when we want to implement RDF semantics.",
+            "So.",
+            "It's it's not a rule system with grief, implemented is is is programmatically an.",
+            "What what it does is.",
+            "It looks at what type of things are being bound at the input.",
+            "In order to know which rules need to be fired.",
+            "Every rule more or less goes into a different if condition an it looks at what parts of that graph that has been replicated need to be retrieved in order to implement the semantics.",
+            "Sorry, where is fast.",
+            "I just asked.",
+            "OK, and then subsequent days are transitive closure for so for instance, if.",
+            "Yeah, in in KC, I mean the sea between brackets that is looking at.",
+            "And that is looking if the pattern P is type.",
+            "So for instance, in that case the query is asking for RDF type, which is the hardest.",
+            "Things to answer in Rd affairs because most of the reasoning is about RDF types of properties.",
+            "Very easy.",
+            "In that case.",
+            "Eve.",
+            "Yeah, in in this in Co.",
+            "If the part is either if the object is empty, so we want all the RDF types then it goes to the semantics of the subclass.",
+            "Transit tivity.",
+            "For the cases of ranges, domains and subclass of.",
+            "But in order to understand."
+        ],
+        [
+            "For that you need to go to the previous definition of the functions.",
+            "So the first function where it says SC first, the first line says.",
+            "And that function runs their subclass brochure of X in the replicated graph.",
+            "So.",
+            "And that's more or less does more less how it is explained this in.",
+            "In the end the low level code is just is just three returning in C that actually goes either up and down looking at the clouds brochure is nothing but that.",
+            "But in order to understand that I didn't want to put like C code, it's going.",
+            "It was going to be more more complete, more complicated and this is how I."
+        ],
+        [
+            "It's explained."
+        ],
+        [
+            "So yeah.",
+            "So how do we evaluate our work?",
+            "So we've, I mean, as almost everybody, we've used one of the synthetic datasets we've used the LBM benchmark and with.",
+            "Used from the Alabama 100 will till the LUBN 1000.",
+            "This means between 13 million triples to 138 million triples.",
+            "We got, we've already also published workshop paper proving scalability up to half billion triples, but this is a different.",
+            "This is a different benchmark because what we want to show here is that as you grow in number of data segments, you can see how the system scales, so it's not about how much.",
+            "Can you can you infer with a big cluster but looking at the scalability?"
+        ],
+        [
+            "Of the system.",
+            "So we've done two hardware specs.",
+            "One server setup, which one Dell.",
+            "8 or 16 threads and 48 gigs of memory in into in with SATA disks and a different set up, which is a cluster setup that is roughly the same type of a.",
+            "Note, but in this case with use.",
+            "55 nodes The set up with it was one is the master node, the one that runs the query ending and the rest are just using are running the data storage nodes for the server infrastructure with measure configuration of 1248 and 616 and 32 segments and for the cluster with measure four, 816 and 32."
+        ],
+        [
+            "The binds.",
+            "Queries that we've run are these ones.",
+            "The 1st three basically trigger all the all the rules.",
+            "For the studied second subsegment, the last two is just some property sub property.",
+            "Reasoning that as we will see with the results, is the."
+        ],
+        [
+            "Is there is the easiest reasoning?",
+            "This is the server setup, so as we can see here.",
+            "The scalability goes more or less well up to 16 nodes.",
+            "For 32 nodes we see that almost for every database, apart from the small 1LB M 100, we see that most most.",
+            "Yeah, I mean the performance degrades for 30 two base.",
+            "This is because the server setup only has 16 cores, so we're just in 32, so we have more processes than than CPU and so in the end there's a lot of CPU swapping between processes and basically the system degrades for the big datasets with the.",
+            "With one or two segments, as we can see with LBM 1000, even we got a non responsive behavior.",
+            "From part I mean from the system."
+        ],
+        [
+            "If we go to the cluster setup for which we can go till 32 segments, we see that for the for instance, for Lu BM100 the scale abilities.",
+            "Is OK, but with the the The thing is that we don't need that much hardware for this.",
+            "For this data set, that's that's in the end, because we don't, we cannot generate that.",
+            "Many solution is a small data set.",
+            "So in the end.",
+            "But as we go grow in with the database till the LGB M 100 we can see that just with four segments the system is unresponsive.",
+            "I mean we barely can generate any solutions for the for the for the different kinds, But as we go in number of segments till 32 we see how Leonel linearly scales more or less than the.",
+            "The ones that are harder to compute are are the ones that imply domain and range.",
+            "But still we got pretty decent throughput of solutions for for these datasets."
+        ],
+        [
+            "So conclusions.",
+            "Bugger change reasoning can scale in a distributed environment for minimal RDF's, and there are a defragment, which is what we've implemented in in Foster.",
+            "For a certain concurrently perform search in indexes in Radix tries.",
+            "In this case with alarm awareness of the RDF semantics by just replicating a small subset of the triples.",
+            "That's the overhead of the system.",
+            "Is not.",
+            "There's no magic we need to replicate bit of your knowledge base in order to be able to do that.",
+            "But the good thing, as I said before, is that this subset of triples to replicates are just the ones that are in the air ODF constructors, and that is always a small part of your of your knowledge base.",
+            "And just to remind the audience that the benefits of a bug would change reasoning is that is more economic in the space.",
+            "You don't need to assert your order expanded knowledge base into a triple store and there is no need to recompute when you run a updates in your data."
+        ],
+        [
+            "This is just a few links to the forest server latest release which is synchronized with the with a first or an it also.",
+            "Supports most of the Lost Sparkle 1.1 features implemented in force."
+        ],
+        [
+            "So.",
+            "And as future work we are looking into implementing more owl can structure by studying subsets to replicate, which is like.",
+            "The thing that we need to look at what type of data needs to be in every data segment in order to to infer things.",
+            "We are we are already in conversations to merge this distribution with the main faster distribution and we would like to also look at the overhead that is added to the system with this subset replication."
+        ],
+        [
+            "Finally, I would acknowledge my project in acting to show for supporting this this research."
+        ],
+        [
+            "Thank you any questions.",
+            "So what is the overhead of doing backwards reasoning compared to just materializing everything and put it in your RDF store and asking the same queries?",
+            "A good question I was I was I was going to put that exactly in the future work, but I was suspecting that if I didn't put it, somebody was going to ask if I could never love it.",
+            "So yeah, The thing is that that's that's difficult to study, because when you have backward chain.",
+            "A. Backward change are basically just triggering what parts of your of your ontology you need to explore in order to infer things.",
+            "When you put all your your data.",
+            "Basically you have like a bigger, bigger, bigger index that you need to traverse, and definitely something that we need to look at.",
+            "I cannot answer right now with with within a specific.",
+            "Unsure, but yeah, it's definitely a good question that I need to look at things.",
+            "Quick one, so in the database normally you would get about the order you get your results from your indices, but if you do this materialization of the data nodes you would lose this order.",
+            "How do you expect that this will affect the performance of your system?",
+            "And then you repeat me so many times you want to keep the data in the same order as it sorted, let's say so that it's much faster to perform your journeys.",
+            "But if you.",
+            "Expand, Let's say the triple patterns that you get from your industries.",
+            "Then they are no longer sorted or you don't understand correctly.",
+            "Yeah, The thing is that in in the case of foster this is a problem that doesn't happen in the bind operation.",
+            "It happens, it happens in the query engine.",
+            "All things with sorting an an filtering it doesn't happen in the bind.",
+            "So basically the answer is if you implementing when you're traversing your tree.",
+            "You don't need to worry about becausw.",
+            "Well, in order that the basis of course your three holds the sorting and I understand that the question your question is coming from there, but in this case just because of the specific implementation in first or how it is architecture, you don't need to worry about because he's the query engine with us that an.",
+            "To to expand on that.",
+            "For store doesn't do any indexing for sorting and that's it is one of its weaknesses actually.",
+            "So yeah, thank you.",
+            "My questions.",
+            "I just had a couple of questions about the evaluation.",
+            "One I notice that the largest data set you uses, Lubim 1000, is that correct?",
+            "So if I recall, that's about 1.3 million triples.",
+            "So my first question is, have you tried?",
+            "Do you have any evaluation results for larger datasets?",
+            "A more in the range of billions?",
+            "Yeah, yeah.",
+            "I mean, if.",
+            "If Internet works.",
+            "I could.",
+            "Well, if just yeah we.",
+            "We submitted our workshop paper last year and we had evaluation for 1/2 billion triples.",
+            "We haven't gone farther than that, but mostly because of the motivation of our work is not dealing with massive datasets.",
+            "It's about implementing implementing lightweight semantics into because at the end of the day, not everybody is using 1 billion triple 510 billion triples.",
+            "Many people.",
+            "I mean on already 100 million triples is a decent decently big.",
+            "We were having on that far, but at the I I. I envision that the the program when you go farther in terms of size of data set is going to be the query engine, enforced or not, the bind operation that actually you can grow in number of segments, but in the end the the query engine is a single process, so it is not paralyzed.",
+            "So in the end is going to be the bottleneck if you grow the datasets.",
+            "Thank you and I had one other comment about the contrast between the advantages and disadvantages of forward and backward chaining.",
+            "I think the characterization was a little too general, general and maybe unfair, especially concerning minimal or DFS reasoning.",
+            "So because the minimal RDF's rules they don't detect any inconsistency on.",
+            "The only time that you would have to regenerate the entire all the entailments.",
+            "Is if you remove triples.",
+            "Right, but if you're only adding triples, you don't have that concern.",
+            "You can just do incremental updates to your forward chain.",
+            "Yes, I mean, so yeah, that means certain keys.",
+            "That's a fair comment, man.",
+            "That's true.",
+            "I mean there there are people that really care about consistency checking in semantic Web application that.",
+            "But there are many people as well that don't care about that Ann.",
+            "That's also the reason why implementing lights among I mean don't implement in full semantics of of the RDF's profile or our profile.",
+            "There are very few things here and there that really could help other communities.",
+            "I understand that I mean in other communities, consistency checking is a great thing.",
+            "There is a very good work on that, but my motivation is coming from a different perspective.",
+            "And if I mean if we when I commented on bug were versus forward chain.",
+            "I I miss Josh or I did some unfair comments to that other community.",
+            "That's because I I'm not part of that community.",
+            "But yeah, I mean for now, thanks.",
+            "OK. Any more questions when you down for one more?",
+            "No, OK, Many thanks."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Hello everybody, my name is Manosalva dress.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm a research fellow at the University of south London and I'm here presenting my paper on the design and implementation of minimal our DFS bug or reasoning in poster.",
+                    "label": 1
+                },
+                {
+                    "sent": "I did this work together with my colleagues John Luca Correndo, Steve Harris, Nick giving, son Professor Noticeable.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Throughout this presentation I'll be following this table of contents will I'll try to start motivating the audience with where they need, why?",
+                    "label": 0
+                },
+                {
+                    "sent": "Why we really needed to implement this?",
+                    "label": 0
+                },
+                {
+                    "sent": "This type of reasoning for store?",
+                    "label": 0
+                },
+                {
+                    "sent": "Follow up with some background study on how fast for stories build and what is minimal or DFS.",
+                    "label": 0
+                },
+                {
+                    "sent": "After that I will get into the design and implementation of for us Sir.",
+                    "label": 1
+                },
+                {
+                    "sent": "An I'll I'll finish with the scalability evaluation and conclusions.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "So why why why we need a burger chain?",
+                    "label": 0
+                },
+                {
+                    "sent": "Reasoning in in triple stores, and in this case in Foster so triple and quad stores are are good for schema, less data engineering.",
+                    "label": 0
+                },
+                {
+                    "sent": "But when you start using them, if they don't provide any reasoning, realize that whatever I mean, what you really need.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes it's some sort of semantics and with very little semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can go along way.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't need to go for all two full reasoning.",
+                    "label": 0
+                },
+                {
+                    "sent": "With sometimes we just start DFS.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can really do much better engineering of your data and your applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that sense, normally you have two options.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can go an.",
+                    "label": 0
+                },
+                {
+                    "sent": "Get your data a expand it all and do forward chain reasoning asserted into a triple store and then you have all your entailments in there so you can query it with sparkle and that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's a problem with that.",
+                    "label": 0
+                },
+                {
+                    "sent": "That type of reasoning can be very expensive in a space.",
+                    "label": 1
+                },
+                {
+                    "sent": "We've seen lots of papers in the last years where they expand our DFS closures of 1 billion triples and they end up with 100 billion triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "They use MapReduce techniques, or they use supercomputers with shared memory of very expensive computers to do this kind of job.",
+                    "label": 0
+                },
+                {
+                    "sent": "In an Moreover, the problem is that when we update the data, we changed our data.",
+                    "label": 1
+                },
+                {
+                    "sent": "We need to recompute those containments.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now with with the process of standardization of Sparkle 1.1 and Sparkle update, some people will start a certain data updating data and they might want to have some sort of semantics implemented.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then is when you really need backward change reasoning, because you might want to assert, update, assert, update and then query and you don't want to wait like 6 hours to recompute all your entailments.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the real motivation of the work we've done here.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So to start with a bit of background, I will start commenting some some notes on 1st or for stories becoming a triple store code stored that is quite using the Community.",
+                    "label": 0
+                },
+                {
+                    "sent": "I would like to watch the ask the audience who who who has heard of Foster or who knows about Foster.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you Ann, who has used Foster at these ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so people that's good.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you so.",
+                    "label": 0
+                },
+                {
+                    "sent": "First reason is it's a cluster and distributed cloud storage.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every quote in foster guest gets distributed based on a hunch and a hash function over the subject of the quote on every quote.",
+                    "label": 0
+                },
+                {
+                    "sent": "Only research resides in one data segment that's important.",
+                    "label": 0
+                },
+                {
+                    "sent": "The data is distributed and quotes are only in one segment is not replicated.",
+                    "label": 0
+                },
+                {
+                    "sent": "Storage is fully distributed.",
+                    "label": 0
+                },
+                {
+                    "sent": "He's written in C. It implements a native storage.",
+                    "label": 1
+                },
+                {
+                    "sent": "There is no relational database, and behind the scenes basically it uses 2 radics tries or Patricia trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "Predicate one day in one day index is the subject in the other is the object of the quote and for Contacts or for models.",
+                    "label": 0
+                },
+                {
+                    "sent": "It uses a hash table for every segment.",
+                    "label": 0
+                },
+                {
+                    "sent": "It uses a native communication protocol on top of TCP IP written in C as well an in the last LB LBM benchmark.",
+                    "label": 1
+                },
+                {
+                    "sent": "It is corporate well it it was I think.",
+                    "label": 1
+                },
+                {
+                    "sent": "Second on import second inquiry and 1st on updates so.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is more or less the tool can also be cause it's being implemented by some former researchers from Southampton.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have very good access to the the the the Intel to in order to know how to how to tweak the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's also a reason why we used.",
+                    "label": 0
+                },
+                {
+                    "sent": "First we have to say that.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Social.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the bind operation in Foster is important to mention this because in the bind operation is where all the reasoning happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "I will explain that afterwards so but it's important that we get a rough idea of how it works, so we have a sparkle query.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's say we want to get all the name some pages for all X where name is a variable name and now the homepage is paid and then those subjects are based near DV Pedia, London.",
+                    "label": 0
+                },
+                {
+                    "sent": "This, depending on how the optimizer works.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will do it in different ways, but the most likely thing to happen is that it will run two bind operations busy rose.",
+                    "label": 0
+                },
+                {
+                    "sent": "The is the first bind operation where it will bind base near and London and it will bind this one first because she's the most restrictive pattern.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the result of this bind operation will do.",
+                    "label": 1
+                },
+                {
+                    "sent": "Reply a replacement in the second Vine.",
+                    "label": 0
+                },
+                {
+                    "sent": "As we can see the dashed blue arrow.",
+                    "label": 0
+                },
+                {
+                    "sent": "Tell us that the result of that buying goes into the second Vine, and for that buying we get their name on the day we buy Neymar home page.",
+                    "label": 0
+                },
+                {
+                    "sent": "At.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why we want to implement reasoning in the Bible in Divine Declaration?",
+                    "label": 0
+                },
+                {
+                    "sent": "Because in first order bind operation is is is distributed, it runs parallel at the same time for every data segment.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we want to do fast reasoning, we want to be able to and we want to scale up want to.",
+                    "label": 0
+                },
+                {
+                    "sent": "A may want to implement that in some place where we know that can be paralyzed.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we had implemented our reasoning, the query engine that that thing was versus QE is the query engine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is there is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is the responsible of the query planning if we implement reasoning in there, that's a single process is not distributed.",
+                    "label": 0
+                },
+                {
+                    "sent": "The chances to scale up are less, so that's that's the main motivation to implement.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "To implement their reasoning in the minimal, our DFS minimal are the affairs refers to a paper that was written by.",
+                    "label": 0
+                },
+                {
+                    "sent": "Die by killing news and the title was simple and efficient minimal.",
+                    "label": 1
+                },
+                {
+                    "sent": "Our DFS was published in the Journal of Where Semantics in 2009 and basically is a paper that exposes all the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Inconsistencies in RDF is that even though it's a very lightweight vocabulary, there are many, mostly for data types.",
+                    "label": 0
+                },
+                {
+                    "sent": "On a container, membership issues as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another problem with our the affairs is that there is no differentiation between the language constructors and ontology vocabulary.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we could say we can say something that something like my property is an RDF sub property of RDF sub property.",
+                    "label": 0
+                },
+                {
+                    "sent": "And even though we might get a rough idea of how that should work, sometimes it doesn't in some reason is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So sometimes we try to rename our DFS properties and that most of the time is not a.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's not a good idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically, what minimal RDF does and what this paper did is too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Argue.",
+                    "label": 0
+                },
+                {
+                    "sent": "Why are you the completeness and soundness of a very small fragment of our DFS there at the end is the small fragment that most people need in their applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sub property of subclass of domain range and all this constructor together with RDF type of cloth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because most of this is about inferencing.",
+                    "label": 0
+                },
+                {
+                    "sent": "Class membership in RFS.",
+                    "label": 0
+                },
+                {
+                    "sent": "Apart from some property of of course.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Left out is a.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many, I mean a lot of reasoning about.",
+                    "label": 0
+                },
+                {
+                    "sent": "About the class.",
+                    "label": 0
+                },
+                {
+                    "sent": "About John Teologi itself.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, for instance, would you say that?",
+                    "label": 0
+                },
+                {
+                    "sent": "RDF is class reasoning.",
+                    "label": 0
+                },
+                {
+                    "sent": "For instance, if you say this thing is.",
+                    "label": 0
+                },
+                {
+                    "sent": "This person is type of 4th person, then you can infer that fourth person is an RDF S class.",
+                    "label": 0
+                },
+                {
+                    "sent": "That is left out some reasoning for datatypes excess, the excess risks and schema datatypes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things like, but it's also coming from RDF.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things like if you say you have like a quote triple, say, subject, predicate, object, you infer that predicate is type of RDF property, which I mean you can get that type of thing with very simple sparkle.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean you can just do a distinct property overall.",
+                    "label": 0
+                },
+                {
+                    "sent": "Journalist base knowledge base and you get that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the end is basically is metadata about the ontology.",
+                    "label": 0
+                },
+                {
+                    "sent": "What you are lifting.",
+                    "label": 0
+                },
+                {
+                    "sent": "You left out this.",
+                    "label": 0
+                },
+                {
+                    "sent": "With my experience, I mean of course for every application is different on my from my experience, this is what most people need.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So if we, I mean the the the the distributed model that we've implemented in enforced or builds up from 2 definitions.",
+                    "label": 1
+                },
+                {
+                    "sent": "First the road draw the segment that is, is this assignment the subset of constructor that I've just listed?",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is the this is coming from the minimum minimal and efficient target for semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also we say that a quote is an MMRF quote if and only if P. Belongs to the Arrow ADF segment, but is not RDF type, so we left out RDF type in this case to define what is a murder.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Segment.",
+                    "label": 0
+                },
+                {
+                    "sent": "And these are the rules that basically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are part of the RDF semantics and were more LAX, reformulated in in in the minimal or DFS paper, and basically what we have for instance with SP Serial we get like sub property transiti transitivity with SC0 will get subclass transitivity, then SP SP1 and SP1 is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, this this sub property inference on SC One is the membership of a class for supplier relationship and then the domains and ranges is just the reasoning of of domains and legacy and ranges in our DFS.",
+                    "label": 0
+                },
+                {
+                    "sent": "But these are there rules that are bees are implemented for this subset of constructors.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So if we if we paint.",
+                    "label": 0
+                },
+                {
+                    "sent": "All that all the rules that we can trigger all the possible rules that we can trigger with with this set of rules we can see few different interesting things.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in that in that figure, with with with star are marked the.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are am RDF quotes an in both non am EM RDF quotes, So what we see.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is that?",
+                    "label": 0
+                },
+                {
+                    "sent": "Which what we see is that in every possible.",
+                    "label": 0
+                },
+                {
+                    "sent": "Lots of rules, only Guan.",
+                    "label": 0
+                },
+                {
+                    "sent": "Non M. RVF quote is used.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is this is this is the root.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of the distributed model, why becausw?",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can actually replicate the M RDF quotes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Through every segment.",
+                    "label": 0
+                },
+                {
+                    "sent": "And run parallel reasoning becausw we will need any other triples that are residing in other segments.",
+                    "label": 0
+                },
+                {
+                    "sent": "An it normally happens that the the triples that we use for which we use the constructors subclass of domain range or sub property, is a small subset of the triples that we have in our knowledge.",
+                    "label": 0
+                },
+                {
+                    "sent": "Base is normally we have lots lots of instance data and very few triples for the for the for the schema.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we just need to replicate this schema.",
+                    "label": 0
+                },
+                {
+                    "sent": "The schema reduces the row.",
+                    "label": 0
+                },
+                {
+                    "sent": "VF constructors.",
+                    "label": 0
+                },
+                {
+                    "sent": "That does the trick of the system.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So with that model, this is the.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the architecture what we do, what we've done to four stories with added a third Arthur process.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have the processing node, the storage nodes, and now we have another node that does the RDF synchronization, but this node does is just every time there is an update or an assertion.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks if there is any.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any idea first constructor in that update or in that assertion or later with whatever and basically replicates on ads?",
+                    "label": 0
+                },
+                {
+                    "sent": "That layer of our DFS quotes to the rest of the storage nodes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is what more or less it looks like.",
+                    "label": 0
+                },
+                {
+                    "sent": "The simplified algorithm algorithm of the original buying in for store.",
+                    "label": 0
+                },
+                {
+                    "sent": "And basically the input is for a list of resources to bind.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we I mean what normally do is it traverses the radics trees or the OR the Patricia trees for every combination of those resources.",
+                    "label": 0
+                },
+                {
+                    "sent": "If.",
+                    "label": 0
+                },
+                {
+                    "sent": "If that if condition applies, then the quote is is asserted to the to the resources.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I'm not going to go into detail in in having all the semantics of all the functions that we've implemented in order to modify that bind, but basically what we do is we create a small graph with the subclass subclass closure.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a property closure and another graph with all the domain and range is extensions for every part of property.",
+                    "label": 0
+                },
+                {
+                    "sent": "This this graph is replicated to every data storage.",
+                    "label": 0
+                },
+                {
+                    "sent": "No.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is what the original needs in order to implement the RDF semantics.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is how it looks then modified bind operation in enforced or when we want to implement RDF semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's it's not a rule system with grief, implemented is is is programmatically an.",
+                    "label": 0
+                },
+                {
+                    "sent": "What what it does is.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks at what type of things are being bound at the input.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to know which rules need to be fired.",
+                    "label": 0
+                },
+                {
+                    "sent": "Every rule more or less goes into a different if condition an it looks at what parts of that graph that has been replicated need to be retrieved in order to implement the semantics.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry, where is fast.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just asked.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, and then subsequent days are transitive closure for so for instance, if.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, in in KC, I mean the sea between brackets that is looking at.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that is looking if the pattern P is type.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for instance, in that case the query is asking for RDF type, which is the hardest.",
+                    "label": 0
+                },
+                {
+                    "sent": "Things to answer in Rd affairs because most of the reasoning is about RDF types of properties.",
+                    "label": 0
+                },
+                {
+                    "sent": "Very easy.",
+                    "label": 0
+                },
+                {
+                    "sent": "In that case.",
+                    "label": 0
+                },
+                {
+                    "sent": "Eve.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, in in this in Co.",
+                    "label": 0
+                },
+                {
+                    "sent": "If the part is either if the object is empty, so we want all the RDF types then it goes to the semantics of the subclass.",
+                    "label": 0
+                },
+                {
+                    "sent": "Transit tivity.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the cases of ranges, domains and subclass of.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in order to understand.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "For that you need to go to the previous definition of the functions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first function where it says SC first, the first line says.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that function runs their subclass brochure of X in the replicated graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "And that's more or less does more less how it is explained this in.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the end the low level code is just is just three returning in C that actually goes either up and down looking at the clouds brochure is nothing but that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But in order to understand that I didn't want to put like C code, it's going.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was going to be more more complete, more complicated and this is how I.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "It's explained.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do we evaluate our work?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've, I mean, as almost everybody, we've used one of the synthetic datasets we've used the LBM benchmark and with.",
+                    "label": 0
+                },
+                {
+                    "sent": "Used from the Alabama 100 will till the LUBN 1000.",
+                    "label": 0
+                },
+                {
+                    "sent": "This means between 13 million triples to 138 million triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "We got, we've already also published workshop paper proving scalability up to half billion triples, but this is a different.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is a different benchmark because what we want to show here is that as you grow in number of data segments, you can see how the system scales, so it's not about how much.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can you can you infer with a big cluster but looking at the scalability?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've done two hardware specs.",
+                    "label": 0
+                },
+                {
+                    "sent": "One server setup, which one Dell.",
+                    "label": 1
+                },
+                {
+                    "sent": "8 or 16 threads and 48 gigs of memory in into in with SATA disks and a different set up, which is a cluster setup that is roughly the same type of a.",
+                    "label": 1
+                },
+                {
+                    "sent": "Note, but in this case with use.",
+                    "label": 0
+                },
+                {
+                    "sent": "55 nodes The set up with it was one is the master node, the one that runs the query ending and the rest are just using are running the data storage nodes for the server infrastructure with measure configuration of 1248 and 616 and 32 segments and for the cluster with measure four, 816 and 32.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The binds.",
+                    "label": 0
+                },
+                {
+                    "sent": "Queries that we've run are these ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "The 1st three basically trigger all the all the rules.",
+                    "label": 0
+                },
+                {
+                    "sent": "For the studied second subsegment, the last two is just some property sub property.",
+                    "label": 0
+                },
+                {
+                    "sent": "Reasoning that as we will see with the results, is the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Is there is the easiest reasoning?",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the server setup, so as we can see here.",
+                    "label": 1
+                },
+                {
+                    "sent": "The scalability goes more or less well up to 16 nodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "For 32 nodes we see that almost for every database, apart from the small 1LB M 100, we see that most most.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, I mean the performance degrades for 30 two base.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is because the server setup only has 16 cores, so we're just in 32, so we have more processes than than CPU and so in the end there's a lot of CPU swapping between processes and basically the system degrades for the big datasets with the.",
+                    "label": 0
+                },
+                {
+                    "sent": "With one or two segments, as we can see with LBM 1000, even we got a non responsive behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "From part I mean from the system.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "If we go to the cluster setup for which we can go till 32 segments, we see that for the for instance, for Lu BM100 the scale abilities.",
+                    "label": 1
+                },
+                {
+                    "sent": "Is OK, but with the the The thing is that we don't need that much hardware for this.",
+                    "label": 0
+                },
+                {
+                    "sent": "For this data set, that's that's in the end, because we don't, we cannot generate that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many solution is a small data set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the end.",
+                    "label": 0
+                },
+                {
+                    "sent": "But as we go grow in with the database till the LGB M 100 we can see that just with four segments the system is unresponsive.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean we barely can generate any solutions for the for the for the different kinds, But as we go in number of segments till 32 we see how Leonel linearly scales more or less than the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The ones that are harder to compute are are the ones that imply domain and range.",
+                    "label": 0
+                },
+                {
+                    "sent": "But still we got pretty decent throughput of solutions for for these datasets.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So conclusions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bugger change reasoning can scale in a distributed environment for minimal RDF's, and there are a defragment, which is what we've implemented in in Foster.",
+                    "label": 1
+                },
+                {
+                    "sent": "For a certain concurrently perform search in indexes in Radix tries.",
+                    "label": 1
+                },
+                {
+                    "sent": "In this case with alarm awareness of the RDF semantics by just replicating a small subset of the triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the overhead of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is not.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's no magic we need to replicate bit of your knowledge base in order to be able to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the good thing, as I said before, is that this subset of triples to replicates are just the ones that are in the air ODF constructors, and that is always a small part of your of your knowledge base.",
+                    "label": 0
+                },
+                {
+                    "sent": "And just to remind the audience that the benefits of a bug would change reasoning is that is more economic in the space.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't need to assert your order expanded knowledge base into a triple store and there is no need to recompute when you run a updates in your data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This is just a few links to the forest server latest release which is synchronized with the with a first or an it also.",
+                    "label": 0
+                },
+                {
+                    "sent": "Supports most of the Lost Sparkle 1.1 features implemented in force.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "And as future work we are looking into implementing more owl can structure by studying subsets to replicate, which is like.",
+                    "label": 1
+                },
+                {
+                    "sent": "The thing that we need to look at what type of data needs to be in every data segment in order to to infer things.",
+                    "label": 0
+                },
+                {
+                    "sent": "We are we are already in conversations to merge this distribution with the main faster distribution and we would like to also look at the overhead that is added to the system with this subset replication.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Finally, I would acknowledge my project in acting to show for supporting this this research.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thank you any questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what is the overhead of doing backwards reasoning compared to just materializing everything and put it in your RDF store and asking the same queries?",
+                    "label": 0
+                },
+                {
+                    "sent": "A good question I was I was I was going to put that exactly in the future work, but I was suspecting that if I didn't put it, somebody was going to ask if I could never love it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, The thing is that that's that's difficult to study, because when you have backward chain.",
+                    "label": 0
+                },
+                {
+                    "sent": "A. Backward change are basically just triggering what parts of your of your ontology you need to explore in order to infer things.",
+                    "label": 0
+                },
+                {
+                    "sent": "When you put all your your data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically you have like a bigger, bigger, bigger index that you need to traverse, and definitely something that we need to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "I cannot answer right now with with within a specific.",
+                    "label": 0
+                },
+                {
+                    "sent": "Unsure, but yeah, it's definitely a good question that I need to look at things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Quick one, so in the database normally you would get about the order you get your results from your indices, but if you do this materialization of the data nodes you would lose this order.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do you expect that this will affect the performance of your system?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then you repeat me so many times you want to keep the data in the same order as it sorted, let's say so that it's much faster to perform your journeys.",
+                    "label": 0
+                },
+                {
+                    "sent": "But if you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Expand, Let's say the triple patterns that you get from your industries.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then they are no longer sorted or you don't understand correctly.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, The thing is that in in the case of foster this is a problem that doesn't happen in the bind operation.",
+                    "label": 0
+                },
+                {
+                    "sent": "It happens, it happens in the query engine.",
+                    "label": 0
+                },
+                {
+                    "sent": "All things with sorting an an filtering it doesn't happen in the bind.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically the answer is if you implementing when you're traversing your tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "You don't need to worry about becausw.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, in order that the basis of course your three holds the sorting and I understand that the question your question is coming from there, but in this case just because of the specific implementation in first or how it is architecture, you don't need to worry about because he's the query engine with us that an.",
+                    "label": 0
+                },
+                {
+                    "sent": "To to expand on that.",
+                    "label": 0
+                },
+                {
+                    "sent": "For store doesn't do any indexing for sorting and that's it is one of its weaknesses actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "So yeah, thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "My questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "I just had a couple of questions about the evaluation.",
+                    "label": 0
+                },
+                {
+                    "sent": "One I notice that the largest data set you uses, Lubim 1000, is that correct?",
+                    "label": 0
+                },
+                {
+                    "sent": "So if I recall, that's about 1.3 million triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "So my first question is, have you tried?",
+                    "label": 0
+                },
+                {
+                    "sent": "Do you have any evaluation results for larger datasets?",
+                    "label": 0
+                },
+                {
+                    "sent": "A more in the range of billions?",
+                    "label": 0
+                },
+                {
+                    "sent": "Yeah, yeah.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, if.",
+                    "label": 0
+                },
+                {
+                    "sent": "If Internet works.",
+                    "label": 0
+                },
+                {
+                    "sent": "I could.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if just yeah we.",
+                    "label": 0
+                },
+                {
+                    "sent": "We submitted our workshop paper last year and we had evaluation for 1/2 billion triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "We haven't gone farther than that, but mostly because of the motivation of our work is not dealing with massive datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's about implementing implementing lightweight semantics into because at the end of the day, not everybody is using 1 billion triple 510 billion triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "Many people.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean on already 100 million triples is a decent decently big.",
+                    "label": 0
+                },
+                {
+                    "sent": "We were having on that far, but at the I I. I envision that the the program when you go farther in terms of size of data set is going to be the query engine, enforced or not, the bind operation that actually you can grow in number of segments, but in the end the the query engine is a single process, so it is not paralyzed.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in the end is going to be the bottleneck if you grow the datasets.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you and I had one other comment about the contrast between the advantages and disadvantages of forward and backward chaining.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think the characterization was a little too general, general and maybe unfair, especially concerning minimal or DFS reasoning.",
+                    "label": 0
+                },
+                {
+                    "sent": "So because the minimal RDF's rules they don't detect any inconsistency on.",
+                    "label": 0
+                },
+                {
+                    "sent": "The only time that you would have to regenerate the entire all the entailments.",
+                    "label": 0
+                },
+                {
+                    "sent": "Is if you remove triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "Right, but if you're only adding triples, you don't have that concern.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can just do incremental updates to your forward chain.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, I mean, so yeah, that means certain keys.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's a fair comment, man.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's true.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean there there are people that really care about consistency checking in semantic Web application that.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there are many people as well that don't care about that Ann.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's also the reason why implementing lights among I mean don't implement in full semantics of of the RDF's profile or our profile.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are very few things here and there that really could help other communities.",
+                    "label": 0
+                },
+                {
+                    "sent": "I understand that I mean in other communities, consistency checking is a great thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a very good work on that, but my motivation is coming from a different perspective.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if I mean if we when I commented on bug were versus forward chain.",
+                    "label": 0
+                },
+                {
+                    "sent": "I I miss Josh or I did some unfair comments to that other community.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's because I I'm not part of that community.",
+                    "label": 0
+                },
+                {
+                    "sent": "But yeah, I mean for now, thanks.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK. Any more questions when you down for one more?",
+                    "label": 0
+                },
+                {
+                    "sent": "No, OK, Many thanks.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

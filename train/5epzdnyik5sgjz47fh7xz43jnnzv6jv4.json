@@ -1,0 +1,1531 @@
+{
+    "id": "5epzdnyik5sgjz47fh7xz43jnnzv6jv4",
+    "title": "Fast Euclidean Minimum Spanning Tree: Algorithm, Analysis, and Applications",
+    "info": {
+        "author": [
+            "William March, College of Computing, Georgia Institute of Technology"
+        ],
+        "published": "Oct. 1, 2010",
+        "recorded": "July 2010",
+        "category": [
+            "Top->Computer Science->Algorithms and Data Structures",
+            "Top->Computer Science->Pattern Recognition"
+        ]
+    },
+    "url": "http://videolectures.net/kdd2010_march_fem/",
+    "segmentation": [
+        [
+            "I have to apologize to everybody for our starting off the graph mining section with a talk where with a problem where area is really not amenable to a graph representation, but hopefully it'll be interesting enough to make up for that.",
+            "So I'm bill March.",
+            "This is joint work with my collaborators.",
+            "Appreciate Rahman, Alex Grey, my advisor."
+        ],
+        [
+            "Alright, so the Euclidean MST problem.",
+            "This is the same problem you saw in some undergraduate course once a long time ago.",
+            "The minimum spanning tree we have some points we have some vertices in a graph.",
+            "We need to connect them all with the lowest total weight tree.",
+            "The Euclidean version of this problem.",
+            "Now we're going to have our endpoints embedded in Euclidean space, and then we conceptually have the complete graph where the edge weights are the distances in Euclidean space alright, just to make sure everybody is on the."
+        ],
+        [
+            "So where does this get applied?",
+            "I mean, there's there's dozens of applications, just a few of their own appearance and optimization network connectivity.",
+            "There are some turbulence simulations, particle hydrodynamics, that kind of thing, percolation analysis."
+        ],
+        [
+            "Two that are really relevant here and then I want to focus on one is hierarchical clustering in general.",
+            "So if you have the Euclidean MST, if you delete all edges longer than some length from that tree, you have a clustering not only in, but you don't just have one clustering, you wind up with a whole hierarchy of them and the other one."
+        ],
+        [
+            "Really interests me is it's very fundamental astronomy.",
+            "So in astronomy they call this kind of clustering of friends of friends.",
+            "Clustering is a commonly used early datamining procedure.",
+            "On new data it's also used to identify dark matter Halos which is really important in the leading models of how galaxies form.",
+            "It's also a big way to find super large scale structure which is one of those kind of hot buzzwords in large scale cosmology these days.",
+            "So these are really motivating applications for me."
+        ],
+        [
+            "So.",
+            "Astronomy, I mean this loan is something like 15 terabytes, which I think one of the talks yesterday called medium sized data.",
+            "But the large Synoptic Sky Survey which is coming up will be several terabytes and night.",
+            "So I think that qualifies as large.",
+            "So we really need efficient algorithms for this problem.",
+            "But we're actually going to make it work."
+        ],
+        [
+            "Well, I mean it's it's the minimum spanning tree you learned about this as an undergrad.",
+            "The 1st paper on it appeared in 1926.",
+            "It's alright.",
+            "Well if you try to use a graph based approach, as in you really encode every pair of edges or every pair of nodes as an edge, then you're doing because the traditional MST algorithms and in fact any MST algorithm has to read the edge set that's order in squared.",
+            "Give up now Euclidean version of the problems been studied.",
+            "Here's just a sampling of some of the more famous papers.",
+            "There is a board diagram based approach can achieve the the lower bound of Inloggen but only in two dimensions and a lot of data are higher than two dimensional.",
+            "And then we there's a Bentley in Friedman's algorithm which is pretty effective in practice.",
+            "Will see later, but it lacks any rigorous theory and then the algorithms that have rigorous theory have some practical shortcomings and also the theory doesn't quite match up.",
+            "There's this dependence on the closest pair problem, so theoretically, even though we've been at this along time were not to be in log in lower back."
+        ],
+        [
+            "So I'm here today.",
+            "I'll present a new algorithm called Dual Tree Veruca and there's three key results I'll show here once the first application of adaptive algorithm analysis to this problem.",
+            "If you don't know what that means, don't worry.",
+            "I have slides the 2nd.",
+            "We have the tightest runtime bound to date.",
+            "We're within an absurdly small factor of this lower bound and I'll make that concrete in a minute and will also show the fastest experimental results so we're really coming at this problem from both of these angles.",
+            "The need for practical speed and also making up this deficit in the theory."
+        ],
+        [
+            "So let's let's talk about this Brook's algorithm.",
+            "It's maybe some of you aren't familiar with it, so let's just talk about MST algorithm some general briefly, so they're basically all based on what's called tarjan's blue rule, which says that if you make an edge cut, the lightest edge in that cut is in the MST.",
+            "This is why we can do greedy algorithms like Crimson Krustpils, so Brook's algorithm is a lot like kruskal's and that we have a spanning forest, and at every step we say alright will consider the cut that is a component in the forest and everything else.",
+            "And we'll find the blue edge across that cut.",
+            "But in Brook's algorithm we go ahead and we add the blue edge for every component in every iteration so you can see right away at most log N iterations were done, we have to at least have the number of components.",
+            "Hopefully more login iterations were done.",
+            "So right now I'm going to leave the runtime of Brook's algorithm as order T of N log N, where T of N is.",
+            "How do we find all these blue edges and so that should be suggested?"
+        ],
+        [
+            "Alright.",
+            "So on into the main body of the talk.",
+            "I promised I'd tell you what adaptive algorithm analysis is.",
+            "So."
+        ],
+        [
+            "Standard algorithm analysis picture.",
+            "We say what is the worst possible input my algorithm could have over all inputs we could ever come up with.",
+            "Which one is absolutely the worst?",
+            "And then that's all the information I'm going to give you with about.",
+            "Well, I mean, what about real data?",
+            "What about my data?",
+            "I don't care about the worst possible input.",
+            "I don't know how often you will see the worst possible input in practice, but it seems unlikely to me.",
+            "So adaptive analysis.",
+            "The key idea is that we're going to enumerate some properties of our data.",
+            "That make solving the problem difficult and then will prove a bound in terms of those properties.",
+            "So we wind up with a much tighter, more informative, more interesting bound that's actually related to some properties of the data.",
+            "We give it.",
+            "Well, so this has been applied for awhile now, but mostly to simple problems as you see in the list here list searching, sorting.",
+            "I mean these are not really.",
+            "Complicated algorithms and the problem is, well, how do we find these properties?",
+            "Well, I'm going to apply it here today, MST.",
+            "So what makes it difficult?",
+            "Well, like I said it just on one of the previous slides.",
+            "The key computation is finding this blue edge.",
+            "We have to find the nearest neighbor pair for each component.",
+            "We have to find the point in the component and the point not in the component that are closest.",
+            "So I'm going to come up with three properties here.",
+            "One is called the expansion constant, which is already exists in the literature, and then two whose names I may have gotten from somewhere.",
+            "The cluster expansion constant, the linkage expansion constant.",
+            "So let's go through what else?"
+        ],
+        [
+            "So the expansion constant is just defined as the smallest C such that if we double of all the number of points in this double ball is at most C times the number of points in the original volume.",
+            "Why is this informative?",
+            "Well, imagine a situation like the picture here.",
+            "So say one of our component is the point labeled Q.",
+            "We need to find the blue edge.",
+            "Well, all of these points in this disk are roughly the same distance apart.",
+            "We're not really going to be able to do anything more efficient than just enumerating all those distances and trying to find the shortest one.",
+            "So in that sense, this captures.",
+            "A way that finding the MST is difficult so."
+        ],
+        [
+            "About another case.",
+            "So say now we have a component labeled Q.",
+            "It looks like the previous case.",
+            "The problem here is that if we put a ball around Q.",
+            "And then we double it.",
+            "Maybe we only had a constant factor.",
+            "More points.",
+            "I mean, there may be a lot of points in your queue, so we'll define the cluster expansion constant.",
+            "Analogously to the expansion constant, but it's sort of a hierarchical way, so we need to deal with the data not only as points.",
+            "And how does the density change with points, but how does the density of clusters change at different scales, and so the definition is here, and you're welcome to see the paper if you want to see it more technically, but all you really need for the talk is just this kind of OK.",
+            "I want to make sure that at various levels of resolution various scales, various clusters, various sizes of clusters, I never have a situation where I go from one cluster to a very large number of clusters.",
+            "Just like before, we don't have a situation where we go from one point to a very large number of points."
+        ],
+        [
+            "Now we just have one more and again for the formal definition.",
+            "I'll leave it out here, but it's all in the paper.",
+            "So we also have to consider, well, what if we just have these two components, but a very large fraction of the points in each component or close together.",
+            "So this is also difficult, right?",
+            "Where there's really, you know we'll have to go through and compute a lot of pairwise distances to find this blue age, and so we'll define the language expansion constant to say, well, at various levels of clustering.",
+            "How do we?",
+            "How do we wind up?",
+            "You know, how badly can we do here?",
+            "And so again, the formal definition of printed is there, but but all you really need is the intuitive idea.",
+            "So.",
+            "Alright, so we've gone through some idea of what adaptive algorithm analysis is.",
+            "I've thrown a few definitions at you.",
+            "Hopefully you have an intuitive idea about what I was talking about.",
+            "If not, you can come yell at me at the post with this evening.",
+            "So let's get onto the runtime back."
+        ],
+        [
+            "But of course I've given you the algorithm yet, so maybe we should do that, so do."
+        ],
+        [
+            "True cut and don't focus too much on the pseudocode.",
+            "I'll come back to this slide as well, so don't try to understand all of it.",
+            "Now we're going to prove his algorithm, which hopefully you're not too surprised and so then we just need to come up with an effective way to find all of these blue edges in every step and what we're going to do is called the dual tree algorithm, and so this is going to use space partitioning trees to section up the space so that we only have to search a little bit to find each blue edge.",
+            "And we can do this in a way that we amortize work across all the components."
+        ],
+        [
+            "Alright.",
+            "So we'll come back to this one.",
+            "Let me first talk about the space partitioning tree.",
+            "We're going to use.",
+            "So for the proof, we use cover trees because they have some nice theoretical properties that we'll see I just want to give you a quick feel for what they are like.",
+            "So a cover tree is a level tree.",
+            "At each level we have some set of nodes and they obey an invariant that they're not too close together, and that they all have a ball that contains all of their descendants.",
+            "So I've drawn the balls here in blue, so each of the points with the Blue Star are nodes at level I, and then the points within their balls belong, or the ball contains all the descendants of that node.",
+            "So as we."
+        ],
+        [
+            "Proper level, we see that the balls shrink and so we need more of them to cover the set.",
+            "So this is all you need, just the picture.",
+            "Just bear in mind the blue disc contains all the descendants of a new."
+        ],
+        [
+            "Alright.",
+            "And the Coventry has some nice theoretical properties, constructions and log in takes order in space.",
+            "It's got log rhythmic depth where the see here is the expansion constant that I gave you before and the branching factor is bounded in terms of this C as well."
+        ],
+        [
+            "So I I talked about a dual tree algorithm.",
+            "I suppose I should tell you what that is.",
+            "So let's let's talk about how we would use a cover tree, justifying 1 blue edge.",
+            "So on the left.",
+            "Here we have a green point.",
+            "This is the component we want to find.",
+            "It's blue edge, so we descend a cover tree that we've built on the point set, and at each level we maintain some covering set here.",
+            "So these are the nodes of marked in blue and red.",
+            "In this covering set we can find the nearest point.",
+            "So among those four points, I have Green Arrow pointing to the nearest one.",
+            "So this is our candidate blue Edge.",
+            "We know the blue edges in any longer than that and that right away.",
+            "Let us prove that.",
+            "Let us throw out the two red nodes because we've been able to prove that the blue edge has to lie inside the yellow ball and all the descendants of the red nodes lie within the red balls.",
+            "We can throw them out, so there we've gotten saved ourselves more, so this is good.",
+            "And what this will get it?",
+            "This is called a single tree algorithm, because we're making use of the tree once, and this will get us to something like.",
+            "In log in time to find all the blue edges, but that's not going to be good enough because as you remember, we need to show that we can find them in order in time.",
+            "So what we use is an old query algorithm or it's called the dual tree algorithm.",
+            "So now we maintain not just this reference cover set, which again I've marked in blue and red, but we also descend a tree the tree another time, and what we call a query node and so that is a subset of the tree for which we're going to find all the blue edges.",
+            "So I've marked that node here in green, and so now we have to have a little bit bigger ball.",
+            "So you see, we again we have a candidate blue Edge.",
+            "Well, we need to look a little farther because we want to make sure that we find blue edges for.",
+            "All the descendants of our query node as well.",
+            "And so the math of all this I'll spare you, but hopefully the basic idea is clear.",
+            "Alright, so."
+        ],
+        [
+            "Come back to the algorithm now and the pseudo code did not show up too well, but basically all this says is what I just described.",
+            "We maintain a query node for which we're going to find blue edges for all of its children, and we maintain a reference cover set that I call arsof I, which is the set of all possible node.",
+            "The set of all nodes that might possibly contain.",
+            "The blue at the other end of the blue edge.",
+            "So I'll give you a flavor of the algorithm.",
+            "Again, you know there's a lot of material here and actually working through.",
+            "It's a little technical, so hopefully the pictures are and I stand in for that so."
+        ],
+        [
+            "Apply the adaptive runtime analysis that we discussed in the first section to this algorithm."
+        ],
+        [
+            "So here's the theorem.",
+            "This is the key result.",
+            "So, given a set of points in Euclidean space with expansion Constant, C cluster expansion constancy, so P language expansion constants Isabelle, the Dual Tree Brook algorithm on a cover tree runs in time order in log in Alpha of in.",
+            "So like I told you before, in log in is the lower bound, so this Alpha factor is how far were off from being optimal and Alpha van is as a functional inverse of the Ackerman function.",
+            "It comes from the use of a disjoint set data structure.",
+            "If you're familiar with those, if not, what you need to know is the last line, which is that you can bound Alpha of 10 to the 8th power with five.",
+            "So I feel like, while not optimal in a formal sense, in any kind of realistic sense, where were there?"
+        ],
+        [
+            "Alright, so I'm going to sketch this proof for you.",
+            "There are three claims claim #1 dual tree baruca requires login calls to this subroutine that finds the blue edges at most log in."
+        ],
+        [
+            "Well, that just follows from Brooke's algorithm, right?",
+            "We know that when we Add all the blue edges, we have the number of components at least.",
+            "Therefore after at most log N iterations we have one component left and we have the minimum spanning tree."
+        ],
+        [
+            "Play #2 so each part of the algorithm requires at most order in work times, the largest cover set we have to consider, so the largest set of nodes that might contain our eventual blue edges."
+        ],
+        [
+            "So this is adapted from some work that I did with my collaborators last year, so I won't go into it too much detail.",
+            "This is all cited and written out in the paper, but it basically the intuition you want to take away here is.",
+            "Then it all depends on how big this this set is.",
+            "So what we come down to is the trees are ordering in size, their login and depth and as long as each query doesn't have to consider too large a part of the reference tree, then we're fine.",
+            "So it's just the order in comes from the linear size of the tree and then we have this mysterious largest or I term."
+        ],
+        [
+            "So that brings us to the third claim.",
+            "We want to bound this largest RC by just in terms of our three expansion constants.",
+            "So let's just be clear."
+        ],
+        [
+            "A little bit on what this means, so we have again a green query node.",
+            "We have some candidate Blue Edge distance I've marked in green and then we have a ball that the we have a ball that may contain the blue edges for all the descendants of our query so."
+        ],
+        [
+            "We have two cases.",
+            "Number one, this candidate distance is small.",
+            "In this case we can use a packing argument that's really very straightforwardly adapted from the original cover tree paper when it comes down to we invoke this expansion constant, we say we can't pack too many nodes in its own level, we're done."
+        ],
+        [
+            "The other cases it's all new, so we have to ask well.",
+            "So let's ask, just conceptually, we say we have a large candidate distance.",
+            "Well, we can prove from that that within some smaller distance we've already connected everything.",
+            "That's all one component.",
+            "So now we just have a ring.",
+            "We need to look at.",
+            "We can invoke the cluster expansion constant.",
+            "We work through some bounds.",
+            "We wind up showing that there at any given stage in the algorithm after however many iterations where we've added blue edges, we never have more than season P ^2 components in this ring.",
+            "Well, that's almost there.",
+            "What we?"
+        ],
+        [
+            "Still need to ask how many points can belong to one of those components, so this is where we invoke our linkage expansion constant.",
+            "Again, return through the bound.",
+            "You know I'm having to move quickly, but we wind up showing that it's bounded by Atmos Isabelle Square.",
+            "So from all of this, from all of this, we've shown that we can bound this largest cover set just in terms of our properties of the data, and we can bound the runtime of the algorithm within log in this very very tiny Alpha N and then a function of CEC sapients izabelle.",
+            "So there we go.",
+            "We have a more informative bound than just order N squared.",
+            "In the worst case.",
+            "And it depends on these properties of the data.",
+            "So with my last few minutes here, I promise that I attacked this from both sides and it wound up that a lot more work went into the runtime bounds.",
+            "So I felt like I should spend more."
+        ],
+        [
+            "But I will show a few runtime results and just to plug my own things this this code will be available in the next release of ML pack, which is our machine learning library and you can download it there.",
+            "Hi."
+        ],
+        [
+            "So I implemented several other algorithms.",
+            "So I implemented Ultra Brut.",
+            "Gotta cover tree, which is what I've shown in the pictures.",
+            "I also implemented it on a KD tree which tends to be effective in low dimensions.",
+            "Bentley in Friedman have what is effectively a single tree implementation of trimmed algorithm, which is also pretty is good.",
+            "In practice there's a well separated parity composition.",
+            "If anyone is familiar with it is commonly used for some of these computational geometry type problems, so I implemented the best MST algorithm using that.",
+            "And then also a naive version Brook's algorithm.",
+            "So this is really a graph based approach."
+        ],
+        [
+            "So this is just some synthetic data.",
+            "Mixture of Gaussians in three dimensions and we can see that in the red we have the KD tree version of military group to and it's only slightly better than the Bentley Friedman, but quite a bit better than the others.",
+            "And we also see that it the inloggen theory is not entirely crazy."
+        ],
+        [
+            "And since I claimed that it was motivated by astronomy, I took some points from the Sloan Digital Sky Survey and.",
+            "Again, we see similar results, so you'll notice that the cover tree tends to suffer some in these low dimensional ones, so."
+        ],
+        [
+            "Can I buy dementia, Knol.",
+            "Experiment just to show that the cover tree does actually do something worthwhile so you can see in high dimensions.",
+            "Cover tree does quite a bit better.",
+            "In low dimensions the KD tree, but in all of these experiments the fastest is this dual tree brewco.",
+            "So since I."
+        ],
+        [
+            "I think I'm just about out of time that's convenient.",
+            "So I've shown you my new algorithm.",
+            "Hopefully you got some flavor of how it works, at least enough to interest you in the paper.",
+            "I showed you very briefly what adaptive algorithm analysis is where we get something better than worst case runtime bound using properties of the data.",
+            "An I applied it to the MSD problem which is a more complicated problem than any of those things that adaptive analysis been used for in the past.",
+            "I've shown the tightest runtime bound available, so it's within this absurdly small factor of inloggen, which is nice for a problem as old as this, with as much work done.",
+            "And also I've shown the fastest experimental results, so I'm not just a theorist and I can sleep well tonight.",
+            "Sorry to anybody in the audience, so thank you.",
+            "I'll be happy to take questions."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I have to apologize to everybody for our starting off the graph mining section with a talk where with a problem where area is really not amenable to a graph representation, but hopefully it'll be interesting enough to make up for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm bill March.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is joint work with my collaborators.",
+                    "label": 1
+                },
+                {
+                    "sent": "Appreciate Rahman, Alex Grey, my advisor.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so the Euclidean MST problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is the same problem you saw in some undergraduate course once a long time ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "The minimum spanning tree we have some points we have some vertices in a graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to connect them all with the lowest total weight tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Euclidean version of this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we're going to have our endpoints embedded in Euclidean space, and then we conceptually have the complete graph where the edge weights are the distances in Euclidean space alright, just to make sure everybody is on the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So where does this get applied?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, there's there's dozens of applications, just a few of their own appearance and optimization network connectivity.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are some turbulence simulations, particle hydrodynamics, that kind of thing, percolation analysis.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Two that are really relevant here and then I want to focus on one is hierarchical clustering in general.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you have the Euclidean MST, if you delete all edges longer than some length from that tree, you have a clustering not only in, but you don't just have one clustering, you wind up with a whole hierarchy of them and the other one.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Really interests me is it's very fundamental astronomy.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in astronomy they call this kind of clustering of friends of friends.",
+                    "label": 1
+                },
+                {
+                    "sent": "Clustering is a commonly used early datamining procedure.",
+                    "label": 0
+                },
+                {
+                    "sent": "On new data it's also used to identify dark matter Halos which is really important in the leading models of how galaxies form.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's also a big way to find super large scale structure which is one of those kind of hot buzzwords in large scale cosmology these days.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are really motivating applications for me.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Astronomy, I mean this loan is something like 15 terabytes, which I think one of the talks yesterday called medium sized data.",
+                    "label": 0
+                },
+                {
+                    "sent": "But the large Synoptic Sky Survey which is coming up will be several terabytes and night.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I think that qualifies as large.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we really need efficient algorithms for this problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we're actually going to make it work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Well, I mean it's it's the minimum spanning tree you learned about this as an undergrad.",
+                    "label": 0
+                },
+                {
+                    "sent": "The 1st paper on it appeared in 1926.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well if you try to use a graph based approach, as in you really encode every pair of edges or every pair of nodes as an edge, then you're doing because the traditional MST algorithms and in fact any MST algorithm has to read the edge set that's order in squared.",
+                    "label": 0
+                },
+                {
+                    "sent": "Give up now Euclidean version of the problems been studied.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's just a sampling of some of the more famous papers.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is a board diagram based approach can achieve the the lower bound of Inloggen but only in two dimensions and a lot of data are higher than two dimensional.",
+                    "label": 1
+                },
+                {
+                    "sent": "And then we there's a Bentley in Friedman's algorithm which is pretty effective in practice.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will see later, but it lacks any rigorous theory and then the algorithms that have rigorous theory have some practical shortcomings and also the theory doesn't quite match up.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's this dependence on the closest pair problem, so theoretically, even though we've been at this along time were not to be in log in lower back.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I'm here today.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll present a new algorithm called Dual Tree Veruca and there's three key results I'll show here once the first application of adaptive algorithm analysis to this problem.",
+                    "label": 1
+                },
+                {
+                    "sent": "If you don't know what that means, don't worry.",
+                    "label": 0
+                },
+                {
+                    "sent": "I have slides the 2nd.",
+                    "label": 1
+                },
+                {
+                    "sent": "We have the tightest runtime bound to date.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're within an absurdly small factor of this lower bound and I'll make that concrete in a minute and will also show the fastest experimental results so we're really coming at this problem from both of these angles.",
+                    "label": 0
+                },
+                {
+                    "sent": "The need for practical speed and also making up this deficit in the theory.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let's let's talk about this Brook's algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's maybe some of you aren't familiar with it, so let's just talk about MST algorithm some general briefly, so they're basically all based on what's called tarjan's blue rule, which says that if you make an edge cut, the lightest edge in that cut is in the MST.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is why we can do greedy algorithms like Crimson Krustpils, so Brook's algorithm is a lot like kruskal's and that we have a spanning forest, and at every step we say alright will consider the cut that is a component in the forest and everything else.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we'll find the blue edge across that cut.",
+                    "label": 1
+                },
+                {
+                    "sent": "But in Brook's algorithm we go ahead and we add the blue edge for every component in every iteration so you can see right away at most log N iterations were done, we have to at least have the number of components.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully more login iterations were done.",
+                    "label": 0
+                },
+                {
+                    "sent": "So right now I'm going to leave the runtime of Brook's algorithm as order T of N log N, where T of N is.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we find all these blue edges and so that should be suggested?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on into the main body of the talk.",
+                    "label": 1
+                },
+                {
+                    "sent": "I promised I'd tell you what adaptive algorithm analysis is.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Standard algorithm analysis picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "We say what is the worst possible input my algorithm could have over all inputs we could ever come up with.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which one is absolutely the worst?",
+                    "label": 0
+                },
+                {
+                    "sent": "And then that's all the information I'm going to give you with about.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, I mean, what about real data?",
+                    "label": 0
+                },
+                {
+                    "sent": "What about my data?",
+                    "label": 0
+                },
+                {
+                    "sent": "I don't care about the worst possible input.",
+                    "label": 1
+                },
+                {
+                    "sent": "I don't know how often you will see the worst possible input in practice, but it seems unlikely to me.",
+                    "label": 0
+                },
+                {
+                    "sent": "So adaptive analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "The key idea is that we're going to enumerate some properties of our data.",
+                    "label": 0
+                },
+                {
+                    "sent": "That make solving the problem difficult and then will prove a bound in terms of those properties.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we wind up with a much tighter, more informative, more interesting bound that's actually related to some properties of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "We give it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, so this has been applied for awhile now, but mostly to simple problems as you see in the list here list searching, sorting.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean these are not really.",
+                    "label": 0
+                },
+                {
+                    "sent": "Complicated algorithms and the problem is, well, how do we find these properties?",
+                    "label": 1
+                },
+                {
+                    "sent": "Well, I'm going to apply it here today, MST.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what makes it difficult?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, like I said it just on one of the previous slides.",
+                    "label": 1
+                },
+                {
+                    "sent": "The key computation is finding this blue edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to find the nearest neighbor pair for each component.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have to find the point in the component and the point not in the component that are closest.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'm going to come up with three properties here.",
+                    "label": 1
+                },
+                {
+                    "sent": "One is called the expansion constant, which is already exists in the literature, and then two whose names I may have gotten from somewhere.",
+                    "label": 0
+                },
+                {
+                    "sent": "The cluster expansion constant, the linkage expansion constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's go through what else?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the expansion constant is just defined as the smallest C such that if we double of all the number of points in this double ball is at most C times the number of points in the original volume.",
+                    "label": 1
+                },
+                {
+                    "sent": "Why is this informative?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, imagine a situation like the picture here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So say one of our component is the point labeled Q.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to find the blue edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, all of these points in this disk are roughly the same distance apart.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're not really going to be able to do anything more efficient than just enumerating all those distances and trying to find the shortest one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in that sense, this captures.",
+                    "label": 0
+                },
+                {
+                    "sent": "A way that finding the MST is difficult so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "About another case.",
+                    "label": 0
+                },
+                {
+                    "sent": "So say now we have a component labeled Q.",
+                    "label": 0
+                },
+                {
+                    "sent": "It looks like the previous case.",
+                    "label": 0
+                },
+                {
+                    "sent": "The problem here is that if we put a ball around Q.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we double it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe we only had a constant factor.",
+                    "label": 0
+                },
+                {
+                    "sent": "More points.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, there may be a lot of points in your queue, so we'll define the cluster expansion constant.",
+                    "label": 1
+                },
+                {
+                    "sent": "Analogously to the expansion constant, but it's sort of a hierarchical way, so we need to deal with the data not only as points.",
+                    "label": 0
+                },
+                {
+                    "sent": "And how does the density change with points, but how does the density of clusters change at different scales, and so the definition is here, and you're welcome to see the paper if you want to see it more technically, but all you really need for the talk is just this kind of OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "I want to make sure that at various levels of resolution various scales, various clusters, various sizes of clusters, I never have a situation where I go from one cluster to a very large number of clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just like before, we don't have a situation where we go from one point to a very large number of points.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now we just have one more and again for the formal definition.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll leave it out here, but it's all in the paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we also have to consider, well, what if we just have these two components, but a very large fraction of the points in each component or close together.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is also difficult, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Where there's really, you know we'll have to go through and compute a lot of pairwise distances to find this blue age, and so we'll define the language expansion constant to say, well, at various levels of clustering.",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we?",
+                    "label": 0
+                },
+                {
+                    "sent": "How do we wind up?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, how badly can we do here?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so again, the formal definition of printed is there, but but all you really need is the intuitive idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so we've gone through some idea of what adaptive algorithm analysis is.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've thrown a few definitions at you.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully you have an intuitive idea about what I was talking about.",
+                    "label": 0
+                },
+                {
+                    "sent": "If not, you can come yell at me at the post with this evening.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's get onto the runtime back.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But of course I've given you the algorithm yet, so maybe we should do that, so do.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "True cut and don't focus too much on the pseudocode.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll come back to this slide as well, so don't try to understand all of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now we're going to prove his algorithm, which hopefully you're not too surprised and so then we just need to come up with an effective way to find all of these blue edges in every step and what we're going to do is called the dual tree algorithm, and so this is going to use space partitioning trees to section up the space so that we only have to search a little bit to find each blue edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we can do this in a way that we amortize work across all the components.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we'll come back to this one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let me first talk about the space partitioning tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're going to use.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for the proof, we use cover trees because they have some nice theoretical properties that we'll see I just want to give you a quick feel for what they are like.",
+                    "label": 1
+                },
+                {
+                    "sent": "So a cover tree is a level tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "At each level we have some set of nodes and they obey an invariant that they're not too close together, and that they all have a ball that contains all of their descendants.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I've drawn the balls here in blue, so each of the points with the Blue Star are nodes at level I, and then the points within their balls belong, or the ball contains all the descendants of that node.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Proper level, we see that the balls shrink and so we need more of them to cover the set.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is all you need, just the picture.",
+                    "label": 0
+                },
+                {
+                    "sent": "Just bear in mind the blue disc contains all the descendants of a new.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the Coventry has some nice theoretical properties, constructions and log in takes order in space.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's got log rhythmic depth where the see here is the expansion constant that I gave you before and the branching factor is bounded in terms of this C as well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I I talked about a dual tree algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "I suppose I should tell you what that is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's let's talk about how we would use a cover tree, justifying 1 blue edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on the left.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we have a green point.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the component we want to find.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's blue edge, so we descend a cover tree that we've built on the point set, and at each level we maintain some covering set here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So these are the nodes of marked in blue and red.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this covering set we can find the nearest point.",
+                    "label": 0
+                },
+                {
+                    "sent": "So among those four points, I have Green Arrow pointing to the nearest one.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is our candidate blue Edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know the blue edges in any longer than that and that right away.",
+                    "label": 1
+                },
+                {
+                    "sent": "Let us prove that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let us throw out the two red nodes because we've been able to prove that the blue edge has to lie inside the yellow ball and all the descendants of the red nodes lie within the red balls.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can throw them out, so there we've gotten saved ourselves more, so this is good.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what this will get it?",
+                    "label": 1
+                },
+                {
+                    "sent": "This is called a single tree algorithm, because we're making use of the tree once, and this will get us to something like.",
+                    "label": 0
+                },
+                {
+                    "sent": "In log in time to find all the blue edges, but that's not going to be good enough because as you remember, we need to show that we can find them in order in time.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we use is an old query algorithm or it's called the dual tree algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we maintain not just this reference cover set, which again I've marked in blue and red, but we also descend a tree the tree another time, and what we call a query node and so that is a subset of the tree for which we're going to find all the blue edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I've marked that node here in green, and so now we have to have a little bit bigger ball.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you see, we again we have a candidate blue Edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we need to look a little farther because we want to make sure that we find blue edges for.",
+                    "label": 0
+                },
+                {
+                    "sent": "All the descendants of our query node as well.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so the math of all this I'll spare you, but hopefully the basic idea is clear.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Come back to the algorithm now and the pseudo code did not show up too well, but basically all this says is what I just described.",
+                    "label": 1
+                },
+                {
+                    "sent": "We maintain a query node for which we're going to find blue edges for all of its children, and we maintain a reference cover set that I call arsof I, which is the set of all possible node.",
+                    "label": 1
+                },
+                {
+                    "sent": "The set of all nodes that might possibly contain.",
+                    "label": 1
+                },
+                {
+                    "sent": "The blue at the other end of the blue edge.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I'll give you a flavor of the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, you know there's a lot of material here and actually working through.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a little technical, so hopefully the pictures are and I stand in for that so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Apply the adaptive runtime analysis that we discussed in the first section to this algorithm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So here's the theorem.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is the key result.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, given a set of points in Euclidean space with expansion Constant, C cluster expansion constancy, so P language expansion constants Isabelle, the Dual Tree Brook algorithm on a cover tree runs in time order in log in Alpha of in.",
+                    "label": 1
+                },
+                {
+                    "sent": "So like I told you before, in log in is the lower bound, so this Alpha factor is how far were off from being optimal and Alpha van is as a functional inverse of the Ackerman function.",
+                    "label": 0
+                },
+                {
+                    "sent": "It comes from the use of a disjoint set data structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you're familiar with those, if not, what you need to know is the last line, which is that you can bound Alpha of 10 to the 8th power with five.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I feel like, while not optimal in a formal sense, in any kind of realistic sense, where were there?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Alright, so I'm going to sketch this proof for you.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are three claims claim #1 dual tree baruca requires login calls to this subroutine that finds the blue edges at most log in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Well, that just follows from Brooke's algorithm, right?",
+                    "label": 1
+                },
+                {
+                    "sent": "We know that when we Add all the blue edges, we have the number of components at least.",
+                    "label": 1
+                },
+                {
+                    "sent": "Therefore after at most log N iterations we have one component left and we have the minimum spanning tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Play #2 so each part of the algorithm requires at most order in work times, the largest cover set we have to consider, so the largest set of nodes that might contain our eventual blue edges.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is adapted from some work that I did with my collaborators last year, so I won't go into it too much detail.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is all cited and written out in the paper, but it basically the intuition you want to take away here is.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it all depends on how big this this set is.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we come down to is the trees are ordering in size, their login and depth and as long as each query doesn't have to consider too large a part of the reference tree, then we're fine.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's just the order in comes from the linear size of the tree and then we have this mysterious largest or I term.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that brings us to the third claim.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to bound this largest RC by just in terms of our three expansion constants.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's just be clear.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "A little bit on what this means, so we have again a green query node.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have some candidate Blue Edge distance I've marked in green and then we have a ball that the we have a ball that may contain the blue edges for all the descendants of our query so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We have two cases.",
+                    "label": 0
+                },
+                {
+                    "sent": "Number one, this candidate distance is small.",
+                    "label": 1
+                },
+                {
+                    "sent": "In this case we can use a packing argument that's really very straightforwardly adapted from the original cover tree paper when it comes down to we invoke this expansion constant, we say we can't pack too many nodes in its own level, we're done.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The other cases it's all new, so we have to ask well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's ask, just conceptually, we say we have a large candidate distance.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we can prove from that that within some smaller distance we've already connected everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's all one component.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we just have a ring.",
+                    "label": 0
+                },
+                {
+                    "sent": "We need to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can invoke the cluster expansion constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "We work through some bounds.",
+                    "label": 0
+                },
+                {
+                    "sent": "We wind up showing that there at any given stage in the algorithm after however many iterations where we've added blue edges, we never have more than season P ^2 components in this ring.",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, that's almost there.",
+                    "label": 0
+                },
+                {
+                    "sent": "What we?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Still need to ask how many points can belong to one of those components, so this is where we invoke our linkage expansion constant.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, return through the bound.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know I'm having to move quickly, but we wind up showing that it's bounded by Atmos Isabelle Square.",
+                    "label": 0
+                },
+                {
+                    "sent": "So from all of this, from all of this, we've shown that we can bound this largest cover set just in terms of our properties of the data, and we can bound the runtime of the algorithm within log in this very very tiny Alpha N and then a function of CEC sapients izabelle.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there we go.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a more informative bound than just order N squared.",
+                    "label": 0
+                },
+                {
+                    "sent": "In the worst case.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it depends on these properties of the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "So with my last few minutes here, I promise that I attacked this from both sides and it wound up that a lot more work went into the runtime bounds.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I felt like I should spend more.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "But I will show a few runtime results and just to plug my own things this this code will be available in the next release of ML pack, which is our machine learning library and you can download it there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hi.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So I implemented several other algorithms.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I implemented Ultra Brut.",
+                    "label": 0
+                },
+                {
+                    "sent": "Gotta cover tree, which is what I've shown in the pictures.",
+                    "label": 0
+                },
+                {
+                    "sent": "I also implemented it on a KD tree which tends to be effective in low dimensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Bentley in Friedman have what is effectively a single tree implementation of trimmed algorithm, which is also pretty is good.",
+                    "label": 1
+                },
+                {
+                    "sent": "In practice there's a well separated parity composition.",
+                    "label": 0
+                },
+                {
+                    "sent": "If anyone is familiar with it is commonly used for some of these computational geometry type problems, so I implemented the best MST algorithm using that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then also a naive version Brook's algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is really a graph based approach.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_34": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So this is just some synthetic data.",
+                    "label": 0
+                },
+                {
+                    "sent": "Mixture of Gaussians in three dimensions and we can see that in the red we have the KD tree version of military group to and it's only slightly better than the Bentley Friedman, but quite a bit better than the others.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we also see that it the inloggen theory is not entirely crazy.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_35": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And since I claimed that it was motivated by astronomy, I took some points from the Sloan Digital Sky Survey and.",
+                    "label": 0
+                },
+                {
+                    "sent": "Again, we see similar results, so you'll notice that the cover tree tends to suffer some in these low dimensional ones, so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_36": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Can I buy dementia, Knol.",
+                    "label": 0
+                },
+                {
+                    "sent": "Experiment just to show that the cover tree does actually do something worthwhile so you can see in high dimensions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Cover tree does quite a bit better.",
+                    "label": 0
+                },
+                {
+                    "sent": "In low dimensions the KD tree, but in all of these experiments the fastest is this dual tree brewco.",
+                    "label": 0
+                },
+                {
+                    "sent": "So since I.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_37": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I think I'm just about out of time that's convenient.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I've shown you my new algorithm.",
+                    "label": 1
+                },
+                {
+                    "sent": "Hopefully you got some flavor of how it works, at least enough to interest you in the paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "I showed you very briefly what adaptive algorithm analysis is where we get something better than worst case runtime bound using properties of the data.",
+                    "label": 1
+                },
+                {
+                    "sent": "An I applied it to the MSD problem which is a more complicated problem than any of those things that adaptive analysis been used for in the past.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've shown the tightest runtime bound available, so it's within this absurdly small factor of inloggen, which is nice for a problem as old as this, with as much work done.",
+                    "label": 0
+                },
+                {
+                    "sent": "And also I've shown the fastest experimental results, so I'm not just a theorist and I can sleep well tonight.",
+                    "label": 1
+                },
+                {
+                    "sent": "Sorry to anybody in the audience, so thank you.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll be happy to take questions.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

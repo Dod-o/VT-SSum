@@ -1,0 +1,1432 @@
+{
+    "id": "irxsgdylfggo6gofubfslqmdwtfx3bdm",
+    "title": "One Graph is Worth a Thousand Logs: Uncovering Hidden Structures in Massive System Event Logs",
+    "info": {
+        "author": [
+            "Gilad Barash, Hewlet Packard"
+        ],
+        "published": "Oct. 20, 2009",
+        "recorded": "September 2009",
+        "category": [
+            "Top->Computer Science->Network Analysis"
+        ]
+    },
+    "url": "http://videolectures.net/ecmlpkdd09_barash_gwtluhsmsel/",
+    "segmentation": [
+        [
+            "So the first talk and we will start now because talk and it's about one class is worth 1000 blocks.",
+            "And yeah, alright.",
+            "So hi everybody, thanks for coming first of all.",
+            "I promised some people when I talked about this talk that there would be elephants and magicians and clowns.",
+            "I lied.",
+            "Sorry but I promise you that this is going to be just as magical.",
+            "So we're going to talk about the talk.",
+            "Today is about one graph is worth 1000 logs.",
+            "Uncovering hidden structures in massive system event logs and I come from.",
+            "I work at HP Labs.",
+            "This is something that we're doing for."
+        ],
+        [
+            "HP, So first of all I want to talk a little bit about the motivation.",
+            "I hope it's not too high, but you know, every large organization has a big IT environment and a big Department that has its servers and databases, firewalls, web applications, etc.",
+            "And it could be a bank, banks, insurance companies, the New York Times, everybody's got their big IT departments and all of these different IT department's have all these different components.",
+            "That right?",
+            "Millions and millions of events to their logs every day and each system component writes its own events and each one has its own format and its own information in it.",
+            "They can be either, you know just normal behavior events that just normally appear, or they could be about errors about abnormal behavior that happens in the system, and these logs are used to detect and troubleshoot the problems in the system that may."
+        ],
+        [
+            "Rise.",
+            "And so what's the problem with that?",
+            "Is that all of these many millions of events are such a high volume of data is not very amenable for human consumption.",
+            "We don't look at these logs.",
+            "These logs are written, and nobody ever looks at them.",
+            "Hardly unless there's a specific problem they need to look at, and they kind of know what they're looking for.",
+            "They know where to look, and they have to be really kind of subject matter experts in order to know what to look for.",
+            "And so it's very, very difficult.",
+            "There's a ton of information in those logs, but nobody ever.",
+            "Looks at it and the other problem is that even though it is semi structured data text data, it's also not really meant for automated consumption because every component has its own format of writing these logs.",
+            "And I mean if you even think about a time stamp for a message, there's a million in one format that it could be in, and then the messages themselves there's so many different formats, so you see that Mr. Computer kind of gets confused, doesn't really know how to read these."
+        ],
+        [
+            "And so our idea where our road map of what we wanted to do is to take all these many millions of raw message logs and sort of feed them through a grinder or through a mechanism that we call template discovery and turn it into machine readable data that now we will be able to analyze automatically through discovering templates in the in the messages.",
+            "And then as a second step, take that machine readable data and actually use the machine to read it.",
+            "And using our parents algorithm, which we'll talk about in the second part of the talk.",
+            "Turn it into basically human readable data that helps us to analyze it and enables us to look at all of this huge volume of data visual."
+        ],
+        [
+            "So with that, let's take a look at these logs and see what what it is that we're kind of dealing with, and you can see that this is an example of just log messages in raw form and you can see they've got timestamp and then some text, some numbers, and then some of these messages.",
+            "Kind of look similar to one another, but there are some differences or some words that vary, but some words that look like they kind of are the same in the same place."
+        ],
+        [
+            "And if we kind of rearrange these messages, we can start to see that there are patterns occurring.",
+            "So for example, you see that a lot of messages have mostly the same text, but then some words very in them, and those are the ones that are highlighted in orange.",
+            "So you can see.",
+            "These words are variable words, so we can kind of divide the the the text in the messages into two.",
+            "There's sort of the words that always stay the same, and that's kind of the template.",
+            "And then there are the words that differ in.",
+            "Those are the variable words and.",
+            "So this is the kind of thing that we would like to be able to discover is to find those templates and those variable words.",
+            "And if you look, you see that even though there are 11 messages here, there really 9 distinct messages that have any changes in them.",
+            "But there are really only four templates, and then there.",
+            "Respected respected variable words."
+        ],
+        [
+            "So we set about trying to create this algorithm for this template discovery, but we had to keep in mind a couple of requirements due to the nature of the environment that we wanted to implement it in first is that it had to be efficient and keep up with incoming message rates.",
+            "Now, as we said, these are components that live in the IT environment and messages come in at hundreds or thousands of messages a minute, and this algorithm and this mechanism needs to keep up with that and be able to.",
+            "Process all of those.",
+            "It needs to be consistent overtime obviously, and to assign the templates consistently overtime.",
+            "So a template that gets assigned in the morning needs to be the assigned to the same template as it is later on.",
+            "And it's online.",
+            "Like we said, these logs occur all the time and in order to get immediate value from it, we want to not have to do sort of offline processing once every once in a while.",
+            "We want to have that information ready as we go.",
+            "And so that leads to some constraints in the algorithm."
+        ],
+        [
+            "That will see in a minute.",
+            "Choose me so the template discovery algorithm kind of goes something like this.",
+            "It's incremental text clustering where the first step is sort of doing a rough clustering by either creating root clusters for new messages that come in, or assigning these messages to existing clusters based on their similarity.",
+            "Two existing clusters and then the second step is every once in a while.",
+            "We do cluster refinement where we take existing root clusters and we split them into child clusters.",
+            "Depending on the information in them.",
+            "If we see that there are enough messages in a root cluster that warrant their own cluster for finer granularity, we will then go and split that cluster into child clusters.",
+            "So ultimately what we have is a forest of clusters."
+        ],
+        [
+            "Of cluster trees.",
+            "So let's take a look.",
+            "Dive a little deeper into the algorithm.",
+            "So as far as the rough clustering is concerned, it's a pretty straightforward thing.",
+            "We get a log messages and then we compare it to existing clusters.",
+            "We use a cosine distance formula to compare it with the threshold.",
+            "If that message is similar enough based on the threshold, it gets added to the existing cluster, and if it's not similar enough.",
+            "If we don't find any existing cluster to add it to.",
+            "Use it to create a brand new root cluster.",
+            "Now if it does get added to A to an existing cluster, then we also check to see if that cluster needs to be split subsequently because of that addition.",
+            "OK, so pretty straightforward now.",
+            "Let's take a look and see how it."
+        ],
+        [
+            "Split is actually performed, so if we want to refine the clusters, what we do is we look at the messages and let's say a message.",
+            "The cluster message has maybe 5 words in it, so it's those five positions that could have variable words in them, and so we decide whether or not to split based on the entropy of the each of the word positions.",
+            "So if we look at the variability of words in each position, and if we think that position has enough variability of words in it.",
+            "Then we decide to split on it.",
+            "And so we compute the entropy of each word position and then we look and see whether or not that entropy is within a range.",
+            "So the reason we have a range is that, well, certainly if the entropy is zero and all the words are the same or not, there's nothing to split on, so we have sort of a minimum entropy that we want to look at.",
+            "And then we also have a maximum entropy, because if the entropy is very very high and there's just a ton of variability and every word is different, then there's really nothing to split on again because there's no group that is statistically significant enough to warrant a split into its own cluster.",
+            "So we look at a certain range and then.",
+            "We choose the minimum that falls within that range for that position."
+        ],
+        [
+            "And so let's take a look at an example.",
+            "I'll walk you through an example of how this thing kind of goes.",
+            "So we have our template discovery algorithm with our cosine distance function an our similarity threshold is going to be 0.8, so the first message comes in to the log M1.",
+            "It's the brand new message, so a new cluster gets created for that message.",
+            "Now the second message comes in and there's this one cluster it gets compared to it, and it sees that the similarity is 0.91.",
+            "That's above the threshold it gets added to that existing cluster.",
+            "Now Message 3 comes in.",
+            "It gets compared to that first cluster, but the similarity is 0.5 and that's below the threshold.",
+            "So M3 goes into its own separate cluster.",
+            "And now Message 4 comes in again.",
+            "It gets checked, it gets compared to the first cluster similarity is 0.8.",
+            "Three it's above the threshold.",
+            "It gets added into it.",
+            "So that's basically how the rough clustering goes.",
+            "But now let's see what happens.",
+            "For splitting purposes, let's say that we continue on overtime.",
+            "We get a thousand appearances of M4 and another 800 appearances of another message.",
+            "That has a couple of differences with M4, and so we say OK, there's enough of M4 in that cluster to maybe warrant splitting it off into its own child plus."
+        ],
+        [
+            "So then we go about deciding what to split on an.",
+            "So we compare the messages we've got M4 up there and the other message and we see that in the 1234 in the 5th column there's a difference in words and then also in the 7th column.",
+            "The bottom message can have any number of different words in there, but M4 doesn't.",
+            "So we set about calculating the entropy for each of these positions, and you can see that in the positions where the words are the same, entropy is zero in this case, in the 5th column the entropy is 0.15 and in the last column it's 0.45 due to the different occurrences of different words that happen there.",
+            "So we've got two columns that we might want to split on an based on the formula of looking at the minimum of the two that fall within the range, we decide that we're going to split on.",
+            "Column 5 in those words."
+        ],
+        [
+            "So.",
+            "We come back to our little demo here.",
+            "So now this cluster is going to get split.",
+            "So we take part of the cluster into a child cluster into one child cluster, and then M4 gets put into its own child cluster and now we have three clusters that we're working with.",
+            "And So what happens if a new message comes in?",
+            "Let's see what the mechanism would look like.",
+            "Now Message 5 comes in now and based on its center based on its similarity and the cosine distance function, we see that it does actually belong to this root cluster, so it will go ahead and get put into that root cluster, but.",
+            "Because now there are child clusters underneath it.",
+            "It needs to get put into the appropriate child cluster and so it gets compared and ultimately gets put into the correct child cluster underneath that route."
+        ],
+        [
+            "OK, So what we've done now?",
+            "We've created these templates.",
+            "We've discovered these templates and each one of these templates.",
+            "Each one of these messages has gotten its ID, and so now it's sort of it's machine readable data because we've identified them, we have.",
+            "We've given them unique IDs.",
+            "Then we can look at them and see how we can analyze them.",
+            "So of course, now Mr Computer is a little happier that he can work with these, and so we look at a stream again of all these messages that come in.",
+            "From the log.",
+            "And so it's great that we can identify these messages that the next step is these messages may belong to different processes that are happening in the system at the same time, and we would like to be able to separate them into different processes or into groups of messages based on what's going on in the system.",
+            "Or in other words, to discover these process patterns.",
+            "Because this flow of the stream of messages actually can get divided into two different groups of messages, each one describing a different process.",
+            "In this case, for example the left process.",
+            "It has to do those messages, have to do with database connection, startup and the right process has to do with service manager, startup Service Manager being an HP enterprise management software.",
+            "So we want to be able to split these out and discover which messages belong to which process is part of the challenges of that.",
+            "Are that maybe the same message might appear in different processes?",
+            "So how do you know which one it belongs to?",
+            "And sometimes you might have optional messages you might have, depending on how maybe the startup parameters of a certain process depending on.",
+            "The time of day it could be that certain messages appear in certain messages sometimes don't appear, so you have to take that into account when you're trying to find the.",
+            "The systematics of it and the way that we do it is with the Paris algorithm or the principle Atom recognition insets, which identifies the sets of events that tend to occur together, although they don't have to always occur together, and it has no innate knowledge of the messages and what's great about it is that ultimately it provides sort of an enhanced view of the system behavior dynamics, and you can kind of take a more Birds Eye view of what's going on, not looking at specific messages, but looking at processes that happen overtime."
+        ],
+        [
+            "So talk a little bit about Paris.",
+            "Its input is a large number of sets that are assumed to have some mutual characterization, and it detects principle sets of these elements that tend to appear together in the data.",
+            "And it overcomes non exact repetition so that it doesn't.",
+            "They don't always have to appear exactly the same and it can ignore additional noise.",
+            "And we found uses for it in analysis compression an anomaly detection to look at the data.",
+            "And So what happens is when you look.",
+            "If you look here you can see this sort of a representation of it you have.",
+            "This is sort of a timeline.",
+            "These sets are time windows that happen overtime and the elements are the messages from the logs and you can see that some messages happen at certain time.",
+            "Windows and some messages don't, and So what Paris does is it starts to take a look at what messages always appear together in time windows and so.",
+            "For example, if you can't, I guess you can kind of see the red messages that just appeared.",
+            "All of these read messages always appear together, so it creates an Atom.",
+            "Of red messages while at the top the representation it shows in what time Windows did these atoms of red, the red Atom appear.",
+            "And then it does the same for the blue messages, so again it looks and sees OK. All of these messages appear together too, so I'm going to create an Atom for those messages, but also have a representation up top and say OK in these time Windows.",
+            "These blue messages appear to the blue Atom and so on and so forth.",
+            "Maybe the yellow you can see better, so ultimately up there.",
+            "If you look you have a representation and you can see at each time window over the course of the loves what atoms appeared."
+        ],
+        [
+            "Together so the representation error for this algorithm must be small, but it doesn't necessarily have to be 0 and it should serve some sense of compression of the data and try and find the minimal number of these atoms that represent the data.",
+            "And of course there's a tradeoff here between trying to compress and trying to represent the data."
+        ],
+        [
+            "As much as possible and we do this with the Paris cost function.",
+            "Which minimizes the representation error of the data, but also minimizes the size of the representation and the number of principle atoms."
+        ],
+        [
+            "So now let's take a look at some exciting results that we have.",
+            "We ran our experimentations on four different datasets that we got.",
+            "Two of them are business application datasets, logs from business applications at HP.",
+            "One of them is a log in error log of printer press from one of our subsidiaries and then one log was a Windows event log from just a Windows Server at our lab that we took at the Windows events.",
+            "That happened to happen there.",
+            "So what we saw was that the number of events.",
+            "First of all the raw events, just the overall number of messages with duplicates with everything.",
+            "Was these numbers?",
+            "You can see that the business app had the highest number there, about 4 million.",
+            "Overall messages, but if you try to pair those down to the distinct messages, you got a magnitude smaller.",
+            "You got 150,000 messages there in that business application, so you see if you just looked at the distinct messages, the unique ones.",
+            "Of course you already."
+        ],
+        [
+            "At a smaller representation, but if you used our template discovery and looked at the clusters, now you were able to represent all of those messages with even less data, so that 4 million messages now turns into 4000.",
+            "That we can that we can represent.",
+            "And so now the amount of data that first of all this is great for compression, because now the amount of data that we have to save to the database in order to be able to reproduce these logs is much, much, much smaller.",
+            "And this of course helps with if we want to do data manipulation.",
+            "If we want to do searches, and so in the difference we looked at the difference of the volume of data that we saved.",
+            "So if in the unique messages you had to save, you know all the words of the messages to the database.",
+            "In this case, in the number of clusters you only have to save the templates and then the variable words themselves.",
+            "So.",
+            "Now you might ask yourself, OK, that's great that you can reduce the data that much, but how is accuracy I mean, how accurate are you with this representation?",
+            "And so we compared our clustering to the Windows events and we found a 95% accuracy in representation.",
+            "The reason that we compared it to Windows events is because Windows events have their own ID's.",
+            "As part of the system so we could compare them, and then the reason that we didn't get better than 95% is actually Windows fault really, because we found that Windows events had identical messages that suddenly had different IDs and different messages that had the same ID, and so we don't do that so.",
+            "When we compared, we saw that we had 95."
+        ],
+        [
+            "And accuracy, and as far as what I mentioned a minute ago.",
+            "As far as the amount of data that we had to save to the database, we could reduce the the size of it by 90% in the case of the business app one and the bigger the log, the more data, the higher that number is going to go because you're going to have more repetition, so we're able to save only 10% of the data and yet still be able to reproduce the logs fully if we need too.",
+            "So obviously that's great for compression.",
+            "And great for data manipulation."
+        ],
+        [
+            "In searching but now let's take a look at really what the crux of the issue is and how we can visualize these logs.",
+            "Anan and analyze them and look at them with the human eye.",
+            "So what you're looking at here is a graph of these messages that happen overtime, and so our axis here, the X axis is a timeline and the Y axis is the message ID that we discovered, and we look and we see that there are different messages that happen overtime.",
+            "First of all, this one graph that you're looking at has 70,000 distinct messages that appear in this one graph view.",
+            "And as you look at it, you may start to notice there are certain things that tend to happen over and over again.",
+            "There are certain behavioral patterns that you can you can sort of identify.",
+            "There are some things that tend to happen over and over again, and this is already easy for us to identify with the naked eye.",
+            "But this is also what Paris does automatically.",
+            "And so.",
+            "That's why we say that one graph is worth 1000 logs because you can add.",
+            "You can have multiple sources.",
+            "You can have logs can get processed simultaneously from all of your web servers in your database servers in your web applications, and look at all of them together in one place and maybe even see sort of."
+        ],
+        [
+            "The correlations between events that happen and then what Paris was able to do.",
+            "If we look at the log of business app to it looks at different areas in the logs and say OK, well I see that certain ideas tend to always happen together.",
+            "So in this case it had an Atom of messages that happen together.",
+            "And in other cases as well, it looked and saw that it had messages that always tended to happen together.",
+            "In this case, it identified a service restart that happened, so wouldn't it be wonderful if instead of looking at all these little dots, we can actually look at big processes and say this is what happened here?",
+            "You know, should it have happened?",
+            "Should not have happened?",
+            "It's A wonderful tool for troubleshooting and."
+        ],
+        [
+            "Understanding the behavior of the system.",
+            "So to summarize, the template creation is a lossless reduction in size of data, and it makes the data more machine readable, which then Paris comes in and makes it human readable.",
+            "Which has we believe strategic importance in managing your IT environment."
+        ],
+        [
+            "That's it.",
+            "Questions.",
+            "We have like 25 minutes for questions.",
+            "Interface on with.",
+            "How does that relate to something like information gain major?",
+            "I mean, I guess it's kind of similar, but I think it's kind of similar.",
+            "And basically we want to find.",
+            "That there is enough variability in there, but enough stability to warrant its own cluster that we want to get as fine tuned as we can in the representation and yet not too stable that it wouldn't want to split.",
+            "Yes.",
+            "So I guess that you have these things are coming from.",
+            "Executables you could sort of friends remix cuticles and find out you know what the printf is or something like that.",
+            "Then you considered kind of doing something like that.",
+            "We have considered.",
+            "And yes actually.",
+            "I mean this could be run on anything.",
+            "It doesn't necessarily have to be logged in.",
+            "As a matter of fact, one of the being labs.",
+            "We then shop this out technology out to different product groups within HP an actually have one product group that uses this to cluster queries that.",
+            "Users do to find sort of to do session identification, so I mean there are many uses that this could be used for and that is one of them that we're kind of starting to look at.",
+            "Yes, you mentioned weblogs.",
+            "How would you?",
+            "How would you imagine this technology being useful with looking like in Apache log?",
+            "Well, we do run it on Apache and what the beauty I think of this and what really where the power in the.",
+            "Potential of it is, I mean, it's great to look at Apache logs and you can see the system behavior, but the really great potential is when you add the other.",
+            "If you add your tomcat and your web application in the database and you Add all of these logs together and then you see the behavior together of all of these and not that you can, you know maybe infer A cause and effect by seeing what happens before what.",
+            "But it certainly allows you an any form out of logs that you.",
+            "No, you can run through this and look and see the behavior.",
+            "Certainly we've run it on Apache logs, also curious.",
+            "It will be useful to discover patterns and user behavior with respect to requests and stuff.",
+            "Yes, and depending on what the input strings are and how they're formulated, and but certainly it can be, I think adapted to that yes.",
+            "Questions.",
+            "Alright, yes.",
+            "If Tool ready which you give to the to your user, is it possible to get them or making?",
+            "Did you plan to make it available so that other people can use it outside?",
+            "Good question.",
+            "It we have, it is actually it's good.",
+            "We could have probably done a demo 'cause there's a whole UI to it that we put together.",
+            "And of course it is a prototype and it's a sort of proof of concept.",
+            "We don't have something ready like that.",
+            "If somebody is interested, we can definitely, you know we can talk.",
+            "OK, alright thank you."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So the first talk and we will start now because talk and it's about one class is worth 1000 blocks.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yeah, alright.",
+                    "label": 0
+                },
+                {
+                    "sent": "So hi everybody, thanks for coming first of all.",
+                    "label": 0
+                },
+                {
+                    "sent": "I promised some people when I talked about this talk that there would be elephants and magicians and clowns.",
+                    "label": 0
+                },
+                {
+                    "sent": "I lied.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry but I promise you that this is going to be just as magical.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're going to talk about the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Today is about one graph is worth 1000 logs.",
+                    "label": 1
+                },
+                {
+                    "sent": "Uncovering hidden structures in massive system event logs and I come from.",
+                    "label": 1
+                },
+                {
+                    "sent": "I work at HP Labs.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is something that we're doing for.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "HP, So first of all I want to talk a little bit about the motivation.",
+                    "label": 0
+                },
+                {
+                    "sent": "I hope it's not too high, but you know, every large organization has a big IT environment and a big Department that has its servers and databases, firewalls, web applications, etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it could be a bank, banks, insurance companies, the New York Times, everybody's got their big IT departments and all of these different IT department's have all these different components.",
+                    "label": 0
+                },
+                {
+                    "sent": "That right?",
+                    "label": 0
+                },
+                {
+                    "sent": "Millions and millions of events to their logs every day and each system component writes its own events and each one has its own format and its own information in it.",
+                    "label": 1
+                },
+                {
+                    "sent": "They can be either, you know just normal behavior events that just normally appear, or they could be about errors about abnormal behavior that happens in the system, and these logs are used to detect and troubleshoot the problems in the system that may.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Rise.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so what's the problem with that?",
+                    "label": 1
+                },
+                {
+                    "sent": "Is that all of these many millions of events are such a high volume of data is not very amenable for human consumption.",
+                    "label": 1
+                },
+                {
+                    "sent": "We don't look at these logs.",
+                    "label": 0
+                },
+                {
+                    "sent": "These logs are written, and nobody ever looks at them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hardly unless there's a specific problem they need to look at, and they kind of know what they're looking for.",
+                    "label": 0
+                },
+                {
+                    "sent": "They know where to look, and they have to be really kind of subject matter experts in order to know what to look for.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so it's very, very difficult.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a ton of information in those logs, but nobody ever.",
+                    "label": 0
+                },
+                {
+                    "sent": "Looks at it and the other problem is that even though it is semi structured data text data, it's also not really meant for automated consumption because every component has its own format of writing these logs.",
+                    "label": 0
+                },
+                {
+                    "sent": "And I mean if you even think about a time stamp for a message, there's a million in one format that it could be in, and then the messages themselves there's so many different formats, so you see that Mr. Computer kind of gets confused, doesn't really know how to read these.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And so our idea where our road map of what we wanted to do is to take all these many millions of raw message logs and sort of feed them through a grinder or through a mechanism that we call template discovery and turn it into machine readable data that now we will be able to analyze automatically through discovering templates in the in the messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then as a second step, take that machine readable data and actually use the machine to read it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And using our parents algorithm, which we'll talk about in the second part of the talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "Turn it into basically human readable data that helps us to analyze it and enables us to look at all of this huge volume of data visual.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So with that, let's take a look at these logs and see what what it is that we're kind of dealing with, and you can see that this is an example of just log messages in raw form and you can see they've got timestamp and then some text, some numbers, and then some of these messages.",
+                    "label": 0
+                },
+                {
+                    "sent": "Kind of look similar to one another, but there are some differences or some words that vary, but some words that look like they kind of are the same in the same place.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And if we kind of rearrange these messages, we can start to see that there are patterns occurring.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, you see that a lot of messages have mostly the same text, but then some words very in them, and those are the ones that are highlighted in orange.",
+                    "label": 0
+                },
+                {
+                    "sent": "So you can see.",
+                    "label": 0
+                },
+                {
+                    "sent": "These words are variable words, so we can kind of divide the the the text in the messages into two.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's sort of the words that always stay the same, and that's kind of the template.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then there are the words that differ in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those are the variable words and.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the kind of thing that we would like to be able to discover is to find those templates and those variable words.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you look, you see that even though there are 11 messages here, there really 9 distinct messages that have any changes in them.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there are really only four templates, and then there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Respected respected variable words.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we set about trying to create this algorithm for this template discovery, but we had to keep in mind a couple of requirements due to the nature of the environment that we wanted to implement it in first is that it had to be efficient and keep up with incoming message rates.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now, as we said, these are components that live in the IT environment and messages come in at hundreds or thousands of messages a minute, and this algorithm and this mechanism needs to keep up with that and be able to.",
+                    "label": 0
+                },
+                {
+                    "sent": "Process all of those.",
+                    "label": 0
+                },
+                {
+                    "sent": "It needs to be consistent overtime obviously, and to assign the templates consistently overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a template that gets assigned in the morning needs to be the assigned to the same template as it is later on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's online.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like we said, these logs occur all the time and in order to get immediate value from it, we want to not have to do sort of offline processing once every once in a while.",
+                    "label": 0
+                },
+                {
+                    "sent": "We want to have that information ready as we go.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so that leads to some constraints in the algorithm.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "That will see in a minute.",
+                    "label": 0
+                },
+                {
+                    "sent": "Choose me so the template discovery algorithm kind of goes something like this.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's incremental text clustering where the first step is sort of doing a rough clustering by either creating root clusters for new messages that come in, or assigning these messages to existing clusters based on their similarity.",
+                    "label": 1
+                },
+                {
+                    "sent": "Two existing clusters and then the second step is every once in a while.",
+                    "label": 0
+                },
+                {
+                    "sent": "We do cluster refinement where we take existing root clusters and we split them into child clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "Depending on the information in them.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we see that there are enough messages in a root cluster that warrant their own cluster for finer granularity, we will then go and split that cluster into child clusters.",
+                    "label": 1
+                },
+                {
+                    "sent": "So ultimately what we have is a forest of clusters.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Of cluster trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let's take a look.",
+                    "label": 0
+                },
+                {
+                    "sent": "Dive a little deeper into the algorithm.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as far as the rough clustering is concerned, it's a pretty straightforward thing.",
+                    "label": 1
+                },
+                {
+                    "sent": "We get a log messages and then we compare it to existing clusters.",
+                    "label": 1
+                },
+                {
+                    "sent": "We use a cosine distance formula to compare it with the threshold.",
+                    "label": 0
+                },
+                {
+                    "sent": "If that message is similar enough based on the threshold, it gets added to the existing cluster, and if it's not similar enough.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we don't find any existing cluster to add it to.",
+                    "label": 1
+                },
+                {
+                    "sent": "Use it to create a brand new root cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if it does get added to A to an existing cluster, then we also check to see if that cluster needs to be split subsequently because of that addition.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so pretty straightforward now.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's take a look and see how it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Split is actually performed, so if we want to refine the clusters, what we do is we look at the messages and let's say a message.",
+                    "label": 0
+                },
+                {
+                    "sent": "The cluster message has maybe 5 words in it, so it's those five positions that could have variable words in them, and so we decide whether or not to split based on the entropy of the each of the word positions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if we look at the variability of words in each position, and if we think that position has enough variability of words in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we decide to split on it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we compute the entropy of each word position and then we look and see whether or not that entropy is within a range.",
+                    "label": 1
+                },
+                {
+                    "sent": "So the reason we have a range is that, well, certainly if the entropy is zero and all the words are the same or not, there's nothing to split on, so we have sort of a minimum entropy that we want to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we also have a maximum entropy, because if the entropy is very very high and there's just a ton of variability and every word is different, then there's really nothing to split on again because there's no group that is statistically significant enough to warrant a split into its own cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we look at a certain range and then.",
+                    "label": 0
+                },
+                {
+                    "sent": "We choose the minimum that falls within that range for that position.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And so let's take a look at an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'll walk you through an example of how this thing kind of goes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have our template discovery algorithm with our cosine distance function an our similarity threshold is going to be 0.8, so the first message comes in to the log M1.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's the brand new message, so a new cluster gets created for that message.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the second message comes in and there's this one cluster it gets compared to it, and it sees that the similarity is 0.91.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's above the threshold it gets added to that existing cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now Message 3 comes in.",
+                    "label": 0
+                },
+                {
+                    "sent": "It gets compared to that first cluster, but the similarity is 0.5 and that's below the threshold.",
+                    "label": 0
+                },
+                {
+                    "sent": "So M3 goes into its own separate cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "And now Message 4 comes in again.",
+                    "label": 0
+                },
+                {
+                    "sent": "It gets checked, it gets compared to the first cluster similarity is 0.8.",
+                    "label": 0
+                },
+                {
+                    "sent": "Three it's above the threshold.",
+                    "label": 0
+                },
+                {
+                    "sent": "It gets added into it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's basically how the rough clustering goes.",
+                    "label": 0
+                },
+                {
+                    "sent": "But now let's see what happens.",
+                    "label": 0
+                },
+                {
+                    "sent": "For splitting purposes, let's say that we continue on overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "We get a thousand appearances of M4 and another 800 appearances of another message.",
+                    "label": 1
+                },
+                {
+                    "sent": "That has a couple of differences with M4, and so we say OK, there's enough of M4 in that cluster to maybe warrant splitting it off into its own child plus.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So then we go about deciding what to split on an.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we compare the messages we've got M4 up there and the other message and we see that in the 1234 in the 5th column there's a difference in words and then also in the 7th column.",
+                    "label": 0
+                },
+                {
+                    "sent": "The bottom message can have any number of different words in there, but M4 doesn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we set about calculating the entropy for each of these positions, and you can see that in the positions where the words are the same, entropy is zero in this case, in the 5th column the entropy is 0.15 and in the last column it's 0.45 due to the different occurrences of different words that happen there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've got two columns that we might want to split on an based on the formula of looking at the minimum of the two that fall within the range, we decide that we're going to split on.",
+                    "label": 0
+                },
+                {
+                    "sent": "Column 5 in those words.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "We come back to our little demo here.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now this cluster is going to get split.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we take part of the cluster into a child cluster into one child cluster, and then M4 gets put into its own child cluster and now we have three clusters that we're working with.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what happens if a new message comes in?",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's see what the mechanism would look like.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now Message 5 comes in now and based on its center based on its similarity and the cosine distance function, we see that it does actually belong to this root cluster, so it will go ahead and get put into that root cluster, but.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because now there are child clusters underneath it.",
+                    "label": 0
+                },
+                {
+                    "sent": "It needs to get put into the appropriate child cluster and so it gets compared and ultimately gets put into the correct child cluster underneath that route.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, So what we've done now?",
+                    "label": 0
+                },
+                {
+                    "sent": "We've created these templates.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've discovered these templates and each one of these templates.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each one of these messages has gotten its ID, and so now it's sort of it's machine readable data because we've identified them, we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've given them unique IDs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we can look at them and see how we can analyze them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So of course, now Mr Computer is a little happier that he can work with these, and so we look at a stream again of all these messages that come in.",
+                    "label": 0
+                },
+                {
+                    "sent": "From the log.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so it's great that we can identify these messages that the next step is these messages may belong to different processes that are happening in the system at the same time, and we would like to be able to separate them into different processes or into groups of messages based on what's going on in the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or in other words, to discover these process patterns.",
+                    "label": 0
+                },
+                {
+                    "sent": "Because this flow of the stream of messages actually can get divided into two different groups of messages, each one describing a different process.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, for example the left process.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has to do those messages, have to do with database connection, startup and the right process has to do with service manager, startup Service Manager being an HP enterprise management software.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we want to be able to split these out and discover which messages belong to which process is part of the challenges of that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Are that maybe the same message might appear in different processes?",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do you know which one it belongs to?",
+                    "label": 0
+                },
+                {
+                    "sent": "And sometimes you might have optional messages you might have, depending on how maybe the startup parameters of a certain process depending on.",
+                    "label": 0
+                },
+                {
+                    "sent": "The time of day it could be that certain messages appear in certain messages sometimes don't appear, so you have to take that into account when you're trying to find the.",
+                    "label": 0
+                },
+                {
+                    "sent": "The systematics of it and the way that we do it is with the Paris algorithm or the principle Atom recognition insets, which identifies the sets of events that tend to occur together, although they don't have to always occur together, and it has no innate knowledge of the messages and what's great about it is that ultimately it provides sort of an enhanced view of the system behavior dynamics, and you can kind of take a more Birds Eye view of what's going on, not looking at specific messages, but looking at processes that happen overtime.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So talk a little bit about Paris.",
+                    "label": 0
+                },
+                {
+                    "sent": "Its input is a large number of sets that are assumed to have some mutual characterization, and it detects principle sets of these elements that tend to appear together in the data.",
+                    "label": 1
+                },
+                {
+                    "sent": "And it overcomes non exact repetition so that it doesn't.",
+                    "label": 0
+                },
+                {
+                    "sent": "They don't always have to appear exactly the same and it can ignore additional noise.",
+                    "label": 0
+                },
+                {
+                    "sent": "And we found uses for it in analysis compression an anomaly detection to look at the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And So what happens is when you look.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look here you can see this sort of a representation of it you have.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is sort of a timeline.",
+                    "label": 0
+                },
+                {
+                    "sent": "These sets are time windows that happen overtime and the elements are the messages from the logs and you can see that some messages happen at certain time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Windows and some messages don't, and So what Paris does is it starts to take a look at what messages always appear together in time windows and so.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, if you can't, I guess you can kind of see the red messages that just appeared.",
+                    "label": 0
+                },
+                {
+                    "sent": "All of these read messages always appear together, so it creates an Atom.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of red messages while at the top the representation it shows in what time Windows did these atoms of red, the red Atom appear.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then it does the same for the blue messages, so again it looks and sees OK. All of these messages appear together too, so I'm going to create an Atom for those messages, but also have a representation up top and say OK in these time Windows.",
+                    "label": 0
+                },
+                {
+                    "sent": "These blue messages appear to the blue Atom and so on and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "Maybe the yellow you can see better, so ultimately up there.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you look you have a representation and you can see at each time window over the course of the loves what atoms appeared.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Together so the representation error for this algorithm must be small, but it doesn't necessarily have to be 0 and it should serve some sense of compression of the data and try and find the minimal number of these atoms that represent the data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course there's a tradeoff here between trying to compress and trying to represent the data.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "As much as possible and we do this with the Paris cost function.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which minimizes the representation error of the data, but also minimizes the size of the representation and the number of principle atoms.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now let's take a look at some exciting results that we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "We ran our experimentations on four different datasets that we got.",
+                    "label": 0
+                },
+                {
+                    "sent": "Two of them are business application datasets, logs from business applications at HP.",
+                    "label": 0
+                },
+                {
+                    "sent": "One of them is a log in error log of printer press from one of our subsidiaries and then one log was a Windows event log from just a Windows Server at our lab that we took at the Windows events.",
+                    "label": 0
+                },
+                {
+                    "sent": "That happened to happen there.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we saw was that the number of events.",
+                    "label": 1
+                },
+                {
+                    "sent": "First of all the raw events, just the overall number of messages with duplicates with everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "Was these numbers?",
+                    "label": 1
+                },
+                {
+                    "sent": "You can see that the business app had the highest number there, about 4 million.",
+                    "label": 0
+                },
+                {
+                    "sent": "Overall messages, but if you try to pair those down to the distinct messages, you got a magnitude smaller.",
+                    "label": 0
+                },
+                {
+                    "sent": "You got 150,000 messages there in that business application, so you see if you just looked at the distinct messages, the unique ones.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course you already.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "At a smaller representation, but if you used our template discovery and looked at the clusters, now you were able to represent all of those messages with even less data, so that 4 million messages now turns into 4000.",
+                    "label": 0
+                },
+                {
+                    "sent": "That we can that we can represent.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so now the amount of data that first of all this is great for compression, because now the amount of data that we have to save to the database in order to be able to reproduce these logs is much, much, much smaller.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this of course helps with if we want to do data manipulation.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we want to do searches, and so in the difference we looked at the difference of the volume of data that we saved.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if in the unique messages you had to save, you know all the words of the messages to the database.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, in the number of clusters you only have to save the templates and then the variable words themselves.",
+                    "label": 1
+                },
+                {
+                    "sent": "So.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now you might ask yourself, OK, that's great that you can reduce the data that much, but how is accuracy I mean, how accurate are you with this representation?",
+                    "label": 0
+                },
+                {
+                    "sent": "And so we compared our clustering to the Windows events and we found a 95% accuracy in representation.",
+                    "label": 1
+                },
+                {
+                    "sent": "The reason that we compared it to Windows events is because Windows events have their own ID's.",
+                    "label": 0
+                },
+                {
+                    "sent": "As part of the system so we could compare them, and then the reason that we didn't get better than 95% is actually Windows fault really, because we found that Windows events had identical messages that suddenly had different IDs and different messages that had the same ID, and so we don't do that so.",
+                    "label": 0
+                },
+                {
+                    "sent": "When we compared, we saw that we had 95.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And accuracy, and as far as what I mentioned a minute ago.",
+                    "label": 0
+                },
+                {
+                    "sent": "As far as the amount of data that we had to save to the database, we could reduce the the size of it by 90% in the case of the business app one and the bigger the log, the more data, the higher that number is going to go because you're going to have more repetition, so we're able to save only 10% of the data and yet still be able to reproduce the logs fully if we need too.",
+                    "label": 0
+                },
+                {
+                    "sent": "So obviously that's great for compression.",
+                    "label": 0
+                },
+                {
+                    "sent": "And great for data manipulation.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In searching but now let's take a look at really what the crux of the issue is and how we can visualize these logs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anan and analyze them and look at them with the human eye.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what you're looking at here is a graph of these messages that happen overtime, and so our axis here, the X axis is a timeline and the Y axis is the message ID that we discovered, and we look and we see that there are different messages that happen overtime.",
+                    "label": 0
+                },
+                {
+                    "sent": "First of all, this one graph that you're looking at has 70,000 distinct messages that appear in this one graph view.",
+                    "label": 1
+                },
+                {
+                    "sent": "And as you look at it, you may start to notice there are certain things that tend to happen over and over again.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are certain behavioral patterns that you can you can sort of identify.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are some things that tend to happen over and over again, and this is already easy for us to identify with the naked eye.",
+                    "label": 0
+                },
+                {
+                    "sent": "But this is also what Paris does automatically.",
+                    "label": 0
+                },
+                {
+                    "sent": "And so.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's why we say that one graph is worth 1000 logs because you can add.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can have multiple sources.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can have logs can get processed simultaneously from all of your web servers in your database servers in your web applications, and look at all of them together in one place and maybe even see sort of.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The correlations between events that happen and then what Paris was able to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we look at the log of business app to it looks at different areas in the logs and say OK, well I see that certain ideas tend to always happen together.",
+                    "label": 0
+                },
+                {
+                    "sent": "So in this case it had an Atom of messages that happen together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in other cases as well, it looked and saw that it had messages that always tended to happen together.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, it identified a service restart that happened, so wouldn't it be wonderful if instead of looking at all these little dots, we can actually look at big processes and say this is what happened here?",
+                    "label": 0
+                },
+                {
+                    "sent": "You know, should it have happened?",
+                    "label": 0
+                },
+                {
+                    "sent": "Should not have happened?",
+                    "label": 0
+                },
+                {
+                    "sent": "It's A wonderful tool for troubleshooting and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Understanding the behavior of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "So to summarize, the template creation is a lossless reduction in size of data, and it makes the data more machine readable, which then Paris comes in and makes it human readable.",
+                    "label": 1
+                },
+                {
+                    "sent": "Which has we believe strategic importance in managing your IT environment.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have like 25 minutes for questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Interface on with.",
+                    "label": 0
+                },
+                {
+                    "sent": "How does that relate to something like information gain major?",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean, I guess it's kind of similar, but I think it's kind of similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "And basically we want to find.",
+                    "label": 0
+                },
+                {
+                    "sent": "That there is enough variability in there, but enough stability to warrant its own cluster that we want to get as fine tuned as we can in the representation and yet not too stable that it wouldn't want to split.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So I guess that you have these things are coming from.",
+                    "label": 0
+                },
+                {
+                    "sent": "Executables you could sort of friends remix cuticles and find out you know what the printf is or something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you considered kind of doing something like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have considered.",
+                    "label": 0
+                },
+                {
+                    "sent": "And yes actually.",
+                    "label": 0
+                },
+                {
+                    "sent": "I mean this could be run on anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "It doesn't necessarily have to be logged in.",
+                    "label": 0
+                },
+                {
+                    "sent": "As a matter of fact, one of the being labs.",
+                    "label": 0
+                },
+                {
+                    "sent": "We then shop this out technology out to different product groups within HP an actually have one product group that uses this to cluster queries that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Users do to find sort of to do session identification, so I mean there are many uses that this could be used for and that is one of them that we're kind of starting to look at.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, you mentioned weblogs.",
+                    "label": 0
+                },
+                {
+                    "sent": "How would you?",
+                    "label": 0
+                },
+                {
+                    "sent": "How would you imagine this technology being useful with looking like in Apache log?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, we do run it on Apache and what the beauty I think of this and what really where the power in the.",
+                    "label": 0
+                },
+                {
+                    "sent": "Potential of it is, I mean, it's great to look at Apache logs and you can see the system behavior, but the really great potential is when you add the other.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you add your tomcat and your web application in the database and you Add all of these logs together and then you see the behavior together of all of these and not that you can, you know maybe infer A cause and effect by seeing what happens before what.",
+                    "label": 0
+                },
+                {
+                    "sent": "But it certainly allows you an any form out of logs that you.",
+                    "label": 0
+                },
+                {
+                    "sent": "No, you can run through this and look and see the behavior.",
+                    "label": 0
+                },
+                {
+                    "sent": "Certainly we've run it on Apache logs, also curious.",
+                    "label": 0
+                },
+                {
+                    "sent": "It will be useful to discover patterns and user behavior with respect to requests and stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "Yes, and depending on what the input strings are and how they're formulated, and but certainly it can be, I think adapted to that yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "Alright, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "If Tool ready which you give to the to your user, is it possible to get them or making?",
+                    "label": 0
+                },
+                {
+                    "sent": "Did you plan to make it available so that other people can use it outside?",
+                    "label": 0
+                },
+                {
+                    "sent": "Good question.",
+                    "label": 0
+                },
+                {
+                    "sent": "It we have, it is actually it's good.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could have probably done a demo 'cause there's a whole UI to it that we put together.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course it is a prototype and it's a sort of proof of concept.",
+                    "label": 0
+                },
+                {
+                    "sent": "We don't have something ready like that.",
+                    "label": 0
+                },
+                {
+                    "sent": "If somebody is interested, we can definitely, you know we can talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, alright thank you.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

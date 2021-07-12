@@ -1,0 +1,1184 @@
+{
+    "id": "7lb2gowvsfpfqf7xroyxifme6jcqwcem",
+    "title": "A High-Performance Multithreaded Approach For Clustering A Stream Of Documents",
+    "info": {
+        "author": [
+            "Janez Brank, Artificial Intelligence Laboratory, Jo\u017eef Stefan Institute"
+        ],
+        "published": "Dec. 1, 2014",
+        "recorded": "October 2014",
+        "category": [
+            "Top->Computer Science->Data Mining",
+            "Top->Computer Science->Artificial Intelligence"
+        ]
+    },
+    "url": "http://videolectures.net/sikdd2014_brank_stream_documents/",
+    "segmentation": [
+        [
+            "Yes, so that's the title of my talk.",
+            "It's work that we're doing together with Gregorian Marko.",
+            "So a bit of motivation to begin with."
+        ],
+        [
+            "So we all know clustering is an unsupervised machine learning task where you try to identify groups of similar instances in our case."
+        ],
+        [
+            "We'll be dealing with clustering over a stream of documents.",
+            "We have a constant stream of news articles, several per second, so that means we need to have an online approach.",
+            "We can't.",
+            "We can't afford to just store everything and process it when the data stops coming because the data never stops coming.",
+            "It's OK for our application to have an asynchronous approach, so when a new document comes, we don't need to reply immediately.",
+            "Which cluster we're putting it into, but we should reply at some.",
+            "Reasonable after some reasonable amount of time and we need to be adaptive to changes in the stream because the stream we're actually dealing with our news articles, so things change.",
+            "New topics turn out this topic drift and so on, so we need to be able to do things like introduce new clusters, split existing clusters, merged and discard old documents after awhile and so forth.",
+            "And since we're dealing with a stream of data, that means we need to be able to keep up with the amount of data that's coming in, so sooner or later.",
+            "You need to start considering some sort of parallel processing in order to keep up with this amount of data, so the current kind of goal or design aim for the system which will be presenting today was to make good use of the parallel processing abilities of an individual computer, so we aren't dealing with the sort of data where we would need to consider a distributed application with multiple computers and so forth, but we are dealing with the sort of data where we can handle everything within a single thread, so we want to make good use of.",
+            "No multicore etc.",
+            "Abilities within within an individual computer, so we have a multithreaded problem, but it's not yet a distributed computing problem.",
+            "So the main application in which this is currently being used is Gregoras Event Registry, which some of you are probably familiar with.",
+            "So we're basically the clusters are used as a sort of approximation of events with several articles.",
+            "Talk about the same event.",
+            "They hopefully end up in the same cluster in there, so we can identify them.",
+            "Now."
+        ],
+        [
+            "I will.",
+            "And this is just a brief overview of the architecture.",
+            "So basically we have a clustering web service.",
+            "Incoming documents are received as HTTP requests, then we.",
+            "To process them.",
+            "Talk about the details of the clustering algorithm in one of the next slides, and eventually there are one or theoretically several listeners which are again web services which we will notify about any changes that occur as a result of the new.",
+            "The new documents coming in.",
+            "So we notify the listeners whenever we insert the document into a cluster or when we split clusters or when something changes in the middle.",
+            "It's of the cluster and so forth so.",
+            "And there are some maintenance tasks running in the background, like deleting old content periodically, saving the state to disk, and so forth.",
+            "So basically it's an asynchronous approach.",
+            "We have incoming data and at our convenience we notify the listeners about the changes."
+        ],
+        [
+            "No young underlying clustering approach, so I'll begin by presenting the underlying clustering approach as if this was a single threaded problem, and then in the second part of the talk will show how we deal with the parallelization of it.",
+            "So the underlying idea is really simple.",
+            "We assign each new documents to the closest cluster.",
+            "Aware closest means the nearest cent rate.",
+            "We can't afford to spend too much time reassigning things around, partly becauses there's we have an online setting.",
+            "There's lots of data coming in, so we can't afford that.",
+            "Time for that and partly becausw the application.",
+            "The users of our clusters want a certain amount of stability we can just afford to rearrange all the documents too frequently.",
+            "So the maintenance operations in the cluster are occasionally splitting and merging them and occasionally deleting clusters that contain old documents, which is a way for us to keep up with the changes in the in the."
+        ],
+        [
+            "Topics of the new stream.",
+            "So the first step of our approach is to simply discard the most obvious duplicates, which is basically a consequence of the underlying data we have.",
+            "We often have multiple copies of the same article, and if they match sufficiently closely in terms of having the same title and having very similar TF factors, so then we considered duplicates.",
+            "In duplicates are basically ignores.",
+            "They're just pre processing step, but an important one otherwise would get flooded by too many duplicate articles and.",
+            "They would end up.",
+            "Too many of them in the same clusters."
+        ],
+        [
+            "The second step is to prepare a feature vector, so we use a pretty standard document representation.",
+            "We have a TF IDF vector using the bag of words model, and there is optionally also a bag of concepts if provided by the user.",
+            "So for example, if the if the client of our application has some named entity recognition, etc.",
+            "This is actually being done currently.",
+            "So each of these two parts is normalized, it's customizable, their relative proportions are, and we always use cosine similarity to compare the feature vectors so."
+        ],
+        [
+            "The smaller angle between two vectors, the more similar they are.",
+            "So this is the most computationally intensive part of the process.",
+            "Finding the nearest cent rate for each new document and the idea is to compute the cosine between the documents and all the others and all the centroids.",
+            "And if even the closest cluster is too far from our document, we set up a new cluster for it.",
+            "That's one of the ways to introduce."
+        ],
+        [
+            "In clusters and then when inserting a document into cluster, we also update various statistics which the cluster keeps.",
+            "The centroid, which is basically the same as feature vectors.",
+            "We have some per feature variances which are useful in computing some merging criteria that will see later.",
+            "We also maintain the Middle East of the cluster, which is useful to the event register application."
+        ],
+        [
+            "So we update this whenever the cluster changes.",
+            "We also support the possibility of time decaying weights in the documents, but that's not actually used, so we won't go into the details.",
+            "Then occasionally we consider splitting the cluster into two subclusters.",
+            "That's done after every so many more, every so many additions.",
+            "So basically the idea is similar as in bisecting K means we project all the documents onto a line and split them based on whether their projections fail to one or the other side of the projection of the centrate.",
+            "Skip some of these details, but basically the user Bayesian information criterion, where we decide whether to accept the spirit or not.",
+            "So basically the idea is similar, as in.",
+            "Minimum description length.",
+            "For example, to introduce a new cluster will reduce the variances within the cluster, but there is also certain costs to having an extra cluster and you try to balance those two things.",
+            "We also try to avoid splits that with risk being merged immediately afterwards.",
+            "There is also a process where we split a cluster based on timestamp if the documents within the cluster extend over a long time period.",
+            "This is again motivated by the fact that we are looking for events which should be somehow focused in time.",
+            "Finally, there's a."
+        ],
+        [
+            "Also, the occasional merging, so after a few additions we consider merging the cluster with another cluster.",
+            "This is there.",
+            "Also turns out to be time consuming because we look for, uh, we compared the center of our cluster to the centuries of all the other clusters to see which ones are similar in which ones are there for good candidates for merging and consent rates aren't really sparse vectors.",
+            "These computations or time time consuming.",
+            "So we accept the proposed candidates for merging.",
+            "Give the cosine similarity of their centroids is high enough, and we also have look offers ellipsoid criterion, where basically you consider each cluster as a small ellipsoid and emerging them if they overlap and there's a approximation to compute these overlaps."
+        ],
+        [
+            "No, if you try parallelizing this process a good first step is to look at which which steps are actually time consuming.",
+            "Which ones do we need to optimize?",
+            "So we did a little experiment and it turns out that about half of the time is spent computing the cosine between a new document in the centroids of all the clusters, and then the other time consuming part is when merging and you want to compare the centroid of your cluster to the center.",
+            "It's all the other clusters to see which ones would be good candidates for a merge that turns out to spend.",
+            "The other half of the time, and all the other operations together, maybe 3% of the time, so that's a good hint that if we are going to optimize anything, we need to focus on these two really time consuming parts.",
+            "Constance is cosine similarity.",
+            "That's right, yes.",
+            "No."
+        ],
+        [
+            "And these are our steps of the classroom that we've seen earlier, and one problem when parallelizing things is when different different threads would want to access some shared data structures.",
+            "And you need synchronization for that.",
+            "Now let's look at which shared data structures do we have?",
+            "OK, first, really simple thing when dealing with duplicates, we have a hash table of titles, etc.",
+            "So this step needs to read it and modify it.",
+            "Similarly, when preparing the feature vector we have hash table of words and the document frequencies.",
+            "And again, this step requires both reading and modifying this data structure.",
+            "Now the other the other steps mostly needs to deal with the clusters we have for each cluster, some statistics and so forth.",
+            "So some of these steps need to just read it.",
+            "For example, you need to read all the all the cluster centroids to find the nearest one.",
+            "Then when you insert the document into cluster, modify one of them and when splitting and merging you're both reading and modifying the data, modifying only if the split and merge is performed, of course.",
+            "So we see there's quite a bit of need for synchronization if we want to do these things from different threads."
+        ],
+        [
+            "So now one idea would be to assign each document when it comes assigning to a worker thread and let that thread handle that document from start to end and it turns out to be a pretty bad idea because these different threads.",
+            "They would require a lot of locking to synchronize their access to the shared data.",
+            "For example, for each cluster they would need to lock access to it and then release it.",
+            "At the end there would be a lot of that and Secondly the information related to processing one cluster is spread very inconveniently across multiple worker threads.",
+            "Let's take a concrete example.",
+            "You have a cluster.",
+            "Several things could be happening to that cluster at the same time, like one thread whoops.",
+            "One thread wants to compute the cosine between this cluster and some new document to see if it should be inserted, or maybe between these clustering another cluster to see if it should be merged at the same time.",
+            "Another thread have maybe already decided to insert its document into this cluster, now wants to modify it, update the, center it, and so forth.",
+            "A third thread is maybe trying to split this clustering 2 subclusters in the four threads is trying to maybe merge it with some other clustering computing the resulting merge clusters.",
+            "So all of these threads are trying to do.",
+            "Something to this cluster.",
+            "They can't really modify it at the same time, but it's going to be difficult to coordinate them cause all this information is scattered around them.",
+            "So we need a slightly."
+        ],
+        [
+            "Warm and principled approach.",
+            "If you want to avoid having to lock each cluster whenever a thread deals with it, then we need some sort of constraint.",
+            "No thread may modify a cluster, while some other thread is looping through the clusters at any point.",
+            "So basically the threads to look for the nearest cluster needs to loop through all of the clusters and we won't allow any other thread to modify the clusters.",
+            "While this is being done so that we don't need to lock each cluster individually when we access it.",
+            "But of course threads spend most of their time doing this, so and yet at the same time, each thread will eventually need to modify one cluster, so it's really inconvenient if each thread when it needs to do this, needs to stop all the other threads which normally spend 95% of the time doing this.",
+            "There would be a huge amount of waiting, and it would be very inconvenient.",
+            "And you still deal with the problem of having information about different modifications of 1 cluster scattered over multiple threads.",
+            "So what we?"
+        ],
+        [
+            "I was doing.",
+            "If you just rephrase our approach a little bit to make it clearer which steps needs to modify shared data structures, you can split them pretty neatly into stages which only reads shared data structures and and stages which modify them.",
+            "So for example, you start by just reading things to see if it is a duplicate to tokenize it, and to prepare a TF vector, except for any new terms, so you wouldn't be actually modifying this data, just just reading it.",
+            "Then the next stage would be a modification stage when you actually store the new title.",
+            "If it is not duplicate and update the document frequencies and add new words.",
+            "Your hash table.",
+            "So now we modify and then again you have read stage where you just read all the centroids of the clusters to see which one is the closest to the document.",
+            "Then finally you have a modification stage again when you insert your document into the cluster and then optionally if you decide to do speaking or merging again, you need to read all of this to see what to merge with and so forth.",
+            "And if you decide to split or merge.",
+            "Then you actually need to modify some of the shared data structures to take the new split or merge clusters into account.",
+            "So now we have a very neat division into stages which reads data and stages which need to modify it, and the neat thing here is that the time consuming parts are in this stage and in this stage, so they're both read stages, they just need to read all the modification stages are very, very quick, they spent we spent."
+        ],
+        [
+            "Less than 3% overtime doing this.",
+            "So now the key inside is there is no reason why all the steps should be done by the same thread.",
+            "So what we did was.",
+            "We introduce a bunch of worker threads which perform the read stages, so this stage you just read shared data so they don't have any problems with synchronization.",
+            "As long as nobody is modifying the shared data at the same time and then we have one main thread which performs the modification stages for all of the requests, so only the main thread changes.",
+            "Any shared data structures and it will need to stop.",
+            "The worker says while it does so, but most of the time is just the worker threads running and reading the shared data because they don't need to modify anything.",
+            "So when the document comes in.",
+            "It basically goes multiple times to the worker threads and the main thread.",
+            "It does 3 loops like this and eventually is processed and reported to our listeners.",
+            "So this thread just needs to synchronize themselves a little bit when they communicate through these cues."
+        ],
+        [
+            "So that's basically the main idea.",
+            "How the synchronization between threads works.",
+            "The main thread when it wants to modify share data needs to block all the worker threads so we can use a barrier synchronization method for that.",
+            "The main thread when the time comes sets a barrier flag which indicates that the worker thread should finish their current tasks and then wait until the barrier is finished.",
+            "The main thread then waits for the for all the worker tasks for the worker threads to be finished.",
+            "Now that they are asleep, the main thread can modified shared data structures.",
+            "And after it's finished.",
+            "It clears the barrier flag again, so the worker threads can start working again, and these barriers occur every one second or so.",
+            "Meanwhile in between, the worker threads can run in loop and process as many requests as they can, so there is not much time spent waiting for the worker for the worker threads to finish their current tasks.",
+            "So basically the barrier lasts last year for example, in the previous one is here and so forth.",
+            "So that's the idea.",
+            "There is very little time spent waiting.",
+            "And it does mean that since each each task, each new document needs to go through the main thread three times for the three modification stages, and since the IT can only go through a new modification stage once per second, it means that each document will require at least three seconds to be fully processed.",
+            "But since we are allowed to process things asynchronously, this is not a problem.",
+            "So basically we have high throughput but also higher latency, which is OK for our application."
+        ],
+        [
+            "How much time do I have?",
+            "Fragments OK good.",
+            "So just to describe in a little bit more detail how what the main thread does in the barrier processing.",
+            "So when we freeze all the worker threads.",
+            "We now need to perform the corresponding modification stage for each for each request, each document that has recently undergone a reading stage.",
+            "So for example.",
+            "For documents which have done the 1st first reading stage where we just tokenize them etc.",
+            "Now the main thread can update document frequencies, add words to the shared hash tables and so forth.",
+            "This is pretty trivial and straightforward.",
+            "There aren't any conflicts here.",
+            "Here's the more interesting part.",
+            "So for the.",
+            "For the documents which have recently undergone the R3 stage, so when a worker thread has considered whether they should be split or merge commanded splitting this cluster, another maker recommended merging it theoretically.",
+            "Hopefully they won't do such things, but theoretically it could happen.",
+            "But now, since every all these modifications will be done in the main thread, it's in a good position to coordinate these things.",
+            "It has all these recommendations from the worker threads, and it can now carry them out and discard any any proposed Spitzer.",
+            "Values that conflict with the once it has already performed, so we just process is these proposed splits merges in some arbitrary order, and if one of these proposals involves a cluster that has already been involved in the previous picture March, it simply ignored.",
+            "So it's very easy to coordinate these things and to prevent threads from doing different things to a cluster at the same time."
+        ],
+        [
+            "You said the order is arbitrary, which means that yeah, theoretically, if you had several worker threads recommending different things to be done to the same cluster at the same time, you can't predict in advance which one will be implemented.",
+            "And finally, now this splits and merges.",
+            "Have we done?",
+            "We also have the documents which have undergone the R2 stage where basically the worker set has found the closest centroid.",
+            "So basically the worker said is saying this is the cluster into which you should put this document.",
+            "Now is the time to do so and we also know if you have just merged or split this cluster.",
+            "We also know how we have done that so we can actually insert the document into the correct cluster.",
+            "So now the main threads has all the information it needs.",
+            "To synchronize these things in all of these operations are really quick and cheap, whereas all of the time consuming ones are done by the worker threads where they can be parallelized effectively.",
+            "So just."
+        ],
+        [
+            "Some conclusions, so we have a multithreaded approach which can make good use of the parallel processing abilities of an individual computer.",
+            "There's a low amount of locking and waiting, so we can.",
+            "We can make good use of the computer.",
+            "We have high throughputs, but at the cost of high latency to process a document between the time it enters our system in the time it leaves it will take at least three seconds, but we're processing many, many documents in parallel, so this.",
+            "So this comes, yeah, there is also further possibility for parallelization you haven't discussed, namely treats different with different languages separately, so you can actually have your own main thread in your own set of worker threads for each language.",
+            "But that's really orthogonal to our current discussion.",
+            "Possibly possible extensions for future work.",
+            "We could use random projections to project our feature vectors into a into basically dense vectors of hopefully.",
+            "Moderate number of dimensions and we could use a simple processing instructions to compute cosigns more more efficiently.",
+            "We could also consider implementing hierarchical clustering if there was some good application for it.",
+            "And of course at some point if the volume of data increases too much, we need to consider distributed processing where we actually spread the jobs over several computers, but that will probably require a different approach and."
+        ],
+        [
+            "That's it, thanks for your attention."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Yes, so that's the title of my talk.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's work that we're doing together with Gregorian Marko.",
+                    "label": 0
+                },
+                {
+                    "sent": "So a bit of motivation to begin with.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we all know clustering is an unsupervised machine learning task where you try to identify groups of similar instances in our case.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We'll be dealing with clustering over a stream of documents.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a constant stream of news articles, several per second, so that means we need to have an online approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can't.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can't afford to just store everything and process it when the data stops coming because the data never stops coming.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's OK for our application to have an asynchronous approach, so when a new document comes, we don't need to reply immediately.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which cluster we're putting it into, but we should reply at some.",
+                    "label": 0
+                },
+                {
+                    "sent": "Reasonable after some reasonable amount of time and we need to be adaptive to changes in the stream because the stream we're actually dealing with our news articles, so things change.",
+                    "label": 0
+                },
+                {
+                    "sent": "New topics turn out this topic drift and so on, so we need to be able to do things like introduce new clusters, split existing clusters, merged and discard old documents after awhile and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "And since we're dealing with a stream of data, that means we need to be able to keep up with the amount of data that's coming in, so sooner or later.",
+                    "label": 0
+                },
+                {
+                    "sent": "You need to start considering some sort of parallel processing in order to keep up with this amount of data, so the current kind of goal or design aim for the system which will be presenting today was to make good use of the parallel processing abilities of an individual computer, so we aren't dealing with the sort of data where we would need to consider a distributed application with multiple computers and so forth, but we are dealing with the sort of data where we can handle everything within a single thread, so we want to make good use of.",
+                    "label": 0
+                },
+                {
+                    "sent": "No multicore etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "Abilities within within an individual computer, so we have a multithreaded problem, but it's not yet a distributed computing problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the main application in which this is currently being used is Gregoras Event Registry, which some of you are probably familiar with.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're basically the clusters are used as a sort of approximation of events with several articles.",
+                    "label": 0
+                },
+                {
+                    "sent": "Talk about the same event.",
+                    "label": 0
+                },
+                {
+                    "sent": "They hopefully end up in the same cluster in there, so we can identify them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I will.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is just a brief overview of the architecture.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically we have a clustering web service.",
+                    "label": 0
+                },
+                {
+                    "sent": "Incoming documents are received as HTTP requests, then we.",
+                    "label": 1
+                },
+                {
+                    "sent": "To process them.",
+                    "label": 0
+                },
+                {
+                    "sent": "Talk about the details of the clustering algorithm in one of the next slides, and eventually there are one or theoretically several listeners which are again web services which we will notify about any changes that occur as a result of the new.",
+                    "label": 0
+                },
+                {
+                    "sent": "The new documents coming in.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we notify the listeners whenever we insert the document into a cluster or when we split clusters or when something changes in the middle.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's of the cluster and so forth so.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are some maintenance tasks running in the background, like deleting old content periodically, saving the state to disk, and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically it's an asynchronous approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have incoming data and at our convenience we notify the listeners about the changes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "No young underlying clustering approach, so I'll begin by presenting the underlying clustering approach as if this was a single threaded problem, and then in the second part of the talk will show how we deal with the parallelization of it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the underlying idea is really simple.",
+                    "label": 0
+                },
+                {
+                    "sent": "We assign each new documents to the closest cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Aware closest means the nearest cent rate.",
+                    "label": 0
+                },
+                {
+                    "sent": "We can't afford to spend too much time reassigning things around, partly becauses there's we have an online setting.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's lots of data coming in, so we can't afford that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Time for that and partly becausw the application.",
+                    "label": 0
+                },
+                {
+                    "sent": "The users of our clusters want a certain amount of stability we can just afford to rearrange all the documents too frequently.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the maintenance operations in the cluster are occasionally splitting and merging them and occasionally deleting clusters that contain old documents, which is a way for us to keep up with the changes in the in the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Topics of the new stream.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first step of our approach is to simply discard the most obvious duplicates, which is basically a consequence of the underlying data we have.",
+                    "label": 0
+                },
+                {
+                    "sent": "We often have multiple copies of the same article, and if they match sufficiently closely in terms of having the same title and having very similar TF factors, so then we considered duplicates.",
+                    "label": 0
+                },
+                {
+                    "sent": "In duplicates are basically ignores.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're just pre processing step, but an important one otherwise would get flooded by too many duplicate articles and.",
+                    "label": 0
+                },
+                {
+                    "sent": "They would end up.",
+                    "label": 0
+                },
+                {
+                    "sent": "Too many of them in the same clusters.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The second step is to prepare a feature vector, so we use a pretty standard document representation.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a TF IDF vector using the bag of words model, and there is optionally also a bag of concepts if provided by the user.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for example, if the if the client of our application has some named entity recognition, etc.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is actually being done currently.",
+                    "label": 0
+                },
+                {
+                    "sent": "So each of these two parts is normalized, it's customizable, their relative proportions are, and we always use cosine similarity to compare the feature vectors so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "The smaller angle between two vectors, the more similar they are.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the most computationally intensive part of the process.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finding the nearest cent rate for each new document and the idea is to compute the cosine between the documents and all the others and all the centroids.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if even the closest cluster is too far from our document, we set up a new cluster for it.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's one of the ways to introduce.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In clusters and then when inserting a document into cluster, we also update various statistics which the cluster keeps.",
+                    "label": 1
+                },
+                {
+                    "sent": "The centroid, which is basically the same as feature vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have some per feature variances which are useful in computing some merging criteria that will see later.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also maintain the Middle East of the cluster, which is useful to the event register application.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we update this whenever the cluster changes.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also support the possibility of time decaying weights in the documents, but that's not actually used, so we won't go into the details.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then occasionally we consider splitting the cluster into two subclusters.",
+                    "label": 1
+                },
+                {
+                    "sent": "That's done after every so many more, every so many additions.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically the idea is similar as in bisecting K means we project all the documents onto a line and split them based on whether their projections fail to one or the other side of the projection of the centrate.",
+                    "label": 0
+                },
+                {
+                    "sent": "Skip some of these details, but basically the user Bayesian information criterion, where we decide whether to accept the spirit or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically the idea is similar, as in.",
+                    "label": 0
+                },
+                {
+                    "sent": "Minimum description length.",
+                    "label": 1
+                },
+                {
+                    "sent": "For example, to introduce a new cluster will reduce the variances within the cluster, but there is also certain costs to having an extra cluster and you try to balance those two things.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also try to avoid splits that with risk being merged immediately afterwards.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is also a process where we split a cluster based on timestamp if the documents within the cluster extend over a long time period.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is again motivated by the fact that we are looking for events which should be somehow focused in time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finally, there's a.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Also, the occasional merging, so after a few additions we consider merging the cluster with another cluster.",
+                    "label": 1
+                },
+                {
+                    "sent": "This is there.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also turns out to be time consuming because we look for, uh, we compared the center of our cluster to the centuries of all the other clusters to see which ones are similar in which ones are there for good candidates for merging and consent rates aren't really sparse vectors.",
+                    "label": 0
+                },
+                {
+                    "sent": "These computations or time time consuming.",
+                    "label": 1
+                },
+                {
+                    "sent": "So we accept the proposed candidates for merging.",
+                    "label": 0
+                },
+                {
+                    "sent": "Give the cosine similarity of their centroids is high enough, and we also have look offers ellipsoid criterion, where basically you consider each cluster as a small ellipsoid and emerging them if they overlap and there's a approximation to compute these overlaps.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "No, if you try parallelizing this process a good first step is to look at which which steps are actually time consuming.",
+                    "label": 0
+                },
+                {
+                    "sent": "Which ones do we need to optimize?",
+                    "label": 0
+                },
+                {
+                    "sent": "So we did a little experiment and it turns out that about half of the time is spent computing the cosine between a new document in the centroids of all the clusters, and then the other time consuming part is when merging and you want to compare the centroid of your cluster to the center.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's all the other clusters to see which ones would be good candidates for a merge that turns out to spend.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other half of the time, and all the other operations together, maybe 3% of the time, so that's a good hint that if we are going to optimize anything, we need to focus on these two really time consuming parts.",
+                    "label": 0
+                },
+                {
+                    "sent": "Constance is cosine similarity.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's right, yes.",
+                    "label": 0
+                },
+                {
+                    "sent": "No.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And these are our steps of the classroom that we've seen earlier, and one problem when parallelizing things is when different different threads would want to access some shared data structures.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you need synchronization for that.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now let's look at which shared data structures do we have?",
+                    "label": 1
+                },
+                {
+                    "sent": "OK, first, really simple thing when dealing with duplicates, we have a hash table of titles, etc.",
+                    "label": 1
+                },
+                {
+                    "sent": "So this step needs to read it and modify it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Similarly, when preparing the feature vector we have hash table of words and the document frequencies.",
+                    "label": 1
+                },
+                {
+                    "sent": "And again, this step requires both reading and modifying this data structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now the other the other steps mostly needs to deal with the clusters we have for each cluster, some statistics and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "So some of these steps need to just read it.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, you need to read all the all the cluster centroids to find the nearest one.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then when you insert the document into cluster, modify one of them and when splitting and merging you're both reading and modifying the data, modifying only if the split and merge is performed, of course.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we see there's quite a bit of need for synchronization if we want to do these things from different threads.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So now one idea would be to assign each document when it comes assigning to a worker thread and let that thread handle that document from start to end and it turns out to be a pretty bad idea because these different threads.",
+                    "label": 1
+                },
+                {
+                    "sent": "They would require a lot of locking to synchronize their access to the shared data.",
+                    "label": 0
+                },
+                {
+                    "sent": "For example, for each cluster they would need to lock access to it and then release it.",
+                    "label": 0
+                },
+                {
+                    "sent": "At the end there would be a lot of that and Secondly the information related to processing one cluster is spread very inconveniently across multiple worker threads.",
+                    "label": 1
+                },
+                {
+                    "sent": "Let's take a concrete example.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have a cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "Several things could be happening to that cluster at the same time, like one thread whoops.",
+                    "label": 1
+                },
+                {
+                    "sent": "One thread wants to compute the cosine between this cluster and some new document to see if it should be inserted, or maybe between these clustering another cluster to see if it should be merged at the same time.",
+                    "label": 0
+                },
+                {
+                    "sent": "Another thread have maybe already decided to insert its document into this cluster, now wants to modify it, update the, center it, and so forth.",
+                    "label": 1
+                },
+                {
+                    "sent": "A third thread is maybe trying to split this clustering 2 subclusters in the four threads is trying to maybe merge it with some other clustering computing the resulting merge clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "So all of these threads are trying to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "Something to this cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "They can't really modify it at the same time, but it's going to be difficult to coordinate them cause all this information is scattered around them.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we need a slightly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Warm and principled approach.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you want to avoid having to lock each cluster whenever a thread deals with it, then we need some sort of constraint.",
+                    "label": 0
+                },
+                {
+                    "sent": "No thread may modify a cluster, while some other thread is looping through the clusters at any point.",
+                    "label": 1
+                },
+                {
+                    "sent": "So basically the threads to look for the nearest cluster needs to loop through all of the clusters and we won't allow any other thread to modify the clusters.",
+                    "label": 0
+                },
+                {
+                    "sent": "While this is being done so that we don't need to lock each cluster individually when we access it.",
+                    "label": 1
+                },
+                {
+                    "sent": "But of course threads spend most of their time doing this, so and yet at the same time, each thread will eventually need to modify one cluster, so it's really inconvenient if each thread when it needs to do this, needs to stop all the other threads which normally spend 95% of the time doing this.",
+                    "label": 1
+                },
+                {
+                    "sent": "There would be a huge amount of waiting, and it would be very inconvenient.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you still deal with the problem of having information about different modifications of 1 cluster scattered over multiple threads.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "I was doing.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you just rephrase our approach a little bit to make it clearer which steps needs to modify shared data structures, you can split them pretty neatly into stages which only reads shared data structures and and stages which modify them.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example, you start by just reading things to see if it is a duplicate to tokenize it, and to prepare a TF vector, except for any new terms, so you wouldn't be actually modifying this data, just just reading it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then the next stage would be a modification stage when you actually store the new title.",
+                    "label": 0
+                },
+                {
+                    "sent": "If it is not duplicate and update the document frequencies and add new words.",
+                    "label": 0
+                },
+                {
+                    "sent": "Your hash table.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we modify and then again you have read stage where you just read all the centroids of the clusters to see which one is the closest to the document.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then finally you have a modification stage again when you insert your document into the cluster and then optionally if you decide to do speaking or merging again, you need to read all of this to see what to merge with and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if you decide to split or merge.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then you actually need to modify some of the shared data structures to take the new split or merge clusters into account.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we have a very neat division into stages which reads data and stages which need to modify it, and the neat thing here is that the time consuming parts are in this stage and in this stage, so they're both read stages, they just need to read all the modification stages are very, very quick, they spent we spent.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Less than 3% overtime doing this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now the key inside is there is no reason why all the steps should be done by the same thread.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what we did was.",
+                    "label": 0
+                },
+                {
+                    "sent": "We introduce a bunch of worker threads which perform the read stages, so this stage you just read shared data so they don't have any problems with synchronization.",
+                    "label": 0
+                },
+                {
+                    "sent": "As long as nobody is modifying the shared data at the same time and then we have one main thread which performs the modification stages for all of the requests, so only the main thread changes.",
+                    "label": 0
+                },
+                {
+                    "sent": "Any shared data structures and it will need to stop.",
+                    "label": 0
+                },
+                {
+                    "sent": "The worker says while it does so, but most of the time is just the worker threads running and reading the shared data because they don't need to modify anything.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when the document comes in.",
+                    "label": 1
+                },
+                {
+                    "sent": "It basically goes multiple times to the worker threads and the main thread.",
+                    "label": 0
+                },
+                {
+                    "sent": "It does 3 loops like this and eventually is processed and reported to our listeners.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this thread just needs to synchronize themselves a little bit when they communicate through these cues.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So that's basically the main idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "How the synchronization between threads works.",
+                    "label": 0
+                },
+                {
+                    "sent": "The main thread when it wants to modify share data needs to block all the worker threads so we can use a barrier synchronization method for that.",
+                    "label": 1
+                },
+                {
+                    "sent": "The main thread when the time comes sets a barrier flag which indicates that the worker thread should finish their current tasks and then wait until the barrier is finished.",
+                    "label": 1
+                },
+                {
+                    "sent": "The main thread then waits for the for all the worker tasks for the worker threads to be finished.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now that they are asleep, the main thread can modified shared data structures.",
+                    "label": 0
+                },
+                {
+                    "sent": "And after it's finished.",
+                    "label": 0
+                },
+                {
+                    "sent": "It clears the barrier flag again, so the worker threads can start working again, and these barriers occur every one second or so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Meanwhile in between, the worker threads can run in loop and process as many requests as they can, so there is not much time spent waiting for the worker for the worker threads to finish their current tasks.",
+                    "label": 1
+                },
+                {
+                    "sent": "So basically the barrier lasts last year for example, in the previous one is here and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "So that's the idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "There is very little time spent waiting.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it does mean that since each each task, each new document needs to go through the main thread three times for the three modification stages, and since the IT can only go through a new modification stage once per second, it means that each document will require at least three seconds to be fully processed.",
+                    "label": 0
+                },
+                {
+                    "sent": "But since we are allowed to process things asynchronously, this is not a problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically we have high throughput but also higher latency, which is OK for our application.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "How much time do I have?",
+                    "label": 0
+                },
+                {
+                    "sent": "Fragments OK good.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just to describe in a little bit more detail how what the main thread does in the barrier processing.",
+                    "label": 1
+                },
+                {
+                    "sent": "So when we freeze all the worker threads.",
+                    "label": 0
+                },
+                {
+                    "sent": "We now need to perform the corresponding modification stage for each for each request, each document that has recently undergone a reading stage.",
+                    "label": 1
+                },
+                {
+                    "sent": "So for example.",
+                    "label": 0
+                },
+                {
+                    "sent": "For documents which have done the 1st first reading stage where we just tokenize them etc.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now the main thread can update document frequencies, add words to the shared hash tables and so forth.",
+                    "label": 0
+                },
+                {
+                    "sent": "This is pretty trivial and straightforward.",
+                    "label": 0
+                },
+                {
+                    "sent": "There aren't any conflicts here.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here's the more interesting part.",
+                    "label": 0
+                },
+                {
+                    "sent": "So for the.",
+                    "label": 1
+                },
+                {
+                    "sent": "For the documents which have recently undergone the R3 stage, so when a worker thread has considered whether they should be split or merge commanded splitting this cluster, another maker recommended merging it theoretically.",
+                    "label": 0
+                },
+                {
+                    "sent": "Hopefully they won't do such things, but theoretically it could happen.",
+                    "label": 0
+                },
+                {
+                    "sent": "But now, since every all these modifications will be done in the main thread, it's in a good position to coordinate these things.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has all these recommendations from the worker threads, and it can now carry them out and discard any any proposed Spitzer.",
+                    "label": 0
+                },
+                {
+                    "sent": "Values that conflict with the once it has already performed, so we just process is these proposed splits merges in some arbitrary order, and if one of these proposals involves a cluster that has already been involved in the previous picture March, it simply ignored.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's very easy to coordinate these things and to prevent threads from doing different things to a cluster at the same time.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "You said the order is arbitrary, which means that yeah, theoretically, if you had several worker threads recommending different things to be done to the same cluster at the same time, you can't predict in advance which one will be implemented.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, now this splits and merges.",
+                    "label": 0
+                },
+                {
+                    "sent": "Have we done?",
+                    "label": 0
+                },
+                {
+                    "sent": "We also have the documents which have undergone the R2 stage where basically the worker set has found the closest centroid.",
+                    "label": 0
+                },
+                {
+                    "sent": "So basically the worker said is saying this is the cluster into which you should put this document.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now is the time to do so and we also know if you have just merged or split this cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "We also know how we have done that so we can actually insert the document into the correct cluster.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now the main threads has all the information it needs.",
+                    "label": 0
+                },
+                {
+                    "sent": "To synchronize these things in all of these operations are really quick and cheap, whereas all of the time consuming ones are done by the worker threads where they can be parallelized effectively.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Some conclusions, so we have a multithreaded approach which can make good use of the parallel processing abilities of an individual computer.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's a low amount of locking and waiting, so we can.",
+                    "label": 1
+                },
+                {
+                    "sent": "We can make good use of the computer.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have high throughputs, but at the cost of high latency to process a document between the time it enters our system in the time it leaves it will take at least three seconds, but we're processing many, many documents in parallel, so this.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this comes, yeah, there is also further possibility for parallelization you haven't discussed, namely treats different with different languages separately, so you can actually have your own main thread in your own set of worker threads for each language.",
+                    "label": 1
+                },
+                {
+                    "sent": "But that's really orthogonal to our current discussion.",
+                    "label": 0
+                },
+                {
+                    "sent": "Possibly possible extensions for future work.",
+                    "label": 1
+                },
+                {
+                    "sent": "We could use random projections to project our feature vectors into a into basically dense vectors of hopefully.",
+                    "label": 0
+                },
+                {
+                    "sent": "Moderate number of dimensions and we could use a simple processing instructions to compute cosigns more more efficiently.",
+                    "label": 0
+                },
+                {
+                    "sent": "We could also consider implementing hierarchical clustering if there was some good application for it.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course at some point if the volume of data increases too much, we need to consider distributed processing where we actually spread the jobs over several computers, but that will probably require a different approach and.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "That's it, thanks for your attention.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

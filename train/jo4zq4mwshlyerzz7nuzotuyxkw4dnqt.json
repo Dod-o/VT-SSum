@@ -1,0 +1,1293 @@
+{
+    "id": "jo4zq4mwshlyerzz7nuzotuyxkw4dnqt",
+    "title": "Knowledge Vault: A Web-Scale Approach to Probabilistic Knowledge Fusion",
+    "info": {
+        "author": [
+            "Kevin P. Murphy, Research at Google, Google, Inc."
+        ],
+        "published": "Oct. 7, 2014",
+        "recorded": "August 2014",
+        "category": [
+            "Top->Computer Science->Data Mining",
+            "Top->Computer Science->Knowledge Extraction"
+        ]
+    },
+    "url": "http://videolectures.net/kdd2014_murphy_knowledge_vault/",
+    "segmentation": [
+        [
+            "Thanks for attending.",
+            "I know I'm holding you from lunch so I'm Kevin Murphy and this is joint work with various colleagues at Google including Afghani Gabriela which is in the audience and who gave a long tutorial on this topic yesterday.",
+            "So if this doesn't quench your appetite then go check his slides out from yesterday.",
+            "I think it was also recorded actually before I start quick show of hands who has heard about knowledge Vault from the recent New Scientist article.",
+            "A few of you.",
+            "OK, so it's sort of been picked up in the press and they refuse statements made in the article that weren't quite correct, so I hope to fix those if I can get my slides to work."
+        ],
+        [
+            "So before I talk about knowledge fault, let me briefly talk about knowledge Graph.",
+            "So actually there are lots of knowledge graphs that have been created by different groups and I'll give some examples in a moment.",
+            "But when I say knowledge Graph, I mean a data structure like."
+        ],
+        [
+            "This where the nodes in the graph represent entities such as people and places and things, and the edges represent relationships such as who works for whom, who is married, to whom, who was born when, and so on.",
+            "And of course, we can equivalently represent this is sometimes called a heterogeneous information network, so fancy name for a multi graph and obviously you can represent that as a stack of sparse adjacency matrices and we'll come back to that point of view in a moment."
+        ],
+        [
+            "So as I mentioned, various groups have created knowledge graphs of different sizes and forms.",
+            "I'm going to be mostly focusing on Freebase, which is freely available and Google's knowledge graph as an extension of Freebase, but other companies have knowledge graphs of Facebook has one, Microsoft has one, Walmart has one and there are also academic projects.",
+            "Perhaps the most well known as the nail project from CMU that was mentioned in Orange Talk this morning.",
+            "The Argo project from Max Planck, Andy PDF from Wisconsin."
+        ],
+        [
+            "So let me as I said, I'm going to talk mostly about Freebase, an knowledge graph.",
+            "So Freebase is created in the following way.",
+            "It takes various existing structured data sources, such as the Infoboxes on Wikipedia or Musicbrainz, and these are already graph structures and aligns those graphs to build one large massive graph and this data is freely available and Google's Knowledge graph builds on top of that and adds various proprietary data sources such as local business information and product information which isn't shared publicly.",
+            "But we do not put user data in the Knowledge Graph.",
+            "So unlike what was claimed in the article, it's all publicly available information."
+        ],
+        [
+            "So these knowledge graphs that have been created a very large.",
+            "I can't give the precise statistics on Knowledge Graph Google's Knowledge Graph, but I can tell you about Freebase, so that has 40,000,000 nodes and 637 million edges.",
+            "And you can think of each edge is a fact roughly speaking.",
+            "But despite the size, it's actually missing many key things.",
+            "So 94% of the people in Freebase have no known parents, even though there's a mandatory property of the schema, so there's many missing edges in these graphs.",
+            "Now, in addition to missing edges, the graphs are missing nodes or entities that aren't known about.",
+            "And of course, the schemer itself is incomplete, so there's many kinds of things that we can't even represent in the current schema now.",
+            "In this talk, I'm just going to focus on predicting missing links in the graph, and we're going to assume the edges are known and the schemas known, although they are both interesting topics as well."
+        ],
+        [
+            "OK, so this is where knowledge comes in so."
+        ],
+        [
+            "The difference between knowledge graph and knowledgeable is the following.",
+            "So Knowledge Graph is a launched product in Google and you can see it showing up on the right hand side of search results and in various other applications.",
+            "And there are various groups at Google continually working on increasing the coverage of Knowledge Graph while maintaining its high precision.",
+            "The knowledge whole project is a research project that hasn't been launched publicly and we're investigating basically other points on the precision recall tradeoff curve.",
+            "So we're using automatic methods to extract facts from the web, similar to nail in Jago and these.",
+            "Automatically extracted, they don't necessarily have high enough quality to be shown to users of Google, who of course have very high expectations of quality.",
+            "But we believe that these lower precision facts might be useful for other applications, so that's the basic idea.",
+            "So, because these are automatically extracted facts, each fact has a confidence associated with it."
+        ],
+        [
+            "Now the main difference in prior academic projects such as Nail in Jago is the following.",
+            "Those projects are basically build knowledge bases from scratch, which is a laudable goal.",
+            "So as a working example, suppose they're trying to discover whether Kobe Bryant plays for the Lakers and we don't know if that's a true fact or not.",
+            "So they all read a bunch of sentences.",
+            "If you heard Orange talk this morning, no sentence gets left behind and they'll look for sentences that mention these two entities, cobian LALA, Lakers.",
+            "And based on these sentences, they try to decide.",
+            "How likely is this track fact to be true?",
+            "And you can represent this just a binary event.",
+            "How likely is the SRO subject relation object triple to be an edge in your knowledge base or not?",
+            "And these these triples are actually correlated, but we're going to ignore that and treat them as independent binary events for scalability reasons."
+        ],
+        [
+            "So what we do in knowledge Vault is very similar.",
+            "We extract facts from the web and do machine reading, but in addition, instead of starting from scratch, we say, well, we already have free base, which is a high quality data source.",
+            "Let's leverage that as a source of prior knowledge and do graph mining on Freebase to learn a prior statistical model of what kinds of facts are likely to be true, so that when we come across a new sentence which might be ambiguous, we can rely on our prior model to help remove some of the uncertainty and all other straight that in more detail."
+        ],
+        [
+            "OK.",
+            "So this is the approach at a high level we have sort of extraction from the web on the one side and we have extraction from Freebase on the other and we put the two together and we get higher quality and larger results than previous efforts.",
+            "So this paper is basically a systems engineering paper.",
+            "Each of the pieces are fairly well known, but we're putting them all together in a novel way."
+        ],
+        [
+            "So before I explain the details of the methodology, let me just focus on the output of the system.",
+            "You know where Google we have to be bigger than everyone else, so we have about 1.5 billion.",
+            "Sorry 2.5 billion facts and knowledge base knowledge vault.",
+            "Of course not all of these facts are true if we focus on the ones that we think are likely true at the time we submitted.",
+            "The paper is about 300 million.",
+            "It keeps going up.",
+            "That's about 50 times bigger than the next nearest neighbor in space, which is the deep dive system from Chris Rea's group.",
+            "And it's significantly bigger than L. Now you might ask what happens to the remaining triples that aren't high confidence, right?",
+            "We're seeing lots of things.",
+            "Isn't that just noise?"
+        ],
+        [
+            "Well, actually this uses for all of the that ripples across the probability spectrum.",
+            "So what I'm plotting here is a histogram of the triples and looking at which probability bucket they fall in.",
+            "And there's a couple of spikes, so these are triples that are very likely true on the right, and it's obvious what to do with those.",
+            "They can be added to knowledge Graph, maybe after some human checking, and these triples on the left, which are obviously very likely false.",
+            "These are likely errors, and if these are already in knowledge graph, we can remove them.",
+            "There are there erroneous facts?",
+            "What about the stuff in the middle?",
+            "Well, if things are likely true, but we're not sure they can still be used as weak signals in conjunction with other data sources for various purposes, such as recommendation ranking and these ones on the left, which are likely false, they are worth investigating as potential errors, either due to incorrect facts on a web page or due to errors in our extraction systems.",
+            "So all of the triples that we extract are used in different ways."
+        ],
+        [
+            "OK, so let me now explain in more detail how we create the knowledge role.",
+            "So the first half is extracting information from the web."
+        ],
+        [
+            "So we actually view the web through different lenses.",
+            "It's the same data, but we're processing it in different ways, so we look at unstructured text.",
+            "We look at the domain structure of web pages.",
+            "We look at tables, which of course embedded in web pages and then finally we look at Webmaster annotation.",
+            "So let me talk you through each of these in turn.",
+            "These are all standard techniques, so I'm going to go over them pretty quickly."
+        ],
+        [
+            "So if a text extraction this is Warren was talking about this morning, the way it works is as follows.",
+            "Will we haven't database of known entities?",
+            "We're assuming the universe is closed for now and will identify we map all named entities to these entities.",
+            "That's called.",
+            "Entity Linkage is a hard problem, but there's like 150 papers just on that one problem.",
+            "We use some standard techniques that we have in-house.",
+            "Once we've identified the entities, then we look at each sentence.",
+            "We find the entities that are mentioned in that sentence, and we look at the path that connects them, and we extract features from that path and these could be lexical surface features.",
+            "Or they could be based on the dependency tree.",
+            "Then we take these features and we stick them into a classifier.",
+            "We use boosted decision trees, but almost anything will work, and this classifier is trained using weekly collected training data using a technique called distant supervision that dates at least back 2009 by a guy called Minsal.",
+            "And this is extremely standard stuff.",
+            "This very nice tutorial by Ralph Grishman, who's a professor Mau who explains all of these steps in more detail."
+        ],
+        [
+            "OK, now we also do basically the same thing, but instead of looking at surface form of text, we look at the Dom trees.",
+            "So this is good for structure pages that are made from a automatic publishing system that have repetitive structure.",
+            "So it's related to wrapper induction.",
+            "So now we'll look at two pairs of entities and see how they're connected via an X path in the Dom tree."
+        ],
+        [
+            "We also do fact fact extraction from tables on the web and this is taking basically the output of the web tables team Google and this is work that was started by Mike Cafarella an Allen Halevi and it's continued over the years.",
+            "And in."
+        ],
+        [
+            "Finally, we exploit the fruit of human labor, so there's this thing called schema.org, which is a consortium of Google, Facebook, Yandex, and various other companies where they've agreed on a common ontology to define various events and products and so on.",
+            "In machine readable form.",
+            "So on basically 20% of the web pages, and it's growing rapidly.",
+            "This machine readable markup that specifies what the content of this page actually means so we can scrape that and map that ontology too.",
+            "The Freebase ontology in an automatic way just writing rules the webmasters don't tell us what the entities are.",
+            "They just tell us the predicate, so there's still noise introduced in this process.",
+            "The numbers are going to show you when I talk about the human annotation.",
+            "In this talk look quite low.",
+            "It's a little odd because this is high quality data, but this we only used a small piece of this data.",
+            "It was a early experiment."
+        ],
+        [
+            "OK, so.",
+            "We each of these systems is producing triples, and of course there is some overlap between those, so we confuse these systems and get increased confidence.",
+            "So we train yet another binary classifier to take the output of these systems and to produce an improved confident estimate of the triples so."
+        ],
+        [
+            "We illustrate how how well the systems work, so this is a standard arosi curve specially hard for me to read.",
+            "The Black One is the Webmaster annotation and it has the lowest quality just because of coverage issues.",
+            "The next curve is the table extractor, which is has various issues in figuring out the semantics of tables, but people are working on that.",
+            "The next one is the purple curve, which is free text and then the green curve is the Dom structure which yields the highest quality.",
+            "An highest quantity of data, and if you put them all together you get a pretty healthy increase in improvement.",
+            "With that few system, which is not that surprising because if you see the same triple represented multiple times on different web pages, perhaps your.",
+            "Table Extractor says the annual text extractor says it.",
+            "Then it's more likely to be true."
+        ],
+        [
+            "So we can quantify this by looking at the triples that we know to be true apriori, and this is on test set, so we don't know this on the test set, and we're going to ask how does the probability of the true triples change as we see more evidence.",
+            "So this one, I think is the number of different extraction systems.",
+            "So if different systems extract the same fact that we are in confidence increases from .5, which is the baseline up to approaching one.",
+            "And if we see the same fact on many many pages, we again.",
+            "Become more confident in it.",
+            "This, of course, is after Deduping pages.",
+            "Sometimes there's literal copying and we don't want to double count the evidence.",
+            "The facts, which are false, the red lines, they stay more or less flat, so you know sometimes we get misled if we read it enough, but it's not growing as fast as the true facts."
+        ],
+        [
+            "OK, so that was text extraction or fact extraction from the web using fairly standard techniques.",
+            "We put them together and get improved results.",
+            "The nail system was also doing that.",
+            "The other thing we."
+        ],
+        [
+            "Add to the pipeline is graph mining and traditionally sort of web mining and graph mining a distinct communities.",
+            "But there's no reason why you can't put the two together."
+        ],
+        [
+            "So when I talk about graph mining, I mean the following.",
+            "I'm not looking for like cliques or that kind of social network stuff, but we're doing link prediction.",
+            "So suppose again we want to predict whether Kobe Bryant is playing for the Lakers.",
+            "So I want to know if this red link exists or not in the graph should be added to the graph an you can equivalently think of that is basically missing data imputation in a sparse binary matrix, right?",
+            "So just like in a recommender system, the Rose, the entities you have rows and columns representing entities and you observe a set of links which are just bits and you want to predict.",
+            "The missing links or predict the missing bits and difference from standard matrix factorization is that we have a large number of matrices, one per relation, but you can use.",
+            "You can throw sort of matrix or tensor factorization approach is that this problem and they work quite well and it's been prior work on this and basically what those methods do is they associate a low dimensional vector for each row and column and then they will also have some way of representing the relations, maybe with another vector or whether another matrix."
+        ],
+        [
+            "So we do something similar, but instead of doing it like a Tri linear model, we stick it into a neural network.",
+            "Of course, right?",
+            "I said next next door to the Google Brain team there always looking for applications.",
+            "It's pretty much no effort to just give him some data and they can throw an MLP or anything and it works quite well.",
+            "So the way in more detail what we're doing is we're taking a candidate triple, which is of course a sparse binary vector.",
+            "We embed that into a low dimensional space by learning a vector representation of the entities and also of their relations.",
+            "And then we pass it through a few non linear layers and try to predict whether that triple is true or not and we just train this to maximize likelihood using stochastic gradient and this is pretty standard stuff.",
+            "And what was surprising to us actually is this works much better than fancier methods that have been proposed by for example Richard Social has the neural tensor model at NIPS last year and one bordars who's worked with us on other things.",
+            "He has a very sophisticated model and this is like good old fashion MLP's from 1970 and you just beat the crap out of it with big data and it works."
+        ],
+        [
+            "So that's nice.",
+            "But we we wanted to try various techniques, not just throw big deep learning everything.",
+            "So this is another algorithm invented by Neil our L and allows at Google.",
+            "This slide is from sent to me by his advisor Tom Mitchell, an path ranking algorithm is a way of predicting edges in graphs by following paths that might be correlated with the edge you're interested in.",
+            "So suppose you want to know if which country pittsburghs located in.",
+            "You can basically start doing random walks on this graph and you can notice that.",
+            "One way to get from Pittsburgh to a country is to follow what state it's in.",
+            "So Pittsburgh goes to Pennsylvania, then follow the reverse edge and you say go to Harrisburg and maybe you already know that Harris Books are located in the United States, so you notice that effects located in Country Y.",
+            "Then one way to predict that is to see which state that city is in and look up the country of the state.",
+            "And you can do this for a variety of different paths, and each path will have different degrees of trustworthiness, and he's become features into a classifier."
+        ],
+        [
+            "And what's nice about this method?",
+            "In contrast, say to the deep learning algorithm is that you get nice patterns or rules which are easy to interpret, and you can, you know, gain some insight into these.",
+            "So obviously $1,000,000 question, how do these methods compare?",
+            "So on some test data?"
+        ],
+        [
+            "We did a holdout experiment, and in fact they're very similar in performance.",
+            "They make different kinds of errors, so if you fuse the two together you get a boost.",
+            "It wasn't as big as we had hoped, but the red line at the top is what happens when you put the brain on your network model together with the PRA model."
+        ],
+        [
+            "OK, and then finally the obvious thing to do is now to combine the web mining with the."
+        ],
+        [
+            "Mining, and so this is this picture I showed you before.",
+            "So how do we do that?",
+            "We just train yet another classifier, one per relation down.",
+            "Here we have about 2000 relations that take the signals from these different systems."
+        ],
+        [
+            "And the benefit of doing that is shown here.",
+            "The purple curve is the fused prior model.",
+            "The green curve is the fused web extractor and the red model is.",
+            "If you put web mining and graph mining together."
+        ],
+        [
+            "OK, so more interesting than these RC curves is to look into a qualitative analysis or error analysis.",
+            "In this case, this is not an error is a success.",
+            "So we have an example.",
+            "Triple is Barry Richter this study study at the University of Wisconsin, Madison, and there are two sentence is on the web that mentioned Barry Richter and UW Madison in the same sentence, and neither them explicitly say he studied there.",
+            "They give weak support for that fact.",
+            "So based on text extraction alone, we all say this is .1 four probability true, but we already know some stuff about this guy.",
+            "He's an ice hockey player.",
+            "We know that he was born in Madison, lived in Madison, and we've learned rules offline that say.",
+            "People often go to the school where they were born or where they've lived, rather.",
+            "So if you add that side knowledge in, then the posterior probability is now .61, so it's much higher than it was, and this is a true fact.",
+            "So we've increased the probability mass on the true facts and decreased on the false flags."
+        ],
+        [
+            "And reduced our uncertainty.",
+            "So just to summarize, I am almost out of time.",
+            "The Knowledge Fault is this massive knowledge repository with about 2.5 billion triples.",
+            "It's about 50 to 100 times bigger than the next nearest neighbor, and it's constructed by web mining and graph mining.",
+            "Now I mentioned at the beginning of the talk various issues with knowledge bases, so I focused on this talk on just filling in missing edges.",
+            "We have ongoing work on filling in missing nodes or entities, so entity discovery, some of that's coming out in CI came later this year.",
+            "We also have some work in progress with an intern on doing.",
+            "Robust wrapper induction for long tail mining of verticals.",
+            "We're also trying to grow the schema so my colleague on Halevi has a paper at VLDB this year called by Pedia.",
+            "That's about expanding the schema automatically.",
+            "You can read that and we have some existing work on assessing the trustworthiness of different web sources.",
+            "This came up in the New Scientist article how do you know whether you're being spammed or working on that?",
+            "There's some published work in VLDB with Mike Arthur Luna Dong and that's an active topic.",
+            "And then finally I just want to mention because Aaron.",
+            "Was sort of criticizing this whole line of work this morning.",
+            "We are very well aware that these knowledge bases only have factual sort of declarative statements that Barack was born in Hawaii and they don't know anything about apples or common sense or stuff that kids know and we want to solve that problem too.",
+            "We have a team working on common sense, knowledge extraction and reasoning, and that's work in progress.",
+            "Stay tuned.",
+            "Thank you."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Thanks for attending.",
+                    "label": 0
+                },
+                {
+                    "sent": "I know I'm holding you from lunch so I'm Kevin Murphy and this is joint work with various colleagues at Google including Afghani Gabriela which is in the audience and who gave a long tutorial on this topic yesterday.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if this doesn't quench your appetite then go check his slides out from yesterday.",
+                    "label": 0
+                },
+                {
+                    "sent": "I think it was also recorded actually before I start quick show of hands who has heard about knowledge Vault from the recent New Scientist article.",
+                    "label": 0
+                },
+                {
+                    "sent": "A few of you.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, so it's sort of been picked up in the press and they refuse statements made in the article that weren't quite correct, so I hope to fix those if I can get my slides to work.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So before I talk about knowledge fault, let me briefly talk about knowledge Graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So actually there are lots of knowledge graphs that have been created by different groups and I'll give some examples in a moment.",
+                    "label": 0
+                },
+                {
+                    "sent": "But when I say knowledge Graph, I mean a data structure like.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "This where the nodes in the graph represent entities such as people and places and things, and the edges represent relationships such as who works for whom, who is married, to whom, who was born when, and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, we can equivalently represent this is sometimes called a heterogeneous information network, so fancy name for a multi graph and obviously you can represent that as a stack of sparse adjacency matrices and we'll come back to that point of view in a moment.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So as I mentioned, various groups have created knowledge graphs of different sizes and forms.",
+                    "label": 1
+                },
+                {
+                    "sent": "I'm going to be mostly focusing on Freebase, which is freely available and Google's knowledge graph as an extension of Freebase, but other companies have knowledge graphs of Facebook has one, Microsoft has one, Walmart has one and there are also academic projects.",
+                    "label": 0
+                },
+                {
+                    "sent": "Perhaps the most well known as the nail project from CMU that was mentioned in Orange Talk this morning.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Argo project from Max Planck, Andy PDF from Wisconsin.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So let me as I said, I'm going to talk mostly about Freebase, an knowledge graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Freebase is created in the following way.",
+                    "label": 1
+                },
+                {
+                    "sent": "It takes various existing structured data sources, such as the Infoboxes on Wikipedia or Musicbrainz, and these are already graph structures and aligns those graphs to build one large massive graph and this data is freely available and Google's Knowledge graph builds on top of that and adds various proprietary data sources such as local business information and product information which isn't shared publicly.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we do not put user data in the Knowledge Graph.",
+                    "label": 0
+                },
+                {
+                    "sent": "So unlike what was claimed in the article, it's all publicly available information.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So these knowledge graphs that have been created a very large.",
+                    "label": 1
+                },
+                {
+                    "sent": "I can't give the precise statistics on Knowledge Graph Google's Knowledge Graph, but I can tell you about Freebase, so that has 40,000,000 nodes and 637 million edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can think of each edge is a fact roughly speaking.",
+                    "label": 1
+                },
+                {
+                    "sent": "But despite the size, it's actually missing many key things.",
+                    "label": 1
+                },
+                {
+                    "sent": "So 94% of the people in Freebase have no known parents, even though there's a mandatory property of the schema, so there's many missing edges in these graphs.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now, in addition to missing edges, the graphs are missing nodes or entities that aren't known about.",
+                    "label": 0
+                },
+                {
+                    "sent": "And of course, the schemer itself is incomplete, so there's many kinds of things that we can't even represent in the current schema now.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this talk, I'm just going to focus on predicting missing links in the graph, and we're going to assume the edges are known and the schemas known, although they are both interesting topics as well.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so this is where knowledge comes in so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "The difference between knowledge graph and knowledgeable is the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Knowledge Graph is a launched product in Google and you can see it showing up on the right hand side of search results and in various other applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there are various groups at Google continually working on increasing the coverage of Knowledge Graph while maintaining its high precision.",
+                    "label": 1
+                },
+                {
+                    "sent": "The knowledge whole project is a research project that hasn't been launched publicly and we're investigating basically other points on the precision recall tradeoff curve.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we're using automatic methods to extract facts from the web, similar to nail in Jago and these.",
+                    "label": 0
+                },
+                {
+                    "sent": "Automatically extracted, they don't necessarily have high enough quality to be shown to users of Google, who of course have very high expectations of quality.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we believe that these lower precision facts might be useful for other applications, so that's the basic idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "So, because these are automatically extracted facts, each fact has a confidence associated with it.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Now the main difference in prior academic projects such as Nail in Jago is the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "Those projects are basically build knowledge bases from scratch, which is a laudable goal.",
+                    "label": 0
+                },
+                {
+                    "sent": "So as a working example, suppose they're trying to discover whether Kobe Bryant plays for the Lakers and we don't know if that's a true fact or not.",
+                    "label": 0
+                },
+                {
+                    "sent": "So they all read a bunch of sentences.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you heard Orange talk this morning, no sentence gets left behind and they'll look for sentences that mention these two entities, cobian LALA, Lakers.",
+                    "label": 0
+                },
+                {
+                    "sent": "And based on these sentences, they try to decide.",
+                    "label": 0
+                },
+                {
+                    "sent": "How likely is this track fact to be true?",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can represent this just a binary event.",
+                    "label": 0
+                },
+                {
+                    "sent": "How likely is the SRO subject relation object triple to be an edge in your knowledge base or not?",
+                    "label": 0
+                },
+                {
+                    "sent": "And these these triples are actually correlated, but we're going to ignore that and treat them as independent binary events for scalability reasons.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So what we do in knowledge Vault is very similar.",
+                    "label": 0
+                },
+                {
+                    "sent": "We extract facts from the web and do machine reading, but in addition, instead of starting from scratch, we say, well, we already have free base, which is a high quality data source.",
+                    "label": 0
+                },
+                {
+                    "sent": "Let's leverage that as a source of prior knowledge and do graph mining on Freebase to learn a prior statistical model of what kinds of facts are likely to be true, so that when we come across a new sentence which might be ambiguous, we can rely on our prior model to help remove some of the uncertainty and all other straight that in more detail.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is the approach at a high level we have sort of extraction from the web on the one side and we have extraction from Freebase on the other and we put the two together and we get higher quality and larger results than previous efforts.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this paper is basically a systems engineering paper.",
+                    "label": 0
+                },
+                {
+                    "sent": "Each of the pieces are fairly well known, but we're putting them all together in a novel way.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So before I explain the details of the methodology, let me just focus on the output of the system.",
+                    "label": 0
+                },
+                {
+                    "sent": "You know where Google we have to be bigger than everyone else, so we have about 1.5 billion.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sorry 2.5 billion facts and knowledge base knowledge vault.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course not all of these facts are true if we focus on the ones that we think are likely true at the time we submitted.",
+                    "label": 0
+                },
+                {
+                    "sent": "The paper is about 300 million.",
+                    "label": 0
+                },
+                {
+                    "sent": "It keeps going up.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's about 50 times bigger than the next nearest neighbor in space, which is the deep dive system from Chris Rea's group.",
+                    "label": 0
+                },
+                {
+                    "sent": "And it's significantly bigger than L. Now you might ask what happens to the remaining triples that aren't high confidence, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "We're seeing lots of things.",
+                    "label": 0
+                },
+                {
+                    "sent": "Isn't that just noise?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Well, actually this uses for all of the that ripples across the probability spectrum.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what I'm plotting here is a histogram of the triples and looking at which probability bucket they fall in.",
+                    "label": 0
+                },
+                {
+                    "sent": "And there's a couple of spikes, so these are triples that are very likely true on the right, and it's obvious what to do with those.",
+                    "label": 0
+                },
+                {
+                    "sent": "They can be added to knowledge Graph, maybe after some human checking, and these triples on the left, which are obviously very likely false.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are likely errors, and if these are already in knowledge graph, we can remove them.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are there erroneous facts?",
+                    "label": 0
+                },
+                {
+                    "sent": "What about the stuff in the middle?",
+                    "label": 0
+                },
+                {
+                    "sent": "Well, if things are likely true, but we're not sure they can still be used as weak signals in conjunction with other data sources for various purposes, such as recommendation ranking and these ones on the left, which are likely false, they are worth investigating as potential errors, either due to incorrect facts on a web page or due to errors in our extraction systems.",
+                    "label": 1
+                },
+                {
+                    "sent": "So all of the triples that we extract are used in different ways.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so let me now explain in more detail how we create the knowledge role.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first half is extracting information from the web.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So we actually view the web through different lenses.",
+                    "label": 1
+                },
+                {
+                    "sent": "It's the same data, but we're processing it in different ways, so we look at unstructured text.",
+                    "label": 0
+                },
+                {
+                    "sent": "We look at the domain structure of web pages.",
+                    "label": 0
+                },
+                {
+                    "sent": "We look at tables, which of course embedded in web pages and then finally we look at Webmaster annotation.",
+                    "label": 0
+                },
+                {
+                    "sent": "So let me talk you through each of these in turn.",
+                    "label": 0
+                },
+                {
+                    "sent": "These are all standard techniques, so I'm going to go over them pretty quickly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So if a text extraction this is Warren was talking about this morning, the way it works is as follows.",
+                    "label": 0
+                },
+                {
+                    "sent": "Will we haven't database of known entities?",
+                    "label": 0
+                },
+                {
+                    "sent": "We're assuming the universe is closed for now and will identify we map all named entities to these entities.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's called.",
+                    "label": 0
+                },
+                {
+                    "sent": "Entity Linkage is a hard problem, but there's like 150 papers just on that one problem.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use some standard techniques that we have in-house.",
+                    "label": 0
+                },
+                {
+                    "sent": "Once we've identified the entities, then we look at each sentence.",
+                    "label": 0
+                },
+                {
+                    "sent": "We find the entities that are mentioned in that sentence, and we look at the path that connects them, and we extract features from that path and these could be lexical surface features.",
+                    "label": 0
+                },
+                {
+                    "sent": "Or they could be based on the dependency tree.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then we take these features and we stick them into a classifier.",
+                    "label": 0
+                },
+                {
+                    "sent": "We use boosted decision trees, but almost anything will work, and this classifier is trained using weekly collected training data using a technique called distant supervision that dates at least back 2009 by a guy called Minsal.",
+                    "label": 0
+                },
+                {
+                    "sent": "And this is extremely standard stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "This very nice tutorial by Ralph Grishman, who's a professor Mau who explains all of these steps in more detail.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, now we also do basically the same thing, but instead of looking at surface form of text, we look at the Dom trees.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is good for structure pages that are made from a automatic publishing system that have repetitive structure.",
+                    "label": 0
+                },
+                {
+                    "sent": "So it's related to wrapper induction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So now we'll look at two pairs of entities and see how they're connected via an X path in the Dom tree.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We also do fact fact extraction from tables on the web and this is taking basically the output of the web tables team Google and this is work that was started by Mike Cafarella an Allen Halevi and it's continued over the years.",
+                    "label": 0
+                },
+                {
+                    "sent": "And in.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Finally, we exploit the fruit of human labor, so there's this thing called schema.org, which is a consortium of Google, Facebook, Yandex, and various other companies where they've agreed on a common ontology to define various events and products and so on.",
+                    "label": 0
+                },
+                {
+                    "sent": "In machine readable form.",
+                    "label": 0
+                },
+                {
+                    "sent": "So on basically 20% of the web pages, and it's growing rapidly.",
+                    "label": 0
+                },
+                {
+                    "sent": "This machine readable markup that specifies what the content of this page actually means so we can scrape that and map that ontology too.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Freebase ontology in an automatic way just writing rules the webmasters don't tell us what the entities are.",
+                    "label": 0
+                },
+                {
+                    "sent": "They just tell us the predicate, so there's still noise introduced in this process.",
+                    "label": 0
+                },
+                {
+                    "sent": "The numbers are going to show you when I talk about the human annotation.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this talk look quite low.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a little odd because this is high quality data, but this we only used a small piece of this data.",
+                    "label": 0
+                },
+                {
+                    "sent": "It was a early experiment.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, so.",
+                    "label": 0
+                },
+                {
+                    "sent": "We each of these systems is producing triples, and of course there is some overlap between those, so we confuse these systems and get increased confidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we train yet another binary classifier to take the output of these systems and to produce an improved confident estimate of the triples so.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "We illustrate how how well the systems work, so this is a standard arosi curve specially hard for me to read.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Black One is the Webmaster annotation and it has the lowest quality just because of coverage issues.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next curve is the table extractor, which is has various issues in figuring out the semantics of tables, but people are working on that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next one is the purple curve, which is free text and then the green curve is the Dom structure which yields the highest quality.",
+                    "label": 0
+                },
+                {
+                    "sent": "An highest quantity of data, and if you put them all together you get a pretty healthy increase in improvement.",
+                    "label": 0
+                },
+                {
+                    "sent": "With that few system, which is not that surprising because if you see the same triple represented multiple times on different web pages, perhaps your.",
+                    "label": 0
+                },
+                {
+                    "sent": "Table Extractor says the annual text extractor says it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then it's more likely to be true.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_21": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we can quantify this by looking at the triples that we know to be true apriori, and this is on test set, so we don't know this on the test set, and we're going to ask how does the probability of the true triples change as we see more evidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this one, I think is the number of different extraction systems.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if different systems extract the same fact that we are in confidence increases from .5, which is the baseline up to approaching one.",
+                    "label": 0
+                },
+                {
+                    "sent": "And if we see the same fact on many many pages, we again.",
+                    "label": 0
+                },
+                {
+                    "sent": "Become more confident in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "This, of course, is after Deduping pages.",
+                    "label": 0
+                },
+                {
+                    "sent": "Sometimes there's literal copying and we don't want to double count the evidence.",
+                    "label": 0
+                },
+                {
+                    "sent": "The facts, which are false, the red lines, they stay more or less flat, so you know sometimes we get misled if we read it enough, but it's not growing as fast as the true facts.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_22": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so that was text extraction or fact extraction from the web using fairly standard techniques.",
+                    "label": 1
+                },
+                {
+                    "sent": "We put them together and get improved results.",
+                    "label": 0
+                },
+                {
+                    "sent": "The nail system was also doing that.",
+                    "label": 0
+                },
+                {
+                    "sent": "The other thing we.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_23": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Add to the pipeline is graph mining and traditionally sort of web mining and graph mining a distinct communities.",
+                    "label": 0
+                },
+                {
+                    "sent": "But there's no reason why you can't put the two together.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_24": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So when I talk about graph mining, I mean the following.",
+                    "label": 0
+                },
+                {
+                    "sent": "I'm not looking for like cliques or that kind of social network stuff, but we're doing link prediction.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose again we want to predict whether Kobe Bryant is playing for the Lakers.",
+                    "label": 1
+                },
+                {
+                    "sent": "So I want to know if this red link exists or not in the graph should be added to the graph an you can equivalently think of that is basically missing data imputation in a sparse binary matrix, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "So just like in a recommender system, the Rose, the entities you have rows and columns representing entities and you observe a set of links which are just bits and you want to predict.",
+                    "label": 0
+                },
+                {
+                    "sent": "The missing links or predict the missing bits and difference from standard matrix factorization is that we have a large number of matrices, one per relation, but you can use.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can throw sort of matrix or tensor factorization approach is that this problem and they work quite well and it's been prior work on this and basically what those methods do is they associate a low dimensional vector for each row and column and then they will also have some way of representing the relations, maybe with another vector or whether another matrix.",
+                    "label": 1
+                }
+            ]
+        },
+        "clip_25": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So we do something similar, but instead of doing it like a Tri linear model, we stick it into a neural network.",
+                    "label": 0
+                },
+                {
+                    "sent": "Of course, right?",
+                    "label": 0
+                },
+                {
+                    "sent": "I said next next door to the Google Brain team there always looking for applications.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's pretty much no effort to just give him some data and they can throw an MLP or anything and it works quite well.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the way in more detail what we're doing is we're taking a candidate triple, which is of course a sparse binary vector.",
+                    "label": 0
+                },
+                {
+                    "sent": "We embed that into a low dimensional space by learning a vector representation of the entities and also of their relations.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we pass it through a few non linear layers and try to predict whether that triple is true or not and we just train this to maximize likelihood using stochastic gradient and this is pretty standard stuff.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what was surprising to us actually is this works much better than fancier methods that have been proposed by for example Richard Social has the neural tensor model at NIPS last year and one bordars who's worked with us on other things.",
+                    "label": 0
+                },
+                {
+                    "sent": "He has a very sophisticated model and this is like good old fashion MLP's from 1970 and you just beat the crap out of it with big data and it works.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_26": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So that's nice.",
+                    "label": 0
+                },
+                {
+                    "sent": "But we we wanted to try various techniques, not just throw big deep learning everything.",
+                    "label": 0
+                },
+                {
+                    "sent": "So this is another algorithm invented by Neil our L and allows at Google.",
+                    "label": 0
+                },
+                {
+                    "sent": "This slide is from sent to me by his advisor Tom Mitchell, an path ranking algorithm is a way of predicting edges in graphs by following paths that might be correlated with the edge you're interested in.",
+                    "label": 0
+                },
+                {
+                    "sent": "So suppose you want to know if which country pittsburghs located in.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can basically start doing random walks on this graph and you can notice that.",
+                    "label": 0
+                },
+                {
+                    "sent": "One way to get from Pittsburgh to a country is to follow what state it's in.",
+                    "label": 0
+                },
+                {
+                    "sent": "So Pittsburgh goes to Pennsylvania, then follow the reverse edge and you say go to Harrisburg and maybe you already know that Harris Books are located in the United States, so you notice that effects located in Country Y.",
+                    "label": 0
+                },
+                {
+                    "sent": "Then one way to predict that is to see which state that city is in and look up the country of the state.",
+                    "label": 0
+                },
+                {
+                    "sent": "And you can do this for a variety of different paths, and each path will have different degrees of trustworthiness, and he's become features into a classifier.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_27": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And what's nice about this method?",
+                    "label": 0
+                },
+                {
+                    "sent": "In contrast, say to the deep learning algorithm is that you get nice patterns or rules which are easy to interpret, and you can, you know, gain some insight into these.",
+                    "label": 0
+                },
+                {
+                    "sent": "So obviously $1,000,000 question, how do these methods compare?",
+                    "label": 0
+                },
+                {
+                    "sent": "So on some test data?",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_28": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "We did a holdout experiment, and in fact they're very similar in performance.",
+                    "label": 1
+                },
+                {
+                    "sent": "They make different kinds of errors, so if you fuse the two together you get a boost.",
+                    "label": 0
+                },
+                {
+                    "sent": "It wasn't as big as we had hoped, but the red line at the top is what happens when you put the brain on your network model together with the PRA model.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_29": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "OK, and then finally the obvious thing to do is now to combine the web mining with the.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_30": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Mining, and so this is this picture I showed you before.",
+                    "label": 0
+                },
+                {
+                    "sent": "So how do we do that?",
+                    "label": 0
+                },
+                {
+                    "sent": "We just train yet another classifier, one per relation down.",
+                    "label": 0
+                },
+                {
+                    "sent": "Here we have about 2000 relations that take the signals from these different systems.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_31": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the benefit of doing that is shown here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The purple curve is the fused prior model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The green curve is the fused web extractor and the red model is.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you put web mining and graph mining together.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_32": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "OK, so more interesting than these RC curves is to look into a qualitative analysis or error analysis.",
+                    "label": 0
+                },
+                {
+                    "sent": "In this case, this is not an error is a success.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we have an example.",
+                    "label": 0
+                },
+                {
+                    "sent": "Triple is Barry Richter this study study at the University of Wisconsin, Madison, and there are two sentence is on the web that mentioned Barry Richter and UW Madison in the same sentence, and neither them explicitly say he studied there.",
+                    "label": 1
+                },
+                {
+                    "sent": "They give weak support for that fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "So based on text extraction alone, we all say this is .1 four probability true, but we already know some stuff about this guy.",
+                    "label": 0
+                },
+                {
+                    "sent": "He's an ice hockey player.",
+                    "label": 0
+                },
+                {
+                    "sent": "We know that he was born in Madison, lived in Madison, and we've learned rules offline that say.",
+                    "label": 0
+                },
+                {
+                    "sent": "People often go to the school where they were born or where they've lived, rather.",
+                    "label": 0
+                },
+                {
+                    "sent": "So if you add that side knowledge in, then the posterior probability is now .61, so it's much higher than it was, and this is a true fact.",
+                    "label": 0
+                },
+                {
+                    "sent": "So we've increased the probability mass on the true facts and decreased on the false flags.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_33": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "And reduced our uncertainty.",
+                    "label": 0
+                },
+                {
+                    "sent": "So just to summarize, I am almost out of time.",
+                    "label": 0
+                },
+                {
+                    "sent": "The Knowledge Fault is this massive knowledge repository with about 2.5 billion triples.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's about 50 to 100 times bigger than the next nearest neighbor, and it's constructed by web mining and graph mining.",
+                    "label": 1
+                },
+                {
+                    "sent": "Now I mentioned at the beginning of the talk various issues with knowledge bases, so I focused on this talk on just filling in missing edges.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have ongoing work on filling in missing nodes or entities, so entity discovery, some of that's coming out in CI came later this year.",
+                    "label": 1
+                },
+                {
+                    "sent": "We also have some work in progress with an intern on doing.",
+                    "label": 1
+                },
+                {
+                    "sent": "Robust wrapper induction for long tail mining of verticals.",
+                    "label": 0
+                },
+                {
+                    "sent": "We're also trying to grow the schema so my colleague on Halevi has a paper at VLDB this year called by Pedia.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's about expanding the schema automatically.",
+                    "label": 0
+                },
+                {
+                    "sent": "You can read that and we have some existing work on assessing the trustworthiness of different web sources.",
+                    "label": 0
+                },
+                {
+                    "sent": "This came up in the New Scientist article how do you know whether you're being spammed or working on that?",
+                    "label": 0
+                },
+                {
+                    "sent": "There's some published work in VLDB with Mike Arthur Luna Dong and that's an active topic.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then finally I just want to mention because Aaron.",
+                    "label": 0
+                },
+                {
+                    "sent": "Was sort of criticizing this whole line of work this morning.",
+                    "label": 1
+                },
+                {
+                    "sent": "We are very well aware that these knowledge bases only have factual sort of declarative statements that Barack was born in Hawaii and they don't know anything about apples or common sense or stuff that kids know and we want to solve that problem too.",
+                    "label": 0
+                },
+                {
+                    "sent": "We have a team working on common sense, knowledge extraction and reasoning, and that's work in progress.",
+                    "label": 0
+                },
+                {
+                    "sent": "Stay tuned.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}

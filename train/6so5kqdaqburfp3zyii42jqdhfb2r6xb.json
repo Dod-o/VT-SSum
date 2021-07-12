@@ -1,0 +1,772 @@
+{
+    "id": "6so5kqdaqburfp3zyii42jqdhfb2r6xb",
+    "title": "Differentiating Code from Data in x86 Binaries",
+    "info": {
+        "author": [
+            "Richard Wartell, Department of Computer Science, Erik Jonsson School of Engineering & Computer Science, The University of Texas at Dallas"
+        ],
+        "published": "Oct. 3, 2011",
+        "recorded": "September 2011",
+        "category": [
+            "Top->Computer Science->Information Extraction",
+            "Top->Computer Science->Machine Learning"
+        ]
+    },
+    "url": "http://videolectures.net/ecmlpkdd2011_wartell_code/",
+    "segmentation": [
+        [
+            "I worked with a couple of professors on differentiating code from data in X86 binaries and essentially creating a disassembler using machine learning."
+        ],
+        [
+            "Technologies.",
+            "So the first question really is why do we need to disassemble binaries in problems like reverse engineering and malware analysis.",
+            "Disassembling is necessary because without an accurate disassembly we wouldn't have the semantic information that we need in order to solve those problems in reference monitor inlining and software fault isolation, you're doing some kind of a rewrite on an executable, and therefore you need an accurate disassembly in order to create that rewritten program.",
+            "There are quite a few disassemblers that are out there right now.",
+            "I've listed a few.",
+            "Objdump is one that's provided by the new.",
+            "It's a straight line.",
+            "Disassembler Olly debug is when you can find on the Internet that is an interactive control flow based disassembler and then ID apro is kind of held to be the best disassembler out there right now.",
+            "In general when anybody is doing reverse engineering they tend to go to Ideate Pro and it uses a control flow based approach while also using a number of heuristic."
+        ],
+        [
+            "So first, let's talk about why how you would go about disassembling other architectures like Java and risk in Java and risk you have one byte opcode, so from a single byte you know exactly how long an instruction is, and then code and data in those architectures are stored in separate sections.",
+            "So what this means is if we want to disassemble a Java bytecode program, all you have to do is start from the beginning and disassemble that instruction.",
+            "And then move on to the next instruction and then continue, so on and so forth."
+        ],
+        [
+            "In X86, that's also what's known as a straight line based disassembler where you're doing instruction after instruction.",
+            "In X86 it becomes much more difficult because the instructions have variable length opcodes, meaning sometimes you can tell how long an instruction is from one byte.",
+            "Sometimes it takes as many as four and also code and data in X86 executables can be stored in code sections, so you can have instructions followed by data followed by more instructions.",
+            "So if we attempted the same kind of approach that you would use to disassemble a Java bytecode program, a straight line disassembly this disassembly where you see you have three instructions followed by some data bytes followed by instruction would be."
+        ],
+        [
+            "Disassembled into this, which would be an incorrect disassembly and you have lost the information that you want.",
+            "Also, you can sell that the last instruction that was a return instruction has now got been pushed into the data bytes that have been misclassified as code, and therefore you've lost even more information."
+        ],
+        [
+            "So the other kind of approach is called a control flow based disassembly approach, where rather than just going instruction by instruction, you're using some of the semantic information that you're gaining as your disassembling to tell you where to go next.",
+            "So what happens is when you see a branch instruction you try and determine where that branch is going to, and using that information that tells you where more code is in the executable so that same executable that we just looked at.",
+            "A control flow based disassembly would actually disassemble this correctly."
+        ],
+        [
+            "However, if we change 2 bytes in the hex of that executable, we now have a jumpy X rather than a direct jump.",
+            "And what this changes is that that EAX is acts as a register that is being calculated at runtime, and therefore when you do a control flow basis."
+        ],
+        [
+            "Ugly.",
+            "You're now losing that last byte because when you disassemble you don't know where to go after you get to that branch instruction."
+        ],
+        [
+            "So if that wasn't enough, it actually gets much worse than that in terms of X86 binaries, because you also have the problem that there are.",
+            "There's an idea of hidden entry points where an executable can hand information to the operating system that it calculates at runtime, and the operating system can then use that information to jump back into the executable.",
+            "And since that's calculated at runtime, that's one other type of.",
+            "That's one other section of code that would be very difficult to determine.",
+            "Statically during a disassembly."
+        ],
+        [
+            "So given all of this information about how difficult it is to disassemble X86 ID, a Pro does a very good job of it, but it still makes quite a few mistakes.",
+            "So here we have a successful disassembly and what should happen."
+        ],
+        [
+            "And here we have the exact same disassembly, but what ID apro actually gives you?",
+            "You'll notice that it is dropped the first byte from some instructions which semantically change it.",
+            "To change those instructions to other instructions.",
+            "It's misclassified a bunch of code instructions that come before the return as data, and then at the bottom the last three instructions were actually data bytes that it has misclassified as code."
+        ],
+        [
+            "So our solution was to rather than take a control flow based approach to disassembly or a straight line approach, we decided that we would try a machine learning based approach because we are knowledge, couldn't find anybody that it attempted such a thing.",
+            "So kind of the flow of our solution is we take the raw hex of an executable, we pass it to an instruction reference array that doesn't initial segmentation of the hex.",
+            "It passes that to our machine learning model, which I'll describe in a bit here.",
+            "The machine learning model tags the segments as code or data and passes them to some post processing heuristics and mainly these heuristics are kind of sanity checks that are saying that look for semantic flaws where we know certain things about an executable an we re classify based on whether or not we know these things should be code or data.",
+            "And finally we get after that we have our."
+        ],
+        [
+            "So first the instruction reference array we use is.",
+            "In essence, it's basically a straight line disassembler.",
+            "What it does is it simply starts at the beginning of an executable byte sequence and says.",
+            "Given this, given this byte sequence that starts at this bite, this is how long this instruction should be and then moves on to the next instruction an segments it.",
+            "That way the only difference is when we run into an opcode that we know is not a valid opcodes.",
+            "We tag that as possible data and move forward just one bite."
+        ],
+        [
+            "So the machine learning model that we then pass these segments this segmented executable to what we wanted to do was create two models, one that is an accurate model of what code looks like, and then one that is an accurate model of what data looks like, but only data that is stored within code sections.",
+            "So what we did was we tagged a huge corpus of executables as code or data from accurate disassembly's that we could find.",
+            "And then we pass those to two models."
+        ],
+        [
+            "And the models that we use are a prediction by partial matching model, which is simply a case order Markov model.",
+            "The reason we chose this is that we wanted to preserve some of the contextual context based solution and we wanted to preserve some of the contextual information."
+        ],
+        [
+            "So our two models and we have our code model in our data model to estimate the probability of seeing a byte sequence B.",
+            "All we passed B to both of these models in whichever one gives you the minimal cross entropy.",
+            "That's the one that we classify that byte sequences."
+        ],
+        [
+            "From here, we pass that information to some heuristics.",
+            "The heuristics are all very basic things.",
+            "The first one is that.",
+            "In, in X86 binaries, when you see data inside of a code section, it's very common for the for that day to be to be stored in the form of 32 bit integers, but beyond that 32 bit integers that are very similar one after another.",
+            "So when we see that if we see it beyond a certain threshold, we re classify those that as data rather than code.",
+            "If we have misclassified it.",
+            "Like I said earlier, these are mainly sanity checks and usually haven't.",
+            "They're just there too.",
+            "Make sure that we haven't made mistakes.",
+            "The next heuristic that we use is that 16 bit addressing modes are still supported in X86, but they are really only there for legacy purposes.",
+            "You would be hard pressed to find an executable that has been created in the last five years that actually has legitimate 16 bit instructions in it.",
+            "So anytime that we see an instruction that has been labeled as code that is using a 16 bit addressing mode, we re classify that as data because we assume that we've made a mistake.",
+            "And finally, the last heuristic that we use.",
+            "Basically it has to do with the fact that in the flow of a program you can't have the execution flow into data because once if the execution flows into data, it's no longer data, it's being executed as code.",
+            "So anytime that we see a non branching instruction that is surrounded by data bytes, we re classify that as data and vice versa.",
+            "If we see a long string of instructions.",
+            "We followed by data and there's no unconditional branch in between.",
+            "We re classify the data following those instructions to as code until we reach an unconditional branch."
+        ],
+        [
+            "Ouch.",
+            "So the results that we got from our work were very, very positive idea.",
+            "We compared to ID a pro like I said, because it's as good as we could find of a disassembler, and in general we made vast improvements.",
+            "You'll notice that these accuracy numbers are very high.",
+            "The reason for that is that, for example Mulberry I believe is 6 megabyte executable, so you're talking about something like 3 million instructions in there now.",
+            "It might not seem like a big advantage to not a big improvement to be not bringing accuracy up by a few percentage points, but you have to think of the fact that if you want an accurate disassembly and you are doing some work with one of these executables, every single one of those mistakes is something that you have to go in and manually fix, so if so.",
+            "We've improved on quite a few of the binaries that we ran through Idap."
+        ],
+        [
+            "Bro.",
+            "And finally, I'll show a few of the mistakes that Idea Pro makes.",
+            "If you notice, idea Pro does a lot of things where it's dropping a single byte, which semantically changes the following instruction, you'll notice the first one.",
+            "It drops a 64 byte, which is a, which is a prefix byte which changes the following instruction and then the next three all have to do with the fact that Idea Pro uses a control control flow based approach since.",
+            "It gets to a branch instruction following that branch instruction.",
+            "It has trouble knowing when to begin again and drops bites and thus changes what the following instructions are and are disassembler in all of these cases doesn't make these mistakes."
+        ],
+        [
+            "So in conclusion, I would say the contribution we've made is we've kind of had the first machine learning based disassembler that we know of, and also we've improved the accuracy over control flow based approaches.",
+            "There's plenty of improvements that we still plan on future work that we'd like to do.",
+            "There's quite a few heuristics that we'd like to work on to contribute to our work.",
+            "We'd also like to include block entropy analysis to possibly do some analysis of the semantic information of a small.",
+            "Small blocks of the code in the executable.",
+            "Also, our corpus is somewhat lacking right now.",
+            "It's very difficult to get a corpus of accurate disassembly's because you have to have an accurate disassembler to get accurate assemblies, and that's what we're after.",
+            "So what we want to do is right now our corpus is based on.",
+            "On pulling tagged information from disassembly's, what we'd rather do is actually compile our own executables and dissent using compiler directives that will separate code and data in those in those executables into separate sections, and then we'll have completely accurate information about what is code and data that we have in our corpus.",
+            "Finally, we'd like to include this work in some applications and security.",
+            "I actually come from a programming languages security background.",
+            "And the one of my other projects is a source free X86 software fault isolation project.",
+            "And what we we rely on ID apro to give us our accurate disassembly's in order to do our rewriting.",
+            "Now if we had a more accurate disassembler to do that, we would have more success in terms of getting correctly written."
+        ],
+        [
+            "Programs.",
+            "And finally, I think that's it.",
+            "Question.",
+            "You have the package version of the executable, it's packed, and actually what you see is the unpacker and the actual binary is in the payload.",
+            "Can your method be adjusted to handle cases like this?",
+            "Um?",
+            "Eventually it could be in essence what you have to do is do some kind of an execution that does so you can understand how the unpacking works.",
+            "In order to do that.",
+            "And currently we don't have any anything implemented so far.",
+            "Basically we would have to take our approach and make somewhat of a dynamic version to the disassembler, which is possible, but it's definitely in future work, OK.",
+            "Thank you very much.",
+            "OK, yes, one more question there.",
+            "For your model building, I think might be interesting to try and look at machine learning techniques that have been developed specifically for learning regular languages, particularly for your code models.",
+            "So there is a whole family of those, and I would be interesting to see if that gives anything you know even more performing than your results.",
+            "We definitely planning on looking into other machine learning techniques.",
+            "That we could use to better our model.",
+            "This was kind of a first run.",
+            "It's a very new project so.",
+            "Anymore questions.",
+            "OK, if not, let's thank the speaker."
+        ]
+    ],
+    "summarization": {
+        "clip_0": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "I worked with a couple of professors on differentiating code from data in X86 binaries and essentially creating a disassembler using machine learning.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_1": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "Technologies.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the first question really is why do we need to disassemble binaries in problems like reverse engineering and malware analysis.",
+                    "label": 1
+                },
+                {
+                    "sent": "Disassembling is necessary because without an accurate disassembly we wouldn't have the semantic information that we need in order to solve those problems in reference monitor inlining and software fault isolation, you're doing some kind of a rewrite on an executable, and therefore you need an accurate disassembly in order to create that rewritten program.",
+                    "label": 0
+                },
+                {
+                    "sent": "There are quite a few disassemblers that are out there right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "I've listed a few.",
+                    "label": 0
+                },
+                {
+                    "sent": "Objdump is one that's provided by the new.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a straight line.",
+                    "label": 0
+                },
+                {
+                    "sent": "Disassembler Olly debug is when you can find on the Internet that is an interactive control flow based disassembler and then ID apro is kind of held to be the best disassembler out there right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "In general when anybody is doing reverse engineering they tend to go to Ideate Pro and it uses a control flow based approach while also using a number of heuristic.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_2": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So first, let's talk about why how you would go about disassembling other architectures like Java and risk in Java and risk you have one byte opcode, so from a single byte you know exactly how long an instruction is, and then code and data in those architectures are stored in separate sections.",
+                    "label": 1
+                },
+                {
+                    "sent": "So what this means is if we want to disassemble a Java bytecode program, all you have to do is start from the beginning and disassemble that instruction.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then move on to the next instruction and then continue, so on and so forth.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_3": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "In X86, that's also what's known as a straight line based disassembler where you're doing instruction after instruction.",
+                    "label": 0
+                },
+                {
+                    "sent": "In X86 it becomes much more difficult because the instructions have variable length opcodes, meaning sometimes you can tell how long an instruction is from one byte.",
+                    "label": 1
+                },
+                {
+                    "sent": "Sometimes it takes as many as four and also code and data in X86 executables can be stored in code sections, so you can have instructions followed by data followed by more instructions.",
+                    "label": 1
+                },
+                {
+                    "sent": "So if we attempted the same kind of approach that you would use to disassemble a Java bytecode program, a straight line disassembly this disassembly where you see you have three instructions followed by some data bytes followed by instruction would be.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_4": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Disassembled into this, which would be an incorrect disassembly and you have lost the information that you want.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, you can sell that the last instruction that was a return instruction has now got been pushed into the data bytes that have been misclassified as code, and therefore you've lost even more information.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_5": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the other kind of approach is called a control flow based disassembly approach, where rather than just going instruction by instruction, you're using some of the semantic information that you're gaining as your disassembling to tell you where to go next.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what happens is when you see a branch instruction you try and determine where that branch is going to, and using that information that tells you where more code is in the executable so that same executable that we just looked at.",
+                    "label": 0
+                },
+                {
+                    "sent": "A control flow based disassembly would actually disassemble this correctly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_6": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "However, if we change 2 bytes in the hex of that executable, we now have a jumpy X rather than a direct jump.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what this changes is that that EAX is acts as a register that is being calculated at runtime, and therefore when you do a control flow basis.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_7": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Ugly.",
+                    "label": 0
+                },
+                {
+                    "sent": "You're now losing that last byte because when you disassemble you don't know where to go after you get to that branch instruction.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_8": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So if that wasn't enough, it actually gets much worse than that in terms of X86 binaries, because you also have the problem that there are.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's an idea of hidden entry points where an executable can hand information to the operating system that it calculates at runtime, and the operating system can then use that information to jump back into the executable.",
+                    "label": 0
+                },
+                {
+                    "sent": "And since that's calculated at runtime, that's one other type of.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's one other section of code that would be very difficult to determine.",
+                    "label": 0
+                },
+                {
+                    "sent": "Statically during a disassembly.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_9": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So given all of this information about how difficult it is to disassemble X86 ID, a Pro does a very good job of it, but it still makes quite a few mistakes.",
+                    "label": 0
+                },
+                {
+                    "sent": "So here we have a successful disassembly and what should happen.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_10": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And here we have the exact same disassembly, but what ID apro actually gives you?",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll notice that it is dropped the first byte from some instructions which semantically change it.",
+                    "label": 0
+                },
+                {
+                    "sent": "To change those instructions to other instructions.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's misclassified a bunch of code instructions that come before the return as data, and then at the bottom the last three instructions were actually data bytes that it has misclassified as code.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_11": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So our solution was to rather than take a control flow based approach to disassembly or a straight line approach, we decided that we would try a machine learning based approach because we are knowledge, couldn't find anybody that it attempted such a thing.",
+                    "label": 0
+                },
+                {
+                    "sent": "So kind of the flow of our solution is we take the raw hex of an executable, we pass it to an instruction reference array that doesn't initial segmentation of the hex.",
+                    "label": 1
+                },
+                {
+                    "sent": "It passes that to our machine learning model, which I'll describe in a bit here.",
+                    "label": 0
+                },
+                {
+                    "sent": "The machine learning model tags the segments as code or data and passes them to some post processing heuristics and mainly these heuristics are kind of sanity checks that are saying that look for semantic flaws where we know certain things about an executable an we re classify based on whether or not we know these things should be code or data.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally we get after that we have our.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_12": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So first the instruction reference array we use is.",
+                    "label": 1
+                },
+                {
+                    "sent": "In essence, it's basically a straight line disassembler.",
+                    "label": 0
+                },
+                {
+                    "sent": "What it does is it simply starts at the beginning of an executable byte sequence and says.",
+                    "label": 0
+                },
+                {
+                    "sent": "Given this, given this byte sequence that starts at this bite, this is how long this instruction should be and then moves on to the next instruction an segments it.",
+                    "label": 0
+                },
+                {
+                    "sent": "That way the only difference is when we run into an opcode that we know is not a valid opcodes.",
+                    "label": 0
+                },
+                {
+                    "sent": "We tag that as possible data and move forward just one bite.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_13": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "So the machine learning model that we then pass these segments this segmented executable to what we wanted to do was create two models, one that is an accurate model of what code looks like, and then one that is an accurate model of what data looks like, but only data that is stored within code sections.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we did was we tagged a huge corpus of executables as code or data from accurate disassembly's that we could find.",
+                    "label": 0
+                },
+                {
+                    "sent": "And then we pass those to two models.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_14": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "And the models that we use are a prediction by partial matching model, which is simply a case order Markov model.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason we chose this is that we wanted to preserve some of the contextual context based solution and we wanted to preserve some of the contextual information.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_15": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So our two models and we have our code model in our data model to estimate the probability of seeing a byte sequence B.",
+                    "label": 1
+                },
+                {
+                    "sent": "All we passed B to both of these models in whichever one gives you the minimal cross entropy.",
+                    "label": 0
+                },
+                {
+                    "sent": "That's the one that we classify that byte sequences.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_16": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "From here, we pass that information to some heuristics.",
+                    "label": 0
+                },
+                {
+                    "sent": "The heuristics are all very basic things.",
+                    "label": 0
+                },
+                {
+                    "sent": "The first one is that.",
+                    "label": 0
+                },
+                {
+                    "sent": "In, in X86 binaries, when you see data inside of a code section, it's very common for the for that day to be to be stored in the form of 32 bit integers, but beyond that 32 bit integers that are very similar one after another.",
+                    "label": 0
+                },
+                {
+                    "sent": "So when we see that if we see it beyond a certain threshold, we re classify those that as data rather than code.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we have misclassified it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Like I said earlier, these are mainly sanity checks and usually haven't.",
+                    "label": 0
+                },
+                {
+                    "sent": "They're just there too.",
+                    "label": 0
+                },
+                {
+                    "sent": "Make sure that we haven't made mistakes.",
+                    "label": 0
+                },
+                {
+                    "sent": "The next heuristic that we use is that 16 bit addressing modes are still supported in X86, but they are really only there for legacy purposes.",
+                    "label": 0
+                },
+                {
+                    "sent": "You would be hard pressed to find an executable that has been created in the last five years that actually has legitimate 16 bit instructions in it.",
+                    "label": 0
+                },
+                {
+                    "sent": "So anytime that we see an instruction that has been labeled as code that is using a 16 bit addressing mode, we re classify that as data because we assume that we've made a mistake.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, the last heuristic that we use.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically it has to do with the fact that in the flow of a program you can't have the execution flow into data because once if the execution flows into data, it's no longer data, it's being executed as code.",
+                    "label": 0
+                },
+                {
+                    "sent": "So anytime that we see a non branching instruction that is surrounded by data bytes, we re classify that as data and vice versa.",
+                    "label": 0
+                },
+                {
+                    "sent": "If we see a long string of instructions.",
+                    "label": 0
+                },
+                {
+                    "sent": "We followed by data and there's no unconditional branch in between.",
+                    "label": 0
+                },
+                {
+                    "sent": "We re classify the data following those instructions to as code until we reach an unconditional branch.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_17": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Ouch.",
+                    "label": 0
+                },
+                {
+                    "sent": "So the results that we got from our work were very, very positive idea.",
+                    "label": 0
+                },
+                {
+                    "sent": "We compared to ID a pro like I said, because it's as good as we could find of a disassembler, and in general we made vast improvements.",
+                    "label": 0
+                },
+                {
+                    "sent": "You'll notice that these accuracy numbers are very high.",
+                    "label": 0
+                },
+                {
+                    "sent": "The reason for that is that, for example Mulberry I believe is 6 megabyte executable, so you're talking about something like 3 million instructions in there now.",
+                    "label": 0
+                },
+                {
+                    "sent": "It might not seem like a big advantage to not a big improvement to be not bringing accuracy up by a few percentage points, but you have to think of the fact that if you want an accurate disassembly and you are doing some work with one of these executables, every single one of those mistakes is something that you have to go in and manually fix, so if so.",
+                    "label": 0
+                },
+                {
+                    "sent": "We've improved on quite a few of the binaries that we ran through Idap.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_18": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Bro.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, I'll show a few of the mistakes that Idea Pro makes.",
+                    "label": 0
+                },
+                {
+                    "sent": "If you notice, idea Pro does a lot of things where it's dropping a single byte, which semantically changes the following instruction, you'll notice the first one.",
+                    "label": 0
+                },
+                {
+                    "sent": "It drops a 64 byte, which is a, which is a prefix byte which changes the following instruction and then the next three all have to do with the fact that Idea Pro uses a control control flow based approach since.",
+                    "label": 0
+                },
+                {
+                    "sent": "It gets to a branch instruction following that branch instruction.",
+                    "label": 0
+                },
+                {
+                    "sent": "It has trouble knowing when to begin again and drops bites and thus changes what the following instructions are and are disassembler in all of these cases doesn't make these mistakes.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_19": {
+            "is_summarization_sample": true,
+            "summarization_data": [
+                {
+                    "sent": "So in conclusion, I would say the contribution we've made is we've kind of had the first machine learning based disassembler that we know of, and also we've improved the accuracy over control flow based approaches.",
+                    "label": 1
+                },
+                {
+                    "sent": "There's plenty of improvements that we still plan on future work that we'd like to do.",
+                    "label": 0
+                },
+                {
+                    "sent": "There's quite a few heuristics that we'd like to work on to contribute to our work.",
+                    "label": 0
+                },
+                {
+                    "sent": "We'd also like to include block entropy analysis to possibly do some analysis of the semantic information of a small.",
+                    "label": 1
+                },
+                {
+                    "sent": "Small blocks of the code in the executable.",
+                    "label": 0
+                },
+                {
+                    "sent": "Also, our corpus is somewhat lacking right now.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's very difficult to get a corpus of accurate disassembly's because you have to have an accurate disassembler to get accurate assemblies, and that's what we're after.",
+                    "label": 0
+                },
+                {
+                    "sent": "So what we want to do is right now our corpus is based on.",
+                    "label": 0
+                },
+                {
+                    "sent": "On pulling tagged information from disassembly's, what we'd rather do is actually compile our own executables and dissent using compiler directives that will separate code and data in those in those executables into separate sections, and then we'll have completely accurate information about what is code and data that we have in our corpus.",
+                    "label": 0
+                },
+                {
+                    "sent": "Finally, we'd like to include this work in some applications and security.",
+                    "label": 0
+                },
+                {
+                    "sent": "I actually come from a programming languages security background.",
+                    "label": 0
+                },
+                {
+                    "sent": "And the one of my other projects is a source free X86 software fault isolation project.",
+                    "label": 0
+                },
+                {
+                    "sent": "And what we we rely on ID apro to give us our accurate disassembly's in order to do our rewriting.",
+                    "label": 0
+                },
+                {
+                    "sent": "Now if we had a more accurate disassembler to do that, we would have more success in terms of getting correctly written.",
+                    "label": 0
+                }
+            ]
+        },
+        "clip_20": {
+            "is_summarization_sample": false,
+            "summarization_data": [
+                {
+                    "sent": "Programs.",
+                    "label": 0
+                },
+                {
+                    "sent": "And finally, I think that's it.",
+                    "label": 0
+                },
+                {
+                    "sent": "Question.",
+                    "label": 0
+                },
+                {
+                    "sent": "You have the package version of the executable, it's packed, and actually what you see is the unpacker and the actual binary is in the payload.",
+                    "label": 0
+                },
+                {
+                    "sent": "Can your method be adjusted to handle cases like this?",
+                    "label": 0
+                },
+                {
+                    "sent": "Um?",
+                    "label": 0
+                },
+                {
+                    "sent": "Eventually it could be in essence what you have to do is do some kind of an execution that does so you can understand how the unpacking works.",
+                    "label": 0
+                },
+                {
+                    "sent": "In order to do that.",
+                    "label": 0
+                },
+                {
+                    "sent": "And currently we don't have any anything implemented so far.",
+                    "label": 0
+                },
+                {
+                    "sent": "Basically we would have to take our approach and make somewhat of a dynamic version to the disassembler, which is possible, but it's definitely in future work, OK.",
+                    "label": 0
+                },
+                {
+                    "sent": "Thank you very much.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, yes, one more question there.",
+                    "label": 0
+                },
+                {
+                    "sent": "For your model building, I think might be interesting to try and look at machine learning techniques that have been developed specifically for learning regular languages, particularly for your code models.",
+                    "label": 0
+                },
+                {
+                    "sent": "So there is a whole family of those, and I would be interesting to see if that gives anything you know even more performing than your results.",
+                    "label": 0
+                },
+                {
+                    "sent": "We definitely planning on looking into other machine learning techniques.",
+                    "label": 0
+                },
+                {
+                    "sent": "That we could use to better our model.",
+                    "label": 0
+                },
+                {
+                    "sent": "This was kind of a first run.",
+                    "label": 0
+                },
+                {
+                    "sent": "It's a very new project so.",
+                    "label": 0
+                },
+                {
+                    "sent": "Anymore questions.",
+                    "label": 0
+                },
+                {
+                    "sent": "OK, if not, let's thank the speaker.",
+                    "label": 0
+                }
+            ]
+        }
+    }
+}
