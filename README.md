@@ -4,7 +4,7 @@ VT-SSum is a benchmark dataset with spoken language for video transcript segment
 
 
 ## Statistics of VT-SSum
-#### Statistics on Train/Val/Test sets of VT-SSum
+<!-- #### Statistics on Train/Val/Test sets of VT-SSum -->
 | Source                        | train    | dev   | test |
 |-------------------------------|----------|-------|------|
 | Vedio                         | 7,692    | 962   | 962  |
@@ -27,7 +27,7 @@ VT-SSum is a benchmark dataset with spoken language for video transcript segment
 
 Evaluation results on the test data of VT-SSum with models fine-tuned on different datasets
 
-| Models                        | Top3_Precision | Top3_Recall    | Top3_F1        | Top5_Precision | Top5_Recall    |Top5_F1         | 
+| Models                        | Top3-Precision | Top3-Recall    | Top3-F1        | Top5-Precision | Top5-Recall    |Top5-F1         | 
 |-------------------------------|----------------|----------------|----------------|----------------|----------------|----------------|
 | CNN/DM                        | 31.49          | 58.41          | 40.92          | 27.10          | 74.46          | 39.74          |
 | VT-SSum                       | 37.86          | 69.04          | 48.90          | 29.79          | 80.79          | 43.53          |
@@ -35,7 +35,7 @@ Evaluation results on the test data of VT-SSum with models fine-tuned on differe
 
 Evaluation results on the test data of AMI with models fine-tuned on different datasets
 
-| Models                        | Top3_Precision | Top3_Recall    | Top3_F1        | Top5_Precision | Top5_Recall    |Top5_F1         | 
+| Models                        | Top3-Precision | Top3-Recall    | Top3-F1        | Top5-Precision | Top5-Recall    |Top5-F1         | 
 |-------------------------------|----------------|----------------|----------------|----------------|----------------|----------------|
 | CNN/DM                        | 45.30          | 59.03          | 51.26          | 39.03          | 72.61          | 50.77          |
 | VT-SSum                       | 51.80          | 67.96          | 58.79          | 42.72          | 79.26          | 55.51          |
@@ -53,7 +53,7 @@ Evaluation result of the segmentation on the test data of VT-SSum
 | UniLMv2<sub>large</sub>       | 93.00       |
 
 
-##  Format of the dataset
+##  Format of the data
 
 Each file(*.json) consists of 6 fields:
 
