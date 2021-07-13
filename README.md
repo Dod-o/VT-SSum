@@ -10,7 +10,7 @@ VT-SSum is a benchmark dataset with spoken language for video transcript segment
 | Vedio                         | 7,692    | 962   | 962  |
 
 
-#### Data statistics of VT-SSum in video-level
+<!-- #### Data statistics of VT-SSum in video-level
 | Dataset                        | Avg.slides    | Avg.sents   | Avg.words |
 |--------------------------------|---------------|-------------|-----------|
 | VT-SSum                        | 33.3          | 293.1       | 4,208.1    |
@@ -19,7 +19,7 @@ VT-SSum is a benchmark dataset with spoken language for video transcript segment
 | Dataset                        | Samples    | Avg.sents   | Avg.words |
 |--------------------------------|------------|-------------|-----------|
 | VT-SSum                        | 125,004    | 12.7        | 185.9     |
-| CNN/DM                         | 311,971    | 38.6        | 690.9     |
+| CNN/DM                         | 311,971    | 38.6        | 690.9     | -->
 
 ## Baselines
 
