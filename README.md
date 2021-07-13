@@ -96,7 +96,7 @@ Each file(*.json) consists of 6 fields:
             }
     }
   ```
-  where `is_summarization_sample` indicates that the current segment can find the corresponding summary and be used in the training/evaluation of the summarization task. 
+  where `is_summarization_sample` indicates that the current segment has summary and be used in the training/evaluation of the summarization task. 
   
 ## Paper and Citation
 
