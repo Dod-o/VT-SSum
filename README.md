@@ -67,7 +67,7 @@ Each file(*.json) consists of 6 fields:
     [
         [sent_0 in seg_0, sent_1 in seg_0, ..., sent_n in seg_0],
          ..., 
-        [sent_0 in seg_k, sent_1 in seg_0, ..., sent_m in seg_k]
+        [sent_0 in seg_k, sent_1 in seg_k, ..., sent_m in seg_k]
     ]
   ```
   where `k` is the number of segments in the current video, and `n`/`m` is the number of sentences in the segment.
