@@ -3,6 +3,7 @@
 VT-SSum is a benchmark dataset with spoken language for video transcript segmentation and summarization
 
 
+
 ## Statistics of VT-SSum
 <!-- #### Statistics on Train/Val/Test sets of VT-SSum -->
 | Source                        | train    | dev   | test |
@@ -97,7 +98,20 @@ Each file(*.json) consists of 6 fields:
   ```
   where `is_summarization_sample` indicates that the current segment can find the corresponding summary and be used in the training/evaluation of the summarization task. 
   
-## Paper
-VT-SSum: A Benchmark Dataset for Video Transcript Segmentation and Summarization **[in review]**
+## Paper and Citation
+
+[VT-SSum: A Benchmark Dataset for Video Transcript Segmentation and Summarization](https://arxiv.org/abs/2106.05606v1) **[Preprint]**
+
+
+If you find VT-SSum useful in your research, please cite the following paper:
+```
+@article{lv2021vt,
+  title={VT-SSum: A Benchmark Dataset for Video Transcript Segmentation and Summarization},
+  author={Lv, Tengchao and Cui, Lei and Vasilijevic, Momcilo and Wei, Furu},
+  journal={arXiv preprint arXiv:2106.05606},
+  year={2021}
+}
+```
+
 
 
