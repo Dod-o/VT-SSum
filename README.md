@@ -100,7 +100,7 @@ Each file(*.json) consists of 6 fields:
   
 ## Paper and Citation
 
-[VT-SSum: A Benchmark Dataset for Video Transcript Segmentation and Summarization](https://arxiv.org/abs/2106.05606v1) **[Preprint]**
+[VT-SSum: A Benchmark Dataset for Video Transcript Segmentation and Summarization](https://arxiv.org/abs/2106.05606) **[Preprint]**
 
 
 If you find VT-SSum useful in your research, please cite the following paper:
